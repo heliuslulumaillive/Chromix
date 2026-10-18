@@ -24,6 +24,20 @@ sys.dont_write_bytecode = True
 from patch_selection import select
 
 HEADER = re.compile(r"^--- (a/[^\r\n]+|/dev/null)\r?\n\+\+\+ (b/[^\r\n]+|/dev/null)\r?\n", re.M)
+HUNK = re.compile(r"^@@ [^\n]+\n", re.M)
+
+
+def retain_hunks(section: str, restore_markers: list[str]) -> str:
+    """Omit only reviewed cleanup hunks; preserve unrelated feature removals."""
+    matches = list(HUNK.finditer(section))
+    kept = []
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(section)
+        hunk = section[match.start():end]
+        changes = '\n'.join(line[1:] for line in hunk.splitlines() if line.startswith(('+', '-')))
+        if not any(marker in changes for marker in restore_markers):
+            kept.append(hunk)
+    return section[:matches[0].start()] + ''.join(kept) if kept else ''
 
 
 def sections(data: str):
@@ -58,6 +72,8 @@ def main():
     config = json.loads((args.repo / "build/google-services-win155.json").read_text())
     removed = set(config["remove_patches"])
     restore = {k: set(v) for k, v in config["restore_sections"].items()}
+    restore_hunks = config.get("restore_hunks", {})
+    windows_restore = {k: set(v) for k, v in config.get("restore_windows_sections", {}).items()}
     core = list(patch_series(args.core))
     windows = list(patch_series(args.windows))
     _, chromix_bytes = select(args.repo, "windows")
@@ -67,6 +83,9 @@ def main():
         if name in removed:
             targets.update(path for path, _, _ in sections(data))
         targets.update(restore.get(name, set()))
+        targets.update(restore_hunks.get(name, {}))
+    for name, _ in windows:
+        targets.update(windows_restore.get(name, set()))
     # Keep the existing flag definitions for backward-compatible startup args.
     # Restoring service behavior does not require removing their UI scaffolding.
     targets = {p for p in targets if not re.match(r"chrome/browser/(?:ungoogled|bromite)_.*\.h$", p)}
@@ -108,6 +127,12 @@ def main():
                     continue
                 if variant == "restored" and layer == "core" and (name in removed or path in restore.get(name, set())):
                     continue
+                if variant == "restored" and layer == "windows" and path in windows_restore.get(name, set()):
+                    continue
+                if variant == "restored" and layer == "core" and path in restore_hunks.get(name, {}):
+                    section = retain_hunks(section, restore_hunks[name][path])
+                    if not section:
+                        continue
                 selected.append(section)
             if not selected:
                 continue
@@ -128,6 +153,22 @@ def main():
         raise ValueError("Password-generation source changed")
     generation.write_text(text.replace(before, after), encoding="utf-8", newline="\n")
 
+    # This source's cleanup combines sign-in and Safe Browsing entries in one
+    # hunk. Restore the account entries without changing Safe Browsing policy.
+    factory = trees[1] / "chrome/browser/prefs/chrome_pref_service_factory.cc"
+    if factory.exists():
+        text = factory.read_text()
+        unrelated = [
+            '#include "components/safe_browsing/core/common/safe_browsing_prefs.h"\n',
+            '    {18, prefs::kSafeBrowsingIncidentsSent, EnforcementLevel::ENFORCE_ON_LOAD,\n'
+            '     PrefTrackingStrategy::ATOMIC, ValueType::IMPERSONAL},\n',
+        ]
+        for value in unrelated:
+            if text.count(value) != 1:
+                raise ValueError('The mixed preference cleanup changed')
+            text = text.replace(value, '')
+        factory.write_text(text, encoding='utf-8', newline='\n')
+
     differences, changed = [], []
     for name in sorted(targets):
         old, new = trees[0] / name, trees[1] / name
@@ -137,9 +178,14 @@ def main():
             differences.extend(difflib.unified_diff(a, b, fromfile="a/" + name if old.exists() else "/dev/null", tofile="b/" + name if new.exists() else "/dev/null"))
             changed.append(name)
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    if args.output.is_file() and args.output.read_text() != ''.join(differences):
+        previous = args.output.read_bytes()
+        history = args.output.parent / 'history'
+        history.mkdir(exist_ok=True)
+        (history / (hashlib.sha256(previous).hexdigest() + '.patch')).write_bytes(previous)
     args.output.write_text("".join(differences), encoding="utf-8", newline="\n")
     report = {"version": config["chromium_version"], "changed_files": changed, "source_inputs": sources, "patch_sha256": hashlib.sha256(args.output.read_bytes()).hexdigest(), "qualification": "Source replay only; requires native build and actual account tests"}
-    args.output.with_suffix(".json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    args.output.with_suffix(".json").write_text(json.dumps(report, indent=2), encoding="utf-8", newline="\n")
     print(json.dumps({"changed_files": len(changed), "patch_bytes": args.output.stat().st_size, "output": str(args.output)}, indent=2))
 
 

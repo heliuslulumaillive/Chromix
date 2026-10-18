@@ -3,7 +3,15 @@
   "changed_files": [
     "chrome/app/settings_chromium_strings.grdp",
     "chrome/app/settings_strings.grdp",
+    "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
     "chrome/browser/download/download_target_determiner.cc",
+    "chrome/browser/enterprise/signin/managed_profile_creation_controller.cc",
+    "chrome/browser/enterprise/signin/oidc_authentication_signin_interceptor.cc",
+    "chrome/browser/enterprise/signin/oidc_managed_profile_creation_delegate.cc",
+    "chrome/browser/enterprise/signin/profile_management_disclaimer_service.cc",
+    "chrome/browser/enterprise/signin/token_managed_profile_creation_delegate.cc",
+    "chrome/browser/extensions/api/identity/identity_get_auth_token_function.cc",
+    "chrome/browser/extensions/api/settings_private/prefs_util.cc",
     "chrome/browser/extensions/chrome_content_browser_client_extensions_part.cc",
     "chrome/browser/extensions/chrome_content_verifier_delegate.cc",
     "chrome/browser/extensions/component_extensions_allowlist/allowlist.cc",
@@ -14,7 +22,15 @@
     "chrome/browser/extensions/external_component_loader.cc",
     "chrome/browser/first_run/first_run.h",
     "chrome/browser/glic/glic_user_status_request.cc",
+    "chrome/browser/policy/browser_signin_policy_handler.cc",
+    "chrome/browser/policy/configuration_policy_handler_list_factory.cc",
+    "chrome/browser/prefs/browser_prefs.cc",
+    "chrome/browser/prefs/chrome_pref_service_factory.cc",
+    "chrome/browser/profiles/profile_attributes_entry.cc",
+    "chrome/browser/profiles/profile_attributes_storage.cc",
     "chrome/browser/profiles/profile_avatar_downloader.cc",
+    "chrome/browser/profiles/profile_impl.cc",
+    "chrome/browser/profiles/profile_manager.cc",
     "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
     "chrome/browser/resources/extensions/item_list.html.ts",
     "chrome/browser/resources/extensions/sidebar.html.ts",
@@ -23,23 +39,84 @@
     "chrome/browser/resources/history/side_bar.ts",
     "chrome/browser/resources/settings/privacy_page/personalization_options.html",
     "chrome/browser/resources/settings/privacy_page/personalization_options.ts",
+    "chrome/browser/signin/account_consistency_mode_manager.cc",
+    "chrome/browser/signin/account_preview_data_service_factory.cc",
+    "chrome/browser/signin/accounts_policy_manager.cc",
+    "chrome/browser/signin/accounts_policy_manager.h",
+    "chrome/browser/signin/bound_session_credentials/bound_session_cookie_refresh_service_factory.cc",
+    "chrome/browser/signin/chrome_device_id_helper.cc",
+    "chrome/browser/signin/dice_web_signin_interceptor.cc",
+    "chrome/browser/signin/header_modification_delegate_impl.cc",
+    "chrome/browser/signin/signin_promo.cc",
+    "chrome/browser/signin/signin_promo_util.cc",
+    "chrome/browser/signin/signin_util.cc",
+    "chrome/browser/signin/signin_util_win.cc",
+    "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.cc",
+    "chrome/browser/ui/browser_command_controller.cc",
+    "chrome/browser/ui/chrome_pages.cc",
+    "chrome/browser/ui/extensions/extension_post_install_dialog_model.cc",
+    "chrome/browser/ui/hats/trust_safety_sentiment_service.cc",
+    "chrome/browser/ui/profiles/profile_picker.cc",
+    "chrome/browser/ui/signin/dice_migration_service.cc",
+    "chrome/browser/ui/signin/signin_view_controller.cc",
     "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc",
     "chrome/browser/ui/toolbar/app_menu_model.cc",
+    "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc",
+    "chrome/browser/ui/views/profiles/profile_menu_view.cc",
+    "chrome/browser/ui/views/toolbar/app_menu.cc",
+    "chrome/browser/ui/views/user_education/browser_ntp_promos.cc",
+    "chrome/browser/ui/webui/cr_components/history/history_util.cc",
+    "chrome/browser/ui/webui/history/browsing_history_handler.cc",
+    "chrome/browser/ui/webui/history/history_ui.cc",
+    "chrome/browser/ui/webui/policy/policy_ui_handler.cc",
+    "chrome/browser/ui/webui/settings/people_handler.cc",
     "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc",
     "chrome/browser/ui/webui/settings/settings_ui.cc",
+    "chrome/browser/ui/webui/signin/inline_login_handler.cc",
+    "chrome/browser/ui/webui/signin/managed_user_profile_notice_handler.cc",
+    "chrome/browser/ui/webui/signin/managed_user_profile_notice_ui.cc",
+    "chrome/browser/ui/webui/signin/signin_utils_desktop.cc",
+    "chrome/browser/ui/webui/signin/turn_sync_on_helper.cc",
+    "chrome/browser/ui/webui/signin/turn_sync_on_helper_delegate_impl.cc",
     "chrome/browser/ui/webui/suggest_internals/suggest_internals_handler.cc",
     "chrome/common/google_url_loader_throttle.cc",
     "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
     "components/affiliations/core/browser/hash_affiliation_fetcher.h",
     "components/assist_ranker/ranker_url_fetcher.cc",
     "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc",
+    "components/collaboration/internal/collaboration_service_impl.cc",
+    "components/commerce/core/shopping_service.cc",
+    "components/commerce/core/subscriptions/subscriptions_server_proxy.cc",
+    "components/feed/core/v2/feed_stream.cc",
+    "components/feed/core/v2/public/feed_service.cc",
     "components/gcm_driver/gcm_client_impl.cc",
     "components/gcm_driver/gcm_driver_desktop.cc",
     "components/google/core/common/google_util.cc",
     "components/page_load_metrics/google/browser/google_url_util.cc",
     "components/password_manager/core/browser/password_feature_manager_impl.cc",
     "components/password_manager/core/browser/password_manager.cc",
+    "components/password_manager/core/browser/sync_credentials_filter.cc",
     "components/search_engines/template_url.cc",
+    "components/send_tab_to_self/entry_point_display_reason.cc",
+    "components/signin/core/browser/BUILD.gn",
+    "components/signin/core/browser/account_investigator.cc",
+    "components/signin/core/browser/account_investigator.h",
+    "components/signin/core/browser/account_preview_data_service.cc",
+    "components/signin/core/browser/account_preview_data_service_impl.cc",
+    "components/signin/core/browser/account_preview_metrics_recorder.cc",
+    "components/signin/core/browser/signin_metrics_service.cc",
+    "components/signin/internal/identity_manager/account_tracker_service.cc",
+    "components/signin/internal/identity_manager/gaia_cookie_manager_service.cc",
+    "components/signin/internal/identity_manager/primary_account_manager.cc",
+    "components/signin/internal/identity_manager/primary_account_mutator_impl.cc",
+    "components/signin/internal/identity_manager/profile_oauth2_token_service.cc",
+    "components/signin/public/base/BUILD.gn",
+    "components/signin/public/base/device_id_helper.cc",
+    "components/signin/public/base/signin_prefs.cc",
+    "components/signin/public/base/signin_switches.cc",
+    "components/signin/public/identity_manager/identity_utils.cc",
+    "components/supervised_user/core/browser/supervised_user_pref_store.cc",
+    "components/sync/service/sync_prefs.cc",
     "components/translate/core/browser/translate_language_list.cc",
     "components/translate/core/browser/translate_manager.cc",
     "components/translate/core/browser/translate_ranker_impl.cc",
@@ -64,8 +141,40 @@
       "sha256": "ff45194a6b8b6f7e9c6c0717065bb90cc4dcf9d1bee08ebf0700790ec9d7e3cb"
     },
     {
+      "path": "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
+      "sha256": "c538f6d0c4698f63acd10e7de51e8bfd5c77b393e4aacc070df97674ab3aea01"
+    },
+    {
       "path": "chrome/browser/download/download_target_determiner.cc",
       "sha256": "20c460af6833a7c0a2e3ed1f09ae8999681840542ab915dbe75b395de1fdd71c"
+    },
+    {
+      "path": "chrome/browser/enterprise/signin/managed_profile_creation_controller.cc",
+      "sha256": "08a9433eb520ca862a5ad467a3a085f83f63647e47dc69c8a0bd03237cdb9563"
+    },
+    {
+      "path": "chrome/browser/enterprise/signin/oidc_authentication_signin_interceptor.cc",
+      "sha256": "6ab412ce1bfad679f9083c989b5d93c50df0c086ef1fedc64d344312ec34d313"
+    },
+    {
+      "path": "chrome/browser/enterprise/signin/oidc_managed_profile_creation_delegate.cc",
+      "sha256": "50befaf305761be5bfa7fa37500cb8dce1906603c6ffe9b45b0664ed97fdc741"
+    },
+    {
+      "path": "chrome/browser/enterprise/signin/profile_management_disclaimer_service.cc",
+      "sha256": "c83dfa6c138eaffedeef3a623a5e3390bb233fd8f822eb9060d9948ff7345182"
+    },
+    {
+      "path": "chrome/browser/enterprise/signin/token_managed_profile_creation_delegate.cc",
+      "sha256": "5abdd7cd2aed7e4a1bc90708fa78461e4eadd37da07e74568bf63fddbb761309"
+    },
+    {
+      "path": "chrome/browser/extensions/api/identity/identity_get_auth_token_function.cc",
+      "sha256": "e6996b8878f88f8fe52f147139f896f4b2cef1e63c143fcdf63e50b3d117c968"
+    },
+    {
+      "path": "chrome/browser/extensions/api/settings_private/prefs_util.cc",
+      "sha256": "516fd7a9a10aeb47f9fbea4b913536c69925fbab948912f839d98b801c3c0bd4"
     },
     {
       "path": "chrome/browser/extensions/chrome_content_browser_client_extensions_part.cc",
@@ -108,8 +217,40 @@
       "sha256": "7e634afea97ec650ee72bc02952078029f089b29845ac883329066a8bfea48cb"
     },
     {
+      "path": "chrome/browser/policy/browser_signin_policy_handler.cc",
+      "sha256": "6d49daa792992ac38e13a489ce696a4f43c4b5065823e1b4b10153a650acc0eb"
+    },
+    {
+      "path": "chrome/browser/policy/configuration_policy_handler_list_factory.cc",
+      "sha256": "283fbc88da06cfa22a65b5f9315c07f682f8b880795f60b7e1c1581804130d71"
+    },
+    {
+      "path": "chrome/browser/prefs/browser_prefs.cc",
+      "sha256": "6ca2cc2e690bd8da668bb18ea72dc20945e075a40e92da16f3058808d4e84fbc"
+    },
+    {
+      "path": "chrome/browser/prefs/chrome_pref_service_factory.cc",
+      "sha256": "770ca6183f416ce1561ba7832793233a6f0b48ca99002f75606a7747e1915e12"
+    },
+    {
+      "path": "chrome/browser/profiles/profile_attributes_entry.cc",
+      "sha256": "f7730b23906724ee8021bd3c891804883caec4ed7c9522e6143250fd566403c6"
+    },
+    {
+      "path": "chrome/browser/profiles/profile_attributes_storage.cc",
+      "sha256": "e20b25590c17365cb2fae2cb3a31a19ef29c9ec6031c3d00f498cdbcbcdbc222"
+    },
+    {
       "path": "chrome/browser/profiles/profile_avatar_downloader.cc",
       "sha256": "f2b83e8ed3e997f6d02a7daee1099d8ef6207665969b3069cc5652a5ba451290"
+    },
+    {
+      "path": "chrome/browser/profiles/profile_impl.cc",
+      "sha256": "e887443652d48563145855e2c525426aa44ccd1dc1023a7e1068fa4c092f06eb"
+    },
+    {
+      "path": "chrome/browser/profiles/profile_manager.cc",
+      "sha256": "7bbb91ce3f1159b540666686b8cbc2e887a561978f9d7ebb7aa9230e42a7dec3"
     },
     {
       "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
@@ -144,6 +285,86 @@
       "sha256": "0033ef1056c631b3a7bf53977f2300d19e97309616eb001ee11506a1133aeb82"
     },
     {
+      "path": "chrome/browser/signin/account_consistency_mode_manager.cc",
+      "sha256": "2b875189414489a9030e7cdbfe056f7cb7b8c6b45afc47ec411bcd6afd620f17"
+    },
+    {
+      "path": "chrome/browser/signin/account_preview_data_service_factory.cc",
+      "sha256": "d1b276f5091274493b74af3b5ff5085ebeec13a47dd7b9e836484b17c76df5ff"
+    },
+    {
+      "path": "chrome/browser/signin/accounts_policy_manager.cc",
+      "sha256": "cc480fe69f45e07bac8df27c0aa3154867b317681c864f61268287e1e4240ae7"
+    },
+    {
+      "path": "chrome/browser/signin/accounts_policy_manager.h",
+      "sha256": "d5362be9c542bf2f02cb564df2e2110b5a35f03cfe3962226512f611ec6e2a03"
+    },
+    {
+      "path": "chrome/browser/signin/bound_session_credentials/bound_session_cookie_refresh_service_factory.cc",
+      "sha256": "bfa8c4af236866a93d1fd38488d76769ef00b6bdd487f1002b03a9ca93acf9d2"
+    },
+    {
+      "path": "chrome/browser/signin/chrome_device_id_helper.cc",
+      "sha256": "345bdeb9f05997232fcfc8a9d1955686e075cf1893941479f45aacc01af25baa"
+    },
+    {
+      "path": "chrome/browser/signin/dice_web_signin_interceptor.cc",
+      "sha256": "f80371ce6d113e806ffb4e55e18665539dc916fe67163082a9249f3b0419c586"
+    },
+    {
+      "path": "chrome/browser/signin/header_modification_delegate_impl.cc",
+      "sha256": "9728e5c9d2ac111fa0404451a0bc264fa3e38f841ef3f063d65ea508be37bff9"
+    },
+    {
+      "path": "chrome/browser/signin/signin_promo.cc",
+      "sha256": "ee1fda089c46d1080de0c6a722d73c22ae395ec18e4093534e19faa1d24b581b"
+    },
+    {
+      "path": "chrome/browser/signin/signin_promo_util.cc",
+      "sha256": "6ded97f8805bef644312463206d56cc05883c28fc9c7ad135369ae9a6721cbc9"
+    },
+    {
+      "path": "chrome/browser/signin/signin_util.cc",
+      "sha256": "d102e70ae1ab238651b65276895b0496c8c3c58ba524353ca168a0bceddab673"
+    },
+    {
+      "path": "chrome/browser/signin/signin_util_win.cc",
+      "sha256": "f0f93974979f653ccd18cdeab6e9faddc51f65311542b222d2b5e7c30437470d"
+    },
+    {
+      "path": "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.cc",
+      "sha256": "96f3b100c1244992ce38181ca00ec076f963ce63a8aebfdde0f0892c61d43831"
+    },
+    {
+      "path": "chrome/browser/ui/browser_command_controller.cc",
+      "sha256": "cadfe36a3496322103af5aa758475ce7af38fe878b8f158c57f8146d70e93a1f"
+    },
+    {
+      "path": "chrome/browser/ui/chrome_pages.cc",
+      "sha256": "a2b88dc636b91c68adbe46a69095dffa325245b127420be378e3f8cabb64175c"
+    },
+    {
+      "path": "chrome/browser/ui/extensions/extension_post_install_dialog_model.cc",
+      "sha256": "e88c10b7771b78eb9233949f4f6654216502c7c8179685a1e47f35f9f0fbff68"
+    },
+    {
+      "path": "chrome/browser/ui/hats/trust_safety_sentiment_service.cc",
+      "sha256": "beb04f8e4d750f6c7aa268ad7cfb365b1e2eada3d17631ccf6dbbf9266902c85"
+    },
+    {
+      "path": "chrome/browser/ui/profiles/profile_picker.cc",
+      "sha256": "dd9780c3c3f497ae82f5ff840bc99cc37e7c548a46ccbeac3088ef731baedf55"
+    },
+    {
+      "path": "chrome/browser/ui/signin/dice_migration_service.cc",
+      "sha256": "ba0d5024128357faa8c0b117329a052c3292be1137199923ff52e09401446493"
+    },
+    {
+      "path": "chrome/browser/ui/signin/signin_view_controller.cc",
+      "sha256": "c50d5697a392e95b66bf13e5cb9081eb98118ba8e9f57f84b189d523dddeb5a1"
+    },
+    {
       "path": "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc",
       "sha256": "e55739dd42b595f71542e0fc3af367b0fa67c4f71d347c28980690b69f0e9687"
     },
@@ -152,12 +373,72 @@
       "sha256": "5cb254d4614c5e99ad284212f5ce9734398422e8ead43fbdcfe732c99cae9c20"
     },
     {
+      "path": "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc",
+      "sha256": "93de47cbb1cbc58608fcdcfc18695987f6606344ad94da0d9973256d66a89518"
+    },
+    {
+      "path": "chrome/browser/ui/views/profiles/profile_menu_view.cc",
+      "sha256": "037911f6cc56c2d50da445e0af5ed962c8e0b1c7e1d065c79af6fab970072746"
+    },
+    {
+      "path": "chrome/browser/ui/views/toolbar/app_menu.cc",
+      "sha256": "4ea469b1d27b4a448e3cc722ef5709efcc7816e17e090930b939f731fae4083b"
+    },
+    {
+      "path": "chrome/browser/ui/views/user_education/browser_ntp_promos.cc",
+      "sha256": "9c76db0ff0d1d03e45ca932fe7a0ad778a80f247314dc8965e0f6f8c9874a970"
+    },
+    {
+      "path": "chrome/browser/ui/webui/cr_components/history/history_util.cc",
+      "sha256": "6137dad95759cc597edc838be0a6ad0c729e5b26e62e54a09924afe84d039246"
+    },
+    {
+      "path": "chrome/browser/ui/webui/history/browsing_history_handler.cc",
+      "sha256": "c7f8008d89207d8ead16bbab1b157c357ef224177beff29bf38cb8a87467be04"
+    },
+    {
+      "path": "chrome/browser/ui/webui/history/history_ui.cc",
+      "sha256": "0b5a5d1c1ba2c517ffb21429f848898d819fcbf36387c80c02696d3a20275847"
+    },
+    {
+      "path": "chrome/browser/ui/webui/policy/policy_ui_handler.cc",
+      "sha256": "f838a5485af2d51038ea886c974244ed4495feb393afdd6719fc8638c37a03d4"
+    },
+    {
+      "path": "chrome/browser/ui/webui/settings/people_handler.cc",
+      "sha256": "1506c17c69c3f315b4c861a5ad69be5d295b785496c3cd5a9c0da1910d8ca69a"
+    },
+    {
       "path": "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc",
       "sha256": "1b51f3398d3d74be79db67019bdf0b810f54ad80a47b267a5a707262f1217017"
     },
     {
       "path": "chrome/browser/ui/webui/settings/settings_ui.cc",
       "sha256": "f3191ed1e1e165c3a1de4d945210a2343e52f149553ecd534b29a5b730930f75"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/inline_login_handler.cc",
+      "sha256": "5edd9a3304fc25d1b8cf2d08045fcc962238a07b580efdbed007bd837b9defeb"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/managed_user_profile_notice_handler.cc",
+      "sha256": "ef1917180a13793727f9411f0b26b1098b6bedda3e3722e91808eb212235dff2"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/managed_user_profile_notice_ui.cc",
+      "sha256": "a1a46a27d1c2bc5a8fee4b79058f5f1c1adf264f88da9fdf9ad6763123aaebaa"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/signin_utils_desktop.cc",
+      "sha256": "633c8235f6484c37ca56b947f2caa382dca87beab9813488bf360d06ff6c7232"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/turn_sync_on_helper.cc",
+      "sha256": "d7fdb37136b9ec84871ccb2eebb9d85e83a7c581bd726e2c2a36faa8a41f9101"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/turn_sync_on_helper_delegate_impl.cc",
+      "sha256": "654e7f2cc0814a3ad4d213818bef8f79a92636b98d842b13304db3b71cb472a4"
     },
     {
       "path": "chrome/browser/ui/webui/suggest_internals/suggest_internals_handler.cc",
@@ -184,6 +465,26 @@
       "sha256": "f3abdb8791a542be8af550f67247445c665aee1cb720eb378b7de1a50df72b4b"
     },
     {
+      "path": "components/collaboration/internal/collaboration_service_impl.cc",
+      "sha256": "fa0c5948ccdb1ccec0706bce8d5a15fd0b21eaf96db133b4c0c7a19c5d00e7dc"
+    },
+    {
+      "path": "components/commerce/core/shopping_service.cc",
+      "sha256": "491faa13f6412c7bd3473a7cd2b8cd56cc1759546d9ba2aec5ec29e8e8a1a53f"
+    },
+    {
+      "path": "components/commerce/core/subscriptions/subscriptions_server_proxy.cc",
+      "sha256": "cbdec3221e105768537e61466663508deb2ef0f182e488ac288910126dadea4d"
+    },
+    {
+      "path": "components/feed/core/v2/feed_stream.cc",
+      "sha256": "01743bb43c0b335c866414d99ae657e9979de9bac9118b5ba3426036ccabfc99"
+    },
+    {
+      "path": "components/feed/core/v2/public/feed_service.cc",
+      "sha256": "cd5501f243d3867aabb56aba271375febe73ed245632492b11a7b3d08b2595e8"
+    },
+    {
       "path": "components/gcm_driver/gcm_client_impl.cc",
       "sha256": "694e3d26d492256a6b4af9a9993b3d35d41dbbf47cb731166686616244115163"
     },
@@ -208,8 +509,100 @@
       "sha256": "c998594a3e9ab58cab8ce460b695b48a75c7139e34594443f0f3c6fe5af898a7"
     },
     {
+      "path": "components/password_manager/core/browser/sync_credentials_filter.cc",
+      "sha256": "8a7cc68c5038a243a6a1dc9c38de55fe7681a59adf87c774f49bca71641218f5"
+    },
+    {
       "path": "components/search_engines/template_url.cc",
       "sha256": "7c41dd1407cce63af55a6720a93f1651a2ac00ec1d37fe37f40025e83ee72d1c"
+    },
+    {
+      "path": "components/send_tab_to_self/entry_point_display_reason.cc",
+      "sha256": "dbe16eb70d82ca1ced474a0790525b28282a358a7d2ceff64f752b6a3256b41e"
+    },
+    {
+      "path": "components/signin/core/browser/BUILD.gn",
+      "sha256": "7b24d91088b757302d0a9ee751c95861f0d5b9bba819ba335e36392266f81d47"
+    },
+    {
+      "path": "components/signin/core/browser/account_investigator.cc",
+      "sha256": "cb5ee1cbca8c8d99330125db8c41b12146f43e8195bbd65248edfd72bc622dca"
+    },
+    {
+      "path": "components/signin/core/browser/account_investigator.h",
+      "sha256": "2c7a977d263d75eed99de0369628fdde92aba03b6de23bce7c3fe2ee24159b5c"
+    },
+    {
+      "path": "components/signin/core/browser/account_preview_data_service.cc",
+      "sha256": "d7a14a4108387dce018d0e065e74ff451fb30897c6900182c6887da91bf2a399"
+    },
+    {
+      "path": "components/signin/core/browser/account_preview_data_service_impl.cc",
+      "sha256": "f5a39173f77b390f13a689b4f6d248c3f0367c3565be1aef6f67efa51285fbe7"
+    },
+    {
+      "path": "components/signin/core/browser/account_preview_metrics_recorder.cc",
+      "sha256": "936e3f8d4158fd214efa1edd28ae1a2e1bdb0dc3ecab537c037943b2a1b76fd8"
+    },
+    {
+      "path": "components/signin/core/browser/signin_metrics_service.cc",
+      "sha256": "cddbfabb3d22c1df0aedaab64dfaf80acc59edfd287c834d59a5722d2bf85ae3"
+    },
+    {
+      "path": "components/signin/internal/identity_manager/account_tracker_service.cc",
+      "sha256": "05d854fc87b23f3ee78756e232402dbbd128e754b9b63021d5777497091129f0"
+    },
+    {
+      "path": "components/signin/internal/identity_manager/gaia_cookie_manager_service.cc",
+      "sha256": "065fb50c3c08b7577ad3bb5a8bf7065bdec88bdb56cba7294a5f1d317e5bb7e4"
+    },
+    {
+      "path": "components/signin/internal/identity_manager/primary_account_manager.cc",
+      "sha256": "06b6386e4ee5dbeca57443e64d97b0f5b8be3e93e60b1a792e9d9aa7b8a96ac3"
+    },
+    {
+      "path": "components/signin/internal/identity_manager/primary_account_mutator_impl.cc",
+      "sha256": "1a773e65d8c27ec33b18a185c62b6fb09c3eba733be6425909ea0a182de4052c"
+    },
+    {
+      "path": "components/signin/internal/identity_manager/profile_oauth2_token_service.cc",
+      "sha256": "48f2c09ea57bac55417c3497130db4e071737f7f8d84823b39a9c3e5b2273bb9"
+    },
+    {
+      "path": "components/signin/public/base/BUILD.gn",
+      "sha256": "8b957950a7c26261b5d3a57ef22f2952fb83f5a0ddb552ccbd836c2119d5bac0"
+    },
+    {
+      "path": "components/signin/public/base/device_id_helper.cc",
+      "sha256": "f0ea15e53bb100b2efb9ab7367328acdee46a54b4ec88b487e53b24cad8d39df"
+    },
+    {
+      "path": "components/signin/public/base/signin_pref_names.cc",
+      "sha256": "e77940299b11aac74f06f3a75e154754d2b181ac2883e3de95a380eed32ada96"
+    },
+    {
+      "path": "components/signin/public/base/signin_pref_names.h",
+      "sha256": "0a804bc27dd6016198be4408436ef212bf872066107802bac1eff5846d918496"
+    },
+    {
+      "path": "components/signin/public/base/signin_prefs.cc",
+      "sha256": "68795d2e58da7e09647ce65b6f43f657617c0d784c0e816f110856b5d431b549"
+    },
+    {
+      "path": "components/signin/public/base/signin_switches.cc",
+      "sha256": "c0907ac5a84ef8bffff292700c2f323af01389c0d6680190fd44dafaf65d7d0f"
+    },
+    {
+      "path": "components/signin/public/identity_manager/identity_utils.cc",
+      "sha256": "a41921ab549b1b2cb4c00625542e669a4303ff274677288c2975c9fa82148d5e"
+    },
+    {
+      "path": "components/supervised_user/core/browser/supervised_user_pref_store.cc",
+      "sha256": "d2fcf03f159a7cc294bf8cb0aea5ad3291b8aa1c40eaffb3ab304c98a64fb658"
+    },
+    {
+      "path": "components/sync/service/sync_prefs.cc",
+      "sha256": "2d2d975cdf415a641d5471039d9008be1236f870a172649a1774d62c4075939a"
     },
     {
       "path": "components/translate/core/browser/translate_language_list.cc",
@@ -264,6 +657,6 @@
       "sha256": "dc31de78a9a9b03fe24ea42e8876aa95bba86a3a30da17429397bae403db6e3f"
     }
   ],
-  "patch_sha256": "ddf1a115582dc1583a8f664747a0943b77c60d040a6e04f8af3ebfd9bc3b284a",
+  "patch_sha256": "6f45276684e794e7ae89f88ba06158ea667e20ee2291ede36fdb3fbc7c914145",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

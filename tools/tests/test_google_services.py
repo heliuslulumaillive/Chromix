@@ -6,10 +6,13 @@ import tarfile
 import tempfile
 import unittest
 import re
+import sys
+from unittest import mock
 
 spec = importlib.util.spec_from_file_location('google_restore', Path(__file__).parents[1] / 'prepare_google_services.py')
 module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module)
+with mock.patch.object(sys, 'path', [str(Path(__file__).parents[1]), *sys.path]):
+    spec.loader.exec_module(module)
 
 
 class DomainRestorationTest(unittest.TestCase):

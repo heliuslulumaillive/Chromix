@@ -5,10 +5,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
 import tarfile
+from verify_google_services_source import verify as verify_signin_source
 
 CPP_TOKENS = re.compile(
     r'(?P<raw>R"(?P<delimiter>[^ ()\\\t\r\n]{0,16})\([\s\S]*?\)(?P=delimiter)")'
@@ -89,6 +91,7 @@ def restore_domains(src: Path, cache: Path | None, rules: Path, filelist: Path, 
     inverses = pinned_inverse_rules(rules) if pinned else None
     mapping, names = ({}, set()) if pinned else reverse_map(cache, rules)
     names.update(x.strip() for x in filelist.read_text().splitlines() if x.strip() and not x.startswith("#"))
+    names.update(full_files)
     pattern = re.compile("|".join(re.escape(x) for x in sorted(mapping, key=len, reverse=True))) if mapping else None
     changed, occurrences = 0, 0
     for name in sorted(names):
@@ -126,10 +129,28 @@ def restore_domains(src: Path, cache: Path | None, rules: Path, filelist: Path, 
     return {"files_changed": changed, "replacements": occurrences, "mapping_entries": len(inverses or mapping)}
 
 
-def apply_patch(src: Path, executable: str, patch: Path):
-    run = subprocess.run([executable, "-p1", "--batch", "--forward", "--fuzz=0", "--no-backup-if-mismatch", "-i", str(patch.resolve())], cwd=src, capture_output=True, text=True, encoding="utf-8", errors="replace")
-    if run.returncode:
-        raise RuntimeError(run.stdout + run.stderr)
+def apply_patch(src: Path, executable: str, patch: Path, *, reverse=False):
+    command = [executable, "-p1", "--batch", "--reverse" if reverse else "--forward", "--fuzz=0", "--no-backup-if-mismatch", "-i", str(patch.resolve())]
+    for extra in (["--dry-run"], []):
+        run = subprocess.run(command + extra, cwd=src, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if run.returncode:
+            raise RuntimeError(run.stdout + run.stderr)
+
+
+def recipe_identity(repo: Path):
+    files = [
+        'tools/prepare_google_services.py', 'tools/verify_google_services_source.py',
+        'build/google-services-win155.json',
+        'patches/google-services/0001-restore-google-services.patch',
+        'patches/google-services/0001-restore-google-services.json',
+        'patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch',
+    ]
+    inputs = {name: hashlib.sha256((repo / name).read_bytes()).hexdigest() for name in files}
+    return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest(), inputs
+
+
+def patch_paths(patch: Path):
+    return set(re.findall(r'^(?:--- a/|\+\+\+ b/)([^\r\n]+)', patch.read_text(), re.M))
 
 
 def main():
@@ -141,22 +162,42 @@ def main():
     src = args.work / "src"
     patch = args.repo / "patches/google-services/0001-restore-google-services.patch"
     digest = hashlib.sha256(patch.read_bytes()).hexdigest()
+    recipe, recipe_inputs = recipe_identity(args.repo)
     marker = args.work / "google-services-source.json"
-    if marker.exists():
-        saved = json.loads(marker.read_text())
-        if saved.get("patch_sha256") != digest:
-            raise ValueError("The service patch changed; start from the original checkpoint")
-        print("Google-service source is already prepared")
-        return
     blocker = args.work / ".google-services-preparing"
     if blocker.exists():
         raise ValueError("Source preparation was interrupted; restore a clean checkpoint")
+    saved = None
+    old_patch = None
+    if marker.exists():
+        saved = json.loads(marker.read_text())
+        if saved.get('variant') != 'google-services-self-use':
+            raise ValueError('Unsupported source preparation marker')
+        if saved.get("patch_sha256") != digest:
+            previous = saved.get('patch_sha256', '')
+            if not re.fullmatch(r'[a-f0-9]{64}', previous):
+                raise ValueError('Invalid previous patch identity')
+            old_patch = args.repo / 'patches/google-services/history' / (previous + '.patch')
+            if not old_patch.is_file() or hashlib.sha256(old_patch.read_bytes()).hexdigest() != previous:
+                raise ValueError('Previous service patch is unavailable; restore its matching checkpoint or patch history')
+        elif saved.get('preparation_sha256') == recipe:
+            verify_signin_source(src)
+            print("Google-service source is already prepared and source checks passed")
+            return
     version = (src / "chrome/VERSION").read_text()
     if dict(re.findall(r"(?m)^(MAJOR|MINOR|BUILD|PATCH)=(\d+)\s*$", version)) != {"MAJOR":"155","MINOR":"0","BUILD":"8059","PATCH":"39"}:
         raise ValueError("This restoration is limited to Chromium 155.0.8059.39")
     cache = next((args.work / n for n in ["domain_substitution_cache.tar.gz", "domain_substitution_cache.tar"] if (args.work / n).is_file()), None)
     blocker.write_text(digest)
     affected = set(json.loads(patch.with_suffix(".json").read_text())["changed_files"])
+    if old_patch:
+        affected.update(patch_paths(old_patch))
+    before = {}
+    for name in affected:
+        path = inside(src, name)
+        if path.is_file():
+            info = path.stat()
+            before[name] = (path.read_bytes(), info.st_atime_ns, info.st_mtime_ns)
     # Imported upstream snapshots need not retain the original substitution
     # archive. The pinned reversible rules also cover strings added afterward.
     domains = restore_domains(src, cache, args.work / "tooling/ungoogled-chromium/domain_regex.list", args.work / "tooling/ungoogled-chromium-windows/domain_substitution.list", affected, pinned=True)
@@ -164,11 +205,21 @@ def main():
     renderer = src / "content/renderer/render_thread_impl.cc"
     if "blink::WebString::FromUTF8(timezone)" in renderer.read_text():
         apply_patch(src, args.patch_bin, args.repo / "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch")
-    apply_patch(src, args.patch_bin, patch)
+    if old_patch:
+        apply_patch(src, args.patch_bin, old_patch, reverse=True)
+    if not saved or old_patch:
+        apply_patch(src, args.patch_bin, patch)
     checker = (src / "content/browser/webauth/webauth_request_security_checker_impl.h").read_text()
     if "https://www.gstatic.com/securitykey/origins.json" not in checker:
         raise ValueError("Google WebAuthn AppID was not restored")
-    report = {"variant": "google-services-self-use", "chromium_version": "155.0.8059.39", "patch_sha256": digest, "domain_restoration": domains, "google_account_and_cloud_access": "not_tested", "credentials": "runtime_environment_only"}
+    checked = verify_signin_source(src)
+    preserved = 0
+    for name, (content, access_ns, modification_ns) in before.items():
+        path = inside(src, name)
+        if path.is_file() and path.read_bytes() == content:
+            os.utime(path, ns=(access_ns, modification_ns))
+            preserved += 1
+    report = {"variant": "google-services-self-use", "chromium_version": "155.0.8059.39", "patch_sha256": digest, "preparation_sha256": recipe, "preparation_inputs": recipe_inputs, "source_checks": checked, "unchanged_source_timestamps_preserved": preserved, "domain_restoration": domains, "google_account_and_cloud_access": "not_tested", "credentials": "runtime_environment_only"}
     marker.write_text(json.dumps(report, indent=2), encoding="utf-8")
     blocker.unlink()
     print("Google-service source prepared; existing fingerprint and Windows storage implementations retained")

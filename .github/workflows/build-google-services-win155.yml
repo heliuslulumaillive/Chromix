@@ -7,11 +7,14 @@ on:
       - '.github/workflows/google-services-win155-worker.yml'
       - 'build/windows/build-google-services.ps1'
       - 'tools/prepare_google_services.py'
+      - 'tools/verify_google_services_source.py'
+      - 'tools/build_google_services_patch.py'
+      - 'build/google-services-win155.json'
       - 'patches/google-services/**'
   workflow_dispatch:
     inputs:
       resume_run:
-        description: 'Optional previous run with a google-win155-tree checkpoint'
+        description: 'Previous run to resume; empty selects the latest complete checkpoint, then the pinned upstream cache'
         type: string
         default: ''
 concurrency:

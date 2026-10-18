@@ -37,9 +37,171 @@
       "chrome/browser/ui/toolbar/app_menu_model.cc",
       "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc",
       "chrome/browser/ui/webui/settings/settings_ui.cc"
+    ],
+    "core/ungoogled-chromium/remove-unused-preferences-fields.patch": [
+      "chrome/browser/enterprise/signin/managed_profile_creation_controller.cc",
+      "chrome/browser/enterprise/signin/oidc_authentication_signin_interceptor.cc",
+      "chrome/browser/enterprise/signin/oidc_managed_profile_creation_delegate.cc",
+      "chrome/browser/enterprise/signin/profile_management_disclaimer_service.cc",
+      "chrome/browser/enterprise/signin/token_managed_profile_creation_delegate.cc",
+      "chrome/browser/policy/browser_signin_policy_handler.cc",
+      "chrome/browser/prefs/chrome_pref_service_factory.cc",
+      "chrome/browser/profiles/profile_attributes_entry.cc",
+      "chrome/browser/profiles/profile_attributes_storage.cc",
+      "chrome/browser/profiles/profile_impl.cc",
+      "chrome/browser/profiles/profile_manager.cc",
+      "chrome/browser/signin/account_consistency_mode_manager.cc",
+      "chrome/browser/signin/account_preview_data_service_factory.cc",
+      "chrome/browser/signin/accounts_policy_manager.cc",
+      "chrome/browser/signin/accounts_policy_manager.h",
+      "chrome/browser/signin/bound_session_credentials/bound_session_cookie_refresh_service_factory.cc",
+      "chrome/browser/signin/chrome_device_id_helper.cc",
+      "chrome/browser/signin/dice_web_signin_interceptor.cc",
+      "chrome/browser/signin/header_modification_delegate_impl.cc",
+      "chrome/browser/signin/signin_promo.cc",
+      "chrome/browser/signin/signin_promo_util.cc",
+      "chrome/browser/signin/signin_util.cc",
+      "chrome/browser/signin/signin_util_win.cc",
+      "chrome/browser/ui/profiles/profile_picker.cc",
+      "chrome/browser/ui/signin/dice_migration_service.cc",
+      "chrome/browser/ui/signin/signin_view_controller.cc",
+      "chrome/browser/ui/toolbar/app_menu_model.cc",
+      "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc",
+      "chrome/browser/ui/views/profiles/profile_menu_view.cc",
+      "chrome/browser/ui/webui/settings/people_handler.cc",
+      "chrome/browser/ui/webui/signin/inline_login_handler.cc",
+      "chrome/browser/ui/webui/signin/managed_user_profile_notice_handler.cc",
+      "chrome/browser/ui/webui/signin/managed_user_profile_notice_ui.cc",
+      "chrome/browser/ui/webui/signin/signin_utils_desktop.cc",
+      "chrome/browser/ui/webui/signin/turn_sync_on_helper.cc",
+      "chrome/browser/ui/webui/signin/turn_sync_on_helper_delegate_impl.cc",
+      "components/password_manager/core/browser/sync_credentials_filter.cc",
+      "components/send_tab_to_self/entry_point_display_reason.cc",
+      "components/signin/core/browser/BUILD.gn",
+      "components/signin/core/browser/account_investigator.cc",
+      "components/signin/core/browser/account_investigator.h",
+      "components/signin/core/browser/account_preview_data_service.cc",
+      "components/signin/core/browser/account_preview_data_service_impl.cc",
+      "components/signin/core/browser/account_preview_metrics_recorder.cc",
+      "components/signin/core/browser/signin_metrics_service.cc",
+      "components/signin/internal/identity_manager/account_tracker_service.cc",
+      "components/signin/internal/identity_manager/gaia_cookie_manager_service.cc",
+      "components/signin/internal/identity_manager/primary_account_manager.cc",
+      "components/signin/internal/identity_manager/primary_account_mutator_impl.cc",
+      "components/signin/internal/identity_manager/profile_oauth2_token_service.cc",
+      "components/signin/public/base/BUILD.gn",
+      "components/signin/public/base/device_id_helper.cc",
+      "components/signin/public/base/signin_prefs.cc",
+      "components/signin/public/base/signin_switches.cc",
+      "components/signin/public/identity_manager/identity_utils.cc",
+      "components/sync/service/sync_prefs.cc"
     ]
   },
   "extra_sources": [
-    "components/password_manager/core/browser/password_feature_manager_impl.cc"
-  ]
+    "components/password_manager/core/browser/password_feature_manager_impl.cc",
+    "components/signin/public/base/signin_pref_names.cc",
+    "components/signin/public/base/signin_pref_names.h"
+  ],
+  "restore_hunks": {
+    "core/ungoogled-chromium/remove-unused-preferences-fields.patch": {
+      "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc": [
+        "kSigninAllowed",
+        "kSigninAllowedOnNextStartup",
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/extensions/api/identity/identity_get_auth_token_function.cc": [
+        "kSigninAllowed",
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/extensions/api/settings_private/prefs_util.cc": [
+        "kSigninAllowed",
+        "kSigninAllowedOnNextStartup",
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/policy/configuration_policy_handler_list_factory.cc": [
+        "kGoogleServicesUsernamePattern",
+        "kProfileSeparationDataMigrationSettings",
+        "kProfileSeparationDomainExceptionList",
+        "kProfileSeparationSettings",
+        "kSigninAllowed",
+        "kSigninAllowedOnNextStartup",
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/prefs/browser_prefs.cc": [
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.cc": [
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/ui/browser_command_controller.cc": [
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/ui/chrome_pages.cc": [
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/ui/extensions/extension_post_install_dialog_model.cc": [
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/ui/hats/trust_safety_sentiment_service.cc": [
+        "kGoogleServicesConsentedToSync",
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/ui/views/toolbar/app_menu.cc": [
+        "kSigninAllowed",
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/ui/views/user_education/browser_ntp_promos.cc": [
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/ui/webui/cr_components/history/history_util.cc": [
+        "kSigninAllowed",
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/ui/webui/history/browsing_history_handler.cc": [
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/ui/webui/history/history_ui.cc": [
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/ui/webui/policy/policy_ui_handler.cc": [
+        "kUserCloudSigninPolicyResponseFromPolicyTestPage",
+        "signin_pref_names.h"
+      ],
+      "chrome/browser/ui/webui/settings/settings_ui.cc": [
+        "kSigninAllowed",
+        "signin_pref_names.h"
+      ],
+      "components/collaboration/internal/collaboration_service_impl.cc": [
+        "kBrowserSigninPolicy",
+        "kSigninAllowed",
+        "kSigninAllowedOnNextStartup",
+        "signin_pref_names.h"
+      ],
+      "components/commerce/core/shopping_service.cc": [
+        "signin_pref_names.h"
+      ],
+      "components/commerce/core/subscriptions/subscriptions_server_proxy.cc": [
+        "signin_pref_names.h"
+      ],
+      "components/feed/core/v2/feed_stream.cc": [
+        "kSigninAllowed",
+        "signin_pref_names.h"
+      ],
+      "components/feed/core/v2/public/feed_service.cc": [
+        "kSigninAllowed",
+        "signin_pref_names.h"
+      ],
+      "components/supervised_user/core/browser/supervised_user_pref_store.cc": [
+        "kSigninAllowed",
+        "kSigninAllowedOnNextStartup",
+        "signin_pref_names.h"
+      ]
+    }
+  },
+  "restore_windows_sections": {
+    "ungoogled-chromium/windows/windows-fix-remove-unused-preferences-fields.patch": [
+      "chrome/browser/enterprise/signin/profile_management_disclaimer_service.cc",
+      "chrome/browser/policy/configuration_policy_handler_list_factory.cc"
+    ]
+  }
 }
