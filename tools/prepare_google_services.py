@@ -16,6 +16,37 @@ CPP_TOKENS = re.compile(
     r'|(?P<comment>//[^\r\n]*|/\*[\s\S]*?\*/)'
 )
 
+DOMAIN_RULES_SHA256 = 'f59c4316b4ac32f9dfe4f6440c4cf9ad5dab0ab8827769f5dc2587ca07e91f09'
+DOMAIN_INVERSES = [
+    (r'f0ntz(\\*?)\.9oo91e8p1(\\*?)\.qjz9zk', r'fonts\g<1>.googleapis\g<2>.com'),
+    (r'9oo91e([A-Za-z\-]*?\\*?)\.qjz9zk', r'google\g<1>.com'),
+    (r'95tat1c([A-Za-z\-]*?\\*?)\.qjz9zk', r'gstatic\g<1>.com'),
+    (r'ch40me([A-Za-z\-]*?\\*?)\.qjz9zk', r'chrome\g<1>.com'),
+    (r'ch40m1um([A-Za-z\-]*?\\*?)\.qjz9zk', r'chromium\g<1>.org'),
+    (r'm0z111a([A-Za-z\-]*?\\*?)\.qjz9zk', r'mozilla\g<1>.org'),
+    (r'f8c3b00k([A-Za-z\-]*?\\*?)\.qjz9zk', r'facebook\g<1>.com'),
+    (r'8pp2p8t([A-Za-z\-]*?\\*?)\.qjz9zk', r'appspot\g<1>.com'),
+    (r'y0u1ub3([A-Za-z\-]*?\\*?)\.qjz9zk', r'youtube\g<1>.com'),
+    (r'yt1mg([A-Za-z\-]*?\\*?)\.qjz9zk', r'ytimg\g<1>.com'),
+    (r'9ma1l([A-Za-z\-]*?\\*?)\.qjz9zk', r'gmail\g<1>.com'),
+    (r'60u613cl1c4([A-Za-z\-]*?\\*?)\.n3t\.qjz9zk', r'doubleclick\g<1>.net'),
+    (r'60u613cl1c4([A-Za-z\-]*?\\*?)\.c0m\.qjz9zk', r'doubleclick\g<1>.com'),
+    (r'9oo91e21p(\\*?)\.qjz9zk', r'googlezip\g<1>.net'),
+    (r'b3ac0n2([1-9]?\\*?)\.9vt([1-9]?\\*?)\.qjz9zk', r'beacons\g<1>.gvt\g<2>.com'),
+    (r'99pht(\\*?)\.qjz9zk', r'ggpht\g<1>.com'),
+    (r'm1cr050ft(\\*?)\.qjz9zk', r'microsoft\g<1>.com'),
+    (r'l3lOO(\\*?)\.qjz9zk', r'1e100\g<1>.net'),
+    (r'8n6r01d(\\*?)\.qjz9zk', r'android\g<1>.com'),
+    (r'goo\.gl(e?)\.qjz9zk', r'goo.gl\g<1>'),
+    (r'pr1v4cy54ndb0x([A-Za-z\-]*?\\*?)\.qjz9zk', r'privacysandbox\g<1>.com'),
+]
+
+
+def pinned_inverse_rules(rules: Path):
+    if hashlib.sha256(rules.read_bytes().replace(b'\r\n', b'\n')).hexdigest() != DOMAIN_RULES_SHA256:
+        raise ValueError('Domain rules do not match this Windows 155 checkpoint')
+    return [(re.compile(pattern), replacement) for pattern, replacement in reversed(DOMAIN_INVERSES)]
+
 
 def inside(root: Path, relative: str) -> Path:
     path = (root / relative).resolve()
@@ -54,10 +85,11 @@ def reverse_map(cache: Path, rules: Path):
     return mapping, paths
 
 
-def restore_domains(src: Path, cache: Path, rules: Path, filelist: Path, full_files=()):
-    mapping, names = reverse_map(cache, rules)
+def restore_domains(src: Path, cache: Path | None, rules: Path, filelist: Path, full_files=(), *, pinned=False):
+    inverses = pinned_inverse_rules(rules) if pinned else None
+    mapping, names = ({}, set()) if pinned else reverse_map(cache, rules)
     names.update(x.strip() for x in filelist.read_text().splitlines() if x.strip() and not x.startswith("#"))
-    pattern = re.compile("|".join(re.escape(x) for x in sorted(mapping, key=len, reverse=True)))
+    pattern = re.compile("|".join(re.escape(x) for x in sorted(mapping, key=len, reverse=True))) if mapping else None
     changed, occurrences = 0, 0
     for name in sorted(names):
         if Path(name).parts[0] == "out":
@@ -72,6 +104,11 @@ def restore_domains(src: Path, cache: Path, rules: Path, filelist: Path, full_fi
         count = 0
         def replace_domains(value):
             nonlocal count
+            if inverses:
+                for inverse, replacement in inverses:
+                    value, hits = inverse.subn(replacement, value)
+                    count += hits
+                return value
             result, hits = pattern.subn(lambda match: mapping[match[0]], value)
             count += hits
             return result
@@ -86,7 +123,7 @@ def restore_domains(src: Path, cache: Path, rules: Path, filelist: Path, full_fi
             path.write_bytes(updated)
             changed += 1
             occurrences += count
-    return {"files_changed": changed, "replacements": occurrences, "mapping_entries": len(mapping)}
+    return {"files_changed": changed, "replacements": occurrences, "mapping_entries": len(inverses or mapping)}
 
 
 def apply_patch(src: Path, executable: str, patch: Path):
@@ -118,11 +155,11 @@ def main():
     if dict(re.findall(r"(?m)^(MAJOR|MINOR|BUILD|PATCH)=(\d+)\s*$", version)) != {"MAJOR":"155","MINOR":"0","BUILD":"8059","PATCH":"39"}:
         raise ValueError("This restoration is limited to Chromium 155.0.8059.39")
     cache = next((args.work / n for n in ["domain_substitution_cache.tar.gz", "domain_substitution_cache.tar"] if (args.work / n).is_file()), None)
-    if cache is None:
-        raise FileNotFoundError("The checkpoint has no domain-substitution cache")
     blocker.write_text(digest)
     affected = set(json.loads(patch.with_suffix(".json").read_text())["changed_files"])
-    domains = restore_domains(src, cache, args.work / "tooling/ungoogled-chromium/domain_regex.list", args.work / "tooling/ungoogled-chromium-windows/domain_substitution.list", affected)
+    # Imported upstream snapshots need not retain the original substitution
+    # archive. The pinned reversible rules also cover strings added afterward.
+    domains = restore_domains(src, cache, args.work / "tooling/ungoogled-chromium/domain_regex.list", args.work / "tooling/ungoogled-chromium-windows/domain_substitution.list", affected, pinned=True)
     print(json.dumps({"domain_restoration": domains}), flush=True)
     renderer = src / "content/renderer/render_thread_impl.cc"
     if "blink::WebString::FromUTF8(timezone)" in renderer.read_text():
