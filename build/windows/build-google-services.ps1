@@ -5,7 +5,10 @@ param(
   [int]$Stage = 1,
   [string]$ResumeRun = '',
   [string]$Repository = $env:GITHUB_REPOSITORY,
-  [int]$CompileMinutes = 190
+  [ValidateRange(5, 300)]
+  [int]$CompileMinutes = 300,
+  [ValidateRange(30, 120)]
+  [int]$FinalizeReserveMinutes = 50
 )
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted') {
@@ -55,30 +58,8 @@ if ($Phase -eq 'Prerequisites') {
 }
 
 if ($Phase -eq 'Restore') {
+  if (-not $ResumeRun) { throw 'An explicit completed checkpoint is required; no cold or upstream fallback is allowed' }
   New-Item -ItemType Directory -Path $restore -Force | Out-Null
-  if (-not $ResumeRun) {
-    $recent = & $gh api "repos/$Repository/actions/artifacts?per_page=100" | ConvertFrom-Json
-    if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect recent checkpoints' }
-    $complete = @($recent.artifacts | Where-Object { $_.name -match '^google-win155-checkpoint-s[0-9]+$' -and -not $_.expired } | Sort-Object created_at -Descending)
-    if ($complete.Count) {
-      $ResumeRun = [string]$complete[0].workflow_run.id
-      Write-Host "Using the newest completed Google-service checkpoint from run $ResumeRun"
-    } else {
-      # The first fixed run can reuse the old worker's objects once that workflow
-      # has completed successfully, even though it predates completion manifests.
-      $successful = & $gh api "repos/$Repository/actions/workflows/build-google-services-win155.yml/runs?status=success&per_page=10" | ConvertFrom-Json
-      if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect legacy checkpoint runs' }
-      foreach ($previousRun in $successful.workflow_runs) {
-        $previous = & $gh api "repos/$Repository/actions/runs/$($previousRun.id)/artifacts?per_page=100" | ConvertFrom-Json
-        if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect legacy checkpoint artifacts' }
-        if (@($previous.artifacts | Where-Object { $_.name -match '^google-win155-tree-s[0-9]+-part1$' -and -not $_.expired }).Count) {
-          $ResumeRun = [string]$previousRun.id
-          Write-Host "Using the last successful legacy checkpoint from run $ResumeRun"
-          break
-        }
-      }
-    }
-  }
   $manifest = $null
   if ($ResumeRun) {
     $sourceRepo = $Repository
@@ -102,16 +83,8 @@ if ($Phase -eq 'Restore') {
         if ($name -notin $available.name) { throw "Completed checkpoint is missing volume artifact: $name" }
       }
     } else {
-      # Explicit resumes also accept checkpoints produced before manifests existed;
-      # 7-Zip must still extract every volume successfully before source mutation.
-      Write-Warning 'Resuming a legacy checkpoint without a completion manifest'
-      $latest = ($available | ForEach-Object { [int]([regex]::Match($_.name, '-s([0-9]+)-').Groups[1].Value) } | Measure-Object -Maximum).Maximum
-      $names = @($available | Where-Object { $_.name -match "^google-win155-tree-s$latest-part[0-9]+$" } | Sort-Object name | ForEach-Object { $_.name })
+      throw 'Selected run has no complete checkpoint manifest; incomplete volumes cannot be resumed'
     }
-  } else {
-    $sourceRepo = 'xiaozhou26/Chromix'
-    $sourceRun = '38387174079'
-    $names = @('win-x64-tree-s8-attempt-1-part1', 'win-x64-tree-s8-attempt-1-part2')
   }
   foreach ($name in $names) {
     Write-Host "Downloading checkpoint volume: $name"
@@ -179,12 +152,11 @@ if ($Phase -eq 'Checkpoint') {
 Output 'finished' 'false'
 $session = Get-Content -Raw -LiteralPath 'C:\google-build-session.json' | ConvertFrom-Json
 $elapsed = ([DateTimeOffset]::UtcNow - [DateTimeOffset]::Parse($session.started_at)).TotalMinutes
-$CompileMinutes = [Math]::Min($CompileMinutes, [Math]::Floor(355 - $elapsed - 95))
-if ($CompileMinutes -lt 5) {
+$compileBudgetMinutes = [Math]::Min($CompileMinutes, [Math]::Floor(355 - $elapsed - $FinalizeReserveMinutes))
+if ($compileBudgetMinutes -lt 5) {
   Write-Warning 'Cache restoration consumed the compile budget; saving a prepared checkpoint for the next stage'
   return
 }
-Write-Host "Compile budget: $CompileMinutes minutes; reserving 95 minutes for packaging and checkpoint upload"
 
 $env:DEPOT_TOOLS_WIN_TOOLCHAIN = '0'
 $env:DEPOT_TOOLS_METRICS = '0'
@@ -211,6 +183,16 @@ New-Item -ItemType Directory -Path $logs -Force | Out-Null
 Push-Location $src
 try {
   Checked { & (Join-Path $out 'gn.exe') gen $out --fail-on-unused-args 2>&1 | Tee-Object -FilePath (Join-Path $logs "gn-stage-$Stage.log") }
+  Checked { python -B -X utf8 (Join-Path $repo 'tools\google_services_cache_audit.py') --ninja $ninja --out $out --report (Join-Path $logs "cache-audit-stage-$Stage.json") }
+  # GN and the dry run can take minutes. Count them before reserving the tail.
+  $elapsed = ([DateTimeOffset]::UtcNow - [DateTimeOffset]::Parse($session.started_at)).TotalMinutes
+  $compileBudgetMinutes = [Math]::Min($CompileMinutes, [Math]::Floor(355 - $elapsed - $FinalizeReserveMinutes))
+  if ($compileBudgetMinutes -lt 5) {
+    Write-Warning 'Preparation consumed the compile budget; preserving the prepared checkpoint'
+    return
+  }
+  Write-Host "Compile budget: $compileBudgetMinutes minutes; reserving $FinalizeReserveMinutes minutes for packaging and checkpoint upload"
+  $env:NINJA_STATUS = '[%f/%t] active=%r rate=%c/s elapsed=%es '
   $log = Join-Path $logs "ninja-stage-$Stage.log"
   $errorLog = Join-Path $logs "ninja-stage-$Stage.stderr.log"
   $process = Start-Process -FilePath $ninja -ArgumentList @('-C', $out, '-j', $jobs, 'chrome') -WorkingDirectory $src -WindowStyle Hidden -RedirectStandardOutput $log -RedirectStandardError $errorLog -PassThru
@@ -218,7 +200,7 @@ try {
   $clock = [Diagnostics.Stopwatch]::StartNew()
   $timedOut = $false
   while (-not $process.WaitForExit(10000)) {
-    if ($clock.Elapsed.TotalMinutes -ge $CompileMinutes) {
+    if ($clock.Elapsed.TotalMinutes -ge $compileBudgetMinutes) {
       Write-Host 'Saving progress at the compile time budget'
       & taskkill.exe /PID $process.Id /T /F | Out-Null
       $process.WaitForExit()

@@ -19,11 +19,29 @@ included in the build or its cache.
   is an Android reference for restoring Gaia/GCM and SyncService. Do not port its
   empty Trusted Vault key backend or suppression of actionable sync errors.
 
-## Incremental build and concurrent jobs
+## Verify an existing candidate first
+
+Pushes to `codex/google-services-win155` now run verification only. The current
+default source is run `39150241133`; `workflow_dispatch` can select another
+`source_run`. The verifier downloads only `google-services-win155-x64`, validates
+its checksum, architecture and restoration recipe, and runs native/WebAuthn
+checks against those exact bytes. It does not install an SDK, download the
+source-tree checkpoint, invoke GN/Ninja, or repackage the archive.
+
+The verification report records the original build commit and the separate
+verification commit. It never relabels an old binary as built from a newer commit.
+Only evidence is uploaded; the original archive remains in the source run.
+
+If the source run has no completed candidate, verification stops with an explicit
+message. It never silently falls back to building. If more compilation is needed,
+dispatch `operation=resume` and select a run with a complete checkpoint manifest.
+
+## Explicit incremental build and concurrent jobs
 
 `build-google-services-win155.yml` keeps `cancel-in-progress: false`. A push to
 the same feature branch queues behind the active run, preserving its current
-compile and both stages. A stage only resumes from uploaded checkpoint volumes;
+compile and both stages. Only an explicit `operation=resume` starts compiler jobs.
+A stage only resumes from uploaded checkpoint volumes;
 an in-progress runner's object files are not available to another job.
 
 `build-2` depends on `build-1` because it consumes that stage's completed
@@ -31,9 +49,21 @@ checkpoint. These stages must remain sequential. Independent builds can use
 separate hosted runners, but they cannot share unuploaded compilation progress.
 Use an independent branch/concurrency group only when a separate build is needed.
 
+Resume rejects missing or incomplete checkpoints before installing build tools;
+there is no automatic fallback to an older upstream tree. Future jobs reserve
+50 minutes for packaging and checkpoint upload and allow up to 300 minutes of
+compilation within the existing 355-minute job limit. The actual budget is
+recalculated after GN and the cache-plan check. These settings do not alter jobs
+already running at an earlier commit.
+
 Source preparation writes only changed bytes. Upgrading an already prepared
 checkpoint with this validation change leaves unchanged C++ inputs and object
 files untouched. The script continues to run Ninja against `out/Default`.
+Before compilation, `google_services_cache_audit.py` records the restored log
+identity, cached output count and a Ninja dry-run pending-action count. A plan
+that can only regenerate the build manifest is reported as unknown rather than
+misleadingly counted as one remaining compile. Actual build progress includes
+the pending total, active jobs, elapsed time and current throughput.
 
 ## Candidate checks
 

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Default pushes verify an existing source-run candidate without installing the
+  SDK or restoring/rebuilding Chromium. Explicit resume requires a completed
+  checkpoint and has no cold/upstream fallback.
+- Future resume jobs calculate their compile window after preparation, reserve
+  50 minutes for finalization, and record cached outputs and pending Ninja work.
 - Preserve Google WebAuthn AppID origin checks independently of regenerated
   domain-substitution lists, without rewriting unchanged cached sources.
 - Gate Google-service candidates on local HTTPS/CTAP2 registration, rejection

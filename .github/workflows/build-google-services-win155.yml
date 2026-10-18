@@ -12,18 +12,27 @@ on:
       - 'tools/prepare_google_services.py'
       - 'tools/verify_google_services_source.py'
       - 'tools/verify_google_services_runtime.py'
+      - 'tools/verify_google_services_candidate.py'
+      - 'tools/google_services_cache_audit.py'
       - 'tools/write_google_services_build_record.py'
       - 'tools/google-services-requirements.txt'
       - 'tools/build_google_services_patch.py'
       - 'tools/tests/test_google_services.py'
+      - 'tools/tests/test_google_services_pipeline.py'
       - 'build/google-services-win155.json'
       - 'patches/google-services/**'
   workflow_dispatch:
     inputs:
-      resume_run:
-        description: 'Previous run to resume; empty selects the latest complete checkpoint, then the pinned upstream cache'
+      operation:
+        description: 'Verify an existing candidate, or explicitly resume a completed checkpoint'
+        type: choice
+        options: [verify, resume]
+        default: verify
+      source_run:
+        description: 'Run containing the candidate to verify or the complete checkpoint to resume'
         type: string
-        default: ''
+        required: true
+        default: '39150241133'
 concurrency:
   group: google-services-win155-${{ github.ref }}
   cancel-in-progress: false
@@ -31,15 +40,83 @@ permissions:
   contents: read
   actions: read
 jobs:
+  verify-candidate:
+    if: github.event_name == 'push' || inputs.operation == 'verify'
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Select the finished candidate without restoring build sources
+        id: source
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GOOGLE_SOURCE_RUN: ${{ inputs.source_run || '39150241133' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sourceRun = $env:GOOGLE_SOURCE_RUN
+          if ($sourceRun -notmatch '^[0-9]+$' -or $sourceRun -eq $env:GITHUB_RUN_ID) { throw 'Select a different numeric source run ID' }
+          $source = & gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$sourceRun" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read the source run' }
+          $artifacts = & gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$sourceRun/artifacts?per_page=100" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read source artifacts' }
+          $candidate = @($artifacts.artifacts | Where-Object { $_.name -eq 'google-services-win155-x64' -and -not $_.expired })
+          if ($candidate.Count -ne 1) {
+            "Source run $sourceRun has no unique completed candidate. No SDK, source checkpoint or compiler was started. If compilation is unfinished, explicitly run operation=resume with its completed checkpoint." | Add-Content $env:GITHUB_STEP_SUMMARY
+            throw 'No completed candidate is available; verification never falls back to compilation'
+          }
+          [ordered]@{
+            repository = $env:GITHUB_REPOSITORY
+            run_id = [long]$sourceRun
+            run_attempt = $source.run_attempt
+            head_sha = $source.head_sha
+            artifact_id = $candidate[0].id
+            artifact_name = $candidate[0].name
+            artifact_digest = $candidate[0].digest
+            source_url = $source.html_url
+          } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'google-source-run.json')
+          "source_run=$sourceRun" | Add-Content $env:GITHUB_OUTPUT
+          "artifact_id=$($candidate[0].id)" | Add-Content $env:GITHUB_OUTPUT
+      - uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ steps.source.outputs.artifact_id }}
+          run-id: ${{ steps.source.outputs.source_run }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/google-candidate
+          merge-multiple: true
+      - name: Install test drivers only
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check -r tools/google-services-requirements.txt
+      - name: Check candidate selection and source contracts
+        shell: pwsh
+        run: python -B -X utf8 -m unittest tools.tests.test_google_services tools.tests.test_google_services_pipeline
+      - name: Verify the original candidate bytes without recompiling or repackaging
+        shell: pwsh
+        run: >-
+          python -B -X utf8 tools/verify_google_services_candidate.py
+          --artifact-dir "$env:RUNNER_TEMP/google-candidate"
+          --source-run-json "$env:RUNNER_TEMP/google-source-run.json"
+          --report-dir "$env:RUNNER_TEMP/google-verification"
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-services-candidate-verification
+          path: ${{ runner.temp }}/google-verification/
+          if-no-files-found: ignore
+          retention-days: 14
   build-1:
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'resume'
     uses: ./.github/workflows/google-services-win155-worker.yml
     with:
       stage: 1
-      resume_run: ${{ inputs.resume_run || '' }}
+      resume_run: ${{ inputs.source_run }}
     secrets: inherit
   build-2:
     needs: build-1
-    if: needs.build-1.outputs.finished != 'true'
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'resume' && needs.build-1.outputs.finished != 'true'
     uses: ./.github/workflows/google-services-win155-worker.yml
     with:
       stage: 2

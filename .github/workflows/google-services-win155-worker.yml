@@ -7,7 +7,7 @@ on:
         required: true
       resume_run:
         type: string
-        default: ''
+        required: true
     outputs:
       finished:
         value: ${{ jobs.build.outputs.finished }}
@@ -27,6 +27,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Require an explicitly selected completed checkpoint
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_ACTIONS_TOKEN }}
+          GOOGLE_RESUME_RUN: ${{ inputs.resume_run }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:GOOGLE_RESUME_RUN -notmatch '^[0-9]+$') { throw 'Explicit resume_run is required; no cold or upstream fallback is allowed' }
+          $available = & gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:GOOGLE_RESUME_RUN/artifacts?per_page=100" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect the selected checkpoint' }
+          if (-not @($available.artifacts | Where-Object { $_.name -match '^google-win155-checkpoint-s[0-9]+$' -and -not $_.expired }).Count) {
+            throw 'Selected run has no complete checkpoint; no build prerequisites or source downloads were started'
+          }
       - name: Check source restoration inputs before downloading the cache
         shell: pwsh
         run: python -B -X utf8 -m unittest tools.tests.test_google_services
