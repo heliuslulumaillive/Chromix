@@ -62,6 +62,7 @@
       "chrome/browser/signin/signin_promo_util.cc",
       "chrome/browser/signin/signin_util.cc",
       "chrome/browser/signin/signin_util_win.cc",
+      "chrome/browser/sync/sync_service_factory.cc",
       "chrome/browser/ui/profiles/profile_picker.cc",
       "chrome/browser/ui/signin/dice_migration_service.cc",
       "chrome/browser/ui/signin/signin_view_controller.cc",
@@ -195,9 +196,6 @@
         "kSigninAllowed",
         "kSigninAllowedOnNextStartup",
         "signin_pref_names.h"
-      ],
-      "chrome/browser/sync/sync_service_factory.cc": [
-        "syncer::SyncServiceImpl::InitParams"
       ]
     }
   },

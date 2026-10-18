@@ -135,7 +135,9 @@ if ($Phase -eq 'Restore') {
 
   $patch = Join-Path $src 'third_party\git\usr\bin\patch.exe'
   if (-not (Test-Path -LiteralPath $patch)) { $patch = 'C:\Program Files\Git\usr\bin\patch.exe' }
-  Checked { python -X utf8 (Join-Path $repo 'tools\prepare_google_services.py') --work $work --repo $repo --patch-bin $patch }
+  $logs = Join-Path $work 'google-build-logs'
+  New-Item -ItemType Directory -Path $logs -Force | Out-Null
+  Checked { python -X utf8 (Join-Path $repo 'tools\prepare_google_services.py') --work $work --repo $repo --patch-bin $patch 2>&1 | Tee-Object -FilePath (Join-Path $logs "prepare-stage-$Stage.log") }
   Output 'checkpoint_ready' 'true'
   return
 }
@@ -200,7 +202,7 @@ $logs = Join-Path $work 'google-build-logs'
 New-Item -ItemType Directory -Path $logs -Force | Out-Null
 Push-Location $src
 try {
-  Checked { & (Join-Path $out 'gn.exe') gen $out --fail-on-unused-args }
+  Checked { & (Join-Path $out 'gn.exe') gen $out --fail-on-unused-args 2>&1 | Tee-Object -FilePath (Join-Path $logs "gn-stage-$Stage.log") }
   $log = Join-Path $logs "ninja-stage-$Stage.log"
   $errorLog = Join-Path $logs "ninja-stage-$Stage.stderr.log"
   $process = Start-Process -FilePath $ninja -ArgumentList @('-C', $out, '-j', $jobs, 'chrome') -WorkingDirectory $src -WindowStyle Hidden -RedirectStandardOutput $log -RedirectStandardError $errorLog -PassThru

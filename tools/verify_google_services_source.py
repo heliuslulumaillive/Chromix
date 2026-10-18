@@ -41,6 +41,8 @@ REQUIRED = {
     'chrome/browser/ui/webui/settings/settings_ui.cc': ['GetBoolean(prefs::kSigninAllowed)'],
     'chrome/browser/ui/toolbar/app_menu_model.cc': ['info.should_build_signin_section = true;', 'AddTitle(info.title);'],
     'chrome/browser/sync/sync_service_factory.cc': [
+        'builder.SetSecurityEventRecorder(SecurityEventRecorderFactory::GetForProfile(profile))',
+        'DependsOn(SecurityEventRecorderFactory::GetInstance())',
         'std::make_unique<syncer::SyncServiceImpl>(std::move(init_params))',
         'sync_service->Initialize(CreateControllers(profile, sync_service.get()))',
         'account_password_store->OnSyncServiceInitialized(sync_service.get())',
