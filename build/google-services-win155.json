@@ -195,6 +195,9 @@
         "kSigninAllowed",
         "kSigninAllowedOnNextStartup",
         "signin_pref_names.h"
+      ],
+      "chrome/browser/sync/sync_service_factory.cc": [
+        "syncer::SyncServiceImpl::InitParams"
       ]
     }
   },

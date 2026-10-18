@@ -27,6 +27,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Install and verify Windows build prerequisites
+        shell: pwsh
+        run: build/windows/build-google-services.ps1 -Phase Prerequisites
       - name: Restore cache and prepare source
         id: restore
         shell: pwsh
@@ -47,7 +50,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: google-services-win155-x64
-          path: C:/c/dist/
+          path: |
+            C:/c/dist/chromix-win-x64.zip
+            C:/c/dist/SHA256SUMS
+            C:/c/dist/google-services-source.json
+            C:/c/dist/candidate-smoke.json
           if-no-files-found: error
           retention-days: 14
           compression-level: 0

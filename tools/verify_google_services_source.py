@@ -40,6 +40,13 @@ REQUIRED = {
     'components/sync/service/sync_prefs.cc': ['::prefs::kExplicitBrowserSignin', '::prefs::kPrefsThemesSearchEnginesAccountStorageEnabled'],
     'chrome/browser/ui/webui/settings/settings_ui.cc': ['GetBoolean(prefs::kSigninAllowed)'],
     'chrome/browser/ui/toolbar/app_menu_model.cc': ['info.should_build_signin_section = true;', 'AddTitle(info.title);'],
+    'chrome/browser/sync/sync_service_factory.cc': [
+        'std::make_unique<syncer::SyncServiceImpl>(std::move(init_params))',
+        'sync_service->Initialize(CreateControllers(profile, sync_service.get()))',
+        'account_password_store->OnSyncServiceInitialized(sync_service.get())',
+        'pref_service->OnSyncServiceInitialized(sync_service.get())',
+        'return sync_service;',
+    ],
 }
 FORBIDDEN = {
     'components/signin/internal/identity_manager/primary_account_mutator_impl.cc': ['bool is_signin_allowed = false;'],

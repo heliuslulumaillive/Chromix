@@ -110,7 +110,7 @@ if ($missing.Count -gt 0) {
     # '+' selects all SDK features, including ARM64 libraries, UWP and Debugging Tools.
     $setup = Start-Process -FilePath $installer -ArgumentList @(
       "/features", "+", "/quiet", "/norestart", "/installpath", ('"{0}"' -f $sdk.TrimEnd('\'))
-    ) -PassThru
+    ) -PassThru -WindowStyle Hidden
     try {
       # Retain the process handle for a reliable exit code and PID ownership.
       $null = $setup.Handle
@@ -118,7 +118,7 @@ if ($missing.Count -gt 0) {
         Write-Warning "Windows SDK installation timed out after 30 minutes; attempting to terminate installer PID $($setup.Id)"
         try {
           $terminator = Start-Process -FilePath (Join-Path $env:SystemRoot "System32\taskkill.exe") `
-            -ArgumentList @("/PID", "$($setup.Id)", "/T", "/F") -PassThru
+            -ArgumentList @("/PID", "$($setup.Id)", "/T", "/F") -PassThru -WindowStyle Hidden
           try {
             $null = $terminator.Handle
             if (-not $terminator.WaitForExit(10000)) {

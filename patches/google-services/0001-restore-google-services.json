@@ -51,6 +51,7 @@
     "chrome/browser/signin/signin_promo_util.cc",
     "chrome/browser/signin/signin_util.cc",
     "chrome/browser/signin/signin_util_win.cc",
+    "chrome/browser/sync/sync_service_factory.cc",
     "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.cc",
     "chrome/browser/ui/browser_command_controller.cc",
     "chrome/browser/ui/chrome_pages.cc",
@@ -331,6 +332,10 @@
     {
       "path": "chrome/browser/signin/signin_util_win.cc",
       "sha256": "f0f93974979f653ccd18cdeab6e9faddc51f65311542b222d2b5e7c30437470d"
+    },
+    {
+      "path": "chrome/browser/sync/sync_service_factory.cc",
+      "sha256": "2478720a177cc2ae4ed91656e7484c3e33d712ae7f378b62fdbac964f3eebed7"
     },
     {
       "path": "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.cc",
@@ -657,6 +662,6 @@
       "sha256": "dc31de78a9a9b03fe24ea42e8876aa95bba86a3a30da17429397bae403db6e3f"
     }
   ],
-  "patch_sha256": "6f45276684e794e7ae89f88ba06158ea667e20ee2291ede36fdb3fbc7c914145",
+  "patch_sha256": "4e856af14f05547e5385e0815075d8f7b8cc4d6bcbadbd503b7e7230477d500d",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

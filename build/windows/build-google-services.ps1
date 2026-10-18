@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory)]
-  [ValidateSet('Restore', 'Build', 'Checkpoint')]
+  [ValidateSet('Prerequisites', 'Restore', 'Build', 'Checkpoint')]
   [string]$Phase,
   [int]$Stage = 1,
   [string]$ResumeRun = '',
@@ -39,8 +39,7 @@ function Output([string]$Name, [string]$Value) {
   Write-Host "$Name=$Value"
 }
 
-if ($Phase -eq 'Restore') {
-  New-Item -ItemType Directory -Path $restore -Force | Out-Null
+if ($Phase -eq 'Prerequisites') {
   # Leave time inside the 355-minute job limit to package and upload the tree.
   @{ started_at = [DateTimeOffset]::UtcNow.ToString('o') } | ConvertTo-Json | Set-Content -LiteralPath 'C:\google-build-session.json'
   # These are disposable hosted-runner caches, not files on the owner's PC.
@@ -48,6 +47,15 @@ if ($Phase -eq 'Restore') {
     if (Test-Path -LiteralPath $unused) { Remove-OwnedDirectory $unused $unused }
   }
   if (Test-Path -LiteralPath $root) { throw 'Checkpoint destination already exists' }
+  $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+  $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+  if ($LASTEXITCODE -ne 0 -or -not $vs) { throw 'Visual Studio C++ toolchain is unavailable' }
+  & "$PSScriptRoot\ensure-windows-sdk.ps1" -Arch x64 -ChromiumVersion '155.0.8059.39' -Install
+  return
+}
+
+if ($Phase -eq 'Restore') {
+  New-Item -ItemType Directory -Path $restore -Force | Out-Null
   if (-not $ResumeRun) {
     $recent = & $gh api "repos/$Repository/actions/artifacts?per_page=100" | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect recent checkpoints' }
@@ -220,6 +228,9 @@ try {
   if (-not $timedOut) {
     if (Test-Path -LiteralPath 'C:\c\dist') { throw 'Expected a fresh candidate output directory' }
     Checked { & "$PSScriptRoot\package-win.ps1" -Out $out -Dest 'C:\c\dist' -Arch x64 }
+    $smokeReport = Join-Path $logs "candidate-smoke-stage-$Stage\report.json"
+    Checked { python -X utf8 (Join-Path $repo 'tools\verify_windows_bundle.py') --bundle 'C:\c\dist\chromix' --arch x64 --native --version '155.0.8059.39' --report $smokeReport | Select-Object -Last 12 }
+    Copy-Item -LiteralPath $smokeReport -Destination 'C:\c\dist\candidate-smoke.json'
     Copy-Item -LiteralPath (Join-Path $work 'google-services-source.json') -Destination 'C:\c\dist\google-services-source.json'
     Output 'finished' 'true'
   }
