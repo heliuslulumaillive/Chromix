@@ -57,6 +57,7 @@ jobs:
             C:/c/dist/chromix-win-x64.zip
             C:/c/dist/SHA256SUMS
             C:/c/dist/google-services-source.json
+            C:/c/dist/google-services-runtime.json
             C:/c/dist/candidate-smoke.json
           if-no-files-found: error
           retention-days: 14

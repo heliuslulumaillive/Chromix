@@ -3,6 +3,7 @@ import importlib.util
 import io
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -18,9 +19,54 @@ module = importlib.util.module_from_spec(spec)
 with mock.patch.object(sys, 'path', [str(Path(__file__).parents[1]), *sys.path]):
     spec.loader.exec_module(module)
     import build_google_services_patch as generator
+    import verify_google_services_source as source_checks
 
 
 class DomainRestorationTest(unittest.TestCase):
+    def test_google_appid_restoration_survives_domain_list_regeneration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            src = root / 'src'
+            name = module.WEBAUTHN_VALIDATION_FILES[0]
+            checker = src / name
+            checker.parent.mkdir(parents=True)
+            checker.write_text('if (caller_origin.DomainIs("9oo91e.qjz9zk")) {}\n')
+            rules = root / 'rules'
+            rules.write_text('google\\.com#9oo91e.qjz9zk\n')
+            listing = root / 'list'
+            listing.write_text('# checker deliberately excluded\n')
+            with mock.patch.object(module, 'pinned_inverse_rules', return_value=[(re.compile('9oo91e.qjz9zk'), 'google.com')]):
+                self.assertEqual(module.restore_domains(src, None, rules, listing, pinned=True)['files_changed'], 1)
+                self.assertIn('DomainIs("google.com")', checker.read_text())
+                unchanged = checker.stat().st_mtime_ns
+                self.assertEqual(module.restore_domains(src, None, rules, listing, pinned=True)['files_changed'], 0)
+                self.assertEqual(checker.stat().st_mtime_ns, unchanged)
+
+    def test_source_gate_rejects_substituted_appid_and_removed_origin_checks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            src = Path(directory)
+            for name, fragments in source_checks.REQUIRED.items():
+                path = src / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('\n'.join('"' + fragment + '";' if fragment.startswith('https://') else fragment
+                                          for fragment in fragments), encoding='utf-8')
+            source_checks.verify(src)
+            checker = src / module.WEBAUTHN_VALIDATION_FILES[0]
+            original = checker.read_text()
+            checker.write_text(original + '\n// old comment: 9oo91e.qjz9zk\n')
+            source_checks.verify(src)
+            for changed in (original.replace('google.com', '9oo91e.qjz9zk'),
+                            original.replace('!appid_url.has_ref()', 'true'),
+                            original.replace('caller_origin.DomainIs("google.com")', '// caller_origin.DomainIs("google.com")')):
+                checker.write_text(changed)
+                with self.assertRaisesRegex(ValueError, 'webauth_request_security_checker_impl'):
+                    source_checks.verify(src)
+            checker.write_text(original)
+            header = src / module.WEBAUTHN_VALIDATION_FILES[1]
+            header.write_text(header.read_text().replace('www.gstatic.com', 'www.95tat1c.qjz9zk'))
+            with self.assertRaisesRegex(ValueError, 'webauth_request_security_checker_impl'):
+                source_checks.verify(src)
+
     def test_known_domain_variants_restore_without_original_archive(self):
         values = {
             'accounts.9oo91e.qjz9zk': 'accounts.google.com',
@@ -117,6 +163,38 @@ class PrunedSourceRestorationTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             for name in required:
                 self.assertEqual(hashlib.sha256((root / name).read_bytes()).hexdigest(), hashes[name])
+
+
+class BuildReceiptTest(unittest.TestCase):
+    def test_receipt_uses_selected_output_and_never_exports_credentials(self):
+        repo = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            work, bundle = root / 'work', root / 'bundle'
+            work.mkdir()
+            bundle.mkdir()
+            source = {'variant': 'google-services-self-use', 'chromium_version': '155.0.8059.39',
+                      'patch_sha256': 'a' * 64, 'preparation_sha256': 'b' * 64}
+            (work / 'google-services-source.json').write_text(json.dumps(source))
+            (bundle / 'chrome.exe').write_bytes(b'synthetic executable')
+            default = work / 'src/out/Default/args.gn'
+            default.parent.mkdir(parents=True)
+            default.write_text('wrong configuration')
+            selected = work / 'src/out/Chromix/args.gn'
+            selected.parent.mkdir()
+            selected.write_text('google_default_client_secret="synthetic-secret-not-for-report"')
+            environment = {**os.environ, 'GITHUB_SHA': 'c' * 40, 'GITHUB_RUN_ID': '123',
+                           'GITHUB_REPOSITORY': 'fixture/chromix', 'GITHUB_RUN_ATTEMPT': '1',
+                           'GOOGLE_API_KEY': 'synthetic-api-key-not-for-report'}
+            subprocess.run([sys.executable, '-B', str(repo / 'tools/write_google_services_build_record.py'),
+                            '--bundle', str(bundle), '--work', str(work), '--gn-args', str(selected)],
+                           env=environment, check=True, capture_output=True, text=True, timeout=15)
+            raw = (bundle / 'google-services-build.json').read_text()
+            result = json.loads(raw)
+            self.assertEqual(result['gn_args_sha256'], hashlib.sha256(selected.read_bytes()).hexdigest())
+            self.assertEqual(result['files']['chrome.exe'], hashlib.sha256(b'synthetic executable').hexdigest())
+            self.assertNotIn('synthetic-secret-not-for-report', raw)
+            self.assertNotIn('synthetic-api-key-not-for-report', raw)
 
 
 if __name__ == '__main__':

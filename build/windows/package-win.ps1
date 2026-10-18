@@ -116,6 +116,10 @@ if ($Arch -eq "arm64") {
   if ($LASTEXITCODE -ne 0) { throw "Windows ARM64 bundle metadata verification failed" }
 }
 $assetName = if ($Arch -eq "arm64") { "chromix-win-arm64.zip" } else { "chromix-win-x64.zip" }
+if (Test-Path -LiteralPath $serviceMetadata -PathType Leaf) {
+  python -B (Join-Path $Repo 'tools\write_google_services_build_record.py') --bundle $Bundle --work (Split-Path $serviceMetadata -Parent) --gn-args (Join-Path $Out 'args.gn')
+  if ($LASTEXITCODE -ne 0) { throw 'Google-service build receipt generation failed' }
+}
 $asset = Join-Path $Dest $assetName
 Remove-Item $asset -ErrorAction SilentlyContinue
 Compress-Archive -Path $Bundle -DestinationPath $asset

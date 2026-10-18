@@ -19,6 +19,15 @@ CPP_TOKENS = re.compile(
 )
 
 DOMAIN_RULES_SHA256 = 'f59c4316b4ac32f9dfe4f6440c4cf9ad5dab0ab8827769f5dc2587ca07e91f09'
+# These are local origin-validation constants, not background service requests.
+# Keep them independent of a regenerated domain list (upstream PR #3914,
+# f9cc5514ec21ba73040b838465dfc34d34001f03). Existing prepared checkpoints
+# already have the same bytes, so repeating preparation does not dirty objects.
+WEBAUTHN_VALIDATION_FILES = (
+    'content/browser/webauth/webauth_request_security_checker_impl.cc',
+    'content/browser/webauth/webauth_request_security_checker_impl.h',
+    'content/browser/webauth/authenticator_impl_unittest.cc',
+)
 DOMAIN_INVERSES = [
     (r'f0ntz(\\*?)\.9oo91e8p1(\\*?)\.qjz9zk', r'fonts\g<1>.googleapis\g<2>.com'),
     (r'9oo91e([A-Za-z\-]*?\\*?)\.qjz9zk', r'google\g<1>.com'),
@@ -92,6 +101,7 @@ def restore_domains(src: Path, cache: Path | None, rules: Path, filelist: Path, 
     mapping, names = ({}, set()) if pinned else reverse_map(cache, rules)
     names.update(x.strip() for x in filelist.read_text().splitlines() if x.strip() and not x.startswith("#"))
     names.update(full_files)
+    names.update(WEBAUTHN_VALIDATION_FILES)
     pattern = re.compile("|".join(re.escape(x) for x in sorted(mapping, key=len, reverse=True))) if mapping else None
     changed, occurrences = 0, 0
     for name in sorted(names):
@@ -209,9 +219,6 @@ def main():
         apply_patch(src, args.patch_bin, old_patch, reverse=True)
     if not saved or old_patch:
         apply_patch(src, args.patch_bin, patch)
-    checker = (src / "content/browser/webauth/webauth_request_security_checker_impl.h").read_text()
-    if "https://www.gstatic.com/securitykey/origins.json" not in checker:
-        raise ValueError("Google WebAuthn AppID was not restored")
     checked = verify_signin_source(src)
     preserved = 0
     for name, (content, access_ns, modification_ns) in before.items():

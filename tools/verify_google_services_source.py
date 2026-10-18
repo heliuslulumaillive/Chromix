@@ -9,7 +9,19 @@ import argparse
 from pathlib import Path
 import re
 
+CPP_TOKENS = re.compile(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|(?P<comment>//[^\r\n]*|/\*[\s\S]*?\*/)')
+
 REQUIRED = {
+    'content/browser/webauth/webauth_request_security_checker_impl.cc': [
+        'caller_origin.DomainIs("google.com")',
+        '!appid_url.has_ref()',
+        'appid_url.EqualsIgnoringRef(gstatic_appid)',
+        'appid_url.EqualsIgnoringRef(gstatic_corp_appid)',
+    ],
+    'content/browser/webauth/webauth_request_security_checker_impl.h': [
+        'https://www.gstatic.com/securitykey/origins.json',
+        'https://www.gstatic.com/securitykey/a/google.com/origins.json',
+    ],
     'components/signin/internal/identity_manager/primary_account_mutator_impl.cc': [
         'pref_service_->GetBoolean(prefs::kSigninAllowed)',
     ],
@@ -55,6 +67,8 @@ REQUIRED = {
     ],
 }
 FORBIDDEN = {
+    'content/browser/webauth/webauth_request_security_checker_impl.cc': ['9oo91e.qjz9zk', '95tat1c.qjz9zk'],
+    'content/browser/webauth/webauth_request_security_checker_impl.h': ['9oo91e.qjz9zk', '95tat1c.qjz9zk'],
     'components/signin/internal/identity_manager/primary_account_mutator_impl.cc': ['bool is_signin_allowed = false;'],
     'chrome/browser/ui/webui/settings/settings_ui.cc': ['AddBoolean("signinAllowed", false)'],
 }
@@ -67,13 +81,16 @@ def verify(src: Path):
         if not path.is_file():
             errors.append(name + ': missing source')
             continue
-        source = re.sub(r'\s+', '', path.read_text(encoding='utf-8'))
+        # Domain restoration intentionally leaves comment-only substitutions
+        # untouched to preserve incremental builds. Check executable code only.
+        source = CPP_TOKENS.sub(lambda token: '' if token.group('comment') else token[0], path.read_text(encoding='utf-8'))
+        source = re.sub(r'\s+', '', source)
         for text in required:
             if re.sub(r'\s+', '', text) not in source:
-                errors.append(name + ': missing required sign-in/persistence implementation')
+                errors.append(name + ': missing required Google-service implementation')
         for text in FORBIDDEN.get(name, []):
             if re.sub(r'\s+', '', text) in source:
-                errors.append(name + ': sign-in remains hard-disabled')
+                errors.append(name + ': Google-service implementation remains disabled or substituted')
     if errors:
         raise ValueError('\n'.join(errors))
     return list(REQUIRED)

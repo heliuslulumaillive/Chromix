@@ -132,6 +132,12 @@ if ($Phase -eq 'Restore') {
   Checked { & $seven x $first[0].FullName "-o$root" -y -bsp0 | Select-Object -Last 8 }
   Remove-OwnedDirectory $restore 'C:\google-restore'
   if (-not (Test-Path -LiteralPath (Join-Path $out 'build.ninja'))) { throw 'Compiled checkpoint is missing' }
+  @{
+    repository = $sourceRepo
+    run_id = $sourceRun
+    artifacts = $names
+    checkpoint_commit = $(if ($manifest) { $manifest.commit } else { $null })
+  } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $work 'google-services-checkpoint-source.json')
 
   # Use the same GNU patch tested before downloading, independent of the
   # runner PATH and the Git version bundled inside the donor snapshot.
@@ -235,6 +241,10 @@ try {
     $smokeReport = Join-Path $logs "candidate-smoke-stage-$Stage\report.json"
     Checked { python -X utf8 (Join-Path $repo 'tools\verify_windows_bundle.py') --bundle 'C:\c\dist\chromix' --arch x64 --native --version '155.0.8059.39' --report $smokeReport | Select-Object -Last 12 }
     Copy-Item -LiteralPath $smokeReport -Destination 'C:\c\dist\candidate-smoke.json'
+    Checked { python -m pip install --disable-pip-version-check -r (Join-Path $repo 'tools\google-services-requirements.txt') }
+    $googleReport = Join-Path $logs "google-services-runtime-stage-$Stage.json"
+    Checked { python -B -X utf8 (Join-Path $repo 'tools\verify_google_services_runtime.py') --browser 'C:\c\dist\chromix\chrome.exe' --report $googleReport }
+    Copy-Item -LiteralPath $googleReport -Destination 'C:\c\dist\google-services-runtime.json'
     Copy-Item -LiteralPath (Join-Path $work 'google-services-source.json') -Destination 'C:\c\dist\google-services-source.json'
     Output 'finished' 'true'
   }
