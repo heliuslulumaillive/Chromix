@@ -133,8 +133,10 @@ if ($Phase -eq 'Restore') {
   Remove-OwnedDirectory $restore 'C:\google-restore'
   if (-not (Test-Path -LiteralPath (Join-Path $out 'build.ninja'))) { throw 'Compiled checkpoint is missing' }
 
-  $patch = Join-Path $src 'third_party\git\usr\bin\patch.exe'
-  if (-not (Test-Path -LiteralPath $patch)) { $patch = 'C:\Program Files\Git\usr\bin\patch.exe' }
+  # Use the same GNU patch tested before downloading, independent of the
+  # runner PATH and the Git version bundled inside the donor snapshot.
+  $patch = 'C:\Program Files\Git\usr\bin\patch.exe'
+  if (-not (Test-Path -LiteralPath $patch)) { throw 'Git for Windows GNU patch is unavailable' }
   $logs = Join-Path $work 'google-build-logs'
   New-Item -ItemType Directory -Path $logs -Force | Out-Null
   Checked { python -X utf8 (Join-Path $repo 'tools\prepare_google_services.py') --work $work --repo $repo --patch-bin $patch 2>&1 | Tee-Object -FilePath (Join-Path $logs "prepare-stage-$Stage.log") }

@@ -103,10 +103,10 @@ class PrunedSourceRestorationTest(unittest.TestCase):
         self.assertTrue(required.issubset(creations), 'The real checkpoint has neither file; modifications alone cannot restore them')
         self.assertTrue(required.issubset(report['baseline_pruned_sources']))
         hashes = {item['path']: item['sha256'] for item in report['source_inputs']}
-        executable = shutil.which('patch')
-        if not executable:
-            candidate = Path(r'C:\Program Files\Git\usr\bin\patch.exe')
-            executable = str(candidate) if candidate.is_file() else None
+        # Match the worker; Strawberry Perl's older patch on the hosted-runner
+        # PATH aborts when applying /dev/null file-creation hunks.
+        candidate = Path(r'C:\Program Files\Git\usr\bin\patch.exe')
+        executable = str(candidate) if candidate.is_file() else shutil.which('patch')
         if not executable:
             self.skipTest('GNU patch is unavailable')
         with tempfile.TemporaryDirectory() as directory:
