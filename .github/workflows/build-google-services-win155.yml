@@ -1,0 +1,37 @@
+name: Google services Windows x64
+on:
+  push:
+    branches: [codex/google-services-win155]
+    paths:
+      - '.github/workflows/build-google-services-win155.yml'
+      - '.github/workflows/google-services-win155-worker.yml'
+      - 'build/windows/build-google-services.ps1'
+      - 'tools/prepare_google_services.py'
+      - 'patches/google-services/**'
+  workflow_dispatch:
+    inputs:
+      resume_run:
+        description: 'Optional previous run with a google-win155-tree checkpoint'
+        type: string
+        default: ''
+concurrency:
+  group: google-services-win155-${{ github.ref }}
+  cancel-in-progress: false
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build-1:
+    uses: ./.github/workflows/google-services-win155-worker.yml
+    with:
+      stage: 1
+      resume_run: ${{ inputs.resume_run || '' }}
+    secrets: inherit
+  build-2:
+    needs: build-1
+    if: needs.build-1.outputs.finished != 'true'
+    uses: ./.github/workflows/google-services-win155-worker.yml
+    with:
+      stage: 2
+      resume_run: ${{ github.run_id }}
+    secrets: inherit

@@ -1,0 +1,269 @@
+{
+  "version": "155.0.8059.39",
+  "changed_files": [
+    "chrome/app/settings_chromium_strings.grdp",
+    "chrome/app/settings_strings.grdp",
+    "chrome/browser/download/download_target_determiner.cc",
+    "chrome/browser/extensions/chrome_content_browser_client_extensions_part.cc",
+    "chrome/browser/extensions/chrome_content_verifier_delegate.cc",
+    "chrome/browser/extensions/component_extensions_allowlist/allowlist.cc",
+    "chrome/browser/extensions/component_loader.cc",
+    "chrome/browser/extensions/extension_management.cc",
+    "chrome/browser/extensions/extension_migrator.cc",
+    "chrome/browser/extensions/extension_migrator.h",
+    "chrome/browser/extensions/external_component_loader.cc",
+    "chrome/browser/first_run/first_run.h",
+    "chrome/browser/glic/glic_user_status_request.cc",
+    "chrome/browser/profiles/profile_avatar_downloader.cc",
+    "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+    "chrome/browser/resources/extensions/item_list.html.ts",
+    "chrome/browser/resources/extensions/sidebar.html.ts",
+    "chrome/browser/resources/extensions/sidebar.ts",
+    "chrome/browser/resources/history/side_bar.html.ts",
+    "chrome/browser/resources/history/side_bar.ts",
+    "chrome/browser/resources/settings/privacy_page/personalization_options.html",
+    "chrome/browser/resources/settings/privacy_page/personalization_options.ts",
+    "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc",
+    "chrome/browser/ui/toolbar/app_menu_model.cc",
+    "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc",
+    "chrome/browser/ui/webui/settings/settings_ui.cc",
+    "chrome/browser/ui/webui/suggest_internals/suggest_internals_handler.cc",
+    "chrome/common/google_url_loader_throttle.cc",
+    "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
+    "components/affiliations/core/browser/hash_affiliation_fetcher.h",
+    "components/assist_ranker/ranker_url_fetcher.cc",
+    "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc",
+    "components/gcm_driver/gcm_client_impl.cc",
+    "components/gcm_driver/gcm_driver_desktop.cc",
+    "components/google/core/common/google_util.cc",
+    "components/page_load_metrics/google/browser/google_url_util.cc",
+    "components/password_manager/core/browser/password_feature_manager_impl.cc",
+    "components/password_manager/core/browser/password_manager.cc",
+    "components/search_engines/template_url.cc",
+    "components/translate/core/browser/translate_language_list.cc",
+    "components/translate/core/browser/translate_manager.cc",
+    "components/translate/core/browser/translate_ranker_impl.cc",
+    "components/translate/core/browser/translate_script.cc",
+    "components/variations/net/variations_http_headers.cc",
+    "content/browser/preloading/prefetch/prefetch_resource_request_utils.cc",
+    "extensions/browser/extension_util.cc",
+    "extensions/browser/extension_util.h",
+    "extensions/browser/updater/extension_downloader.cc",
+    "extensions/browser/webstore_installer.cc",
+    "extensions/common/extension_urls.cc",
+    "google_apis/gaia/gaia_auth_fetcher.cc",
+    "net/base/url_util.cc"
+  ],
+  "source_inputs": [
+    {
+      "path": "chrome/app/settings_chromium_strings.grdp",
+      "sha256": "9fb3a5d1020f25121dbc59df33031554bd9f8498c74aa5c220a26364ee0d2b57"
+    },
+    {
+      "path": "chrome/app/settings_strings.grdp",
+      "sha256": "ff45194a6b8b6f7e9c6c0717065bb90cc4dcf9d1bee08ebf0700790ec9d7e3cb"
+    },
+    {
+      "path": "chrome/browser/download/download_target_determiner.cc",
+      "sha256": "20c460af6833a7c0a2e3ed1f09ae8999681840542ab915dbe75b395de1fdd71c"
+    },
+    {
+      "path": "chrome/browser/extensions/chrome_content_browser_client_extensions_part.cc",
+      "sha256": "d67b05e029a5827051a2ba4620192749973ffb9acb03030b70f8b6dbca9831d7"
+    },
+    {
+      "path": "chrome/browser/extensions/chrome_content_verifier_delegate.cc",
+      "sha256": "4e766e7cfdf77d75d8f63e273128f42f7221ce2f0ab6aee486e8f6ef340b99e7"
+    },
+    {
+      "path": "chrome/browser/extensions/component_extensions_allowlist/allowlist.cc",
+      "sha256": "03d9d5d4cccd3b74ec2b8e4d486945aa3501499f1dbd9e319b1ed1fa3b275ad5"
+    },
+    {
+      "path": "chrome/browser/extensions/component_loader.cc",
+      "sha256": "2f885d17e75792dac3c7deeb8f00850677b0a3bf82c3acebe65f18887edea04b"
+    },
+    {
+      "path": "chrome/browser/extensions/extension_management.cc",
+      "sha256": "067109e89fbbc669263f3bb181335b1b0821f9ce7e6cbc8b52a39f139cb51ad9"
+    },
+    {
+      "path": "chrome/browser/extensions/extension_migrator.cc",
+      "sha256": "f42049a51d54d23ff3288662d4f2dc07e741dd61724745c5f518ffa4781bda55"
+    },
+    {
+      "path": "chrome/browser/extensions/extension_migrator.h",
+      "sha256": "37eacd293909acc7f11cbb9d86383e526ae96c0b766621ff39cf97771a5578a4"
+    },
+    {
+      "path": "chrome/browser/extensions/external_component_loader.cc",
+      "sha256": "29e16523bc04630d27c813269d1503fb2d654dd11d97c1493b922e3b226848db"
+    },
+    {
+      "path": "chrome/browser/first_run/first_run.h",
+      "sha256": "806adb5764081451dba7fc5980d83463787e2d0154c26d9ed554263f8cb9672a"
+    },
+    {
+      "path": "chrome/browser/glic/glic_user_status_request.cc",
+      "sha256": "7e634afea97ec650ee72bc02952078029f089b29845ac883329066a8bfea48cb"
+    },
+    {
+      "path": "chrome/browser/profiles/profile_avatar_downloader.cc",
+      "sha256": "f2b83e8ed3e997f6d02a7daee1099d8ef6207665969b3069cc5652a5ba451290"
+    },
+    {
+      "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+      "sha256": "62fda4dd0463ca3b6c29c58d5f3024ff32c35f046f9c65ab52cb2d54b68a2333"
+    },
+    {
+      "path": "chrome/browser/resources/extensions/item_list.html.ts",
+      "sha256": "811662b4438887015065fd750925ea2757c968e315a27975479777f6d29bd8dd"
+    },
+    {
+      "path": "chrome/browser/resources/extensions/sidebar.html.ts",
+      "sha256": "53d92b997c91ab281f4627c5c3e09cdae91f81198bfc674a5c3d09a019068cea"
+    },
+    {
+      "path": "chrome/browser/resources/extensions/sidebar.ts",
+      "sha256": "6b0f08d6301e00da638ec94c54c382ce7d36ab66ec58069c89f8c51815bab5dc"
+    },
+    {
+      "path": "chrome/browser/resources/history/side_bar.html.ts",
+      "sha256": "ca85968b2f869e90c00a5a9b20b2a98f91cb303801f325377f7309bb3ef5b365"
+    },
+    {
+      "path": "chrome/browser/resources/history/side_bar.ts",
+      "sha256": "194bcc92d1b96a86173afaa3c0e1b1c73fb24b9048496f894fe1b61d5406b6c8"
+    },
+    {
+      "path": "chrome/browser/resources/settings/privacy_page/personalization_options.html",
+      "sha256": "9dc2358ece3243a57e07b98fdeeaf92a946e284ae4a62a5a6ff06761315fe449"
+    },
+    {
+      "path": "chrome/browser/resources/settings/privacy_page/personalization_options.ts",
+      "sha256": "0033ef1056c631b3a7bf53977f2300d19e97309616eb001ee11506a1133aeb82"
+    },
+    {
+      "path": "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc",
+      "sha256": "e55739dd42b595f71542e0fc3af367b0fa67c4f71d347c28980690b69f0e9687"
+    },
+    {
+      "path": "chrome/browser/ui/toolbar/app_menu_model.cc",
+      "sha256": "5cb254d4614c5e99ad284212f5ce9734398422e8ead43fbdcfe732c99cae9c20"
+    },
+    {
+      "path": "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc",
+      "sha256": "1b51f3398d3d74be79db67019bdf0b810f54ad80a47b267a5a707262f1217017"
+    },
+    {
+      "path": "chrome/browser/ui/webui/settings/settings_ui.cc",
+      "sha256": "f3191ed1e1e165c3a1de4d945210a2343e52f149553ecd534b29a5b730930f75"
+    },
+    {
+      "path": "chrome/browser/ui/webui/suggest_internals/suggest_internals_handler.cc",
+      "sha256": "c34f5545bc263c6b9ecbf4df3774a5daabbc99b7459140d79220298005920a58"
+    },
+    {
+      "path": "chrome/common/google_url_loader_throttle.cc",
+      "sha256": "6e48bc095f55697a5dd113fcfc36d4842a3c39a77d821c191878f4a98ecf6e01"
+    },
+    {
+      "path": "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
+      "sha256": "41bed191f7abd224330f967c1cd14b3dde19e2939c6d9e3a4f438af7088a37bf"
+    },
+    {
+      "path": "components/affiliations/core/browser/hash_affiliation_fetcher.h",
+      "sha256": "9ffcce1a81b60abf4e8747c565c24e1e1631da425a79a47d2f4b2cd1a8dc7327"
+    },
+    {
+      "path": "components/assist_ranker/ranker_url_fetcher.cc",
+      "sha256": "9e2dc566de20acb69732ca18cb052ca1ed25920c20a8a6c0bfdd9f81d4471828"
+    },
+    {
+      "path": "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc",
+      "sha256": "f3abdb8791a542be8af550f67247445c665aee1cb720eb378b7de1a50df72b4b"
+    },
+    {
+      "path": "components/gcm_driver/gcm_client_impl.cc",
+      "sha256": "694e3d26d492256a6b4af9a9993b3d35d41dbbf47cb731166686616244115163"
+    },
+    {
+      "path": "components/gcm_driver/gcm_driver_desktop.cc",
+      "sha256": "a1c2da223e741ae20329d4a1d2b1594b38029f0c9b991900db7da7451f867e32"
+    },
+    {
+      "path": "components/google/core/common/google_util.cc",
+      "sha256": "8ab18780c9567942b9469ebea5b9f3f1fcc477493e23b50ad7eaaaad7f9ee3a4"
+    },
+    {
+      "path": "components/page_load_metrics/google/browser/google_url_util.cc",
+      "sha256": "11cc44bca601f2a80d538ce826efccaa842b906ddeef96a032ceb5dceaa3b830"
+    },
+    {
+      "path": "components/password_manager/core/browser/password_feature_manager_impl.cc",
+      "sha256": "35d0a50bcb4f5eeb86a56133d80f8500c49b8691c7e955c9236753e98c5037a9"
+    },
+    {
+      "path": "components/password_manager/core/browser/password_manager.cc",
+      "sha256": "c998594a3e9ab58cab8ce460b695b48a75c7139e34594443f0f3c6fe5af898a7"
+    },
+    {
+      "path": "components/search_engines/template_url.cc",
+      "sha256": "7c41dd1407cce63af55a6720a93f1651a2ac00ec1d37fe37f40025e83ee72d1c"
+    },
+    {
+      "path": "components/translate/core/browser/translate_language_list.cc",
+      "sha256": "192caec2c15b5324c9c02b9a61b504612b8d55e8cf00f3a6a02724f7bab1b5b0"
+    },
+    {
+      "path": "components/translate/core/browser/translate_manager.cc",
+      "sha256": "cf970511d67a1c53991f14bc7a7f9aacfeb66f41a78fc2a778bd3649abca2687"
+    },
+    {
+      "path": "components/translate/core/browser/translate_ranker_impl.cc",
+      "sha256": "c42e990048bcb28822ece1f3992c2228591b6a3fb8b5cb35b62c63ed26e40093"
+    },
+    {
+      "path": "components/translate/core/browser/translate_script.cc",
+      "sha256": "c864de384cf3a144f255db892be582239fbebcb393dc3e08c7c5a43dc328145d"
+    },
+    {
+      "path": "components/variations/net/variations_http_headers.cc",
+      "sha256": "f1b8c95333f33b3b4c8ed96f863e10570be9fa59ccf9b8a194259a182d19b98c"
+    },
+    {
+      "path": "content/browser/preloading/prefetch/prefetch_resource_request_utils.cc",
+      "sha256": "f435761e367522629912e59ffa0b7e3d4608fb25e873c9831934ea4536899ac8"
+    },
+    {
+      "path": "extensions/browser/extension_util.cc",
+      "sha256": "596e1f6491cfd8eb309a34d7ba778371d880577b4032a3c71ddedc5e2e377796"
+    },
+    {
+      "path": "extensions/browser/extension_util.h",
+      "sha256": "38ea3286b22889f79387b8c5b35e092da7361187f3a6e2db66ed6be27ecc42eb"
+    },
+    {
+      "path": "extensions/browser/updater/extension_downloader.cc",
+      "sha256": "2a7a698df07ff1c4236d4d89e173db6a347949493ce1538e0c84f06555c2209f"
+    },
+    {
+      "path": "extensions/browser/webstore_installer.cc",
+      "sha256": "a68dd374a2e5141f37e904b781720f6b03ac4124f7576379bb3761c72f504cb8"
+    },
+    {
+      "path": "extensions/common/extension_urls.cc",
+      "sha256": "23267c51724e35d4e665ede0dc0e4ed3df87bba075dfd1994263c2785fd65137"
+    },
+    {
+      "path": "google_apis/gaia/gaia_auth_fetcher.cc",
+      "sha256": "8dec1909a6040d488ae7fd40f6be3cd698b6555cf300cb68c7a292222d791ab7"
+    },
+    {
+      "path": "net/base/url_util.cc",
+      "sha256": "dc31de78a9a9b03fe24ea42e8876aa95bba86a3a30da17429397bae403db6e3f"
+    }
+  ],
+  "patch_sha256": "ddf1a115582dc1583a8f664747a0943b77c60d040a6e04f8af3ebfd9bc3b284a",
+  "qualification": "Source replay only; requires native build and actual account tests"
+}

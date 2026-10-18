@@ -1,0 +1,45 @@
+{
+  "chromium_version": "155.0.8059.39",
+  "core_commit": "ffeb45a2bb88bc56a1dfed31410aeb10e9efcd5a",
+  "windows_commit": "989b4382364baaddb8b3180e1eb1030ca96a7273",
+  "remove_patches": [
+    "core/inox-patchset/0003-disable-autofill-download-manager.patch",
+    "core/inox-patchset/0005-disable-default-extensions.patch",
+    "core/ungoogled-chromium/disable-google-host-detection.patch",
+    "core/ungoogled-chromium/toggle-translation-via-switch.patch",
+    "core/ungoogled-chromium/disable-profile-avatar-downloading.patch",
+    "core/ungoogled-chromium/disable-gcm.patch",
+    "core/ungoogled-chromium/disable-gaia.patch",
+    "core/ungoogled-chromium/disable-webstore-urls.patch",
+    "core/ungoogled-chromium/disable-tos-dialog.patch",
+    "extra/ungoogled-chromium/add-flag-to-configure-extension-downloading.patch"
+  ],
+  "restore_sections": {
+    "core/ungoogled-chromium/block-requests.patch": [
+      "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
+      "components/affiliations/core/browser/hash_affiliation_fetcher.h",
+      "components/assist_ranker/ranker_url_fetcher.cc"
+    ],
+    "extra/inox-patchset/0006-modify-default-prefs.patch": [
+      "components/password_manager/core/browser/password_manager.cc"
+    ],
+    "extra/ungoogled-chromium/remove-uneeded-ui.patch": [
+      "chrome/app/settings_chromium_strings.grdp",
+      "chrome/app/settings_strings.grdp",
+      "chrome/browser/resources/extensions/item_list.html.ts",
+      "chrome/browser/resources/extensions/sidebar.html.ts",
+      "chrome/browser/resources/extensions/sidebar.ts",
+      "chrome/browser/resources/history/side_bar.html.ts",
+      "chrome/browser/resources/history/side_bar.ts",
+      "chrome/browser/resources/settings/privacy_page/personalization_options.html",
+      "chrome/browser/resources/settings/privacy_page/personalization_options.ts",
+      "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc",
+      "chrome/browser/ui/toolbar/app_menu_model.cc",
+      "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc",
+      "chrome/browser/ui/webui/settings/settings_ui.cc"
+    ]
+  },
+  "extra_sources": [
+    "components/password_manager/core/browser/password_feature_manager_impl.cc"
+  ]
+}

@@ -1,0 +1,91 @@
+name: Google services Windows 155 worker
+on:
+  workflow_call:
+    inputs:
+      stage:
+        type: number
+        required: true
+      resume_run:
+        type: string
+        default: ''
+    outputs:
+      finished:
+        value: ${{ jobs.build.outputs.finished }}
+    secrets:
+      UPSTREAM_ACTIONS_TOKEN:
+        required: true
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 355
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      finished: ${{ steps.build.outputs.finished }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build one Windows x64 candidate
+        id: build
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_ACTIONS_TOKEN }}
+          CHROMIX_JOBS: auto
+          GOOGLE_BUILD_STAGE: ${{ inputs.stage }}
+          GOOGLE_RESUME_RUN: ${{ inputs.resume_run }}
+        run: build/windows/build-google-services.ps1 -Stage $env:GOOGLE_BUILD_STAGE -ResumeRun $env:GOOGLE_RESUME_RUN
+      - name: Upload concise build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-win155-logs-s${{ inputs.stage }}
+          path: |
+            C:/c/chromix/google-build-logs/
+            C:/c/chromix/google-services-source.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload candidate
+        if: steps.build.outputs.finished == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-services-win155-x64
+          path: C:/c/dist/
+          retention-days: 14
+          compression-level: 0
+      - name: Save checkpoint part 1
+        if: steps.build.outputs.checkpoint == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-win155-tree-s${{ inputs.stage }}-part1
+          path: C:/google-parts/tree.7z.001
+          retention-days: 14
+          compression-level: 0
+      - name: Save checkpoint part 2
+        if: steps.build.outputs.checkpoint == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-win155-tree-s${{ inputs.stage }}-part2
+          path: C:/google-parts/tree.7z.002
+          if-no-files-found: ignore
+          retention-days: 14
+          compression-level: 0
+      - name: Save checkpoint part 3
+        if: steps.build.outputs.checkpoint == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-win155-tree-s${{ inputs.stage }}-part3
+          path: C:/google-parts/tree.7z.003
+          if-no-files-found: ignore
+          retention-days: 14
+          compression-level: 0
+      - name: Save checkpoint part 4
+        if: steps.build.outputs.checkpoint == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-win155-tree-s${{ inputs.stage }}-part4
+          path: C:/google-parts/tree.7z.004
+          if-no-files-found: ignore
+          retention-days: 14
+          compression-level: 0
