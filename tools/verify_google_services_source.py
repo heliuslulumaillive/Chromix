@@ -37,6 +37,10 @@ REQUIRED = {
     ],
     'components/signin/public/base/BUILD.gn': ['"signin_pref_names.cc"', '"signin_pref_names.h"'],
     'components/signin/public/base/signin_pref_names.h': ['kSigninAllowed', 'kAccountInfo', 'kGoogleServicesAccountId'],
+    'components/signin/public/base/signin_pref_names.cc': [
+        'const char kAccountInfo[] = "account_info";',
+        'const char kGoogleServicesAccountId[] = "google.services.account_id";',
+    ],
     'components/sync/service/sync_prefs.cc': ['::prefs::kExplicitBrowserSignin', '::prefs::kPrefsThemesSearchEnginesAccountStorageEnabled'],
     'chrome/browser/ui/webui/settings/settings_ui.cc': ['GetBoolean(prefs::kSigninAllowed)'],
     'chrome/browser/ui/toolbar/app_menu_model.cc': ['info.should_build_signin_section = true;', 'AddTitle(info.title);'],

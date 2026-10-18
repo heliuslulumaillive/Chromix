@@ -25,6 +25,29 @@ from patch_selection import select
 
 HEADER = re.compile(r"^--- (a/[^\r\n]+|/dev/null)\r?\n\+\+\+ (b/[^\r\n]+|/dev/null)\r?\n", re.M)
 HUNK = re.compile(r"^@@ [^\n]+\n", re.M)
+INCLUDE = re.compile(r'^#include "([^"\n]+)"\n', re.M)
+
+
+def prune_selected_sources(tree: Path, paths, *, keep=()):
+    """Replay pruning for the selected inputs before the patch layers."""
+    root = tree.resolve()
+    for name in sorted(set(paths) - set(keep)):
+        path = (root / name).resolve()
+        if not path.is_relative_to(root) or path == root:
+            raise ValueError('Pruning path escapes the replay tree')
+        if path.exists():
+            path.unlink()
+
+
+def filter_pruned_includes(baseline: str, restored: str, unavailable):
+    """Do not revive a removed header through a mixed sign-in cleanup hunk."""
+    removed = []
+    def keep(match):
+        if match[1] in unavailable and match[0] not in baseline:
+            removed.append(match[1])
+            return ''
+        return match[0]
+    return INCLUDE.sub(keep, restored), removed
 
 
 def retain_hunks(section: str, restore_markers: list[str]) -> str:
@@ -74,11 +97,18 @@ def main():
     restore = {k: set(v) for k, v in config["restore_sections"].items()}
     restore_hunks = config.get("restore_hunks", {})
     windows_restore = {k: set(v) for k, v in config.get("restore_windows_sections", {}).items()}
+    pruning_file = args.core / 'pruning.list'
+    pruning_data = pruning_file.read_bytes().replace(b'\r\n', b'\n')
+    pruned = {line.strip() for line in pruning_data.decode().splitlines() if line.strip() and not line.startswith('#')}
+    restored_pruned = set(config.get('restore_pruned_sources', []))
+    if not restored_pruned.issubset(pruned):
+        raise ValueError('Requested pruned sources do not match the pinned pruning list')
     core = list(patch_series(args.core))
     windows = list(patch_series(args.windows))
     _, chromix_bytes = select(args.repo, "windows")
     chromix = [(name, data.decode()) for name, data in chromix_bytes]
     targets = set(config["extra_sources"])
+    targets.update(restored_pruned)
     for name, data in core:
         if name in removed:
             targets.update(path for path, _, _ in sections(data))
@@ -119,6 +149,7 @@ def main():
         if tree.exists():
             raise FileExistsError(f"Use a fresh work directory: {tree}")
         shutil.copytree(pristine, tree)
+        prune_selected_sources(tree, targets & pruned, keep=restored_pruned if variant == 'restored' else ())
         count = 0
         for layer, name, data in all_patches:
             selected = []
@@ -153,13 +184,21 @@ def main():
         raise ValueError("Password-generation source changed")
     generation.write_text(text.replace(before, after), encoding="utf-8", newline="\n")
 
-    # This source's cleanup combines sign-in and Safe Browsing entries in one
-    # hunk. Restore the account entries without changing Safe Browsing policy.
+    removed_includes = {}
+    for name in sorted(targets):
+        old, new = trees[0] / name, trees[1] / name
+        if new.suffix not in {'.cc', '.h'} or not new.is_file():
+            continue
+        text, removed = filter_pruned_includes(old.read_text() if old.exists() else '', new.read_text(), pruned - restored_pruned)
+        if removed:
+            new.write_text(text, encoding='utf-8', newline='\n')
+            removed_includes[name] = removed
+
+    # Keep the unrelated Safe Browsing tracked-pref removal in this mixed hunk.
     factory = trees[1] / "chrome/browser/prefs/chrome_pref_service_factory.cc"
     if factory.exists():
         text = factory.read_text()
         unrelated = [
-            '#include "components/safe_browsing/core/common/safe_browsing_prefs.h"\n',
             '    {18, prefs::kSafeBrowsingIncidentsSent, EnforcementLevel::ENFORCE_ON_LOAD,\n'
             '     PrefTrackingStrategy::ATOMIC, ValueType::IMPERSONAL},\n',
         ]
@@ -184,7 +223,7 @@ def main():
         history.mkdir(exist_ok=True)
         (history / (hashlib.sha256(previous).hexdigest() + '.patch')).write_bytes(previous)
     args.output.write_text("".join(differences), encoding="utf-8", newline="\n")
-    report = {"version": config["chromium_version"], "changed_files": changed, "source_inputs": sources, "patch_sha256": hashlib.sha256(args.output.read_bytes()).hexdigest(), "qualification": "Source replay only; requires native build and actual account tests"}
+    report = {"version": config["chromium_version"], "changed_files": changed, "source_inputs": sources, "pruning_list_sha256": hashlib.sha256(pruning_data).hexdigest(), "baseline_pruned_sources": sorted(targets & pruned), "restored_pruned_sources": sorted(restored_pruned), "removed_pruned_includes": removed_includes, "patch_sha256": hashlib.sha256(args.output.read_bytes()).hexdigest(), "qualification": "Source replay only; requires native build and actual account tests"}
     args.output.with_suffix(".json").write_text(json.dumps(report, indent=2), encoding="utf-8", newline="\n")
     print(json.dumps({"changed_files": len(changed), "patch_bytes": args.output.stat().st_size, "output": str(args.output)}, indent=2))
 

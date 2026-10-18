@@ -99,9 +99,7 @@
     ]
   },
   "extra_sources": [
-    "components/password_manager/core/browser/password_feature_manager_impl.cc",
-    "components/signin/public/base/signin_pref_names.cc",
-    "components/signin/public/base/signin_pref_names.h"
+    "components/password_manager/core/browser/password_feature_manager_impl.cc"
   ],
   "restore_hunks": {
     "core/ungoogled-chromium/remove-unused-preferences-fields.patch": {
@@ -204,5 +202,9 @@
       "chrome/browser/enterprise/signin/profile_management_disclaimer_service.cc",
       "chrome/browser/policy/configuration_policy_handler_list_factory.cc"
     ]
-  }
+  },
+  "restore_pruned_sources": [
+    "components/signin/public/base/signin_pref_names.cc",
+    "components/signin/public/base/signin_pref_names.h"
+  ]
 }

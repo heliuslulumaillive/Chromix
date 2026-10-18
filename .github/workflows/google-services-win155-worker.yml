@@ -27,6 +27,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Check source restoration inputs before downloading the cache
+        shell: pwsh
+        run: python -B -X utf8 -m unittest tools.tests.test_google_services
       - name: Install and verify Windows build prerequisites
         shell: pwsh
         run: build/windows/build-google-services.ps1 -Phase Prerequisites

@@ -113,6 +113,8 @@
     "components/signin/internal/identity_manager/profile_oauth2_token_service.cc",
     "components/signin/public/base/BUILD.gn",
     "components/signin/public/base/device_id_helper.cc",
+    "components/signin/public/base/signin_pref_names.cc",
+    "components/signin/public/base/signin_pref_names.h",
     "components/signin/public/base/signin_prefs.cc",
     "components/signin/public/base/signin_switches.cc",
     "components/signin/public/identity_manager/identity_utils.cc",
@@ -662,6 +664,29 @@
       "sha256": "dc31de78a9a9b03fe24ea42e8876aa95bba86a3a30da17429397bae403db6e3f"
     }
   ],
-  "patch_sha256": "153cfc556ba741369cc2ae2b87e60e1d9b8c5c1229c5f655b70bd1d822aa3347",
+  "pruning_list_sha256": "13d91cb1bc89f8aae1d7b54b519accbcbf7a5fa087562977f265b4d641568a01",
+  "baseline_pruned_sources": [
+    "components/signin/public/base/signin_pref_names.cc",
+    "components/signin/public/base/signin_pref_names.h"
+  ],
+  "restored_pruned_sources": [
+    "components/signin/public/base/signin_pref_names.cc",
+    "components/signin/public/base/signin_pref_names.h"
+  ],
+  "removed_pruned_includes": {
+    "chrome/browser/extensions/api/settings_private/prefs_util.cc": [
+      "components/safe_browsing/core/common/safe_browsing_prefs.h"
+    ],
+    "chrome/browser/policy/configuration_policy_handler_list_factory.cc": [
+      "components/safe_browsing/core/common/safe_browsing_prefs.h"
+    ],
+    "chrome/browser/prefs/chrome_pref_service_factory.cc": [
+      "components/safe_browsing/core/common/safe_browsing_prefs.h"
+    ],
+    "chrome/browser/ui/hats/trust_safety_sentiment_service.cc": [
+      "components/safe_browsing/core/common/safe_browsing_prefs.h"
+    ]
+  },
+  "patch_sha256": "a938c250d776e9126d044c022d339bc09c05422fedfe652c9a8f39e999ed06cc",
   "qualification": "Source replay only; requires native build and actual account tests"
 }
