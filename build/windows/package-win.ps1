@@ -20,6 +20,12 @@ if (-not (Test-Path $chromiumLicense)) {
   throw "Chromium license is missing: $chromiumLicense"
 }
 Copy-Item $chromiumLicense (Join-Path $Bundle "LICENSE.chromium")
+$serviceMetadata = Join-Path (Split-Path (Split-Path (Split-Path $Out -Parent) -Parent) -Parent) "google-services-source.json"
+if (Test-Path -LiteralPath $serviceMetadata -PathType Leaf) {
+  $serviceVariant = Get-Content -LiteralPath $serviceMetadata -Raw | ConvertFrom-Json
+  if ($serviceVariant.variant -cne 'google-services-self-use') { throw 'Unsupported Google-service metadata' }
+  Copy-Item -LiteralPath $serviceMetadata -Destination (Join-Path $Bundle 'google-services-source.json')
+}
 
 $required = @(
   "chrome.exe", "chrome.dll", "chrome_elf.dll",
