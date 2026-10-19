@@ -62,6 +62,7 @@ jobs:
           GOOGLE_BUILD_STAGE: ${{ inputs.stage }}
         run: build/windows/build-google-services.ps1 -Phase Build -Stage $env:GOOGLE_BUILD_STAGE
       - name: Upload candidate
+        id: candidate
         if: ${{ !cancelled() && steps.build.outputs.finished == 'true' }}
         uses: actions/upload-artifact@v4
         with:
@@ -85,9 +86,9 @@ jobs:
             C:/c/chromix/google-services-source.json
           if-no-files-found: ignore
           retention-days: 7
-      - name: Archive reusable checkpoint even after a compiler failure
+      - name: Archive checkpoint unless the finished candidate was uploaded
         id: checkpoint
-        if: ${{ !cancelled() && steps.restore.outputs.checkpoint_ready == 'true' }}
+        if: ${{ !cancelled() && steps.restore.outputs.checkpoint_ready == 'true' && steps.candidate.outcome != 'success' }}
         shell: pwsh
         env:
           GOOGLE_BUILD_STAGE: ${{ inputs.stage }}

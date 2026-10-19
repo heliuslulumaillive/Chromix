@@ -56,6 +56,12 @@ compilation within the existing 355-minute job limit. The actual budget is
 recalculated after GN and the cache-plan check. These settings do not alter jobs
 already running at an earlier commit.
 
+Once the tested candidate artifact has uploaded successfully, the worker skips
+the full source-tree checkpoint and its volume uploads. An unfinished build,
+compiler or runtime-check failure, or failed candidate upload still saves a
+prepared checkpoint. Previously uploaded checkpoints remain available for their
+normal retention period; this optimization does not delete or replace them.
+
 Source preparation writes only changed bytes. Upgrading an already prepared
 checkpoint with this validation change leaves unchanged C++ inputs and object
 files untouched. The script continues to run Ninja against `out/Default`.

@@ -152,6 +152,33 @@ class CacheAuditTest(unittest.TestCase):
 
 
 class WorkflowRoutingTest(unittest.TestCase):
+    def test_checkpoint_survives_build_or_upload_failure(self):
+        workflow = yaml.load((REPO / '.github/workflows/google-services-win155-worker.yml').read_text(), Loader=yaml.BaseLoader)
+        steps = workflow['jobs']['build']['steps']
+        by_id = {step['id']: step for step in steps if 'id' in step}
+        candidate = by_id['candidate']
+        self.assertEqual(candidate['uses'], 'actions/upload-artifact@v4')
+        self.assertEqual(candidate['with']['if-no-files-found'], 'error')
+        self.assertLess(steps.index(candidate), steps.index(by_id['checkpoint']))
+        condition = by_id['checkpoint']['if'].removeprefix('${{').removesuffix('}}').strip()
+        # Evaluate the actual workflow guard across upload failures and skips.
+        # A finished compilation alone must never discard its only new checkpoint.
+        cases = (
+            ('candidate delivered', False, 'true', 'success', False),
+            ('compilation unfinished or failed', False, 'true', 'skipped', True),
+            ('candidate upload failed', False, 'true', 'failure', True),
+            ('candidate upload not attempted', False, 'true', '', True),
+            ('source preparation incomplete', False, 'false', 'skipped', False),
+            ('run cancelled', True, 'true', 'skipped', False),
+        )
+        for reason, cancelled, prepared, upload, expected in cases:
+            with self.subTest(reason=reason):
+                expression = (condition.replace('!cancelled()', repr(not cancelled))
+                              .replace('steps.restore.outputs.checkpoint_ready', repr(prepared))
+                              .replace('steps.candidate.outcome', repr(upload))
+                              .replace('&&', 'and'))
+                self.assertEqual(eval(expression, {'__builtins__': {}}, {}), expected)
+
     def test_push_only_verifies_and_never_cancels_active_run(self):
         workflow = yaml.load((REPO / '.github/workflows/build-google-services-win155.yml').read_text(), Loader=yaml.BaseLoader)
         self.assertEqual(workflow['concurrency']['cancel-in-progress'], 'false')
