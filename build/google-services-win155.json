@@ -39,6 +39,7 @@
       "chrome/browser/ui/webui/settings/settings_ui.cc"
     ],
     "core/ungoogled-chromium/remove-unused-preferences-fields.patch": [
+      "chrome/browser/enterprise/BUILD.gn",
       "chrome/browser/enterprise/signin/managed_profile_creation_controller.cc",
       "chrome/browser/enterprise/signin/oidc_authentication_signin_interceptor.cc",
       "chrome/browser/enterprise/signin/oidc_managed_profile_creation_delegate.cc",
@@ -78,6 +79,7 @@
       "chrome/browser/ui/webui/signin/turn_sync_on_helper_delegate_impl.cc",
       "components/password_manager/core/browser/sync_credentials_filter.cc",
       "components/send_tab_to_self/entry_point_display_reason.cc",
+      "components/browser_sync/BUILD.gn",
       "components/signin/core/browser/BUILD.gn",
       "components/signin/core/browser/account_investigator.cc",
       "components/signin/core/browser/account_investigator.h",
@@ -99,6 +101,10 @@
     ]
   },
   "extra_sources": [
+    "chrome/browser/BUILD.gn",
+    "chrome/browser/security_events/BUILD.gn",
+    "chrome/browser/security_events/security_event_recorder_factory.cc",
+    "components/browser_sync/sync_to_signin_migration.cc",
     "components/password_manager/core/browser/password_feature_manager_impl.cc"
   ],
   "restore_hunks": {

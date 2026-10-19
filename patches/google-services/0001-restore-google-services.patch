@@ -46,6 +46,16 @@
      </message>
  
      <!-- Languages Page -->
+--- a/chrome/browser/BUILD.gn
++++ b/chrome/browser/BUILD.gn
+@@ -2238,6 +2238,7 @@
+     "//chrome/browser/search_engine_choice",
+     "//chrome/browser/search_engine_choice:impl",
+     "//chrome/browser/search_provider_logos",
++    "//chrome/browser/security_events",
+     "//chrome/browser/segmentation_platform",
+     "//chrome/browser/segmentation_platform:impl",
+     "//chrome/browser/send_tab_to_self",
 --- a/chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc
 +++ b/chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc
 @@ -32,6 +32,7 @@
@@ -124,6 +134,16 @@
  #endif
  
    // Don't prompt for file types that are marked for opening automatically.
+--- a/chrome/browser/enterprise/BUILD.gn
++++ b/chrome/browser/enterprise/BUILD.gn
+@@ -793,6 +793,7 @@
+       "signin/enterprise_signin_prefs.cc",
+       "signin/enterprise_signin_service.cc",
+       "signin/enterprise_signin_service_factory.cc",
++      "signin/managed_profile_creation_controller.cc",
+       "signin/managed_profile_creator.cc",
+       "signin/managed_profile_required_navigation_throttle.cc",
+       "signin/oidc_authentication_signin_interceptor.cc",
 --- a/chrome/browser/enterprise/signin/managed_profile_creation_controller.cc
 +++ b/chrome/browser/enterprise/signin/managed_profile_creation_controller.cc
 @@ -31,6 +31,7 @@
@@ -3218,6 +3238,17 @@
    return true;
  }
  
+--- a/components/browser_sync/BUILD.gn
++++ b/components/browser_sync/BUILD.gn
+@@ -14,6 +14,8 @@
+     "sync_engine_factory_impl.h",
+     "sync_internals_message_handler.cc",
+     "sync_internals_message_handler.h",
++    "sync_to_signin_migration.cc",
++    "sync_to_signin_migration.h",
+   ]
+ 
+   public_deps = [
 --- a/components/collaboration/internal/collaboration_service_impl.cc
 +++ b/components/collaboration/internal/collaboration_service_impl.cc
 @@ -19,6 +19,7 @@

@@ -184,6 +184,19 @@ def main():
         raise ValueError("Password-generation source changed")
     generation.write_text(text.replace(before, after), encoding="utf-8", newline="\n")
 
+    # The security-events implementation already depends on sync. Add it to
+    # the browser aggregate so restored sync callers link without a GN cycle.
+    browser_build = trees[1] / "chrome/browser/BUILD.gn"
+    text = browser_build.read_text()
+    before = ('    "//chrome/browser/search_provider_logos",\n'
+              '    "//chrome/browser/segmentation_platform",\n')
+    after = ('    "//chrome/browser/search_provider_logos",\n'
+             '    "//chrome/browser/security_events",\n'
+             '    "//chrome/browser/segmentation_platform",\n')
+    if text.count(before) != 1:
+        raise ValueError("Browser implementation dependency list changed")
+    browser_build.write_text(text.replace(before, after), encoding="utf-8", newline="\n")
+
     removed_includes = {}
     for name in sorted(targets):
         old, new = trees[0] / name, trees[1] / name

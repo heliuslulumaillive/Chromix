@@ -3,8 +3,10 @@
   "changed_files": [
     "chrome/app/settings_chromium_strings.grdp",
     "chrome/app/settings_strings.grdp",
+    "chrome/browser/BUILD.gn",
     "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
     "chrome/browser/download/download_target_determiner.cc",
+    "chrome/browser/enterprise/BUILD.gn",
     "chrome/browser/enterprise/signin/managed_profile_creation_controller.cc",
     "chrome/browser/enterprise/signin/oidc_authentication_signin_interceptor.cc",
     "chrome/browser/enterprise/signin/oidc_managed_profile_creation_delegate.cc",
@@ -85,6 +87,7 @@
     "components/affiliations/core/browser/hash_affiliation_fetcher.h",
     "components/assist_ranker/ranker_url_fetcher.cc",
     "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc",
+    "components/browser_sync/BUILD.gn",
     "components/collaboration/internal/collaboration_service_impl.cc",
     "components/commerce/core/shopping_service.cc",
     "components/commerce/core/subscriptions/subscriptions_server_proxy.cc",
@@ -144,12 +147,20 @@
       "sha256": "ff45194a6b8b6f7e9c6c0717065bb90cc4dcf9d1bee08ebf0700790ec9d7e3cb"
     },
     {
+      "path": "chrome/browser/BUILD.gn",
+      "sha256": "5c9a66b731954d1d28c7f630071880f0a879bfef924338362004b9ad19f4444b"
+    },
+    {
       "path": "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
       "sha256": "c538f6d0c4698f63acd10e7de51e8bfd5c77b393e4aacc070df97674ab3aea01"
     },
     {
       "path": "chrome/browser/download/download_target_determiner.cc",
       "sha256": "20c460af6833a7c0a2e3ed1f09ae8999681840542ab915dbe75b395de1fdd71c"
+    },
+    {
+      "path": "chrome/browser/enterprise/BUILD.gn",
+      "sha256": "e2eec0337555cd097cc11983d0e8a3805b65bacca0492306d81b79cc47e948c5"
     },
     {
       "path": "chrome/browser/enterprise/signin/managed_profile_creation_controller.cc",
@@ -286,6 +297,14 @@
     {
       "path": "chrome/browser/resources/settings/privacy_page/personalization_options.ts",
       "sha256": "0033ef1056c631b3a7bf53977f2300d19e97309616eb001ee11506a1133aeb82"
+    },
+    {
+      "path": "chrome/browser/security_events/BUILD.gn",
+      "sha256": "710ffc251f9954e90ea2ad8775e9c181f4eb2fb90ba5e8c7d67a44953f03f901"
+    },
+    {
+      "path": "chrome/browser/security_events/security_event_recorder_factory.cc",
+      "sha256": "bea25ec6ee7bd3db37b7a873075b3b3cccedec4d20a6b5d34480094fa63dd2b2"
     },
     {
       "path": "chrome/browser/signin/account_consistency_mode_manager.cc",
@@ -470,6 +489,14 @@
     {
       "path": "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc",
       "sha256": "f3abdb8791a542be8af550f67247445c665aee1cb720eb378b7de1a50df72b4b"
+    },
+    {
+      "path": "components/browser_sync/BUILD.gn",
+      "sha256": "4f1d70e0dd7c3261441c9a99c5639f3c9b8da5d8391751ecae8df107acee0fc5"
+    },
+    {
+      "path": "components/browser_sync/sync_to_signin_migration.cc",
+      "sha256": "fc39e409eb86699568bed5eda29781a87143c0622e29adce9d41ab0de2a291be"
     },
     {
       "path": "components/collaboration/internal/collaboration_service_impl.cc",
@@ -687,6 +714,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "a938c250d776e9126d044c022d339bc09c05422fedfe652c9a8f39e999ed06cc",
+  "patch_sha256": "259902eae2c06f57bd8020c60399315db1c34089b17222aa56bfea2a496e5bb3",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

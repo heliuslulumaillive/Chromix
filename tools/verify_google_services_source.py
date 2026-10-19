@@ -12,6 +12,22 @@ import re
 CPP_TOKENS = re.compile(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|(?P<comment>//[^\r\n]*|/\*[\s\S]*?\*/)')
 
 REQUIRED = {
+    'chrome/browser/BUILD.gn': ['"//chrome/browser/security_events"'],
+    'chrome/browser/enterprise/BUILD.gn': ['"signin/managed_profile_creation_controller.cc"'],
+    'chrome/browser/enterprise/signin/managed_profile_creation_controller.cc': [
+        'ManagedProfileCreationController::CreateManagedProfile(',
+        'ManagedProfileCreationController::CreateManagedProfileForTesting(',
+    ],
+    'chrome/browser/security_events/BUILD.gn': ['"security_event_recorder_factory.cc"'],
+    'chrome/browser/security_events/security_event_recorder_factory.cc': [
+        'SecurityEventRecorderFactory::GetInstance()',
+        'SecurityEventRecorderFactory::GetForProfile(',
+    ],
+    'components/browser_sync/BUILD.gn': ['"sync_to_signin_migration.cc"', '"sync_to_signin_migration.h"'],
+    'components/browser_sync/sync_to_signin_migration.cc': [
+        'void MaybeMigrateSyncingUserToSignedIn(',
+        'void MaybeMigrateSyncingUserToSignedInAsync(',
+    ],
     'content/browser/webauth/webauth_request_security_checker_impl.cc': [
         'caller_origin.DomainIs("google.com")',
         '!appid_url.has_ref()',
