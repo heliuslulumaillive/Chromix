@@ -109,7 +109,7 @@ class MetadataRefreshTest(unittest.TestCase):
                        '--ensure-manifest', '--target', 'chrome', '--target', 'uxr_surface_modes_tests']
             outputs = [SimpleNamespace(returncode=0, stdout=text, stderr='') for text in (refresh_text, plan_text)]
             with mock.patch.object(sys, 'argv', command), redirect_stdout(io.StringIO()), \
-                    mock.patch.object(audit.subprocess, 'run', side_effect=outputs) as run:
+                    mock.patch.object(audit, 'run_logged', side_effect=outputs) as run:
                 code = audit.main()
             calls = [item.args[0] for item in run.call_args_list]
             self.assertEqual(calls[0][-1], 'build.ninja')

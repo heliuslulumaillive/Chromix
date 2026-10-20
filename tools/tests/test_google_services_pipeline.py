@@ -161,7 +161,7 @@ class CacheAuditTest(unittest.TestCase):
             report = root / 'evidence/cache.json'
             command = ['audit', '--ninja', str(root / 'ninja.exe'), '--out', str(root), '--report', str(report)]
             with mock.patch.object(sys, 'argv', command), redirect_stdout(io.StringIO()), \
-                    mock.patch.object(audit.subprocess, 'run', return_value=SimpleNamespace(returncode=0,
+                    mock.patch.object(audit, 'run_logged', return_value=SimpleNamespace(returncode=0,
                         stdout='[0/1] Regenerating ninja files\n', stderr='')) as process:
                 self.assertEqual(audit.main(), 0)
             self.assertIn('-n', process.call_args.args[0])
@@ -182,7 +182,7 @@ class CacheAuditTest(unittest.TestCase):
                            '--target', 'chrome', '--target', 'native_passkey_unittests']
                 outputs = ['[0/1] Regenerating ninja files\n', 'metadata refreshed\n', after]
                 with mock.patch.object(sys, 'argv', command), redirect_stdout(io.StringIO()), \
-                        mock.patch.object(audit.subprocess, 'run', side_effect=[
+                        mock.patch.object(audit, 'run_logged', side_effect=[
                             SimpleNamespace(returncode=0, stdout=text, stderr='') for text in outputs]) as process:
                     self.assertEqual(audit.main(), 0 if expected_status == 'passed' else 1)
                 calls = [call.args[0] for call in process.call_args_list]

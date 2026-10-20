@@ -88,6 +88,11 @@ if ($Phase -eq 'SelectCheckpoint') {
 }
 
 if ($Phase -eq 'Prerequisites') {
+  # The fingerprint preflight installs this before its owned-process test.
+  # Keep legacy callers of the shared audit helper supplied as well.
+  if (-not $isFingerprint) {
+    Checked { python -m pip install --disable-pip-version-check psutil==7.2.2 }
+  }
   # Leave time inside the 355-minute job limit to package and upload the tree.
   if (-not (Test-Path -LiteralPath $sessionPath)) {
     @{ started_at = [DateTimeOffset]::UtcNow.ToString('o') } | ConvertTo-Json | Set-Content -LiteralPath $sessionPath
@@ -184,6 +189,15 @@ if ($Phase -eq 'Checkpoint') {
   }
   $preparedSource = Get-Content -LiteralPath (Join-Path $work 'google-services-source.json') -Raw | ConvertFrom-Json
   if ($isFingerprint -and $preparedSource.build_variant -cne $BuildVariant) { throw 'Cannot snapshot another build variant' }
+  if ($isFingerprint) {
+    $auditPath = Join-Path $logs "cache-audit-stage-$Stage.json"
+    if (Test-Path -LiteralPath $auditPath -PathType Leaf) {
+      $auditReceipt = Get-Content -LiteralPath $auditPath -Raw | ConvertFrom-Json
+      if ($auditReceipt.PSObject.Properties['safe_to_snapshot'] -and $auditReceipt.safe_to_snapshot -eq $false) {
+        throw 'Audit process-tree cleanup was not confirmed; refusing a live-tree checkpoint'
+      }
+    }
+  }
   if (Test-Path -LiteralPath $parts) { throw 'Expected a fresh checkpoint output directory' }
   New-Item -ItemType Directory -Path $parts | Out-Null
   Push-Location $root
@@ -265,7 +279,12 @@ try {
   if ($isFingerprint) {
     # A failed metadata update can still change recoverable GN outputs.
     Output 'cache_may_change' 'true'
-    $auditArgs = @('--ensure-manifest')
+    $auditArgs = @('--ensure-manifest', '--manifest-timeout-seconds', '1800', '--plan-timeout-seconds', '600')
+    $selectedCheckpoint = Get-Content -LiteralPath $selectionPath -Raw | ConvertFrom-Json
+    $previousAudit = Join-Path $logs "cache-audit-stage-$($selectedCheckpoint.stage).json"
+    if (Test-Path -LiteralPath $previousAudit -PathType Leaf) {
+      $auditArgs += @('--previous-audit', $previousAudit)
+    }
     foreach ($target in $targets) { $auditArgs += @('--target', $target) }
     Checked { python -B -X utf8 (Join-Path $repo 'tools\google_services_cache_audit.py') --ninja $ninja --out $out @auditArgs --report (Join-Path $logs "cache-audit-stage-$Stage.json") }
   } else {
