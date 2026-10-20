@@ -46,18 +46,36 @@ def main():
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--target', action='append', default=[])
+    parser.add_argument('--refresh-manifest', action='store_true')
     args = parser.parse_args()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     result = {'schema_version': 1, 'compiler_invoked': False, 'status': 'failed'}
     try:
         result.update(summarize_log(args.out / '.ninja_log'))
         env = {**os.environ, 'NINJA_STATUS': '[%f/%t] '}
-        plan = subprocess.run([str(args.ninja), '-C', str(args.out), '-n', *(args.target or ['chrome'])],
-                              env=env, capture_output=True, text=True, timeout=240)
-        args.report.with_suffix('.log').write_text(plan.stdout + plan.stderr, encoding='utf-8')
-        if plan.returncode:
-            raise ValueError('Ninja could not plan the restored tree; see dry-run log')
-        pending = pending_count(plan.stdout)
+        targets = args.target or ['chrome']
+        result['targets'] = targets
+        for attempt in range(2):
+            plan = subprocess.run([str(args.ninja), '-C', str(args.out), '-n', *targets],
+                                  env=env, capture_output=True, text=True, timeout=240)
+            args.report.with_suffix('.log').write_text(plan.stdout + plan.stderr, encoding='utf-8')
+            if plan.returncode:
+                raise ValueError('Ninja could not plan the restored tree; see dry-run log')
+            pending = pending_count(plan.stdout)
+            if pending is not None or not args.refresh_manifest:
+                break
+            if attempt:
+                raise ValueError('Ninja manifest is still dirty after a metadata-only refresh')
+            # This target only refreshes GN/Ninja metadata. Never invoke a
+            # browser or test compilation merely to measure pending work.
+            refresh = subprocess.run([str(args.ninja), '-C', str(args.out), 'build.ninja'],
+                                     env=env, capture_output=True, text=True, timeout=240)
+            args.report.with_suffix('.manifest-refresh.log').write_text(
+                refresh.stdout + refresh.stderr, encoding='utf-8')
+            if refresh.returncode:
+                raise ValueError('Ninja manifest refresh failed')
+            result['manifest_refreshed'] = True
+        result['pending_compile_actions'] = len(re.findall(r'\]\s+(?:CXX|CC|OBJCXX|OBJC)\s', plan.stdout))
         result.update(status='passed' if pending is not None else 'manifest_regeneration_required', pending_actions=pending,
                       scope='Cached log output count and current pending actions; not a cache-hit percentage')
     except Exception as error:

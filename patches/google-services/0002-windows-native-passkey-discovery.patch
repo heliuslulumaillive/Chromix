@@ -1,3 +1,140 @@
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -188,6 +188,9 @@
+     if (!is_ios && !is_castos) {
+       if (!is_fuchsia) {
+         deps += [ "//chrome/test:unit_tests" ]
++        if (is_win) {
++          deps += [ "//chrome/test:native_passkey_unittests" ]
++        }
+       }
+       deps += [ "//ui/accessibility:accessibility_unittests" ]
+     }
+--- a/chrome/browser/webauthn/authenticator_request_dialog_controller.cc
++++ b/chrome/browser/webauthn/authenticator_request_dialog_controller.cc
+@@ -2167,6 +2167,16 @@
+ 
+   // If there is a single mechanism, go to that.
+   if (model_->mechanisms.size() == 1) {
++    const auto* credential =
++        std::get_if<Mechanism::Credential>(&model_->mechanisms[0].type);
++    if (transport_availability_.has_win_native_api_authenticator && credential &&
++        credential->value().source == AuthenticatorType::kWinNative) {
++      // The Windows cache need not include every native passkey provider. Do
++      // not automatically narrow the RP's allow-list to the sole cached key;
++      // StartGuidedFlowForMostLikelyTransportOrShowMechanismSelection() will
++      // invoke the Windows picker with the original request instead.
++      return std::nullopt;
++    }
+     return 0;
+   }
+ 
+--- a/chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc
++++ b/chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc
+@@ -1353,6 +1353,47 @@
+   EXPECT_EQ(model->step(), Step::kPlatformAuthenticator);
+   EXPECT_EQ(request_future.Get(), kWinAuthenticatorId);
+ }
++
++// A cached Hello key is not necessarily the only key the RP allows. Windows
++// must be able to offer an uncached native provider using the original list.
++TEST_F(AuthenticatorRequestDialogControllerTest,
++       WinSingleCachedCredentialPreservesOriginalAllowList) {
++  device::FakeWinWebAuthnApi fake_win_webauthn_api;
++  device::WinWebAuthnApi::ScopedOverride win_webauthn_api_override(
++      &fake_win_webauthn_api);
++  fake_win_webauthn_api.set_version(9);
++  for (bool empty_allow_list : {false, true}) {
++    SCOPED_TRACE(empty_allow_list);
++    TransportAvailabilityInfo tai;
++    tai.request_type = device::FidoRequestType::kGetAssertion;
++    tai.available_transports = {AuthenticatorTransport::kInternal};
++    tai.transport_list_did_include_internal = true;
++    tai.request_is_internal_only = !empty_allow_list;
++    tai.has_empty_allow_list = empty_allow_list;
++    tai.win_is_uvpaa = true;
++    tai.has_win_native_api_authenticator = true;
++    tai.has_platform_authenticator_credential = device::FidoRequestHandlerBase::
++        RecognizedCredential::kHasRecognizedCredential;
++    tai.recognized_credentials = {kWinCred1};
++    auto model =
++        base::MakeRefCounted<AuthenticatorRequestDialogModel>(main_rfh());
++    UpdateModelBeforeStartFlow(model.get(), tai, /*is_off_the_record=*/false);
++    AuthenticatorRequestDialogController controller(model.get(), main_rfh());
++    controller.saved_authenticators().emplace_back(
++        "win-native", AuthenticatorTransport::kInternal,
++        device::AuthenticatorType::kWinNative);
++    base::test::TestFuture<std::string> request_future;
++    controller.SetRequestCallback(
++        request_future.GetRepeatingCallback<const std::string&>());
++    controller.SetAccountPreselectedCallback(base::BindLambdaForTesting(
++        [](device::DiscoverableCredentialMetadata) {
++          FAIL() << "Automatic Windows dispatch must preserve the RP allow-list";
++        }));
++    controller.StartFlow(std::move(tai), {});
++    EXPECT_EQ(model->step(), Step::kPlatformAuthenticator);
++    EXPECT_EQ(request_future.Get(), "win-native");
++  }
++}
+ #endif
+ 
+ TEST_F(AuthenticatorRequestDialogControllerTest, NoAvailableTransports) {
+--- a/chrome/test/BUILD.gn
++++ b/chrome/test/BUILD.gn
+@@ -4688,6 +4688,53 @@
+   sources = [ "mojom/echo.test-mojom" ]
+ }
+ 
++if (is_win) {
++  # Compile the two affected suites, not every Chrome/device unit test.
++  test("native_passkey_unittests") {
++    sources = [
++      "../../device/fido/win/authenticator_unittest.cc",
++      "../browser/webauthn/authenticator_request_dialog_model_unittest.cc",
++    ]
++    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
++    deps = [
++      ":test_support_unit",
++      "//base/test:test_support",
++      "//chrome/app:chrome_dll_resources",
++      "//chrome/app:generated_resources",
++      "//chrome/app/vector_icons",
++      "//chrome/browser/password_manager",
++      "//chrome/browser/webauthn",
++      "//components/prefs",
++      "//components/strings",
++      "//components/vector_icons",
++      "//components/webauthn/core/browser:passkey_model",
++      "//content/test:test_support",
++      "//crypto:test_support",
++      "//device/fido",
++      "//device/fido:test_support",
++      "//testing/gmock",
++      "//testing/gtest",
++      "//ui/base",
++      "//url",
++    ]
++    data_deps = [ "//chrome:packed_resources" ]
++    # Match the Windows unit-test entry point's runtime/link requirements.
++    ldflags = [
++      "/DELAYLOAD:api-ms-win-core-winrt-error-l1-1-0.dll",
++      "/DELAYLOAD:api-ms-win-core-winrt-l1-1-0.dll",
++      "/DELAYLOAD:api-ms-win-core-winrt-string-l1-1-0.dll",
++    ]
++    libs = [
++      "comsupp.lib",
++      "oleacc.lib",
++      "rpcrt4.lib",
++      "runtimeobject.lib",
++      "urlmon.lib",
++      "winmm.lib",
++    ]
++  }
++}
++
+ test("unit_tests") {
+   use_xvfb = use_xvfb_in_this_config
+ 
 --- a/device/fido/win/authenticator.cc
 +++ b/device/fido/win/authenticator.cc
 @@ -383,8 +383,12 @@

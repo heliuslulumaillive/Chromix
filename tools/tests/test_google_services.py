@@ -62,6 +62,12 @@ class DomainRestorationTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'webauth_request_security_checker_impl'):
                     source_checks.verify(src)
             checker.write_text(original)
+            gn = src / 'chrome/test/BUILD.gn'
+            original_gn = gn.read_text()
+            gn.write_text('\n'.join('# ' + line for line in original_gn.splitlines()))
+            with self.assertRaisesRegex(ValueError, 'chrome/test/BUILD.gn'):
+                source_checks.verify(src)
+            gn.write_text(original_gn)
             header = src / module.WEBAUTHN_VALIDATION_FILES[1]
             header.write_text(header.read_text().replace('www.gstatic.com', 'www.95tat1c.qjz9zk'))
             with self.assertRaisesRegex(ValueError, 'webauth_request_security_checker_impl'):

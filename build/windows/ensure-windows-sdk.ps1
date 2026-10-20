@@ -4,6 +4,7 @@ param(
   [ValidateSet("x64", "arm64")][string]$Arch = "x64",
   [string]$ChromiumVersion = "",
   [string]$DownloadDir = "",
+  [switch]$Describe,
   [switch]$Install
 )
 $ErrorActionPreference = "Stop"
@@ -35,6 +36,10 @@ if (-not $sdk) {
   $sdk = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10"
 }
 $sdk = [IO.Path]::GetFullPath($sdk)
+if ($Describe) {
+  [ordered]@{version=$SdkVersion; release=$SdkRelease; root=$sdk; arch=$Arch; installer_sha256=$InstallerSha256} | ConvertTo-Json -Compress
+  return
+}
 
 function Get-MissingSdkFiles {
   $required = @(

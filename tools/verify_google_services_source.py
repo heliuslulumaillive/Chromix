@@ -12,6 +12,21 @@ import re
 CPP_TOKENS = re.compile(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|(?P<comment>//[^\r\n]*|/\*[\s\S]*?\*/)')
 
 REQUIRED = {
+    'BUILD.gn': ['"//chrome/test:native_passkey_unittests"'],
+    'chrome/test/BUILD.gn': [
+        'test("native_passkey_unittests")',
+        '"../browser/webauthn/authenticator_request_dialog_model_unittest.cc"',
+        '"../../device/fido/win/authenticator_unittest.cc"',
+    ],
+    'chrome/browser/webauthn/authenticator_request_dialog_controller.cc': [
+        'std::get_if<Mechanism::Credential>(&model_->mechanisms[0].type)',
+        'transport_availability_.has_win_native_api_authenticator && credential &&',
+        'credential->value().source == AuthenticatorType::kWinNative',
+    ],
+    'chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc': [
+        'WinSingleCachedCredentialPreservesOriginalAllowList',
+        'Automatic Windows dispatch must preserve the RP allow-list',
+    ],
     'device/fido/win/authenticator.cc': [
         'api->Version() >= WEBAUTHN_API_VERSION_9',
         'credentials.empty() && supports_native_passkey_providers',
@@ -112,7 +127,10 @@ def verify(src: Path):
             continue
         # Domain restoration intentionally leaves comment-only substitutions
         # untouched to preserve incremental builds. Check executable code only.
-        source = CPP_TOKENS.sub(lambda token: '' if token.group('comment') else token[0], path.read_text(encoding='utf-8'))
+        text = path.read_text(encoding='utf-8')
+        if path.suffix == '.gn':
+            text = re.sub(r'(?m)^\s*#.*$', '', text)
+        source = CPP_TOKENS.sub(lambda token: '' if token.group('comment') else token[0], text)
         source = re.sub(r'\s+', '', source)
         for text in required:
             if re.sub(r'\s+', '', text) not in source:

@@ -65,6 +65,11 @@ NATIVE_PASSKEY_TESTS = {
                    'NativeProvidersPreservesMatch', 'NativeProvidersRespectsTransports',
                    'NativeProvidersUnavailableBeforeV9')
 }
+NATIVE_PASSKEY_TESTS.update({
+    'AuthenticatorRequestDialogControllerTest.WinSingleCachedCredentialPreservesOriginalAllowList',
+    'AuthenticatorRequestDialogControllerTest.WinCredMatchEmptyAllowList',
+    'AuthenticatorRequestDialogControllerTest.ConditionalUIWindowsCancel',
+})
 
 
 def validate_native_passkey_tests(report):
@@ -76,7 +81,7 @@ def validate_native_passkey_tests(report):
         if not isinstance(iteration, dict):
             raise ValueError('Invalid native passkey regression results')
         for name, attempts in iteration.items():
-            if not name.startswith('WinAuthenticatorTest.'):
+            if not name.startswith(('WinAuthenticatorTest.', 'AuthenticatorRequestDialogControllerTest.')):
                 continue
             if (not isinstance(attempts, list) or not attempts
                     or any(not isinstance(attempt, dict) or attempt.get('status') != 'SUCCESS'
@@ -137,10 +142,18 @@ def verify_candidate(artifact_dir, source, report_dir, record):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--artifact-dir', type=Path, required=True)
-    parser.add_argument('--source-run-json', type=Path, required=True)
-    parser.add_argument('--report-dir', type=Path, required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument('--artifact-dir', type=Path)
+    mode.add_argument('--native-tests-json', type=Path)
+    parser.add_argument('--source-run-json', type=Path)
+    parser.add_argument('--report-dir', type=Path)
     args = parser.parse_args()
+    if args.native_tests_json:
+        executed = validate_native_passkey_tests(read_object(args.native_tests_json))
+        print(json.dumps({'native_passkey_tests': 'passed', 'executed': len(executed)}))
+        return 0
+    if not args.source_run_json or not args.report_dir:
+        parser.error('Artifact verification requires --source-run-json and --report-dir')
     args.report_dir.mkdir(parents=True, exist_ok=False)
     record = {'schema_version': 1, 'status': 'failed', 'compiler_invoked': False,
               'source_checkpoint_restored': False}

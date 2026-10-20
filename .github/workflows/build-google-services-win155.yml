@@ -14,6 +14,8 @@ on:
       - 'tools/verify_google_services_runtime.py'
       - 'tools/verify_google_services_candidate.py'
       - 'tools/google_services_cache_audit.py'
+      - 'tools/google_services_checkpoint.py'
+      - 'tools/tests/test_google_services_checkpoint.py'
       - 'tools/write_google_services_build_record.py'
       - 'tools/google-services-requirements.txt'
       - 'tools/build_google_services_patch.py'
@@ -32,7 +34,12 @@ on:
         description: 'Run containing the candidate to verify or the complete checkpoint to resume'
         type: string
         required: true
-        default: '39150241133'
+        default: '39264722604'
+      max_stages:
+        description: 'Maximum sequential compile segments; completed candidates stop the chain early'
+        type: choice
+        options: ['1', '2', '3', '4']
+        default: '4'
 concurrency:
   group: google-services-win155-${{ github.ref }}
   cancel-in-progress: false
@@ -116,9 +123,44 @@ jobs:
     secrets: inherit
   build-2:
     needs: build-1
-    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'resume' && needs.build-1.outputs.finished != 'true'
+    if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.operation == 'resume' && needs.build-1.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 2
     uses: ./.github/workflows/google-services-win155-worker.yml
     with:
       stage: 2
-      resume_run: ${{ github.run_id }}
+      resume_run: ${{ needs.build-1.outputs.resume_source }}
     secrets: inherit
+  build-3:
+    needs: build-2
+    if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.operation == 'resume' && needs.build-2.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 3
+    uses: ./.github/workflows/google-services-win155-worker.yml
+    with:
+      stage: 3
+      resume_run: ${{ needs.build-2.outputs.resume_source }}
+    secrets: inherit
+  build-4:
+    needs: build-3
+    if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.operation == 'resume' && needs.build-3.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 4
+    uses: ./.github/workflows/google-services-win155-worker.yml
+    with:
+      stage: 4
+      resume_run: ${{ needs.build-3.outputs.resume_source }}
+    secrets: inherit
+  require-candidate:
+    needs: [build-1, build-2, build-3, build-4]
+    if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.operation == 'resume'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report candidate delivery or the preserved recovery source
+        shell: pwsh
+        env:
+          GOOGLE_STAGE_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          $stages = $env:GOOGLE_STAGE_RESULTS | ConvertFrom-Json
+          $results = @($stages.PSObject.Properties | ForEach-Object { $_.Value })
+          if (@($results | Where-Object { $_.outputs.finished -eq 'true' }).Count) {
+            'A tested candidate was uploaded; remaining compile segments were skipped.' | Add-Content $env:GITHUB_STEP_SUMMARY
+          } else {
+            $recovery = @($results | ForEach-Object { $_.outputs.recovery_source } | Where-Object { $_ }) | Select-Object -Last 1
+            throw "No candidate was delivered. Last validated recovery source: $recovery. Inspect a failed stage or explicitly resume that checkpoint; progress is retained."
+          }

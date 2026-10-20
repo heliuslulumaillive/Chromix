@@ -1,6 +1,7 @@
 {
   "version": "155.0.8059.39",
   "changed_files": [
+    "BUILD.gn",
     "chrome/app/settings_chromium_strings.grdp",
     "chrome/app/settings_strings.grdp",
     "chrome/browser/BUILD.gn",
@@ -82,7 +83,10 @@
     "chrome/browser/ui/webui/signin/turn_sync_on_helper.cc",
     "chrome/browser/ui/webui/signin/turn_sync_on_helper_delegate_impl.cc",
     "chrome/browser/ui/webui/suggest_internals/suggest_internals_handler.cc",
+    "chrome/browser/webauthn/authenticator_request_dialog_controller.cc",
+    "chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc",
     "chrome/common/google_url_loader_throttle.cc",
+    "chrome/test/BUILD.gn",
     "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
     "components/affiliations/core/browser/hash_affiliation_fetcher.h",
     "components/assist_ranker/ranker_url_fetcher.cc",
@@ -141,6 +145,10 @@
     "net/base/url_util.cc"
   ],
   "source_inputs": [
+    {
+      "path": "BUILD.gn",
+      "sha256": "e38b612778a41dd52c073f8633b3f22c6078e227baa892666e92ac29a9738391"
+    },
     {
       "path": "chrome/app/settings_chromium_strings.grdp",
       "sha256": "9fb3a5d1020f25121dbc59df33031554bd9f8498c74aa5c220a26364ee0d2b57"
@@ -474,8 +482,20 @@
       "sha256": "c34f5545bc263c6b9ecbf4df3774a5daabbc99b7459140d79220298005920a58"
     },
     {
+      "path": "chrome/browser/webauthn/authenticator_request_dialog_controller.cc",
+      "sha256": "627b880dd82f67480637fb9b5ac9646038b605a313dcf7711c4a7c084ec9285d"
+    },
+    {
+      "path": "chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc",
+      "sha256": "836c60bc38f960042a9d6ab471577efce359ae899d478e5ed26958dcdaaa24f5"
+    },
+    {
       "path": "chrome/common/google_url_loader_throttle.cc",
       "sha256": "6e48bc095f55697a5dd113fcfc36d4842a3c39a77d821c191878f4a98ecf6e01"
+    },
+    {
+      "path": "chrome/test/BUILD.gn",
+      "sha256": "4b1c4e75e9298e44953d57c11d3aeb12dee6b036b6f9071a887d3a7cc213e832"
     },
     {
       "path": "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
@@ -729,6 +749,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "4360719d61f25d2c69250798e3cf074809aac8aeb842b59d6eabe822b004739f",
+  "patch_sha256": "11d93ca099e0915191652e470135e2a2e311fcebed7cc79ac66f35bb37c1bc23",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

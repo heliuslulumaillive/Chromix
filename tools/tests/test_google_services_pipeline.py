@@ -169,6 +169,33 @@ class CacheAuditTest(unittest.TestCase):
             self.assertEqual(value['status'], 'manifest_regeneration_required')
             self.assertIsNone(value['pending_actions'])
 
+    def test_refreshes_metadata_then_measures_real_work_without_compiling(self):
+        for after, expected_status in (
+                ('[1/3] CXX obj/a.obj\n[2/3] CC obj/b.obj\n[3/3] LINK chrome.exe\n', 'passed'),
+                ('[0/1] Regenerating ninja files\n', 'failed')):
+            with self.subTest(after=after), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / '.ninja_log').write_text('# ninja log v6\n0\t1\t2\tobj/a.obj\tabc\n')
+                report = root / 'cache.json'
+                command = ['audit', '--ninja', str(root / 'ninja.exe'), '--out', str(root),
+                           '--report', str(report), '--refresh-manifest',
+                           '--target', 'chrome', '--target', 'native_passkey_unittests']
+                outputs = ['[0/1] Regenerating ninja files\n', 'metadata refreshed\n', after]
+                with mock.patch.object(sys, 'argv', command), redirect_stdout(io.StringIO()), \
+                        mock.patch.object(audit.subprocess, 'run', side_effect=[
+                            SimpleNamespace(returncode=0, stdout=text, stderr='') for text in outputs]) as process:
+                    self.assertEqual(audit.main(), 0 if expected_status == 'passed' else 1)
+                calls = [call.args[0] for call in process.call_args_list]
+                self.assertIn('-n', calls[0])
+                self.assertEqual(calls[1][3:], ['build.ninja'])
+                self.assertIn('-n', calls[2])
+                value = json.loads(report.read_text())
+                self.assertEqual(value['status'], expected_status)
+                self.assertFalse(value['compiler_invoked'])
+                if expected_status == 'passed':
+                    self.assertEqual(value['pending_actions'], 3)
+                    self.assertEqual(value['pending_compile_actions'], 2)
+
 
 class WorkflowRoutingTest(unittest.TestCase):
     def test_checkpoint_survives_build_or_upload_failure(self):
@@ -183,17 +210,19 @@ class WorkflowRoutingTest(unittest.TestCase):
         # Evaluate the actual workflow guard across upload failures and skips.
         # A finished compilation alone must never discard its only new checkpoint.
         cases = (
-            ('candidate delivered', False, 'true', 'success', False),
-            ('compilation unfinished or failed', False, 'true', 'skipped', True),
-            ('candidate upload failed', False, 'true', 'failure', True),
-            ('candidate upload not attempted', False, 'true', '', True),
-            ('source preparation incomplete', False, 'false', 'skipped', False),
-            ('run cancelled', True, 'true', 'skipped', False),
+            ('candidate delivered', False, 'true', 'true', 'success', False),
+            ('compilation unfinished or failed', False, 'true', 'true', 'skipped', True),
+            ('candidate upload failed', False, 'true', 'true', 'failure', True),
+            ('candidate upload not attempted', False, 'true', 'true', '', True),
+            ('setup consumed budget without compiling', False, 'true', 'false', 'skipped', False),
+            ('source preparation incomplete', False, 'false', 'true', 'skipped', False),
+            ('run cancelled', True, 'true', 'true', 'skipped', False),
         )
-        for reason, cancelled, prepared, upload, expected in cases:
+        for reason, cancelled, prepared, changed, upload, expected in cases:
             with self.subTest(reason=reason):
                 expression = (condition.replace('!cancelled()', repr(not cancelled))
                               .replace('steps.restore.outputs.checkpoint_ready', repr(prepared))
+                              .replace('steps.build.outputs.cache_may_change', repr(changed))
                               .replace('steps.candidate.outcome', repr(upload))
                               .replace('&&', 'and'))
                 self.assertEqual(eval(expression, {'__builtins__': {}}, {}), expected)
@@ -203,7 +232,7 @@ class WorkflowRoutingTest(unittest.TestCase):
         self.assertEqual(workflow['concurrency']['cancel-in-progress'], 'false')
         self.assertEqual(workflow['concurrency']['group'], 'google-services-win155-${{ github.ref }}')
         self.assertEqual(workflow['on']['workflow_dispatch']['inputs']['operation']['default'], 'verify')
-        for name in ('build-1', 'build-2'):
+        for name in ('build-1', 'build-2', 'build-3', 'build-4'):
             self.assertIn("github.event_name == 'workflow_dispatch'", workflow['jobs'][name]['if'])
             self.assertIn("inputs.operation == 'resume'", workflow['jobs'][name]['if'])
         verify = json.dumps(workflow['jobs']['verify-candidate'])
@@ -215,9 +244,64 @@ class WorkflowRoutingTest(unittest.TestCase):
     def test_resume_cannot_silently_fall_back_to_upstream(self):
         script = (REPO / 'build/windows/build-google-services.ps1').read_text()
         self.assertIn("if (-not $ResumeRun) { throw", script)
-        self.assertIn('no complete checkpoint manifest', script)
+        self.assertIn('no complete checkpoint manifest', script.lower())
         self.assertNotIn('38387174079', script)
         self.assertNotIn("$sourceRepo = 'xiaozhou26/Chromix'", script)
+
+    def test_continuation_uses_only_the_previous_stages_committed_source(self):
+        workflow = yaml.load((REPO / '.github/workflows/build-google-services-win155.yml').read_text(), Loader=yaml.BaseLoader)
+        for stage in range(2, 5):
+            job = workflow['jobs'][f'build-{stage}']
+            previous = f'build-{stage - 1}'
+            self.assertEqual(job['needs'], previous)
+            self.assertEqual(job['with']['resume_run'], '${{ needs.' + previous + '.outputs.resume_source }}')
+            self.assertIn(f"needs.{previous}.outputs.resume_needed == 'true'", job['if'])
+            self.assertIn(f">= {stage}", job['if'])
+        self.assertEqual(workflow['jobs']['require-candidate']['needs'],
+                         [f'build-{stage}' for stage in range(1, 5)])
+
+    def test_job_budget_and_checkpoint_validation_precede_dependency_downloads(self):
+        workflow = yaml.load((REPO / '.github/workflows/google-services-win155-worker.yml').read_text(), Loader=yaml.BaseLoader)
+        steps = workflow['jobs']['build']['steps']
+        self.assertIn('google-build-session.json', steps[0]['run'])
+        select_index = next(i for i, step in enumerate(steps) if '-Phase SelectCheckpoint' in step.get('run', ''))
+        cache_index = next(i for i, step in enumerate(steps) if step.get('uses') == 'actions/cache/restore@v4')
+        self.assertLess(select_index, cache_index)
+        self.assertNotIn('restore-keys', steps[cache_index]['with'])
+        metadata = next(step for step in steps if step.get('id') == 'sdk')['run']
+        self.assertIn('ImageVersion', metadata)
+        self.assertIn("hashFiles('build/windows/ensure-windows-sdk.ps1')", metadata)
+
+
+@unittest.skipUnless(shutil.which('pwsh') or shutil.which('powershell'), 'PowerShell is required')
+class ArchiveAfterValidationTest(unittest.TestCase):
+    def test_archive_requires_the_unchanged_pretest_receipt_and_inventory(self):
+        for mutation in (None, 'binary', 'receipt', 'extra_file'):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                bundle = root / 'chromix'
+                bundle.mkdir()
+                binary = bundle / 'chrome.exe'
+                binary.write_bytes(b'verified candidate')
+                record = bundle / 'google-services-build.json'
+                record.write_text(json.dumps({'files': {'chrome.exe': candidate.sha256(binary)}}))
+                before = candidate.sha256(record)
+                if mutation == 'binary':
+                    binary.write_bytes(b'changed during test')
+                elif mutation == 'receipt':
+                    record.write_text(json.dumps({'files': {}}))
+                elif mutation == 'extra_file':
+                    (bundle / 'unrecorded.dll').write_bytes(b'extra')
+                process = subprocess.run([shutil.which('pwsh') or shutil.which('powershell'),
+                    '-NoProfile', '-NonInteractive', '-File', str(REPO / 'build/windows/package-win.ps1'),
+                    '-Out', str(root), '-Dest', str(root), '-ArchiveOnly', '-ExpectedBuildRecordSHA256', before],
+                    capture_output=True, text=True, timeout=30)
+                if mutation is None:
+                    self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+                    self.assertTrue((root / 'chromix-win-x64.zip').is_file())
+                else:
+                    self.assertNotEqual(process.returncode, 0)
+                    self.assertFalse((root / 'chromix-win-x64.zip').exists())
 
 
 class BuildBudgetTest(unittest.TestCase):
