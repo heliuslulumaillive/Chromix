@@ -733,7 +733,7 @@
 +  auto api = std::make_unique<NativePickerRecordingApi>();
 +  api->set_version(WEBAUTHN_API_VERSION_9);
 +  api->set_supports_silent_discovery(true);
-+  auto authenticator =
++  std::unique_ptr<FidoAuthenticator> authenticator =
 +      std::make_unique<WinWebAuthnApiAuthenticator>(nullptr, api.get());
 +  CtapGetAssertionRequest request(kRpId, "{}");
 +  request.allow_list.emplace_back(

@@ -78,6 +78,7 @@ REQUIRED = {
         'GetCredentialInformationForRequest_NativeProvidersUnavailableBeforeV9',
         'NativePickerSkipsMetadataOnly',
         'NativePickerSkipPreservesAssertionOptions',
+        'std::unique_ptr<FidoAuthenticator> authenticator =',
         'NativePickerSkipDropsCallbackAfterDestruction',
     ],
     'chrome/browser/webauthn/chrome_authenticator_request_delegate.cc': [

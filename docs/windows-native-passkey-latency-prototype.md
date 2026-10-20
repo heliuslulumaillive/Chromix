@@ -10,6 +10,20 @@ flag, cancellation ID, extensions, timeout, or provider selection.
 The runtime feature is `WebAuthnWinNativeModalSkipCredentialEnumeration`.
 There is no application setting or persistent profile migration.
 
+Run `39460303121` reached native compilation but stopped in the new
+`NativePickerSkipPreservesAssertionOptions` test: its local derived-class pointer
+could not call private overrides. The test now uses the public
+`FidoAuthenticator` interface, as the existing fixture does. This repair changes
+one pointer declaration and preserves every assertion and all runtime C++.
+The exact failed CI preparation identity was matched before upgrading the
+source fixture; 163 other files and timestamps were preserved, the upgrade was
+idempotent, all 40 source gates passed, and 36 Python checks passed.
+Current repair evidence is in
+`build/windows/native-passkey-latency-testapi-source-checks.json`.
+The earlier prototype report below remains historical evidence for `a493096`.
+The repaired native test still requires compilation and execution; all 24
+required regressions remain mandatory.
+
 ## Eligibility and implementation
 
 The opt-in passes through three existing layers:
