@@ -17,6 +17,10 @@ REQUIRED = {
         'test("native_passkey_unittests")',
         '"../browser/webauthn/authenticator_request_dialog_model_unittest.cc"',
         '"../../device/fido/win/authenticator_unittest.cc"',
+        'assert_no_deps = [',
+        '"//chrome/test/base:chrome_render_view_host_test_harness"',
+        '"//chrome/test/base:chrome_unit_test_suite"',
+        '"//chrome/test/data/webui:*"',
     ],
     'chrome/browser/webauthn/authenticator_request_dialog_controller.cc': [
         'std::get_if<Mechanism::Credential>(&model_->mechanisms[0].type)',
