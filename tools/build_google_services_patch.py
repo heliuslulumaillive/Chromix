@@ -128,6 +128,11 @@ def main():
     targets = {p for p in targets if not re.match(r"chrome/browser/(?:ungoogled|bromite)_.*\.h$", p)}
     all_patches = [("core", *p) for p in core] + [("windows", *p) for p in windows] + [("chromix", *p) for p in chromix]
     created = {path for _, _, data in all_patches for path, new, _ in sections(data) if new and path in targets}
+    # Overlay-only sources have no upstream Chromium file to download. They
+    # must remain absent in the baseline so the final patch creates them.
+    created.update(path for overlay in overlays
+                   for path, new, _ in sections(overlay.read_text(encoding="utf-8"))
+                   if new and path in targets)
     pristine = args.work / "pristine"
     pristine.mkdir(parents=True, exist_ok=True)
 

@@ -1,0 +1,686 @@
+diff --git a/base/uxr_gpu_modes.h b/base/uxr_gpu_modes.h
+--- /dev/null
++++ b/base/uxr_gpu_modes.h
+@@ -0,0 +1,241 @@
++// Copyright 2026. Independent compatibility policies derived from recorded facts.
++// These tables do not create GPU hardware, features or resource capacity.
++#ifndef BASE_UXR_GPU_MODES_H_
++#define BASE_UXR_GPU_MODES_H_
++#include <algorithm>
++#include <array>
++#include <cstdint>
++#include <optional>
++#include <string_view>
++
++namespace base {
++enum class UxrGpuMode { kLegacy, kNative, kCustom, kCloak };
++inline UxrGpuMode UxrResolveGpuModeV1(std::string_view selected,
++                                    std::string_view fallback = {},
++                                    bool fingerprint_off = false) {
++  if (selected.empty()) selected = fallback;
++  if (selected.empty()) return UxrGpuMode::kLegacy;
++  if (fingerprint_off) return UxrGpuMode::kNative;
++  if (selected == "custom") return UxrGpuMode::kCustom;
++  if (selected == "cloak") return UxrGpuMode::kCloak;
++  return UxrGpuMode::kNative;  // Config validation rejects unknown values.
++}
++struct UxrGpuProfileV1 {
++  std::string_view family;
++  unsigned index;
++  std::string_view architecture;
++  bool macos() const { return family == "apple"; }
++};
++inline std::optional<UxrGpuProfileV1> UxrFindGpuProfileV1(
++    std::string_view family, int index) {
++  static constexpr UxrGpuProfileV1 profiles[] = {
++    {"intel", 0u, "gen-12lp"},
++    {"intel", 1u, "gen-12lp"},
++    {"intel", 2u, "xe-lpg"},
++    {"intel", 3u, "gen-12lp"},
++    {"intel", 4u, "gen-12lp"},
++    {"intel", 5u, "gen-9"},
++    {"intel", 6u, "gen-9"},
++    {"intel", 7u, "xe-lpg"},
++    {"intel", 8u, "gen-12lp"},
++    {"intel", 9u, "gen-9"},
++    {"intel", 10u, "gen-9"},
++    {"intel", 11u, "gen-9"},
++    {"intel", 12u, "gen-12lp"},
++    {"intel", 13u, "gen-12lp"},
++    {"intel", 14u, "gen-12lp"},
++    {"intel", 15u, "gen-12lp"},
++    {"intel", 16u, "gen-9"},
++    {"intel", 17u, "xe-lpg"},
++    {"nvidia", 0u, "maxwell"},
++    {"nvidia", 1u, "pascal"},
++    {"nvidia", 2u, "pascal"},
++    {"nvidia", 3u, "pascal"},
++    {"nvidia", 4u, "pascal"},
++    {"nvidia", 5u, "turing"},
++    {"nvidia", 6u, "turing"},
++    {"nvidia", 7u, "ampere"},
++    {"nvidia", 8u, "turing"},
++    {"nvidia", 9u, "turing"},
++    {"nvidia", 10u, "turing"},
++    {"nvidia", 11u, "turing"},
++    {"nvidia", 12u, "ampere"},
++    {"nvidia", 13u, "ampere"},
++    {"nvidia", 14u, "ampere"},
++    {"nvidia", 15u, "ampere"},
++    {"nvidia", 16u, "ampere"},
++    {"nvidia", 17u, "ampere"},
++    {"nvidia", 18u, "ampere"},
++    {"nvidia", 19u, "ampere"},
++    {"nvidia", 20u, "ampere"},
++    {"nvidia", 21u, "ampere"},
++    {"nvidia", 22u, "ampere"},
++    {"nvidia", 23u, "ampere"},
++    {"nvidia", 24u, "lovelace"},
++    {"nvidia", 25u, "lovelace"},
++    {"nvidia", 26u, "lovelace"},
++    {"nvidia", 27u, "lovelace"},
++    {"nvidia", 28u, "lovelace"},
++    {"nvidia", 29u, "lovelace"},
++    {"nvidia", 30u, "lovelace"},
++    {"nvidia", 31u, "lovelace"},
++    {"nvidia", 32u, "blackwell"},
++    {"nvidia", 33u, "blackwell"},
++    {"nvidia", 34u, "blackwell"},
++    {"nvidia", 35u, "blackwell"},
++    {"nvidia", 36u, "blackwell"},
++    {"nvidia", 37u, "blackwell"},
++    {"nvidia", 38u, "blackwell"},
++    {"nvidia", 39u, "blackwell"},
++    {"nvidia", 40u, "blackwell"},
++    {"apple", 0u, "metal-3"},
++    {"apple", 1u, "metal-3"},
++    {"apple", 2u, "metal-3"},
++    {"apple", 3u, "metal-3"},
++    {"apple", 4u, "metal-3"},
++    {"apple", 5u, "metal-3"},
++    {"apple", 6u, "metal-3"},
++    {"apple", 7u, "metal-3"},
++    {"apple", 8u, "metal-3"},
++    {"apple", 9u, "metal-3"},
++    {"apple", 10u, "metal-3"},
++    {"apple", 11u, "metal-3"},
++    {"apple", 12u, "metal-3"},
++    {"apple", 13u, "metal-3"},
++    {"apple", 14u, "metal-3"},
++    {"apple", 15u, "metal-3"},
++    {"apple", 16u, "metal-3"},
++    {"apple", 17u, "metal-3"},
++    {"apple", 18u, "metal-3"},
++    {"apple", 19u, "metal-3"},
++  };
++  if (index < 0) return std::nullopt;
++  for (const auto& profile : profiles)
++    if (profile.family == family && profile.index == static_cast<unsigned>(index))
++      return profile;
++  return std::nullopt;
++}
++inline bool UxrCloakGpuFeatureAllowedV1(
++    const UxrGpuProfileV1& profile, std::string_view name,
++    bool windows_modern = true) {
++  // Caller must intersect this policy with adapter.GetFeatures(). Unlike the
++  // observed closed-source path, no unsupported feature is ever manufactured.
++  struct Feature { std::string_view name; uint32_t native; };
++  static constexpr Feature features[] = {
++    {"core-features-and-limits", 1u},
++    {"depth-clip-control", 2u},
++    {"depth32float-stencil8", 3u},
++    {"texture-compression-bc", 4u},
++    {"texture-compression-bc-sliced-3d", 5u},
++    {"texture-compression-etc2", 6u},
++    {"texture-compression-astc", 7u},
++    {"texture-compression-astc-sliced-3d", 8u},
++    {"timestamp-query", 9u},
++    {"indirect-first-instance", 10u},
++    {"shader-f16", 11u},
++    {"rg11b10ufloat-renderable", 12u},
++    {"bgra8unorm-storage", 13u},
++    {"float32-filterable", 14u},
++    {"float32-blendable", 15u},
++    {"clip-distances", 16u},
++    {"dual-source-blending", 17u},
++    {"subgroups", 18u},
++    {"texture-formats-tier1", 19u},
++    {"texture-formats-tier2", 20u},
++    {"primitive-index", 21u},
++    {"texture-component-swizzle", 22u},
++    {"subgroup-size-control", 23u},
++    {"chromium-experimental-multi-draw-indirect", 327729u},
++    {"chromium-experimental-subgroup-matrix", 327732u},
++    {"chromium-experimental-sampling-resource-table", 327738u},
++    {"atomic-vec2u-min-max", 327739u},
++    {"texture-compression-unaligned", 327745u},
++    {"chromium-experimental-timestamp-query-inside-passes", 327683u},
++  };
++  uint32_t feature = 0;
++  for (const auto& item : features)
++    if (item.name == name) { feature = item.native; break; }
++  if (!feature) return false;
++  // The source constructor unconditionally added these names. The compatible
++  // variant only allows them if the real native set already contains them.
++  if (feature == 11 || feature == 17 || feature == 21 ||
++      feature == 19 || feature == 20) return true;
++  if (!profile.macos()) {
++    if ((feature == 18 || feature == 23) && profile.family == "intel" &&
++        profile.index < 18 && ((0x10e60u >> profile.index) & 1u)) return false;
++    if (feature == 23) {
++      const auto a = profile.architecture;
++      return !windows_modern || a == "gen-12lp" || a == "xe-lpg" ||
++          a == "pascal" || a == "turing" || a == "ampere" ||
++          a == "lovelace" || a == "blackwell";
++    }
++  }
++  if (feature >= 1 && feature < 16 && ((0x7b0fu >> (feature - 1)) & 1u))
++    return true;
++  if (profile.macos())
++    return feature >= 5 && feature < 24 && ((0x7f84fu >> (feature - 5)) & 1u);
++  return feature < 23 && ((0x7f0820u >> feature) & 1u);
++}
++struct UxrGpuLimitRuleV1 {
++  std::string_view name;
++  uint64_t windows_value;
++  uint64_t macos_value;
++  bool minimum;
++};
++inline std::optional<UxrGpuLimitRuleV1> UxrCloakGpuLimitRuleV1(
++    std::string_view name) {
++  static constexpr UxrGpuLimitRuleV1 limits[] = {
++    {"maxTextureDimension1D", 16384u, 16384u, false},
++    {"maxTextureDimension2D", 16384u, 16384u, false},
++    {"maxTextureDimension3D", 2048u, 2048u, false},
++    {"maxTextureArrayLayers", 2048u, 2048u, false},
++    {"maxBindGroups", 4u, 4u, false},
++    {"maxBindGroupsPlusVertexBuffers", 24u, 24u, false},
++    {"maxBindingsPerBindGroup", 1000u, 1000u, false},
++    {"maxDynamicUniformBuffersPerPipelineLayout", 10u, 10u, false},
++    {"maxDynamicStorageBuffersPerPipelineLayout", 8u, 8u, false},
++    {"maxSampledTexturesPerShaderStage", 48u, 48u, false},
++    {"maxSamplersPerShaderStage", 16u, 16u, false},
++    {"maxStorageBuffersPerShaderStage", 16u, 10u, false},
++    {"maxStorageTexturesPerShaderStage", 8u, 8u, false},
++    {"maxUniformBuffersPerShaderStage", 12u, 12u, false},
++    {"maxUniformBufferBindingSize", 65536u, 65536u, false},
++    {"maxStorageBufferBindingSize", 2147483644u, 4294967292u, false},
++    {"minUniformBufferOffsetAlignment", 256u, 256u, true},
++    {"minStorageBufferOffsetAlignment", 256u, 256u, true},
++    {"maxVertexBuffers", 8u, 8u, false},
++    {"maxBufferSize", 2147483648u, 4294967292u, false},
++    {"maxVertexAttributes", 30u, 30u, false},
++    {"maxVertexBufferArrayStride", 2048u, 2048u, false},
++    {"maxInterStageShaderVariables", 28u, 28u, false},
++    {"maxColorAttachments", 8u, 8u, false},
++    {"maxColorAttachmentBytesPerSample", 128u, 128u, false},
++    {"maxComputeWorkgroupStorageSize", 32768u, 32768u, false},
++    {"maxComputeInvocationsPerWorkgroup", 1024u, 1024u, false},
++    {"maxComputeWorkgroupSizeX", 1024u, 1024u, false},
++    {"maxComputeWorkgroupSizeY", 1024u, 1024u, false},
++    {"maxComputeWorkgroupSizeZ", 64u, 64u, false},
++    {"maxComputeWorkgroupsPerDimension", 65535u, 65535u, false},
++    {"maxImmediateSize", 64u, 64u, false},
++    {"maxStorageBuffersInVertexStage", 16u, 10u, false},
++    {"maxStorageTexturesInVertexStage", 8u, 8u, false},
++    {"maxStorageBuffersInFragmentStage", 16u, 10u, false},
++    {"maxStorageTexturesInFragmentStage", 8u, 8u, false},
++  };
++  for (const auto& limit : limits)
++    if (limit.name == name) return limit;
++  return std::nullopt;
++}
++inline uint64_t UxrRestrictGpuLimitV1(uint64_t actual, uint64_t target,
++                                    bool minimum) {
++  return minimum ? std::max(actual, target) : std::min(actual, target);
++}
++inline bool UxrGpuLimitRequestAllowedV1(uint64_t requested, uint64_t exposed,
++                                      bool minimum) {
++  return minimum ? requested >= exposed : requested <= exposed;
++}
++inline int UxrClampContextCapabilityV1(int actual, int requested) {
++  return requested > 0 ? std::min(actual, requested) : actual;
++}
++}  // namespace base
++#endif  // BASE_UXR_GPU_MODES_H_
+diff --git a/third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc b/third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc
+--- a/third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc
++++ b/third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc
+@@ -2,20 +2,17 @@
+ 
+ #include <initializer_list>
+ 
++#include "base/strings/string_split.h"
+ #include "base/strings/string_util.h"
++#include "base/uxr_config.h"
+ #include "components/ungoogled/persona_profile.h"
+ 
+ namespace blink {
+ namespace {
+ 
+-bool CanPresentWebGLIdentity(const Platform::WebGLContextInfo& info,
++bool IsHardwareWebGLContext(const Platform::WebGLContextInfo& info,
+                             std::string_view native_renderer) {
+-  const auto& persona = ungoogled::CurrentPersona();
+-  if (persona.webgl_real || native_renderer.empty())
+-    return false;
+-  // Seeded templates describe synthetic test devices, not the active adapter.
+-  // Public explicit strings remain presentation-only; measured mode is native.
+-  if (persona.webgl_native_capabilities && !persona.webgl_identity_explicit)
++  if (native_renderer.empty())
+     return false;
+   switch (info.angle_implementation) {
+     case gl::ANGLEImplementation::kSwiftShader:
+@@ -41,10 +38,46 @@
+   return true;
+ }
+ 
++bool CanPresentWebGLIdentity(const Platform::WebGLContextInfo& info,
++                            std::string_view native_renderer) {
++  const auto& persona = ungoogled::CurrentPersona();
++  if (persona.webgl_real || native_renderer.empty())
++    return false;
++  // Preserve the pre-mode public/synthetic gates for every legacy launch.
++  if (persona.webgl_native_capabilities && !persona.webgl_identity_explicit)
++    return false;
++  return IsHardwareWebGLContext(info, native_renderer);
++}
++
++base::UxrGpuMode IdentityMode() {
++  const auto& config = base::UxrConfig::GetInstance();
++  return base::UxrResolveGpuModeV1(
++      config.Get("uxr-webgl-identity-mode"), config.Get("uxr-gpu-mode"),
++      config.Get("uxr-fingerprint-off") == "true");
++}
++
++std::optional<std::string> ConfiguredIdentity(
++    const Platform::WebGLContextInfo& info, std::string_view native_renderer,
++    bool vendor) {
++  const auto& config = base::UxrConfig::GetInstance();
++  if (IdentityMode() == base::UxrGpuMode::kNative ||
++      !IsHardwareWebGLContext(info, native_renderer))
++    return std::nullopt;
++  // Cloak catalog selection happens once in browser configuration. Explicit
++  // overrides retain precedence; no per-getter re-selection or capability flag.
++  const std::string v = config.Get("uxr-webgl-vendor");
++  const std::string r = config.Get("uxr-webgl-renderer");
++  if (v.empty() || r.empty())
++    return std::nullopt;
++  return vendor ? v : r;
++}
++
+ }  // namespace
+ 
+ std::optional<std::string> GetGLVendorStringForFingerprint(
+     const Platform::WebGLContextInfo& info, std::string_view native_renderer) {
++  if (IdentityMode() != base::UxrGpuMode::kLegacy)
++    return ConfiguredIdentity(info, native_renderer, true);
+   if (!CanPresentWebGLIdentity(info, native_renderer))
+     return std::nullopt;
+   return ungoogled::CurrentPersona().webgl_vendor;
+@@ -52,9 +85,41 @@
+ 
+ std::optional<std::string> GetGLRendererStringForFingerprint(
+     const Platform::WebGLContextInfo& info, std::string_view native_renderer) {
++  if (IdentityMode() != base::UxrGpuMode::kLegacy)
++    return ConfiguredIdentity(info, native_renderer, false);
+   if (!CanPresentWebGLIdentity(info, native_renderer))
+     return std::nullopt;
+   return ungoogled::CurrentPersona().webgl_renderer;
+ }
+ 
++base::UxrGpuMode GetWebGLCapabilitiesMode() {
++  const auto& config = base::UxrConfig::GetInstance();
++  return base::UxrResolveGpuModeV1(
++      config.Get("uxr-webgl-capabilities-mode"), {},
++      config.Get("uxr-fingerprint-off") == "true");
++}
++
++int GetWebGLContextLimitV1(const char* key, int native_value) {
++  if (GetWebGLCapabilitiesMode() != base::UxrGpuMode::kCustom)
++    return native_value;
++  int requested = 0;
++  if (!base::UxrConfig::GetInstance().GetInt(key, &requested))
++    return native_value;
++  return base::UxrClampContextCapabilityV1(native_value, requested);
++}
++
++bool IsWebGLModeExtensionAllowedV1(std::string_view name) {
++  const auto& config = base::UxrConfig::GetInstance();
++  if (GetWebGLCapabilitiesMode() != base::UxrGpuMode::kCustom ||
++      !config.Has("uxr-webgl-extensions"))
++    return true;
++  for (const auto& token : base::SplitString(
++           config.Get("uxr-webgl-extensions"), ",", base::TRIM_WHITESPACE,
++           base::SPLIT_WANT_NONEMPTY)) {
++    if (base::EqualsCaseInsensitiveASCII(token, name))
++      return true;
++  }
++  return false;  // Explicit empty custom allowlist permits no extensions.
++}
++
+ }  // namespace blink
+diff --git a/third_party/blink/renderer/modules/webgl/gpu_fingerprint.h b/third_party/blink/renderer/modules/webgl/gpu_fingerprint.h
+--- a/third_party/blink/renderer/modules/webgl/gpu_fingerprint.h
++++ b/third_party/blink/renderer/modules/webgl/gpu_fingerprint.h
+@@ -5,6 +5,7 @@
+ #include <string>
+ #include <string_view>
+ 
++#include "base/uxr_gpu_modes.h"
+ #include "third_party/blink/public/platform/platform.h"
+ 
+ namespace blink {
+@@ -19,6 +20,11 @@
+ std::optional<std::string> GetGLRendererStringForFingerprint(
+     const Platform::WebGLContextInfo&, std::string_view native_renderer);
+ 
++// These independent modes never enable the legacy synthetic/Canvas policies.
++base::UxrGpuMode GetWebGLCapabilitiesMode();
++int GetWebGLContextLimitV1(const char* key, int native_value);
++bool IsWebGLModeExtensionAllowedV1(std::string_view name);
++
+ }  // namespace blink
+ 
+ #endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_GPU_FINGERPRINT_H_
+diff --git a/third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc b/third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc
+--- a/third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc
++++ b/third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc
+@@ -25,6 +25,7 @@
+ #include "third_party/blink/renderer/core/html/media/html_video_element.h"
+ #include "third_party/blink/renderer/core/imagebitmap/image_bitmap.h"
+ #include "third_party/blink/renderer/modules/webgl/webgl_active_info.h"
++#include "third_party/blink/renderer/modules/webgl/gpu_fingerprint.h"
+ #include "third_party/blink/renderer/modules/webgl/webgl_buffer.h"
+ #include "third_party/blink/renderer/modules/webgl/webgl_fence_sync.h"
+ #include "third_party/blink/renderer/modules/webgl/webgl_framebuffer.h"
+@@ -685,7 +686,8 @@
+       auto values = base::HeapArray<GLint>::WithSize(length);
+       ContextGL()->GetInternalformativ(target, internalformat, GL_SAMPLES,
+                                        length, values.data());
+-      if (!ungoogled::CurrentPersona().webgl_real &&
++      if (GetWebGLCapabilitiesMode() == base::UxrGpuMode::kLegacy &&
++          !ungoogled::CurrentPersona().webgl_real &&
+           !ungoogled::CurrentPersona().webgl_native_capabilities) {
+         const GLint max_samples = ClampPersonaLimit(
+             ContextGL(), GL_MAX_SAMPLES,
+@@ -4886,7 +4888,15 @@
+                                                      GLenum pname) {
+   if (isContextLost())
+     return ScriptValue::CreateNull(script_state->GetIsolate());
+-  if (ungoogled::CurrentPersona().webgl_real ||
++  const auto gpu_capabilities_mode = GetWebGLCapabilitiesMode();
++  if (gpu_capabilities_mode == base::UxrGpuMode::kCustom) {
++    if (pname == GL_MAX_3D_TEXTURE_SIZE)
++      return WebGLAny(script_state, max3d_texture_size_);
++    if (pname == GL_MAX_ARRAY_TEXTURE_LAYERS)
++      return WebGLAny(script_state, max_array_texture_layers_);
++  }
++  if (gpu_capabilities_mode != base::UxrGpuMode::kLegacy ||
++      ungoogled::CurrentPersona().webgl_real ||
+       ungoogled::CurrentPersona().webgl_native_capabilities) {
+     switch (pname) {
+       case GL_MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS:
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc b/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
+--- a/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
++++ b/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "third_party/blink/renderer/modules/webgpu/gpu_adapter.h"
+ 
++#include <optional>
+ #include <set>
+ #include <string>
+ 
+@@ -11,6 +12,7 @@
+ #include "base/strings/string_util.h"
+ #include "services/metrics/public/cpp/ukm_builders.h"
+ #include "base/uxr_config.h"  // UXR
++#include "base/uxr_gpu_modes.h"
+ #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+ #include "third_party/blink/renderer/bindings/core/v8/v8_object_builder.h"
+ #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_device_descriptor.h"
+@@ -37,14 +39,40 @@
+ 
+ namespace {
+ 
++base::UxrGpuMode WebGPUCapabilityMode(const char* key) {
++  const auto& config = base::UxrConfig::GetInstance();
++  return base::UxrResolveGpuModeV1(
++      config.Get(key), {}, config.Get("uxr-fingerprint-off") == "true");
++}
++
++std::optional<base::UxrGpuProfileV1> WebGPUConfiguredProfile() {
++  const auto& config = base::UxrConfig::GetInstance();
++  int index = -1;
++  config.GetInt("uxr-hardware-resolved-index", &index);
++  return base::UxrFindGpuProfileV1(
++      config.Get("uxr-hardware-resolved-family"), index);
++}
++
+ GPUSupportedFeatures* MakeFeatureNameSet(wgpu::Adapter adapter) {
+   GPUSupportedFeatures* features = MakeGarbageCollected<GPUSupportedFeatures>();
+   DCHECK(features->FeatureNameSet().empty());
+ 
+   // An explicit empty allowlist exposes no features; unset preserves Dawn's set.
+   const base::UxrConfig& config = base::UxrConfig::GetInstance();
+-  const bool ph_filter = config.GpuBackendPolicy().capability_overrides &&
+-                         config.Has("uxr-webgpu-features");
++  const auto mode = WebGPUCapabilityMode("uxr-webgpu-features-mode");
++  const bool custom_filter = mode == base::UxrGpuMode::kCustom;
++  const bool ph_filter =
++      (custom_filter ||
++       (mode == base::UxrGpuMode::kLegacy &&
++        config.GpuBackendPolicy().capability_overrides)) &&
++      config.Has("uxr-webgpu-features");
++  const auto cloak_profile = mode == base::UxrGpuMode::kCloak
++                                 ? WebGPUConfiguredProfile()
++                                 : std::nullopt;
++  const std::string platform_version =
++      config.Get("uxr-hardware-platform-version");
++  const bool windows_modern =
++      platform_version.empty() || platform_version == "19.0.0";
+   std::set<std::string> ph_allowed;
+   if (ph_filter) {
+     const std::string ph_allow_raw = config.Get("uxr-webgpu-features");
+@@ -53,7 +81,7 @@
+              base::SPLIT_WANT_NONEMPTY)) {
+       ph_allowed.insert(base::ToLowerASCII(ph_token));
+     }
+-    if (ph_allowed.empty()) {
++    if (ph_allowed.empty() && !custom_filter) {
+       return features;
+     }
+   }
+@@ -67,13 +95,22 @@
+     auto feature_name_enum_optional =
+         GPUSupportedFeatures::ToV8FeatureNameEnum(f);
+     if (feature_name_enum_optional) {
++      const V8GPUFeatureName ph_name(feature_name_enum_optional.value());
++      const std::string ph_str = std::string(ph_name.AsString().Utf8());
+       if (ph_filter) {
+-        const V8GPUFeatureName ph_name(feature_name_enum_optional.value());
+-        const std::string ph_str = std::string(ph_name.AsString().Utf8());
+-        if (!ph_allowed.contains(String(ph_str.c_str()).ToAsciiLower().Utf8())) {
++        // A custom empty list disables optional features, not the actual core
++        // feature level which Dawn can expose on every default device.
++        const bool actual_core =
++            custom_filter && ph_str == "core-features-and-limits";
++        if (!actual_core &&
++            !ph_allowed.contains(String(ph_str.c_str()).ToAsciiLower().Utf8())) {
+           continue;  // persona does not advertise this exact feature token
+         }
+       }
++      if (cloak_profile &&
++          !base::UxrCloakGpuFeatureAllowedV1(*cloak_profile, ph_str,
++                                           windows_modern))
++        continue;
+       features->AddFeatureName(
+           V8GPUFeatureName(feature_name_enum_optional.value()));
+     }
+@@ -148,7 +185,13 @@
+ 
+   GPUSupportedLimits::ComboLimits limits;
+   GetHandle().GetLimits(limits.GetLinked());
+-  limits_ = MakeGarbageCollected<GPUSupportedLimits>(limits);
++  const auto cloak_profile =
++      WebGPUCapabilityMode("uxr-webgpu-limits-mode") == base::UxrGpuMode::kCloak
++          ? WebGPUConfiguredProfile()
++          : std::nullopt;
++  limits_ = MakeGarbageCollected<GPUSupportedLimits>(
++      limits, cloak_profile.has_value(),
++      cloak_profile && cloak_profile->macos());
+ 
+   info_ = CreateAdapterInfoForAdapter();
+ }
+@@ -290,7 +333,14 @@
+                                       descriptor->requiredLimits(), resolver)) {
+       return promise;
+     }
+-  }
++    if (WebGPUCapabilityMode("uxr-webgpu-limits-mode") ==
++            base::UxrGpuMode::kCloak &&
++        !limits_->ValidateCompatibleRequest(required_limits, resolver)) {
++      return promise;
++    }
++  }
++  // The descriptor proceeds unchanged to Dawn. Never drop an unsupported
++  // requested feature or clamp a required limit then claim it was granted.
+ 
+   // Use a set to prevent duplicate features.
+   HashSet<wgpu::FeatureName> required_features_set;
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc b/third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc
+--- a/third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc
++++ b/third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc
+@@ -5,10 +5,12 @@
+ #include "third_party/blink/renderer/modules/webgpu/gpu_adapter_info.h"
+ 
+ #include "base/uxr_config.h"
++#include "base/uxr_gpu_modes.h"
+ #include "components/ungoogled/persona_profile.h"
+ 
+ #include "third_party/blink/renderer/modules/webgpu/gpu_memory_heap_info.h"
+ #include "third_party/blink/renderer/modules/webgpu/gpu_subgroup_matrix_config.h"
++#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+ 
+ namespace blink {
+ 
+@@ -42,6 +44,39 @@
+   if (is_fallback_adapter_)
+     return;
+   const auto& config = base::UxrConfig::GetInstance();
++  const auto identity_mode = base::UxrResolveGpuModeV1(
++      config.Get("uxr-webgpu-identity-mode"), config.Get("uxr-gpu-mode"),
++      config.Get("uxr-fingerprint-off") == "true");
++  if (identity_mode != base::UxrGpuMode::kLegacy) {
++    if (identity_mode == base::UxrGpuMode::kNative)
++      return;
++    std::string selected_vendor = config.Get("uxr-webgpu-vendor");
++    std::string selected_architecture = config.Get("uxr-webgpu-architecture");
++    if ((selected_vendor.empty() || selected_architecture.empty()) &&
++        identity_mode == base::UxrGpuMode::kCloak) {
++      int index = -1;
++      config.GetInt("uxr-hardware-resolved-index", &index);
++      const auto profile = base::UxrFindGpuProfileV1(
++          config.Get("uxr-hardware-resolved-family"), index);
++      if (!profile)
++        return;
++      selected_vendor = profile->family;
++      selected_architecture = profile->architecture;
++    }
++    if (selected_vendor.empty() || selected_architecture.empty())
++      return;
++    vendor_ = String(selected_vendor.c_str());
++    architecture_ = String(selected_architecture.c_str());
++    description_ =
++        RuntimeEnabledFeatures::WebGPUDeveloperFeaturesEnabled()
++            ? String(config.Get("uxr-webgpu-description").c_str())
++            : String();
++    device_ = String();
++    driver_ = String();
++    // Subgroup sizes, fallback status, backend, and actual capabilities are
++    // properties of the real adapter, never of the selected metadata catalog.
++    return;
++  }
+   if (config.Get("uxr-fingerprint-off") == "true" ||
+       (config.Get("uxr-synthetic-device-tests") != "true" &&
+        config.Get("uxr-fingerprint-enabled") != "true" &&
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc b/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc
+--- a/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc
++++ b/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc
+@@ -8,6 +8,7 @@
+ #include <bit>
+ 
+ #include "base/numerics/checked_math.h"
++#include "base/uxr_gpu_modes.h"
+ #include "third_party/blink/renderer/bindings/core/v8/v8_union_undefined_unsignedlonglongenforcerange.h"
+ #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_extent_3d_dict.h"
+ #include "third_party/blink/renderer/core/dom/dom_exception.h"
+@@ -71,10 +72,48 @@
+ 
+ // GPUSupportedLimits
+ 
+-GPUSupportedLimits::GPUSupportedLimits(const ComboLimits& limits) {
+-  // Shared by adapter and device: getters must reflect Dawn's validated limits,
+-  // not independently configured capabilities.
++GPUSupportedLimits::GPUSupportedLimits(const ComboLimits& limits,
++                                       bool cloak_compatible,
++                                       bool macos_profile) {
++  // Device callers use the default and expose Dawn's actual validated limits.
++  // Only an explicitly configured adapter applies compatible privacy ceilings.
+   limits.UnlinkedCopyTo(&limits_);
++  if (!cloak_compatible)
++    return;
++#define X(name)                                                           \
++  {                                                                       \
++    using T = decltype(ComboLimits::name);                                 \
++    const auto rule = base::UxrCloakGpuLimitRuleV1(#name);                  \
++    if (rule && limits_.name != UndefinedLimitValue<T>()) {                \
++      limits_.name = static_cast<T>(base::UxrRestrictGpuLimitV1(           \
++          limits_.name, macos_profile ? rule->macos_value                 \
++                                     : rule->windows_value,             \
++          rule->minimum));                                               \
++    }                                                                     \
++  }
++  SUPPORTED_LIMITS(X)
++#undef X
++}
++
++bool GPUSupportedLimits::ValidateCompatibleRequest(
++    const ComboLimits& requested, ScriptPromiseResolverBase* resolver) const {
++#define X(name)                                                           \
++  {                                                                       \
++    using T = decltype(ComboLimits::name);                                 \
++    const auto rule = base::UxrCloakGpuLimitRuleV1(#name);                  \
++    if (rule && requested.name != UndefinedLimitValue<T>() &&             \
++        limits_.name != UndefinedLimitValue<T>() &&                       \
++        !base::UxrGpuLimitRequestAllowedV1(                               \
++            requested.name, limits_.name, rule->minimum)) {               \
++      resolver->RejectWithDOMException(                                   \
++          DOMExceptionCode::kOperationError,                              \
++          "Required " #name " exceeds the adapter's compatible limit.");  \
++      return false;                                                       \
++    }                                                                     \
++  }
++  SUPPORTED_LIMITS(X)
++#undef X
++  return true;
+ }
+ 
+ // static
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h b/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h
+--- a/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h
++++ b/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h
+@@ -39,7 +39,11 @@
+     wgpu::Limits* GetLinked();
+   };
+ 
+-  explicit GPUSupportedLimits(const ComboLimits& limits);
++  explicit GPUSupportedLimits(const ComboLimits& limits,
++                              bool cloak_compatible = false,
++                              bool macos_profile = false);
++  bool ValidateCompatibleRequest(const ComboLimits& requested,
++                                 ScriptPromiseResolverBase*) const;
+ 
+   // Returns true if populated, false if not and the ScriptPromiseResolverBase
+   // has been rejected.

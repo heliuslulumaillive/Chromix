@@ -156,6 +156,20 @@ def recipe_identity(repo: Path):
         'patches/google-services/0002-windows-native-passkey-discovery.patch',
         'patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch',
     ]
+    # Bind every active overlay and the declared mode contract. Existing
+    # Google-only repositories keep exactly the previous input set.
+    config = json.loads((repo / "build/google-services-win155.json").read_text(encoding="utf-8"))
+    for name in config.get("restoration_overlays", []):
+        candidate = (repo / name).resolve()
+        if not candidate.is_relative_to(repo.resolve()) or not candidate.is_file():
+            raise ValueError("Restoration overlay is not an owned repository file")
+        if name not in files:
+            files.append(name)
+    capabilities = repo / "build/fingerprint-modes-capabilities.json"
+    if any(name.startswith("patches/fingerprint-modes/") for name in files):
+        if not capabilities.is_file():
+            raise ValueError("Fingerprint overlay requires its capability contract")
+        files.append("build/fingerprint-modes-capabilities.json")
     inputs = {name: hashlib.sha256((repo / name).read_bytes()).hexdigest() for name in files}
     return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest(), inputs
 

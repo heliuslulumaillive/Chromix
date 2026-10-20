@@ -2,6 +2,29 @@
   "version": "155.0.8059.39",
   "changed_files": [
     "BUILD.gn",
+    "base/BUILD.gn",
+    "base/uxr_audio_defaults.h",
+    "base/uxr_audio_defaults_tests.cc",
+    "base/uxr_audio_reference_data.h",
+    "base/uxr_cloak_hardware.cc",
+    "base/uxr_cloak_hardware.h",
+    "base/uxr_config.cc",
+    "base/uxr_config.h",
+    "base/uxr_font_allowlist.h",
+    "base/uxr_font_allowlist_tests.cc",
+    "base/uxr_gpu_mode_golden_tests.cc",
+    "base/uxr_gpu_modes.h",
+    "base/uxr_graphics_mode_goldens.cc",
+    "base/uxr_graphics_noise.cc",
+    "base/uxr_graphics_noise.h",
+    "base/uxr_hardware_golden_tests.cc",
+    "base/uxr_surface_golden_tests.cc",
+    "base/uxr_surface_math.h",
+    "base/uxr_surface_modes.h",
+    "base/uxr_surface_modes_test_main.cc",
+    "base/uxr_surface_reference_data.h",
+    "base/uxr_voice_reference_data.h",
+    "chrome/app/chrome_main.cc",
     "chrome/app/settings_chromium_strings.grdp",
     "chrome/app/settings_strings.grdp",
     "chrome/browser/BUILD.gn",
@@ -99,6 +122,7 @@
     "components/collaboration/internal/collaboration_service_impl.cc",
     "components/commerce/core/shopping_service.cc",
     "components/commerce/core/subscriptions/subscriptions_server_proxy.cc",
+    "components/embedder_support/user_agent_utils.cc",
     "components/feed/core/v2/feed_stream.cc",
     "components/feed/core/v2/public/feed_service.cc",
     "components/gcm_driver/gcm_client_impl.cc",
@@ -146,12 +170,59 @@
     "extensions/browser/webstore_installer.cc",
     "extensions/common/extension_urls.cc",
     "google_apis/gaia/gaia_auth_fetcher.cc",
-    "net/base/url_util.cc"
+    "net/base/url_util.cc",
+    "third_party/blink/common/device_memory/approximated_device_memory.cc",
+    "third_party/blink/renderer/core/dom/element.cc",
+    "third_party/blink/renderer/core/dom/range.cc",
+    "third_party/blink/renderer/core/execution_context/navigator_base.cc",
+    "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc",
+    "third_party/blink/renderer/core/frame/navigator_device_memory.cc",
+    "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc",
+    "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h",
+    "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc",
+    "third_party/blink/renderer/core/html/canvas/text_metrics.cc",
+    "third_party/blink/renderer/core/html/canvas/text_metrics.h",
+    "third_party/blink/renderer/core/html/html_element.cc",
+    "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc",
+    "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+    "third_party/blink/renderer/modules/font_access/font_access.cc",
+    "third_party/blink/renderer/modules/mediastream/media_devices.cc",
+    "third_party/blink/renderer/modules/sensor/accelerometer.cc",
+    "third_party/blink/renderer/modules/speech/speech_synthesis.cc",
+    "third_party/blink/renderer/modules/webaudio/audio_buffer.cc",
+    "third_party/blink/renderer/modules/webaudio/audio_context.cc",
+    "third_party/blink/renderer/modules/webaudio/offline_audio_context.cc",
+    "third_party/blink/renderer/modules/webaudio/realtime_analyser.cc",
+    "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.cc",
+    "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.h",
+    "third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc",
+    "third_party/blink/renderer/modules/webgl/gpu_fingerprint.h",
+    "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
+    "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
+    "third_party/blink/renderer/modules/webgpu/gpu_adapter.cc",
+    "third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc",
+    "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc",
+    "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h",
+    "third_party/blink/renderer/platform/BUILD.gn",
+    "third_party/blink/renderer/platform/fonts/font_cache.cc",
+    "third_party/blink/renderer/platform/fonts/font_cache.h",
+    "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc",
+    "third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h",
+    "third_party/blink/renderer/platform/graphics/image_data_buffer.cc",
+    "third_party/blink/renderer/platform/graphics/image_data_buffer.h"
   ],
   "source_inputs": [
     {
       "path": "BUILD.gn",
       "sha256": "e38b612778a41dd52c073f8633b3f22c6078e227baa892666e92ac29a9738391"
+    },
+    {
+      "path": "base/BUILD.gn",
+      "sha256": "3983f3e3964b9e111bf4759b53168efb34ea533124f655a7288a328b2105343c"
+    },
+    {
+      "path": "chrome/app/chrome_main.cc",
+      "sha256": "9bca15fa0892300b0696f4fab3d4d6559bd62abaab746be00512a674fc2a1d43"
     },
     {
       "path": "chrome/app/settings_chromium_strings.grdp",
@@ -554,6 +625,10 @@
       "sha256": "cbdec3221e105768537e61466663508deb2ef0f182e488ac288910126dadea4d"
     },
     {
+      "path": "components/embedder_support/user_agent_utils.cc",
+      "sha256": "21d06edd8f0b76a0bfef8c7aab2448e4f046f788e24da5591713c3561ea54708"
+    },
+    {
       "path": "components/feed/core/v2/feed_stream.cc",
       "sha256": "01743bb43c0b335c866414d99ae657e9979de9bac9118b5ba3426036ccabfc99"
     },
@@ -706,6 +781,14 @@
       "sha256": "f435761e367522629912e59ffa0b7e3d4608fb25e873c9831934ea4536899ac8"
     },
     {
+      "path": "content/browser/webauth/webauth_request_security_checker_impl.cc",
+      "sha256": "3c4859e53d9198feb51f5cdba399b76b9c706cc408604ad2c20da7da2d24bcd5"
+    },
+    {
+      "path": "content/browser/webauth/webauth_request_security_checker_impl.h",
+      "sha256": "0bf4aad26027195bdf2a3f9b0c93ebed79569730384eb50ba150ed30676ee1ee"
+    },
+    {
       "path": "device/fido/win/authenticator.cc",
       "sha256": "ccb4284d04778c4bd815cc5d8942a900f59984fbfea26de5b95ecd7c9be54739"
     },
@@ -744,6 +827,150 @@
     {
       "path": "net/base/url_util.cc",
       "sha256": "dc31de78a9a9b03fe24ea42e8876aa95bba86a3a30da17429397bae403db6e3f"
+    },
+    {
+      "path": "third_party/blink/common/device_memory/approximated_device_memory.cc",
+      "sha256": "2a3bd1c5250808355b6eea60fb13f15db565b8eba0a78f7fd0ea3ad718da4d8a"
+    },
+    {
+      "path": "third_party/blink/renderer/core/dom/element.cc",
+      "sha256": "25e710bcfe7d5e12c60a9865df51f2639a3432562f8902dfa6b8d002bbf7e6c5"
+    },
+    {
+      "path": "third_party/blink/renderer/core/dom/range.cc",
+      "sha256": "30e5d1dabf98c2f401e6d738cc675bb8639a9bc01b86e14bc2e2c786a650d856"
+    },
+    {
+      "path": "third_party/blink/renderer/core/execution_context/navigator_base.cc",
+      "sha256": "64b29bb294db26511bd68cb304837bca69fd13b16daf318eae6efbe0565d944b"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc",
+      "sha256": "7b689c17f7007b7e342412cb27165111fe6b5db8672ac27b8b9fc1ea0f432928"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/navigator_device_memory.cc",
+      "sha256": "69c4a6d2796ecefbb8ebeab82f866da33b5eda285612f9125d7242ed4a6bc993"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc",
+      "sha256": "78f9d35b6a5258374137b42d5da43879865949adf5a5f2a8c9c0e4da1ec400bb"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h",
+      "sha256": "05e25b00c82e88d54c8c43a6eb4bd7fa6e8d9ec8de68535e75e4d5aa7cb60a93"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc",
+      "sha256": "1139828ae23f13795abc6834147e0d09a1877a76ab02abefc85397d373eac532"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/canvas/text_metrics.cc",
+      "sha256": "79b5d44135a15dcbdf3ef0ee21f935bf9d7bdad56e850f02fc7c37f87a5956f1"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/canvas/text_metrics.h",
+      "sha256": "b07e9b85adcc39efaeb06cc16cd350c6c03e5cffb024caab7dc37c31c8b2a311"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/html_element.cc",
+      "sha256": "6f5fe46e88811afcafca42a50921ed727479a37318fea331cd3027a265dddfb0"
+    },
+    {
+      "path": "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc",
+      "sha256": "f9ca66537fd6fd801cf42bcd44e6d792d7be9925aa5dde56cab883eaa649ce78"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+      "sha256": "b1a585af7d42fd00bce4c88b3f1740357b1403347533c0781818035a9dac44e8"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/font_access/font_access.cc",
+      "sha256": "203279ea03fcdbed64d51e221c101dc423d640fbb92b3eb7f767b80117b16bb8"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/mediastream/media_devices.cc",
+      "sha256": "97924ee855f139c8910f6bca97336fd8b94a948c9cc80763ba5783ce64b581af"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/sensor/accelerometer.cc",
+      "sha256": "34b5005ef0222a8b8a47c49e8119765d22b26a8e4298f50db68580c536aee645"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/speech/speech_synthesis.cc",
+      "sha256": "45010311b4a0f2cd53b58196deff36410ff58d22b2eeda7270ad13c1b0cd8aeb"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/audio_buffer.cc",
+      "sha256": "0bcbb8f5b03f4a82130e11d25f2086e0a7ad69ef6e80536ed209029422179e25"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/audio_context.cc",
+      "sha256": "75a05b4e37281c254a07c4ed5df19ec3fc244db895127250bba494570c9f2317"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/offline_audio_context.cc",
+      "sha256": "9a3f187234fa65e608e6ef607a66d264b9e0348a1677dca7cad94f8ba2e1180e"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/realtime_analyser.cc",
+      "sha256": "2ee5a2c615607a56fbbfe07459f5c006ca7adc22d9c50f4a3af3a09b93c8a39f"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.cc",
+      "sha256": "8b2a30ca6eee49295983b831e023cc30f3f20d0e68a892d1000bc8e2b3b72c15"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.h",
+      "sha256": "5ea0211359c95ce980e90907db74013f06764ffb0b0284a1b32818b5428a0320"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
+      "sha256": "9a8353bb01de09cd3ebc4f77ca5c370eca50116d7e41fb4f14580aac78ccfb0c"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
+      "sha256": "14563edf0e6c7afb72c65aa4ec2e2e29b02efce92ac117c574de6c2184b7bb01"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgpu/gpu_adapter.cc",
+      "sha256": "adce5605571613435cfe5c3ebe7f27271f0f8feb443138b72a934d13b687b6bf"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc",
+      "sha256": "b1407eaf37534105c6aec343297aba15cb8b97f28913ed3af58384f509a46969"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc",
+      "sha256": "bc66f4a361900cc08a88538c8e72b53506cee15635e719a80d308c4336aab1ec"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h",
+      "sha256": "bfa7914336fe95cfc4c717d4022eceb62fce8aba4339c269bcb0f8733cca4dad"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/BUILD.gn",
+      "sha256": "5efc0784d4167a251ba5c206c9b6492ca4a6f9aa3f5f01d7cc19256eaa62118b"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/fonts/font_cache.cc",
+      "sha256": "2abe24f0e33a953222bc5dea8c2d43015124a2b87353216aa2cfd4092c4f7410"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/fonts/font_cache.h",
+      "sha256": "ce23838b223e37fc2a1e3933b3da5ed9478e07f0c9c2fef956ff28c95fa0248e"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc",
+      "sha256": "dc50ccb8cf8351d32d83cb50099b2e2cfd24a0f94b5109875b406c5cce03de12"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.cc",
+      "sha256": "dddd84bead7cf84b5806a05be5c8d34de97194c1fdded10735888c50fe1ace3f"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.h",
+      "sha256": "ed326c9490b60d86715f932f7a74c0bf7572fec674e9b8fa33957a16a6c1df91"
     }
   ],
   "pruning_list_sha256": "13d91cb1bc89f8aae1d7b54b519accbcbf7a5fa087562977f265b4d641568a01",
@@ -769,6 +996,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "16e93d80542ee55009fa951284b0257bc3df85c767254bd58a5ab497994a6a22",
+  "patch_sha256": "2c0959ef20bff4c70e2e2966f235ed1467c2ab1063004516c91f579d5f38c75d",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

@@ -1,0 +1,1139 @@
+diff --git a/base/uxr_graphics_noise.h b/base/uxr_graphics_noise.h
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_graphics_noise.h
+@@ -0,0 +1,64 @@
++// Copyright 2026. Independently reconstructed, versioned pixel algorithms.
++#ifndef BASE_UXR_GRAPHICS_NOISE_H_
++#define BASE_UXR_GRAPHICS_NOISE_H_
++
++#include <cstddef>
++#include <cstdint>
++#include <string_view>
++
++#include "base/base_export.h"
++#include "base/containers/span.h"
++#include "base/uxr_surface_modes.h"
++
++namespace base {
++
++inline constexpr uint32_t kUxrGraphicsAlgorithmVersion = 1;
++inline constexpr bool kUxrCloakCanvasReferenceBankSupported = false;
++
++enum class UxrPixelSurface { kCanvas2D, kWebGLReadback, kWebGLExport };
++// Reference flavor exists for historical byte goldens, not production routing.
++enum class UxrPixelFlavor { kCompatibleV1, kReferenceV1 };
++enum class UxrPixelResult {
++  kApplied,
++  kUnchanged,
++  kNative,
++  kLegacy,
++  kInvalidLayout,
++  kUnsupportedSeed,
++  kUnsupportedAlpha,
++  kUnsupportedRegion,
++};
++
++// An owned, completed RGBA8/BGRA8 readback. Padding is never a pixel.
++// Canvas origin is top-left. WebGL readback origin is bottom-left.
++struct UxrPixelRegion {
++  span<uint8_t> bytes;
++  size_t row_stride = 0;
++  uint32_t width = 0;
++  uint32_t height = 0;
++  uint32_t canvas_width = 0;
++  uint32_t canvas_height = 0;
++  int32_t origin_x = 0;
++  int32_t origin_y = 0;
++  bool bgra = false;
++};
++
++// The recovered byte hash includes signed 8-bit tail loads and uint32 wrap.
++BASE_EXPORT uint32_t UxrCloakHashV1(std::string_view bytes);
++
++// This function performs no allocation of image storage and no GL operations.
++// Shard Canvas projects full-canvas positions into the requested crop.
++// Compatible Cloak projects full-canvas points and preserves partial alpha;
++// its reference flavor is restricted to the original verified full buffers.
++BASE_EXPORT UxrPixelResult
++UxrApplyGraphicsNoiseV1(const UxrSurfacePolicy& policy,
++                        UxrPixelSurface surface,
++                        const UxrPixelRegion& region,
++                        uint32_t shard_webgl_sequence = 0,
++                        UxrPixelFlavor flavor = UxrPixelFlavor::kCompatibleV1);
++
++BASE_EXPORT const char* UxrPixelResultName(UxrPixelResult result);
++
++}  // namespace base
++
++#endif  // BASE_UXR_GRAPHICS_NOISE_H_
+diff --git a/base/uxr_graphics_noise.cc b/base/uxr_graphics_noise.cc
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_graphics_noise.cc
+@@ -0,0 +1,340 @@
++// Copyright 2026. Independent implementation from byte-verified models.
++#include "base/uxr_graphics_noise.h"
++
++#include <array>
++#include <limits>
++#include <string>
++
++#include "base/uxr_pixel_noise.h"
++
++namespace base {
++namespace {
++
++uint32_t RotateLeft(uint32_t value, unsigned count) {
++  return (value << count) | (value >> (32 - count));
++}
++
++uint32_t Fmix32(uint32_t value) {
++  value ^= value >> 16;
++  value *= 0x85ebca6bu;
++  value ^= value >> 13;
++  value *= 0xc2b2ae35u;
++  return value ^ (value >> 16);
++}
++
++class Xoshiro128 {
++ public:
++  explicit Xoshiro128(uint32_t seed) {
++    for (uint32_t i = 0; i < 4; ++i)
++      state_[i] = Fmix32(seed + (i + 1) * 0x9e3779b9u);
++  }
++  uint32_t Next() {
++    const uint32_t result = RotateLeft(state_[1] * 5u, 7) * 9u;
++    const uint32_t temporary = state_[1] << 9;
++    state_[2] ^= state_[0];
++    state_[3] ^= state_[1];
++    state_[1] ^= state_[2];
++    state_[0] ^= state_[3];
++    state_[2] ^= temporary;
++    state_[3] = RotateLeft(state_[3], 11);
++    return result;
++  }
++
++ private:
++  std::array<uint32_t, 4> state_;
++};
++
++bool ValidLayout(const UxrPixelRegion& region) {
++  if (region.width == 0 || region.height == 0)
++    return false;
++  const size_t row_bytes = static_cast<size_t>(region.width) * 4;
++  if (row_bytes / 4 != region.width || region.row_stride < row_bytes ||
++      region.bytes.size() < row_bytes)
++    return false;
++  return region.height - 1 <=
++         (region.bytes.size() - row_bytes) / region.row_stride;
++}
++
++span<uint8_t> Pixel(const UxrPixelRegion& region, uint32_t x, uint32_t y) {
++  return region.bytes.subspan(
++      static_cast<size_t>(y) * region.row_stride + static_cast<size_t>(x) * 4,
++      4);
++}
++
++uint32_t Channel(const UxrPixelRegion& region, uint32_t logical_rgb) {
++  return region.bgra ? 2 - logical_rgb : logical_rgb;
++}
++
++bool AssignShardBit(span<uint8_t> pixel, uint32_t channel, uint32_t bit) {
++  const uint32_t alpha = pixel[3];
++  if (alpha == 0)
++    return false;
++  const uint32_t candidate = (pixel[channel] & 0xfeu) | bit;
++  if (alpha != 255) {
++    const uint32_t product = candidate * alpha;
++    const uint32_t premultiplied =
++        (product + ((product + 128u) >> 8) + 128u) >> 8;
++    const uint32_t scale = 0xff000000u / alpha;
++    const uint32_t back = (premultiplied * scale + 0x800000u) >> 24;
++    if (candidate != back)
++      return false;
++  }
++  const bool changed = pixel[channel] != candidate;
++  pixel[channel] = static_cast<uint8_t>(candidate);
++  return changed;
++}
++
++UxrPixelResult ApplyChromix(const UxrSurfacePolicy& policy,
++                            UxrPixelSurface surface,
++                            const UxrPixelRegion& region) {
++  const uint32_t seed = UxrPixelNoiseSeed(policy.seed);
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    const uint32_t absolute_y =
++        surface == UxrPixelSurface::kWebGLReadback
++            ? region.canvas_height - 1 -
++                  (static_cast<uint32_t>(region.origin_y) + y)
++            : static_cast<uint32_t>(region.origin_y) + y;
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (pixel[3] == 0)
++        continue;
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        const uint32_t index = Channel(region, channel);
++        const uint8_t value =
++            UxrNoiseChannel(seed, static_cast<uint32_t>(region.origin_x) + x,
++                            absolute_y, channel, pixel[index]);
++        changed |= value != pixel[index];
++        pixel[index] = value;
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++UxrPixelResult ApplyShardCanvas(const UxrSurfacePolicy& policy,
++                                const UxrPixelRegion& region) {
++  const uint64_t pixels = uint64_t{region.canvas_width} * region.canvas_height;
++  if (pixels < 1024)
++    return UxrPixelResult::kUnchanged;
++  Xoshiro128 random(static_cast<uint32_t>(policy.seed));
++  bool changed = false;
++  for (uint32_t iteration = 0; iteration < 32; ++iteration) {
++    const uint32_t value = random.Next();
++    const uint64_t position = value % pixels;
++    const int64_t x =
++        static_cast<int64_t>(position % region.canvas_width) - region.origin_x;
++    const int64_t y =
++        static_cast<int64_t>(position / region.canvas_width) - region.origin_y;
++    if (x < 0 || y < 0 || x >= region.width || y >= region.height)
++      continue;
++    changed |= AssignShardBit(
++        Pixel(region, static_cast<uint32_t>(x), static_cast<uint32_t>(y)),
++        Channel(region, (value >> 16) % 3), (value >> 24) & 1);
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++UxrPixelResult ApplyShardWebGL(const UxrSurfacePolicy& policy,
++                               const UxrPixelRegion& region,
++                               uint32_t sequence) {
++  Xoshiro128 random(static_cast<uint32_t>(policy.seed) ^ sequence);
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (pixel[3] == 0)
++        continue;
++      const uint32_t value = random.Next();
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        if (((value >> (channel * 8)) & 255u) == 0) {
++          pixel[Channel(region, channel)] ^= 1;
++          changed = true;
++        }
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++UxrPixelResult ApplyCloak(const UxrSurfacePolicy& policy,
++                          UxrPixelSurface surface,
++                          const UxrPixelRegion& region,
++                          UxrPixelFlavor flavor) {
++  const bool compatible = flavor == UxrPixelFlavor::kCompatibleV1;
++  if (!compatible && surface == UxrPixelSurface::kCanvas2D &&
++      (region.origin_x != 0 || region.origin_y != 0 ||
++       region.width != region.canvas_width ||
++       region.height != region.canvas_height)) {
++    return UxrPixelResult::kUnsupportedRegion;
++  }
++  const uint32_t whole_width = compatible ? region.canvas_width : region.width;
++  const uint32_t whole_height =
++      compatible ? region.canvas_height : region.height;
++  if (whole_width < 8 || whole_height < 8)
++    return UxrPixelResult::kUnchanged;
++  // Half-transparent arithmetic was not byte-verified for this target.
++  // Check before modifying anything, including when a later pixel is partial.
++  if (!compatible) {
++    for (uint32_t y = 0; y < region.height; ++y) {
++      for (uint32_t x = 0; x < region.width; ++x) {
++        const uint8_t alpha = Pixel(region, x, y)[3];
++        if (alpha != 0 && alpha != 255)
++          return UxrPixelResult::kUnsupportedAlpha;
++      }
++    }
++  }
++  const uint64_t pixels = uint64_t{whole_width} * whole_height;
++  const std::string seed = std::to_string(policy.seed);
++  const uint32_t position_hash = UxrCloakHashV1(seed + "_pos");
++  bool changed = false;
++  for (uint32_t i = 0; i < 10; ++i) {
++    const uint32_t mixed = (position_hash ^ i) * 0x17385ca9u + 0x47502932u;
++    const uint64_t position = mixed % pixels;
++    const uint32_t x = static_cast<uint32_t>(position % whole_width);
++    const uint32_t y = static_cast<uint32_t>(position / whole_width);
++    const int64_t local_x = compatible ? int64_t{x} - region.origin_x : x;
++    const int64_t local_y =
++        !compatible ? y
++        : surface == UxrPixelSurface::kWebGLReadback
++            ? int64_t{whole_height} - 1 - y - region.origin_y
++            : int64_t{y} - region.origin_y;
++    if (local_x < 0 || local_y < 0 || local_x >= region.width ||
++        local_y >= region.height) {
++      continue;
++    }
++    auto pixel = Pixel(region, static_cast<uint32_t>(local_x),
++                       static_cast<uint32_t>(local_y));
++    if (pixel[3] == 0)
++      continue;
++    // Compatible v1 leaves partial-alpha pixels native. Unlike a whole-image
++    // rejection this remains consistent when an opaque region is cropped.
++    if (compatible && pixel[3] != 255)
++      continue;
++    const uint32_t bits = UxrCloakHashV1(seed + "_" + std::to_string(x) + "_" +
++                                         std::to_string(y));
++    // Reference goldens retain the original physical-slot discrepancy.
++    // The explicit compatible-v1 production flavor uses logical RGB.
++    for (uint32_t channel = 0; channel < 3; ++channel) {
++      const uint32_t index = compatible ? Channel(region, channel) : channel;
++      const uint8_t value = (pixel[index] & 0xfeu) | ((bits >> channel) & 1u);
++      changed |= value != pixel[index];
++      pixel[index] = value;
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++}  // namespace
++
++uint32_t UxrCloakHashV1(std::string_view bytes) {
++  if (bytes.empty() || bytes.size() >= 0x80000000u)
++    return 0;
++  uint32_t hash = static_cast<uint32_t>(bytes.size());
++  size_t offset = 0;
++  const auto read16 = [&bytes](size_t at) {
++    return static_cast<uint32_t>(static_cast<unsigned char>(bytes[at])) |
++           (static_cast<uint32_t>(static_cast<unsigned char>(bytes[at + 1]))
++            << 8);
++  };
++  for (; bytes.size() - offset >= 4; offset += 4) {
++    hash += read16(offset);
++    const uint32_t temporary = (read16(offset + 2) << 11) ^ hash;
++    hash = (hash << 16) ^ temporary;
++    hash += hash >> 11;
++  }
++  const auto signed_byte = [&bytes](size_t at) {
++    const uint32_t value = static_cast<unsigned char>(bytes[at]);
++    return value < 128 ? value : value - 256u;
++  };
++  switch (bytes.size() - offset) {
++    case 3:
++      hash += read16(offset);
++      hash ^= hash << 16;
++      hash ^= signed_byte(offset + 2) << 18;
++      hash += hash >> 11;
++      break;
++    case 2:
++      hash += read16(offset);
++      hash ^= hash << 11;
++      hash += hash >> 17;
++      break;
++    case 1:
++      hash += signed_byte(offset);
++      hash ^= hash << 10;
++      hash += hash >> 1;
++      break;
++    default:
++      break;
++  }
++  hash ^= hash << 3;
++  hash += hash >> 5;
++  hash ^= hash << 4;
++  hash += hash >> 17;
++  hash ^= hash << 25;
++  return hash + (hash >> 6);
++}
++
++UxrPixelResult UxrApplyGraphicsNoiseV1(const UxrSurfacePolicy& policy,
++                                       UxrPixelSurface surface,
++                                       const UxrPixelRegion& region,
++                                       uint32_t shard_webgl_sequence,
++                                       UxrPixelFlavor flavor) {
++  if (policy.IsLegacy())
++    return UxrPixelResult::kLegacy;
++  if (policy.IsNative())
++    return UxrPixelResult::kNative;
++  if (policy.seed == 0 ||
++      (policy.mode == UxrSurfaceMode::kShardX &&
++       policy.seed > std::numeric_limits<uint32_t>::max())) {
++    return UxrPixelResult::kUnsupportedSeed;
++  }
++  if (region.width == 0 || region.height == 0)
++    return UxrPixelResult::kUnchanged;
++  if (!ValidLayout(region))
++    return UxrPixelResult::kInvalidLayout;
++  switch (policy.mode) {
++    case UxrSurfaceMode::kChromix:
++      return ApplyChromix(policy, surface, region);
++    case UxrSurfaceMode::kShardX:
++      if (surface == UxrPixelSurface::kWebGLExport)
++        return UxrPixelResult::kUnchanged;
++      return surface == UxrPixelSurface::kCanvas2D
++                 ? ApplyShardCanvas(policy, region)
++                 : ApplyShardWebGL(policy, region,
++                                   flavor == UxrPixelFlavor::kCompatibleV1
++                                       ? 0
++                                       : shard_webgl_sequence);
++    case UxrSurfaceMode::kCloak:
++      return ApplyCloak(policy, surface, region, flavor);
++    case UxrSurfaceMode::kLegacy:
++      return UxrPixelResult::kLegacy;
++    case UxrSurfaceMode::kNative:
++      return UxrPixelResult::kNative;
++  }
++  return UxrPixelResult::kInvalidLayout;
++}
++
++const char* UxrPixelResultName(UxrPixelResult result) {
++  switch (result) {
++    case UxrPixelResult::kApplied:
++      return "applied";
++    case UxrPixelResult::kUnchanged:
++      return "unchanged";
++    case UxrPixelResult::kNative:
++      return "native";
++    case UxrPixelResult::kLegacy:
++      return "legacy";
++    case UxrPixelResult::kInvalidLayout:
++      return "invalid-layout";
++    case UxrPixelResult::kUnsupportedSeed:
++      return "unsupported-seed";
++    case UxrPixelResult::kUnsupportedAlpha:
++      return "unsupported-alpha";
++    case UxrPixelResult::kUnsupportedRegion:
++      return "unsupported-region";
++  }
++  return "invalid-result";
++}
++
++}  // namespace base
+diff --git a/third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h b/third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h
+new file mode 100644
+--- /dev/null
++++ b/third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h
+@@ -0,0 +1,34 @@
++// Copyright 2026. Export routing contains values, never DOM/GC pointers.
++#ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CANVAS_FINGERPRINT_CONTEXT_H_
++#define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CANVAS_FINGERPRINT_CONTEXT_H_
++
++#include "base/uxr_surface_modes.h"
++
++namespace blink {
++
++enum class UxrCanvasExportSource { kOther, kCanvas2D, kWebGL };
++
++struct UxrCanvasExportContext {
++  UxrCanvasExportSource source = UxrCanvasExportSource::kOther;
++  base::UxrSurfacePolicy policy;
++  bool noise_disabled = false;
++  bool offscreen = false;
++
++  static UxrCanvasExportContext FromModes(const base::UxrSurfaceModes& modes,
++                                          UxrCanvasExportSource source,
++                                          bool offscreen) {
++    UxrCanvasExportContext result;
++    result.source = source;
++    result.offscreen = offscreen;
++    result.noise_disabled = modes.noise_disabled || modes.raw;
++    if (source == UxrCanvasExportSource::kCanvas2D)
++      result.policy = modes.canvas;
++    else if (source == UxrCanvasExportSource::kWebGL)
++      result.policy = modes.webgl;
++    return result;
++  }
++};
++
++}  // namespace blink
++
++#endif
+diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.h b/third_party/blink/renderer/platform/graphics/image_data_buffer.h
+--- a/third_party/blink/renderer/platform/graphics/image_data_buffer.h
++++ b/third_party/blink/renderer/platform/graphics/image_data_buffer.h
+@@ -32,6 +32,7 @@
+ 
+ #include "base/containers/span.h"
+ #include "base/memory/scoped_refptr.h"
++#include "third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h"
+ #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
+ #include "third_party/blink/renderer/platform/image-encoders/image_encoder.h"
+ #include "third_party/blink/renderer/platform/platform_export.h"
+@@ -48,8 +49,10 @@
+ 
+  public:
+   static std::unique_ptr<ImageDataBuffer> Create(
+-      scoped_refptr<StaticBitmapImage>);
+-  static std::unique_ptr<ImageDataBuffer> Create(const SkPixmap&);
++      scoped_refptr<StaticBitmapImage>,
++      UxrCanvasExportContext = {});
++  static std::unique_ptr<ImageDataBuffer> Create(
++      const SkPixmap&, UxrCanvasExportContext = {});
+ 
+   String ToDataURL(const ImageEncodingMimeType mime_type,
+                    const double& quality) const;
+@@ -61,8 +64,9 @@
+   const SkPixmap& GetPixmap() const { return pixmap_; }
+ 
+  private:
+-  ImageDataBuffer(const SkPixmap&);
+-  ImageDataBuffer(scoped_refptr<StaticBitmapImage>);
++  ImageDataBuffer(const SkPixmap&, const UxrCanvasExportContext&);
++  ImageDataBuffer(scoped_refptr<StaticBitmapImage>,
++                  const UxrCanvasExportContext&);
+ 
+   bool IsValid() { return is_valid_; }  // Only used by Create()
+ 
+diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
+--- a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
++++ b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
+@@ -37,6 +37,7 @@
+ #include "base/memory/ptr_util.h"
+ #include "base/strings/string_number_conversions.h"
+ #include "base/uxr_config.h"
++#include "base/uxr_graphics_noise.h"
+ #include "base/uxr_pixel_noise.h"
+ #include "third_party/blink/renderer/platform/image-encoders/image_encoder_utils.h"
+ #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+@@ -50,13 +51,59 @@
+ namespace blink {
+ 
+ namespace {
+-bool UxrCopyAndNoiseEncodeBuffer(SkPixmap& pm, sk_sp<SkImage>& retained_image) {
++bool UxrCopyAndNoiseEncodeBuffer(
++    SkPixmap& pm,
++    sk_sp<SkImage>& retained_image,
++    const UxrCanvasExportContext& export_context) {
+   if (!pm.addr() || pm.info().isEmpty() ||
+       !pm.info().validRowBytes(pm.rowBytes()) ||
+       SkImageInfo::ByteSizeOverflowed(pm.computeByteSize())) {
+     return false;
+   }
+   const auto& config = base::UxrConfig::GetInstance();
++  if (export_context.policy.IsConfigured()) {
++    const SkColorType color_type = pm.colorType();
++    if (export_context.policy.IsNative() || export_context.noise_disabled ||
++        (color_type != kRGBA_8888_SkColorType &&
++         color_type != kBGRA_8888_SkColorType) ||
++        (export_context.source == UxrCanvasExportSource::kWebGL &&
++         export_context.policy.mode == base::UxrSurfaceMode::kShardX)) {
++      return true;
++    }
++    auto data = gfx::MakeSkDataFromSpanWithCopy(gfx::SkPixmapToSpan(pm));
++    if (!data)
++      return false;
++    const SkImageInfo info = pm.info().makeAlphaType(kUnpremul_SkAlphaType);
++    SkPixmap copy(info, data->writable_data(), pm.rowBytes());
++    if (pm.info().alphaType() != kUnpremul_SkAlphaType &&
++        !pm.readPixels(info, copy.writable_addr(), copy.rowBytes())) {
++      return false;
++    }
++    const base::UxrPixelRegion region{
++        gfx::SkPixmapToWritableSpan(copy), copy.rowBytes(),
++        static_cast<uint32_t>(copy.width()),
++        static_cast<uint32_t>(copy.height()),
++        static_cast<uint32_t>(copy.width()),
++        static_cast<uint32_t>(copy.height()), 0, 0,
++        color_type == kBGRA_8888_SkColorType};
++    const auto result = base::UxrApplyGraphicsNoiseV1(
++        export_context.policy,
++        export_context.source == UxrCanvasExportSource::kWebGL
++            ? base::UxrPixelSurface::kWebGLExport
++            : base::UxrPixelSurface::kCanvas2D,
++        region);
++    // Unchanged and unsupported paths preserve the original encoder input.
++    // Coverage/fallbacks are published by the v1 capability manifest.
++    if (result != base::UxrPixelResult::kApplied)
++      return true;
++    auto image = SkImages::RasterFromData(copy.info(), std::move(data),
++                                          copy.rowBytes());
++    if (!image)
++      return false;
++    retained_image = std::move(image);
++    pm = copy;
++    return true;
++  }
+   const auto seed_text = config.Get("uxr-canvas-seed");
+   uint64_t seed64 = 0u;
+   const SkColorType ct = pm.colorType();
+@@ -107,7 +154,9 @@
+ }
+ }  // namespace
+ 
+-ImageDataBuffer::ImageDataBuffer(scoped_refptr<StaticBitmapImage> image) {
++ImageDataBuffer::ImageDataBuffer(
++    scoped_refptr<StaticBitmapImage> image,
++    const UxrCanvasExportContext& export_context) {
+   if (!image)
+     return;
+   PaintImage paint_image = image->PaintImageForCurrentFrame();
+@@ -161,18 +210,21 @@
+     MSAN_CHECK_MEM_IS_INITIALIZED(pixmap_.addr(), pixmap_.computeByteSize());
+   }
+   if (!retained_image_ ||
+-      !UxrCopyAndNoiseEncodeBuffer(pixmap_, retained_image_)) {
++      !UxrCopyAndNoiseEncodeBuffer(pixmap_, retained_image_, export_context)) {
+     pixmap_.reset();
+     return;
+   }
+   is_valid_ = true;
+ }
+ 
+-ImageDataBuffer::ImageDataBuffer(const SkPixmap& pixmap)
++ImageDataBuffer::ImageDataBuffer(
++    const SkPixmap& pixmap,
++    const UxrCanvasExportContext& export_context)
+     : pixmap_(pixmap),
+       is_valid_(pixmap_.addr() &&
+                 !gfx::Size(pixmap.width(), pixmap.height()).IsEmpty()) {
+-  if (is_valid_ && !UxrCopyAndNoiseEncodeBuffer(pixmap_, retained_image_)) {
++  if (is_valid_ &&
++      !UxrCopyAndNoiseEncodeBuffer(pixmap_, retained_image_, export_context)) {
+     pixmap_.reset();
+     is_valid_ = false;
+     return;
+@@ -188,18 +240,20 @@
+ }
+ 
+ std::unique_ptr<ImageDataBuffer> ImageDataBuffer::Create(
+-    scoped_refptr<StaticBitmapImage> image) {
++    scoped_refptr<StaticBitmapImage> image,
++    UxrCanvasExportContext export_context) {
+   std::unique_ptr<ImageDataBuffer> buffer =
+-      base::WrapUnique(new ImageDataBuffer(image));
++      base::WrapUnique(new ImageDataBuffer(image, export_context));
+   if (!buffer->IsValid())
+     return nullptr;
+   return buffer;
+ }
+ 
+ std::unique_ptr<ImageDataBuffer> ImageDataBuffer::Create(
+-    const SkPixmap& pixmap) {
++    const SkPixmap& pixmap,
++    UxrCanvasExportContext export_context) {
+   std::unique_ptr<ImageDataBuffer> buffer =
+-      base::WrapUnique(new ImageDataBuffer(pixmap));
++      base::WrapUnique(new ImageDataBuffer(pixmap, export_context));
+   if (!buffer->IsValid())
+     return nullptr;
+   return buffer;
+diff --git a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h b/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h
+--- a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h
++++ b/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h
+@@ -15,6 +15,7 @@
+ #include "third_party/blink/renderer/bindings/core/v8/v8_blob_callback.h"
+ #include "third_party/blink/renderer/bindings/core/v8/v8_image_encode_options.h"
+ #include "third_party/blink/renderer/core/core_export.h"
++#include "third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h"
+ #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
+ #include "third_party/blink/renderer/platform/heap/cross_thread_handle.h"
+ #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+@@ -53,14 +54,16 @@
+                          ToBlobFunctionType function_type,
+                          base::TimeTicks start_time,
+                          ExecutionContext*,
+-                         ScriptPromiseResolver<Blob>*);
++                         ScriptPromiseResolver<Blob>*,
++                         UxrCanvasExportContext = {});
+   CanvasAsyncBlobCreator(scoped_refptr<StaticBitmapImage>,
+                          const ImageEncodeOptions*,
+                          ToBlobFunctionType,
+                          V8BlobCallback*,
+                          base::TimeTicks start_time,
+                          ExecutionContext*,
+-                         ScriptPromiseResolver<Blob>* = nullptr);
++                         ScriptPromiseResolver<Blob>* = nullptr,
++                         UxrCanvasExportContext = {});
+   virtual ~CanvasAsyncBlobCreator();
+ 
+   // Methods are virtual for mocking in unit tests
+@@ -96,6 +99,7 @@
+ 
+   scoped_refptr<StaticBitmapImage> image_;
+   Member<ExecutionContext> context_;
++  const UxrCanvasExportContext fingerprint_export_context_;
+ 
+   // The following members are used for progressive/idle encoding,
+   // see comment above the implementation of ScheduleAsyncBlobCreation.
+diff --git a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc b/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
+--- a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
++++ b/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
+@@ -145,14 +145,16 @@
+     ToBlobFunctionType function_type,
+     base::TimeTicks start_time,
+     ExecutionContext* context,
+-    ScriptPromiseResolver<Blob>* resolver)
++    ScriptPromiseResolver<Blob>* resolver,
++    UxrCanvasExportContext export_context)
+     : CanvasAsyncBlobCreator(image,
+                              options,
+                              function_type,
+                              nullptr,
+                              start_time,
+                              context,
+-                             resolver) {}
++                             resolver,
++                             export_context) {}
+ 
+ CanvasAsyncBlobCreator::CanvasAsyncBlobCreator(
+     scoped_refptr<StaticBitmapImage> image,
+@@ -161,10 +163,12 @@
+     V8BlobCallback* callback,
+     base::TimeTicks start_time,
+     ExecutionContext* context,
+-    ScriptPromiseResolver<Blob>* resolver)
++    ScriptPromiseResolver<Blob>* resolver,
++    UxrCanvasExportContext export_context)
+     : fail_encoder_initialization_for_test_(false),
+       enforce_idle_encoding_for_test_(false),
+       context_(context),
++      fingerprint_export_context_(export_context),
+       function_type_(function_type),
+       start_time_(start_time),
+       static_bitmap_image_loaded_(false),
+@@ -226,7 +230,8 @@
+         src_data_.reset(info, src_data_.addr(), src_data_.rowBytes());
+       }
+       // All scheduling paths consume the same once-prepared pixels.
+-      image_data_buffer_ = ImageDataBuffer::Create(src_data_);
++      image_data_buffer_ =
++          ImageDataBuffer::Create(src_data_, fingerprint_export_context_);
+       if (image_data_buffer_) {
+         src_data_ = image_data_buffer_->GetPixmap();
+         static_bitmap_image_loaded_ = true;
+diff --git a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc b/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
+--- a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
++++ b/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
+@@ -43,6 +43,7 @@
+ #include "base/numerics/safe_conversions.h"
+ #include "base/trace_event/trace_event.h"
+ #include "base/trace_event/typed_macros.h"
++#include "base/uxr_config.h"
+ #include "build/build_config.h"
+ #include "cc/layers/texture_layer.h"
+ #include "cc/paint/paint_image_builder.h"
+@@ -1428,7 +1429,14 @@
+   if (image_bitmap) {
+     std::vector<uint8_t> bridge_pixels;
+     CanvasRenderingContext* context = RenderingContext();
+-    if (context &&
++    const auto source = context && context->IsRenderingContext2D()
++                            ? UxrCanvasExportSource::kCanvas2D
++                        : context && context->IsWebGL()
++                            ? UxrCanvasExportSource::kWebGL
++                            : UxrCanvasExportSource::kOther;
++    const auto export_context = UxrCanvasExportContext::FromModes(
++        base::UxrConfig::GetInstance().SurfaceModes(), source, false);
++    if (context && export_context.policy.IsLegacy() &&
+         context->ReadBridgePixels(&bridge_pixels, image_bitmap->width(),
+                                   image_bitmap->height())) {
+       const uint64_t expected = static_cast<uint64_t>(image_bitmap->width()) *
+@@ -1451,7 +1459,7 @@
+       }
+     }
+     std::unique_ptr<ImageDataBuffer> data_buffer =
+-        ImageDataBuffer::Create(image_bitmap);
++        ImageDataBuffer::Create(image_bitmap, export_context);
+     if (!data_buffer)
+       return String("data:,");
+ 
+@@ -1556,10 +1564,17 @@
+   if (image_bitmap) {
+     auto* options = ImageEncodeOptions::Create();
+     options->setType(ImageEncoderUtils::MimeTypeName(encoding_mime_type));
++    const auto source = context_ && context_->IsRenderingContext2D()
++                            ? UxrCanvasExportSource::kCanvas2D
++                        : context_ && context_->IsWebGL()
++                            ? UxrCanvasExportSource::kWebGL
++                            : UxrCanvasExportSource::kOther;
++    const auto export_context = UxrCanvasExportContext::FromModes(
++        base::UxrConfig::GetInstance().SurfaceModes(), source, false);
+     async_creator = MakeGarbageCollected<CanvasAsyncBlobCreator>(
+         image_bitmap, options,
+         CanvasAsyncBlobCreator::kHTMLCanvasToBlobCallback, callback, start_time,
+-        GetExecutionContext());
++        GetExecutionContext(), nullptr, export_context);
+   }
+ 
+   if (async_creator) {
+diff --git a/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc b/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
+--- a/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
++++ b/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
+@@ -12,6 +12,7 @@
+ #include "base/numerics/safe_conversions.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/types/optional_util.h"
++#include "base/uxr_config.h"
+ #include "third_party/blink/public/common/features.h"
+ #include "third_party/blink/public/platform/platform.h"
+ #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
+@@ -570,9 +571,16 @@
+     CanvasAsyncBlobCreator::ToBlobFunctionType function_type =
+         CanvasAsyncBlobCreator::kOffscreenCanvasConvertToBlobPromise;
+     auto* execution_context = ExecutionContext::From(script_state);
++    const auto source = context_->IsRenderingContext2D()
++                            ? UxrCanvasExportSource::kCanvas2D
++                        : context_->IsWebGL()
++                            ? UxrCanvasExportSource::kWebGL
++                            : UxrCanvasExportSource::kOther;
++    const auto export_context = UxrCanvasExportContext::FromModes(
++        base::UxrConfig::GetInstance().SurfaceModes(), source, true);
+     auto* async_creator = MakeGarbageCollected<CanvasAsyncBlobCreator>(
+         image_bitmap, options, function_type, start_time, execution_context,
+-        resolver);
++        resolver, export_context);
+     async_creator->ScheduleAsyncBlobCreation(options->quality());
+     return resolver->Promise();
+   }
+diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+--- a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
++++ b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+@@ -6,6 +6,7 @@
+ 
+ #include "base/strings/string_number_conversions.h"
+ #include "base/uxr_config.h"
++#include "base/uxr_graphics_noise.h"
+ #include "base/uxr_pixel_noise.h"
+ 
+ #include <algorithm>
+@@ -548,6 +549,8 @@
+ bool BaseRenderingContext2D::ReadBridgePixels(std::vector<uint8_t>* out,
+                                               int width,
+                                               int height) {
++  if (base::UxrConfig::GetInstance().SurfaceModes().canvas.IsConfigured())
++    return false;
+   auto* bridge = canvas_bridge::CanvasBridgeClient::Get();
+   if (!bridge || !bridge->Connected() || bridge_canvas_id_ == 0 || width <= 0 ||
+       height <= 0) {
+@@ -715,8 +718,12 @@
+     return nullptr;
+   }
+ 
++  const auto surface_modes = base::UxrConfig::GetInstance().SurfaceModes();
++  // An absent snapshot can also mean a resource/read failure. New strategies
++  // require a successful actual read; the existing lazy-native output stays.
++  bool surface_read_complete = false;
+   if (auto* bridge = canvas_bridge::CanvasBridgeClient::Get();
+-      bridge && bridge->Connected()) {
++      surface_modes.canvas.IsLegacy() && bridge && bridge->Connected()) {
+     const auto* execution_context =
+         GetCanvasRenderingContextHost()->GetTopExecutionContext();
+     const auto* origin =
+@@ -749,6 +756,7 @@
+         snapshot->PaintImageForCurrentFrame().readPixels(
+             image_data_pixmap.info(), image_data_pixmap.writable_addr(),
+             image_data_pixmap.rowBytes(), sx, sy);
++    surface_read_complete = read_pixels_successful;
+     if (!read_pixels_successful) {
+       SkIRect bounds =
+           snapshot->PaintImageForCurrentFrame().GetSkImageInfo().bounds();
+@@ -761,11 +769,29 @@
+         !noise_seed_text.empty() &&
+         noise_seed_text.find_first_not_of("0123456789") == std::string::npos &&
+         base::StringToUint64(noise_seed_text, &noise_seed) && noise_seed != 0u;
+-    if (read_pixels_successful &&
++    if (surface_modes.canvas.IsLegacy() && read_pixels_successful &&
+         noise_config.GpuBackendPolicy().canvas_pixel_noise && !persona_noise &&
+         RuntimeEnabledFeatures::FingerprintingCanvasImageDataNoiseEnabled()) {
+       StaticBitmapImage::ShuffleSubchannelColorData(image_data_pixmap.addr(), image_data_pixmap.info(), sx, sy);
+     }
++  }
++
++  if (surface_modes.canvas.IsConfigured()) {
++    const SkPixmap pixmap = image_data->GetSkPixmap();
++    if (surface_read_complete && !surface_modes.noise_disabled &&
++        !surface_modes.raw && pixmap.addr() &&
++        (pixmap.colorType() == kRGBA_8888_SkColorType ||
++         pixmap.colorType() == kBGRA_8888_SkColorType)) {
++      const base::UxrPixelRegion region{
++          gfx::SkPixmapToWritableSpan(pixmap), pixmap.rowBytes(),
++          static_cast<uint32_t>(pixmap.width()),
++          static_cast<uint32_t>(pixmap.height()),
++          static_cast<uint32_t>(Width()), static_cast<uint32_t>(Height()),
++          sx, sy, pixmap.colorType() == kBGRA_8888_SkColorType};
++      base::UxrApplyGraphicsNoiseV1(surface_modes.canvas,
++                                   base::UxrPixelSurface::kCanvas2D, region);
++    }
++    return image_data;
+   }
+ 
+   const auto& ph_config = base::UxrConfig::GetInstance();
+@@ -1498,8 +1524,13 @@
+       font, direction, state.GetTextBaseline(), state.GetTextAlign(), text,
+       host->GetPlainTextPainter());
+ 
++  const auto text_policy =
++      base::UxrConfig::GetInstance().SurfaceModes().text;
++  const bool use_legacy_text =
++      text_policy.IsLegacy() ||
++      text_policy.mode == base::UxrSurfaceMode::kChromix;
+   if (auto* bridge = canvas_bridge::CanvasBridgeClient::Get();
+-      bridge && bridge->Connected()) {
++      use_legacy_text && bridge && bridge->Connected()) {
+     const auto* execution_context =
+         GetCanvasRenderingContextHost()->GetTopExecutionContext();
+     const auto* origin =
+@@ -1519,7 +1550,8 @@
+   }
+ 
+   // Scale text metrics if enabled
+-  if (base::UxrConfig::GetInstance().GpuBackendPolicy().canvas_text_noise &&
++  if (use_legacy_text &&
++      base::UxrConfig::GetInstance().GpuBackendPolicy().canvas_text_noise &&
+       RuntimeEnabledFeatures::FingerprintingCanvasMeasureTextNoiseEnabled()) {
+     if (HostAsOffscreenCanvas()) {
+       if (auto* window = DynamicTo<LocalDOMWindow>(GetTopExecutionContext())) {
+@@ -1530,6 +1562,10 @@
+       text_metrics->Shuffle(canvas->GetDocument().GetNoiseFactorX());
+     }
+   }
++  if (text_policy.mode == base::UxrSurfaceMode::kCloak)
++    text_metrics->ApplyUxrSurfaceMode(this->font());
++  else if (text_policy.mode == base::UxrSurfaceMode::kShardX)
++    text_metrics->ApplyUxrSurfaceMode(String());
+   return text_metrics;
+ }
+ 
+diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
+--- a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
++++ b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
+@@ -46,6 +46,7 @@
+ #include "base/notimplemented.h"
+ #include "base/numerics/checked_math.h"
+ #include "base/uxr_config.h"
++#include "base/uxr_graphics_noise.h"
+ #include "base/uxr_pixel_noise.h"
+ #include "base/strings/stringprintf.h"
+ #include "base/synchronization/lock.h"
+@@ -1718,25 +1719,35 @@
+ 
+   max_texture_size_ = 0;
+   ContextGL()->GetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size_);
++  max_texture_size_ =
++      GetWebGLContextLimitV1("uxr-webgl-max-texture-size", max_texture_size_);
+   max_texture_level_ =
+       WebGLTexture::ComputeLevelCount(max_texture_size_, max_texture_size_, 1);
+   max_cube_map_texture_size_ = 0;
+   ContextGL()->GetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE,
+                            &max_cube_map_texture_size_);
++  max_cube_map_texture_size_ = GetWebGLContextLimitV1(
++      "uxr-webgl-max-cube-map-texture-size", max_cube_map_texture_size_);
+   max3d_texture_size_ = 0;
+   max3d_texture_level_ = 0;
+   max_array_texture_layers_ = 0;
+   if (IsWebGL2()) {
+     ContextGL()->GetIntegerv(GL_MAX_3D_TEXTURE_SIZE, &max3d_texture_size_);
++    max3d_texture_size_ = GetWebGLContextLimitV1(
++        "uxr-webgl-max-3d-texture-size", max3d_texture_size_);
+     max3d_texture_level_ = WebGLTexture::ComputeLevelCount(
+         max3d_texture_size_, max3d_texture_size_, max3d_texture_size_);
+     ContextGL()->GetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS,
+                              &max_array_texture_layers_);
++    max_array_texture_layers_ = GetWebGLContextLimitV1(
++        "uxr-webgl-max-array-texture-layers", max_array_texture_layers_);
+   }
+   max_cube_map_texture_level_ = WebGLTexture::ComputeLevelCount(
+       max_cube_map_texture_size_, max_cube_map_texture_size_, 1);
+   max_renderbuffer_size_ = 0;
+   ContextGL()->GetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &max_renderbuffer_size_);
++  max_renderbuffer_size_ = GetWebGLContextLimitV1(
++      "uxr-webgl-max-renderbuffer-size", max_renderbuffer_size_);
+ 
+   // These two values from EXT_draw_buffers are lazily queried.
+   max_draw_buffers_ = 0;
+@@ -3247,6 +3258,8 @@
+     std::vector<uint8_t>* out,
+     int width,
+     int height) {
++  if (base::UxrConfig::GetInstance().SurfaceModes().webgl.IsConfigured())
++    return false;
+   if (!BridgeAllowedForThisContext())
+     return false;
+   auto* bridge = canvas_bridge::CanvasBridgeClient::Get();
+@@ -4223,6 +4236,8 @@
+     return false;
+   if (disabled_extensions_.Contains(String(tracker->ExtensionName())))
+     return false;
++  if (GetWebGLCapabilitiesMode() != base::UxrGpuMode::kLegacy)
++    return IsWebGLModeExtensionAllowedV1(tracker->ExtensionName());
+   // Enumeration and getExtension must use the same native-capability filter.
+   if (!ungoogled::CurrentPersona().webgl_real &&
+       base::UxrConfig::GetInstance().Has("uxr-webgl-extensions")) {
+@@ -4386,7 +4401,23 @@
+   if (isContextLost())
+     return ScriptValue::CreateNull(script_state->GetIsolate());
+   const int kIntZero = 0;
+-  if (ungoogled::CurrentPersona().webgl_real ||
++  const auto gpu_capabilities_mode = GetWebGLCapabilitiesMode();
++  if (gpu_capabilities_mode == base::UxrGpuMode::kCustom) {
++    // Publish the same context bounds used by texture/renderbuffer
++    // validation. All other new-mode numeric queries remain native.
++    switch (pname) {
++      case GL_MAX_TEXTURE_SIZE:
++        return WebGLAny(script_state, max_texture_size_);
++      case GL_MAX_CUBE_MAP_TEXTURE_SIZE:
++        return WebGLAny(script_state, max_cube_map_texture_size_);
++      case GL_MAX_RENDERBUFFER_SIZE:
++        return WebGLAny(script_state, max_renderbuffer_size_);
++      default:
++        break;
++    }
++  }
++  if (gpu_capabilities_mode != base::UxrGpuMode::kLegacy ||
++      ungoogled::CurrentPersona().webgl_real ||
+       ungoogled::CurrentPersona().webgl_native_capabilities) {
+     switch (pname) {
+       case GL_ALIASED_LINE_WIDTH_RANGE:
+@@ -4433,7 +4464,8 @@
+     case GL_ALPHA_BITS:
+       if (drawing_buffer_->RequiresAlphaChannelToBePreserved())
+         return WebGLAny(script_state, 0);
+-      if (ungoogled::CurrentPersona().webgl_real ||
++      if (gpu_capabilities_mode != base::UxrGpuMode::kLegacy ||
++          ungoogled::CurrentPersona().webgl_real ||
+           ungoogled::CurrentPersona().webgl_native_capabilities)
+         return GetIntParameter(script_state, pname);
+       return WebGLAny(script_state, ungoogled::CurrentPersona().webgl_alpha_bits);
+@@ -4473,7 +4505,8 @@
+     case GL_DEPTH_BITS:
+       if (!framebuffer_binding_ && !CreationAttributes().depth)
+         return WebGLAny(script_state, kIntZero);
+-      if (ungoogled::CurrentPersona().webgl_real ||
++      if (gpu_capabilities_mode != base::UxrGpuMode::kLegacy ||
++          ungoogled::CurrentPersona().webgl_real ||
+           ungoogled::CurrentPersona().webgl_native_capabilities)
+         return GetIntParameter(script_state, pname);
+       return WebGLAny(script_state, ungoogled::CurrentPersona().webgl_depth_bits);
+@@ -4566,8 +4599,19 @@
+       return WebGLAny(script_state, ungoogled::CurrentPersona().webgl_red_bits);
+     case GL_RENDERBUFFER_BINDING:
+       return WebGLAny(script_state, renderbuffer_binding_.Get());
+-    case GL_RENDERER:
++    case GL_RENDERER: {
++      const auto& config = base::UxrConfig::GetInstance();
++      if (config.Has("uxr-webgl-masked-renderer")) {
++        const auto* native = ContextGL()->GetString(GL_RENDERER);
++        if (GetGLRendererStringForFingerprint(
++                drawing_buffer_->ContextInfo(),
++                native ? reinterpret_cast<const char*>(native) : "")) {
++          return WebGLAny(script_state, String::FromUtf8(
++              config.Get("uxr-webgl-masked-renderer")));
++        }
++      }
+       return WebGLAny(script_state, String("WebKit WebGL"));
++    }
+     case GL_SAMPLE_ALPHA_TO_COVERAGE:
+       return GetBooleanParameter(script_state, pname);
+     case GL_SAMPLE_BUFFERS:
+@@ -4605,7 +4649,8 @@
+     case GL_STENCIL_BITS:
+       if (!framebuffer_binding_ && !CreationAttributes().stencil)
+         return WebGLAny(script_state, kIntZero);
+-      if (ungoogled::CurrentPersona().webgl_real ||
++      if (gpu_capabilities_mode != base::UxrGpuMode::kLegacy ||
++          ungoogled::CurrentPersona().webgl_real ||
+           ungoogled::CurrentPersona().webgl_native_capabilities)
+         return GetIntParameter(script_state, pname);
+       return WebGLAny(script_state, ungoogled::CurrentPersona().webgl_stencil_bits);
+@@ -4645,8 +4690,19 @@
+       return WebGLAny(script_state, unpack_premultiply_alpha_);
+     case GC3D_UNPACK_COLORSPACE_CONVERSION_WEBGL:
+       return WebGLAny(script_state, unpack_colorspace_conversion_);
+-    case GL_VENDOR:
++    case GL_VENDOR: {
++      const auto& config = base::UxrConfig::GetInstance();
++      if (config.Has("uxr-webgl-masked-vendor")) {
++        const auto* native = ContextGL()->GetString(GL_RENDERER);
++        if (GetGLVendorStringForFingerprint(
++                drawing_buffer_->ContextInfo(),
++                native ? reinterpret_cast<const char*>(native) : "")) {
++          return WebGLAny(script_state, String::FromUtf8(
++              config.Get("uxr-webgl-masked-vendor")));
++        }
++      }
+       return WebGLAny(script_state, String("WebKit"));
++    }
+     case GL_VERSION:
+       return WebGLAny(script_state,
+                       String("WebGL 1.0 (OpenGL ES 2.0 Chromium)"));
+@@ -4702,7 +4758,8 @@
+       return ScriptValue::CreateNull(script_state->GetIsolate());
+     case GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT:  // EXT_texture_filter_anisotropic
+       if (ExtensionEnabled(kEXTTextureFilterAnisotropicName)) {
+-        if (ungoogled::CurrentPersona().webgl_real ||
++        if (gpu_capabilities_mode != base::UxrGpuMode::kLegacy ||
++            ungoogled::CurrentPersona().webgl_real ||
+             ungoogled::CurrentPersona().webgl_native_capabilities)
+           return GetFloatParameter(script_state,
+                                    GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+@@ -5848,6 +5905,56 @@
+     }
+     const auto policy = base::UxrConfig::GetInstance().GpuBackendPolicy();
+     const gfx::Size drawing_size = GetDrawingBuffer()->Size();
++    const auto surface_modes = base::UxrConfig::GetInstance().SurfaceModes();
++    if (surface_modes.webgl.IsConfigured()) {
++      const auto& selected = surface_modes.webgl;
++      const bool enabled = !selected.IsNative() &&
++                           !surface_modes.noise_disabled && !surface_modes.raw;
++      // Compatible v1 deliberately fixes the read sequence at zero and does
++      // not carry the source browser's special 256x24 exception.
++      // The v1 completion-safe variant retains the existing opaque readback
++      // proof. Transparent/FBO/PBO/FLOAT paths are declared native fallbacks,
++      // never guessed successful and never inspected through gl.getError().
++      if (enabled && !framebuffer &&
++          !CreationAttributes().alpha && !pixels->IsShared() &&
++          read_buffer_of_default_framebuffer_ == GL_BACK && format == GL_RGBA &&
++          type == GL_UNSIGNED_BYTE && x >= 0 && y >= 0 && width > 0 &&
++          height > 0 && x <= drawing_size.width() &&
++          width <= drawing_size.width() - x && y <= drawing_size.height() &&
++          height <= drawing_size.height() - y) {
++        const auto pack = GetPackPixelStoreParams();
++        const auto layout = UxrWebGLReadbackLayoutFor(
++            width, height, pack.alignment, pack.row_length, pack.skip_pixels,
++            pack.skip_rows, buffer_size.ValueOrDie());
++        if (layout) {
++          std::vector<uint8_t> staging(layout->total, 0);
++          ContextGL()->ReadPixels(x, y, width, height, format, type,
++                                  staging.data());
++          if (!isContextLost() &&
++              UxrWebGLReadbackComplete(staging, *layout, height)) {
++            const base::UxrPixelRegion region{
++                base::span<uint8_t>(staging).subspan(layout->skip),
++                layout->stride, static_cast<uint32_t>(width),
++                static_cast<uint32_t>(height),
++                static_cast<uint32_t>(drawing_size.width()),
++                static_cast<uint32_t>(drawing_size.height()), x, y, false};
++            base::UxrApplyGraphicsNoiseV1(
++                selected, base::UxrPixelSurface::kWebGLReadback, region);
++            auto target = pixels->ByteSpanMaybeShared().subspan(
++                offset_in_bytes.ValueOrDie());
++            for (int row = 0; row < height; ++row) {
++              const size_t start = layout->skip + row * layout->stride;
++              target.subspan(start, layout->row_bytes)
++                  .copy_from(base::span<const uint8_t>(staging).subspan(
++                      start, layout->row_bytes));
++            }
++          }
++          return;
++        }
++      }
++      ContextGL()->ReadPixels(x, y, width, height, format, type, data);
++      return;
++    }
+     // PBO overloads never enter this helper. FBO, FLOAT, shared storage,
+     // transparent buffers and clipped reads retain the native path.
+     if (policy.seeded_pixel_noise && policy.canvas_pixel_noise && !framebuffer &&
+diff --git a/third_party/blink/renderer/platform/BUILD.gn b/third_party/blink/renderer/platform/BUILD.gn
+--- a/third_party/blink/renderer/platform/BUILD.gn
++++ b/third_party/blink/renderer/platform/BUILD.gn
+@@ -913,6 +913,7 @@
+     "graphics/canvas_child_paint_state.h",
+     "graphics/canvas_deferred_paint_record.cc",
+     "graphics/canvas_deferred_paint_record.h",
++    "graphics/canvas_fingerprint_context.h",
+     "graphics/canvas_hibernation_handler.cc",
+     "graphics/canvas_hibernation_handler.h",
+     "graphics/canvas_image_provider.cc",

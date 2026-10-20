@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "strategy": "compatible-v1",
+  "base_commit": "90e6d29bf81408820c7bba89caf8bad7dec8430c",
+  "passkey_latency_optimization": "Explicitly deferred; not included",
+  "original_selected_patches_byte_identical": 231,
+  "ordered_overlays": [
+    {
+      "path": "patches/fingerprint-modes/0001-independent-mode-contract.patch",
+      "sha256": "078df4b21e73367f01f3ed30620336910b09208ee1ef55a85dc52490c598ea4e",
+      "files": 16
+    },
+    {
+      "path": "patches/fingerprint-modes/0002-graphics.patch",
+      "sha256": "f28c192acda4eac17d0c1194f38dce14b342364154da339e3bf8a79714e9c4af",
+      "files": 12
+    },
+    {
+      "path": "patches/fingerprint-modes/0003-surfaces.patch",
+      "sha256": "310a60fe00d2e6a3dbf34a741add73ff1ef8db9e336f5cdcee8351f530c06c95",
+      "files": 18
+    },
+    {
+      "path": "patches/fingerprint-modes/0004-gpu-compatible-modes-v1.patch",
+      "sha256": "a0e72b3cdc3a8ffb6a82b93363185e2e00f21c8159e740b910f491e5a01cbe2a",
+      "files": 8
+    },
+    {
+      "path": "patches/fingerprint-modes/0005-installed-font-allowlists.patch",
+      "sha256": "29430a7ed928770e717d1ed0813a1018d9dbeed2192c51d6bacdc670e1d39472",
+      "files": 5
+    },
+    {
+      "path": "patches/fingerprint-modes/0006-audio-defaults.patch",
+      "sha256": "fa40bf2183bb46f1b337592f275cce43fd0c4e72d4b8c2c2383d37f8533aeeaf",
+      "files": 5
+    }
+  ],
+  "sequential_incremental_files": {
+    "third_party/blink/renderer/platform/fonts/font_cache.cc": [
+      "0003-surfaces.patch",
+      "0005-installed-font-allowlists.patch"
+    ]
+  },
+  "combined_patch_sha256": "2c0959ef20bff4c70e2e2966f235ed1467c2ab1063004516c91f579d5f38c75d",
+  "combined_patch_changed_files": 209,
+  "source_upgrade": {
+    "from_run": 39396862771,
+    "from_patch_sha256": "16e93d80542ee55009fa951284b0257bc3df85c767254bd58a5ab497994a6a22",
+    "unchanged_file_timestamps_preserved": 195,
+    "idempotent": true
+  },
+  "qualification": "Pinned source replay and donor-upgrade identity only; compiled and runtime evidence is separate."
+}

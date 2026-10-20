@@ -1,0 +1,515 @@
+{
+  "schema_version": 1,
+  "build_variant": "fingerprint-modes-win155",
+  "chromium_version": "155.0.8059.39",
+  "strategy_version": 1,
+  "new_strategy_flavor": "compatible-v1",
+  "kind": "source_contract",
+  "acceptance": "Build/native/runtime results are separate hash-bound reports; this contract alone is not acceptance.",
+  "legacy": {
+    "new_key_absent": "Retain the original branch, formula, defaults and old flags.",
+    "existing_user_data_or_seed_migration": false,
+    "automatic_activation": false,
+    "global_off": "Existing fingerprint=off behavior is preserved."
+  },
+  "surface_modes": {
+    "audio": {
+      "flag": "fingerprint-audio-mode",
+      "internal_key": "uxr-audio-mode",
+      "modes": [
+        "native",
+        "chromix",
+        "shardx",
+        "cloak"
+      ],
+      "seed_flag": "fingerprint-audio-mode-seed",
+      "version": 1
+    },
+    "canvas": {
+      "flag": "fingerprint-canvas-mode",
+      "internal_key": "uxr-canvas-mode",
+      "modes": [
+        "native",
+        "chromix",
+        "shardx",
+        "cloak"
+      ],
+      "seed_flag": "fingerprint-canvas-mode-seed",
+      "version": 1
+    },
+    "fonts": {
+      "flag": "fingerprint-fonts-mode",
+      "internal_key": "uxr-fonts-mode",
+      "modes": [
+        "native",
+        "chromix",
+        "shardx",
+        "cloak"
+      ],
+      "seed_flag": "fingerprint-fonts-mode-seed",
+      "version": 1
+    },
+    "media": {
+      "flag": "fingerprint-media-mode",
+      "internal_key": "uxr-media-mode",
+      "modes": [
+        "native",
+        "chromix",
+        "shardx"
+      ],
+      "seed_flag": "fingerprint-media-mode-seed",
+      "version": 1
+    },
+    "offset": {
+      "flag": "fingerprint-offset-mode",
+      "internal_key": "uxr-offset-mode",
+      "modes": [
+        "native",
+        "chromix",
+        "cloak"
+      ],
+      "seed_flag": "fingerprint-offset-mode-seed",
+      "version": 1
+    },
+    "rects": {
+      "flag": "fingerprint-rects-mode",
+      "internal_key": "uxr-rects-mode",
+      "modes": [
+        "native",
+        "chromix",
+        "shardx"
+      ],
+      "seed_flag": "fingerprint-rects-mode-seed",
+      "version": 1
+    },
+    "sensors": {
+      "flag": "fingerprint-sensors-mode",
+      "internal_key": "uxr-sensors-mode",
+      "modes": [
+        "native",
+        "chromix",
+        "shardx"
+      ],
+      "seed_flag": "fingerprint-sensors-mode-seed",
+      "version": 1
+    },
+    "text": {
+      "flag": "fingerprint-text-mode",
+      "internal_key": "uxr-text-mode",
+      "modes": [
+        "native",
+        "chromix",
+        "shardx",
+        "cloak"
+      ],
+      "seed_flag": "fingerprint-text-mode-seed",
+      "version": 1
+    },
+    "voices": {
+      "flag": "fingerprint-voices-mode",
+      "internal_key": "uxr-voices-mode",
+      "modes": [
+        "native",
+        "chromix",
+        "cloak"
+      ],
+      "seed_flag": "fingerprint-voices-mode-seed",
+      "version": 1
+    },
+    "webgl": {
+      "flag": "fingerprint-webgl-mode",
+      "internal_key": "uxr-webgl-mode",
+      "modes": [
+        "native",
+        "chromix",
+        "shardx",
+        "cloak"
+      ],
+      "seed_flag": "fingerprint-webgl-mode-seed",
+      "version": 1
+    }
+  },
+  "amounts": {
+    "audio": {
+      "flag": "fingerprint-audio-amount",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "meaning": "Shard intensity; zero uses the recovered 8-bit mantissa default."
+    },
+    "rects": {
+      "flag": "fingerprint-rects-amount",
+      "range": [
+        0,
+        16
+      ],
+      "default": 1,
+      "meaning": "Shard maximum coordinate-independent width/height offset."
+    },
+    "text": {
+      "flag": "fingerprint-text-amount",
+      "range": [
+        0,
+        16
+      ],
+      "default": 1,
+      "meaning": "Shard text-width offset amplitude."
+    },
+    "sensors": {
+      "flag": "fingerprint-sensors-amount",
+      "range": [
+        0,
+        100
+      ],
+      "default": 0.1,
+      "meaning": "Accelerometer family constant axis bias in m/s^2; explicit zero gives no bias."
+    }
+  },
+  "seed_rules": {
+    "environment": "Existing nonzero uint64 decimal environment seed is never rewritten.",
+    "chromix": "Existing 64-bit behavior retained.",
+    "cloak": "Canonical decimal uint64 text.",
+    "shardx_explicit": "1..UINT32_MAX; larger explicit mode seed is rejected.",
+    "shardx_inherited": "Version 1 uses the existing UxrPixelNoiseSeed fold; uint32 inputs unchanged, folded zero becomes one.",
+    "companions_without_mode": "New mode-seed/amount keys require an explicit corresponding mode."
+  },
+  "identity_fields": {
+    "identity": {
+      "flag": "fingerprint-identity-mode",
+      "modes": [
+        "native",
+        "custom"
+      ],
+      "native_scope": "UA/UA-CH/navigator.platform; preserves other shared platform consumers."
+    },
+    "cpu": {
+      "flag": "fingerprint-cpu-mode",
+      "modes": [
+        "native",
+        "custom"
+      ],
+      "custom_range": [
+        1,
+        128
+      ]
+    },
+    "memory": {
+      "flag": "fingerprint-memory-mode",
+      "modes": [
+        "native",
+        "custom"
+      ],
+      "custom_range_gib": [
+        0.25,
+        32
+      ],
+      "custom_buckets_gib": [
+        0.25,
+        0.5,
+        1,
+        2,
+        4,
+        8,
+        16,
+        32
+      ],
+      "scope": "One getter for navigator and Client Hints; does not alter allocation or V8 heap."
+    },
+    "screen": {
+      "flag": "fingerprint-screen-mode",
+      "modes": [
+        "native",
+        "custom"
+      ],
+      "native_scope": "Screen/work-area/orientation/DPR fields; viewport and native window settings remain separate."
+    }
+  },
+  "hardware_profile": {
+    "flag": "fingerprint-hardware-profile",
+    "modes": [
+      "cloak"
+    ],
+    "platforms": [
+      "windows",
+      "macos"
+    ],
+    "catalog_counts": {
+      "intel": 18,
+      "nvidia": 41,
+      "apple": 20
+    },
+    "unique_name_texts": 67,
+    "optional_flags": [
+      "fingerprint-hardware-vendor",
+      "fingerprint-hardware-gpu-index"
+    ],
+    "precedence": "Explicit caller CPU/RAM/WebGL values and per-field native modes win.",
+    "memory": "An explicit empty/native memory field stays native; generated numeric memory uses coherent custom mode.",
+    "gpu_identity": "Uses the independent GPU mode; does not turn on legacy compatibility/synthetic pixel or text policies.",
+    "scope": "Recorded metadata and deterministic CPU/RAM choices; no physical hardware emulation."
+  },
+  "graphics": {
+    "algorithm_version": 1,
+    "new_mode_flavor": "compatible-v1",
+    "legacy": {
+      "selection": "No new surface mode switch",
+      "behavior": "Preserved original policy, seeds, helper formulas, Bridge and backend gates",
+      "old_pixel_noise_aliases_changed": false
+    },
+    "canvas": {
+      "modes": [
+        "native",
+        "chromix",
+        "shardx",
+        "cloak"
+      ],
+      "independent_from": [
+        "webgl",
+        "gpu_identity",
+        "text_metrics",
+        "audio"
+      ],
+      "paths": [
+        "HTML getImageData",
+        "HTML toDataURL",
+        "HTML toBlob",
+        "Offscreen getImageData",
+        "Offscreen convertToBlob"
+      ],
+      "storage": "Owned completed RGBA8/BGRA8 output; original drawing pixels are not mutated",
+      "other_formats": "Native fallback; float16/HDR algorithms are not implemented",
+      "chromix": "Existing uint64 seed fold and absolute-coordinate RGB +/-1 algorithm",
+      "shardx": "Byte-verified xoshiro128** 32 assignments over the complete canvas, projected into crops, with the recovered partial-alpha round-trip guard",
+      "cloak": {
+        "core": "Byte-verified hash and ten sparse LSB candidates",
+        "intentional_differences": [
+          "Logical RGB bit ordering on both RGBA and BGRA, correcting the original export R/B discrepancy",
+          "Choose on the complete canvas and project into cropped readback",
+          "Preserve every partial-alpha pixel rather than infer an unverified original arithmetic branch"
+        ],
+        "reference_bank": {
+          "supported": false,
+          "status": "deliberately_disabled_by_compatible_policy",
+          "reason": "Observed original reference matching can replace different real colors with identical stored images/pixels",
+          "original_mechanism_research": "Separate 68-record bank, unique matcher, and false/raw distinctions documented in the research",
+          "claims_full_original_cloak": false
+        }
+      },
+      "native_fallback_conditions": [
+        "Unavailable snapshot or unsuccessful actual read",
+        "Unsupported storage format"
+      ]
+    },
+    "webgl": {
+      "modes": [
+        "native",
+        "chromix",
+        "shardx",
+        "cloak"
+      ],
+      "variant": "completion-safe-pack-safe-compatible-v1",
+      "production_seed_sequence": "ShardX uses zero on every read; no process counter is consumed",
+      "shardx_dimension_exception": "Original 256x24 exception deliberately removed",
+      "supported_readback": "Opaque default framebuffer, in-bounds RGBA/UNSIGNED_BYTE TypedArray, non-shared destination, valid PACK layout, at most 16 MiB staging",
+      "completion_proof": "All staging alpha bytes become 255 before any caller output is committed",
+      "fallbacks": [
+        "transparent contexts",
+        "user FBO",
+        "PBO",
+        "FLOAT and other formats",
+        "shared destination",
+        "out-of-bounds crop",
+        "over-budget staging"
+      ],
+      "errors": "Never consume the page GL error queue; failed/incomplete staging does not alter the caller buffer",
+      "shardx_export": "Native; the original CPU readPixels algorithm did not affect PNG export",
+      "cloak_export": "Logical RGB and top-left full-canvas coordinates agree with the corresponding supported GL readback",
+      "legacy_scope_expanded": false
+    },
+    "export_routing": {
+      "source": "Actual canvas rendering context, classified as Canvas2D/WebGL/Other at the HTML or Offscreen call site",
+      "transport": "Immutable value object through ImageDataBuffer and both CanvasAsyncBlobCreator constructors",
+      "async_processing": "Once-prepared image buffer retained across idle, worker and encoder-thread paths",
+      "unknown_source": "Retain legacy behavior; never guess Canvas2D",
+      "bridge": "New explicit pixel modes bypass that surface's legacy Bridge pixel substitution; unrelated text/Bridge behavior is unchanged"
+    },
+    "seeds": {
+      "chromix": "Nonzero uint64, old fold unchanged",
+      "cloak": "Nonzero uint64 serialized as canonical decimal ASCII",
+      "shardx": "Effective uint32; explicit values outside 1..UINT32_MAX rejected by the common parser; environment-seed folding is a separately documented launcher v1 rule"
+    }
+  },
+  "gpu": {
+    "identity_flags": [
+      "fingerprint-gpu-mode",
+      "fingerprint-webgl-identity-mode",
+      "fingerprint-webgpu-identity-mode"
+    ],
+    "identity_modes": [
+      "native",
+      "custom",
+      "cloak"
+    ],
+    "custom_identity": "Complete vendor/renderer or vendor/architecture pairs required; unsupported combinations are rejected.",
+    "software_fallback": "Keep actual software/fallback identity.",
+    "webgl_capabilities_flag": "fingerprint-webgl-capabilities-mode",
+    "webgl_capabilities_modes": [
+      "native",
+      "custom"
+    ],
+    "webgl_custom_limits": [
+      "uxr-webgl-max-texture-size",
+      "uxr-webgl-max-cube-map-texture-size",
+      "uxr-webgl-max-renderbuffer-size",
+      "uxr-webgl-max-3d-texture-size",
+      "uxr-webgl-max-array-texture-layers"
+    ],
+    "webgl_custom_semantics": "Clamp real validation caches downward; 3D/array fields apply only to WebGL2. Other numeric enum overrides rejected in this mode.",
+    "webgpu_features_flag": "fingerprint-webgpu-features-mode",
+    "webgpu_features_modes": [
+      "native",
+      "custom",
+      "cloak"
+    ],
+    "webgpu_features_semantics": "Subset of real adapter support. Empty custom list has no optional features; real core feature remains.",
+    "webgpu_limits_flag": "fingerprint-webgpu-limits-mode",
+    "webgpu_limits_modes": [
+      "native",
+      "cloak"
+    ],
+    "webgpu_limit_count": 36,
+    "webgpu_limits_semantics": "Conservative public ceiling, validate requests then forward unchanged to Dawn; no fake device-limit restoration.",
+    "device_info": "Retain actual subgroup range and developer visibility; no synthetic device/driver identity."
+  },
+  "media_counts": {
+    "mode": "shardx",
+    "flags": [
+      "fingerprint-media-audio-inputs",
+      "fingerprint-media-audio-outputs",
+      "fingerprint-media-video-inputs"
+    ],
+    "range": [
+      0,
+      32
+    ],
+    "omitted": "No count restriction.",
+    "policy": "Upper bounds on actually enumerated devices, preserving native IDs, permission labels and selected capabilities.",
+    "not_provided": "Virtual capture backend or enforcement of hidden IDs in all getUserMedia selectors."
+  },
+  "real_audio_controls": {
+    "independent_of_readback_mode": true,
+    "sample_rate_flag": "fingerprint-audio-default-sample-rate",
+    "sample_rate_range_hz": [
+      3000,
+      768000
+    ],
+    "sample_rate_scope": "Only the default realtime AudioContext rate when its constructor omits sampleRate. Uses native rendering/resampling and AudioWorklet rate; explicit AudioContext, OfflineAudioContext and AudioBuffer options retain precedence.",
+    "channel_limit_flag": "fingerprint-audio-channel-limit",
+    "default_channels_flag": "fingerprint-audio-default-channel-count",
+    "channel_range": [
+      1,
+      32
+    ],
+    "channel_scope": "Cap the real destination capacity and validate actual channel changes. Default channels create the corresponding output bus; never expand physical capacity.",
+    "unsupported_default_channels": "An explicitly configured initial count beyond the real/capped destination capacity raises NotSupportedError on context creation.",
+    "absent": "Keep the original native defaults and all existing audio modes.",
+    "not_provided": "Physical device replacement, arbitrary DSP emulation, capture-track settings rewriting."
+  },
+  "font_allowlists": {
+    "general_flag": "fingerprint-fonts-allowlist",
+    "local_flag": "fingerprint-fonts-local-allowlist",
+    "format": "UTF-8 comma-separated actual family names, ASCII case-insensitive, whitespace trimmed; no escaped commas.",
+    "max_bytes": 16384,
+    "max_entries": 256,
+    "max_family_bytes": 256,
+    "general_scope": "Resolved native CSS families, local() and Local Font Access; intersects the selected font strategy.",
+    "local_scope": "Additional restriction for local() and Local Font Access, without changing ordinary CSS family access.",
+    "absent": "No additional restriction; preserve the prior branch.",
+    "explicit_empty": "Deny local families within that list's scope, with safe empty-glyph last resort.",
+    "intentional_difference": "Does not reproduce original nonexistent-name aliases or assert that missing font files exist. Downloaded web fonts remain separate."
+  },
+  "webgl_masked_identity": {
+    "flags": [
+      "fingerprint-webgl-masked-vendor",
+      "fingerprint-webgl-masked-renderer"
+    ],
+    "requires": "Both values plus a complete custom WebGL identity; maximum 512 UTF-8 bytes each.",
+    "scope": "GL_VENDOR/GL_RENDERER display values for eligible actual hardware contexts, independent of unmasked strings.",
+    "software_fallback": "Keep native standard WebKit/WebKit WebGL values when actual identity override is ineligible.",
+    "absent": "Retain the original masked values."
+  },
+  "unimplemented_original_surfaces": [
+    "Unrecovered font coverage/alias rules and actual platform font assets.",
+    "General Cloak DSP emulation, unconfirmed double-destination state, arbitrary graph/reference matching.",
+    "Gyroscope/orientation/refresh scheduling mechanisms without established source/runtime evidence.",
+    "Virtual capture backends, synthetic device identities and a complete cross-platform codec/DRM policy.",
+    "All unhandled WebGL enums and transparent/FBO/PBO/FLOAT/HDR noise paths; explicit native fallback remains."
+  ],
+  "surface_differences": [
+    {
+      "surface": "fonts/shardx",
+      "policy": "resolved-family-compatible-v1",
+      "change": "Hash/filter the canonical resolved native family rather than caller spelling; src:local and CSS case variants cannot bypass the same family. Local Font Access uses the same family filter. Preserve mandatory last-resort fallback.",
+      "original_preserved": "Original FNV/protected-name math retained and verified independently; no change to legacy/Chromix paths."
+    },
+    {
+      "surface": "fonts/cloak",
+      "policy": "candidate-filter-compatible-v1",
+      "change": "Use recovered Windows 30/138/149/231/232 buckets and Mac562/Linux47 candidate arrays at resolved-family lookup. Preserve native generic and glyph/last-resort fallback; no nonexistent typeface assets or undocumented alias mapping.",
+      "limits": "Candidate count is not an installed/enumerable font count. Original coverage gates and full alias substitution are deliberately not reproduced."
+    },
+    {
+      "surface": "audio/shardx",
+      "policy": "bounded-readback-compatible-v1",
+      "change": "Analyser transforms only the native written prefix, preserving caller suffix. AudioBuffer copyFrom first performs the native overlap-safe copy then transforms only the copied destination prefix, avoiding source-alias writes into caller tails. copyTo only transforms its native destination write range; getChannelData retains the measured shared-PCM fixed-point rule.",
+      "original_preserved": "Float mantissa and byte LSB formulas/salts unchanged; graph isolation remains the separate old Chromix path."
+    },
+    {
+      "surface": "audio/cloak",
+      "policy": "exact-native-pcm-compatible-v1",
+      "change": "Mac persona + mono +44100Hz + complete bitwise native PCM match to one of three captured source buffers before reference replacement at completion.",
+      "limits": "Not general Mac DSP. Reject double destination, stereo, other rates, decoy/unconnected compressor output, altered/unknown samples. No guessed native counter or object-only match. Both false/raw retain this selected reference policy."
+    },
+    {
+      "surface": "text/cloak",
+      "policy": "verified-glyph-metrics-compatible-v1",
+      "change": "Exact font/text key plus matching host/persona, requested/resolved family, every shaped glyph's family, native width and actual glyph bounding metrics required before reference font/baseline correction.",
+      "limits": "Generic/substituted/mixed fallback faces and mismatched geometry retain the shaped native result. Font file identity/version is not established by the vendor tables; this is a bounded coherence guard, not proof of identical source fonts."
+    },
+    {
+      "surface": "sensors/shardx",
+      "policy": "acceleration-bias-compatible-v1",
+      "change": "Only Accelerometer/LinearAccelerationSensor/GravitySensor; shared parser defaults new Auto amount to0.1m/s². Explicit0 remains no bias; legacy defaults unchanged.",
+      "limits": "No sensor fabrication, gyro/orientation/event rewriting, or Android hardware claim."
+    },
+    {
+      "surface": "media/shardx",
+      "policy": "bounded-enumeration-compatible-v1",
+      "change": "Three independent0..32 caps on browser-filtered enumeration entries; missing cap means unlimited. Preserve native IDs, labels, permission filtering, aliases and capability indices. Never add fake devices.",
+      "limits": "Enumeration entries include native default/communications aliases. This does not disable capture by an already known native ID or alter actual capture backends/devicechange."
+    },
+    {
+      "surface": "voices/cloak",
+      "policy": "inventory-intersection-compatible-v1",
+      "change": "Reference pool/locale supplies candidate order. Select only existing native entries by exact name and ASCII-case-insensitive language; move original VoicePtr entries, preserving URI, localService and default fields. SAPI=false removes actual local entries, including entries that the reference table labels remote.",
+      "limits": "The intersection can be empty. No missing Mac/Google/SAPI engine or voice is fabricated; actual synthesis remains native and is not exercised by these metadata tests."
+    }
+  ],
+  "surface_activation_scope": {
+    "text_cloak": "false preserves references; raw bypasses; strict glyph guard additionally applies.",
+    "offset_cloak": "Explicit mode is the v1 opt-in; false/raw bypass; fixed >50 and hash%81-30 algorithm; no amplitude scaling.",
+    "audio_cloak": "Selected mode and actual-buffer eligibility; false/raw do not override this independent policy.",
+    "fonts_cloak": "Candidate selection remains independent of noise false/raw, matching identity-selection separation."
+  },
+  "voice_scope": "Native inventory intersection and ordering only; preserves original URI/local/default fields and native synthesis/backend. Full reference-list assembly remains a research/golden input, not the production returned inventory.",
+  "unsupported_modes": {
+    "rects/cloak": "No confirmed independent Cloak DOMRect numeric mechanism.",
+    "offset/shardx": "No distinct observed offset strategy.",
+    "sensors/cloak": "No recovered numeric sensor strategy.",
+    "media/cloak": "Original empty-list fake input has no capture backend; deliberately omitted rather than add a no-op mode.",
+    "voices/shardx": "No separately established strategy in the audited target."
+  },
+  "data_policy": "Four header-only resources/algorithms contain decoded numeric/string metadata. No opaque ciphertext, licensing material, keys or remote runtime loads. Dataset build validates counts, uniqueness and captured hashes."
+}

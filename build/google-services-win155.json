@@ -101,14 +101,22 @@
     ]
   },
   "restoration_overlays": [
-    "patches/google-services/0002-windows-native-passkey-discovery.patch"
+    "patches/google-services/0002-windows-native-passkey-discovery.patch",
+    "patches/fingerprint-modes/0001-independent-mode-contract.patch",
+    "patches/fingerprint-modes/0002-graphics.patch",
+    "patches/fingerprint-modes/0003-surfaces.patch",
+    "patches/fingerprint-modes/0004-gpu-compatible-modes-v1.patch",
+    "patches/fingerprint-modes/0005-installed-font-allowlists.patch",
+    "patches/fingerprint-modes/0006-audio-defaults.patch"
   ],
   "extra_sources": [
     "chrome/browser/BUILD.gn",
     "chrome/browser/security_events/BUILD.gn",
     "chrome/browser/security_events/security_event_recorder_factory.cc",
     "components/browser_sync/sync_to_signin_migration.cc",
-    "components/password_manager/core/browser/password_feature_manager_impl.cc"
+    "components/password_manager/core/browser/password_feature_manager_impl.cc",
+    "content/browser/webauth/webauth_request_security_checker_impl.cc",
+    "content/browser/webauth/webauth_request_security_checker_impl.h"
   ],
   "restore_hunks": {
     "core/ungoogled-chromium/remove-unused-preferences-fields.patch": {

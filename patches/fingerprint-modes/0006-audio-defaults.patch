@@ -1,0 +1,291 @@
+diff --git a/third_party/blink/renderer/modules/webaudio/audio_context.cc b/third_party/blink/renderer/modules/webaudio/audio_context.cc
+--- a/third_party/blink/renderer/modules/webaudio/audio_context.cc
++++ b/third_party/blink/renderer/modules/webaudio/audio_context.cc
+@@ -7,6 +7,8 @@
+ #include <algorithm>
+ #include <atomic>
+ 
++#include "base/uxr_audio_defaults.h"
++#include "base/uxr_config.h"
+ #include "base/functional/callback_helpers.h"
+ #include "base/metrics/histogram_functions.h"
+ #include "base/metrics/histogram_macros.h"
+@@ -448,11 +450,16 @@
+       "WebAudio.AudioContext.latencyHintCategory", latency_hint.Category(),
+       WebAudioLatencyHint::AudioContextLatencyCategory::kLastValue);
+ 
+-  // This value can be `nullopt` when there's no user-provided options.
++  // Environment defaults are independent of the readback/noise mode.
++  // A script-supplied rate always takes precedence, including invalid values
++  // which must still reach the original validation below.
++  const auto audio_defaults = base::UxrConfig::GetInstance().SurfaceModes();
+   std::optional<float> sample_rate;
+   if (context_options->hasSampleRate()) {
+     sample_rate = context_options->sampleRate();
+   }
++  sample_rate = base::uxr_audio_defaults_v1::ResolveSampleRate(
++      sample_rate, audio_defaults.audio_default_sample_rate);
+ 
+   std::optional<uint32_t> render_quantum_frames = 128;
+   if (RuntimeEnabledFeatures::WebAudioConfigurableRenderQuantumEnabled(
+@@ -545,6 +552,39 @@
+ 
+   ++hardware_context_count;
+   audio_context->UpdateStateIfNeeded();
++
++  if (audio_defaults.audio_channel_limit.has_value() ||
++      audio_defaults.audio_default_channel_count.has_value()) {
++    auto* destination = audio_context->destinationNode();
++    // maxChannelCount is capped by the real, selected backend. Never create
++    // extra channels merely to make a configured capability appear available.
++    const auto initial_channels =
++        base::uxr_audio_defaults_v1::InitialChannelCount(
++            destination->channelCount(), destination->maxChannelCount(),
++            audio_defaults.audio_default_channel_count);
++    if (!initial_channels.has_value()) {
++      exception_state.ThrowDOMException(
++          DOMExceptionCode::kNotSupportedError,
++          "The configured default audio channel count is not supported by "
++          "the selected audio backend or channel limit.");
++    } else if (initial_channels.value() != destination->channelCount()) {
++      // This native setter replaces the actual platform output bus and its
++      // mixing configuration before the graph is allowed to start.
++      destination->setChannelCount(initial_channels.value(), exception_state);
++    }
++    if (exception_state.HadException()) {
++      // The constructor queued a permission response with WrapPersistent.
++      // Cancel it before detaching: its callback may bind a new observer
++      // through GetExecutionContext(), which will be null after detachment.
++      audio_context->permission_service_.reset();
++      // Pair the counter increment and release the initialized destination.
++      // Detach the lifecycle observer so document destruction cannot repeat
++      // Uninitialize() and decrement hardware_context_count a second time.
++      audio_context->ContextDestroyed();
++      audio_context->SetExecutionContext(nullptr);
++      return nullptr;
++    }
++  }
+ 
+   // If the render quantum size was not able to be validated before due to the
+   // sample rate or hardware buffer size not being known, validate it here.
+diff --git a/third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.cc b/third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.cc
+--- a/third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.cc
++++ b/third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.h"
+ 
++#include "base/uxr_audio_defaults.h"
++#include "base/uxr_config.h"
+ #include "base/feature_list.h"
+ #include "base/metrics/histogram_macros.h"
+ #include "media/base/output_device_info.h"
+@@ -64,7 +66,12 @@
+           TaskType::kInternalMediaRealTime)),
+       update_echo_cancellation_on_next_start_(
+           update_echo_cancellation_on_first_start) {
+-  // Node-specific default channel count and mixing rules.
++  const auto audio_defaults = base::UxrConfig::GetInstance().SurfaceModes();
++  uxr_channel_limit_ = audio_defaults.audio_channel_limit;
++  has_uxr_channel_policy_ = uxr_channel_limit_.has_value() ||
++      audio_defaults.audio_default_channel_count.has_value();
++  // Keep the native initial backend creation. AudioContext::Create resolves
++  // the configured default only after its true capacity is known.
+   channel_count_ = kDefaultNumberOfInputChannels;
+   SetInternalChannelCountMode(V8ChannelCountMode::Enum::kExplicit);
+   SetInternalChannelInterpretation(AudioBus::kSpeakers);
+@@ -155,6 +162,15 @@
+     return;
+   }
+ 
++  if (has_uxr_channel_policy_ &&
++      channel_count > base::uxr_audio_defaults_v1::ChannelCapacity(
++          new_platform_destination->MaxChannelCount(), uxr_channel_limit_)) {
++    exception_state.ThrowDOMException(
++        DOMExceptionCode::kNotSupportedError,
++        "The audio backend cannot provide the requested channel count.");
++    return;
++  }
++
+   AudioHandler::SetChannelCount(channel_count, exception_state);
+   if (ChannelCount() == old_channel_count || exception_state.HadException()) {
+     return;
+@@ -203,8 +219,10 @@
+ }
+ 
+ uint32_t RealtimeAudioDestinationHandler::MaxChannelCount() const {
+-  // Channel capacity remains bounded by the active audio backend.
+-  return platform_destination_ ? platform_destination_->MaxChannelCount() : 0;
++  const uint32_t native_capacity =
++      platform_destination_ ? platform_destination_->MaxChannelCount() : 0;
++  return base::uxr_audio_defaults_v1::ChannelCapacity(
++      native_capacity, uxr_channel_limit_);
+ }
+ 
+ double RealtimeAudioDestinationHandler::SampleRate() const {
+@@ -535,6 +553,17 @@
+       "WebAudio.AudioDestination.OutputDeviceStatus", status,
+       media::OutputDeviceStatus::OUTPUT_DEVICE_STATUS_MAX + 1);
+   if (status == media::OutputDeviceStatus::OUTPUT_DEVICE_STATUS_OK) {
++    // Query capacity after MaybeCreateSinkAndGetStatus refreshed the device
++    // information. Preserve native permission/not-found errors, and never
++    // silently shrink an established graph when moving to a smaller sink.
++    if (has_uxr_channel_policy_ &&
++        ChannelCount() > base::uxr_audio_defaults_v1::ChannelCapacity(
++            pending_platform_destination->MaxChannelCount(),
++            uxr_channel_limit_)) {
++      std::move(callback).Run(
++          media::OutputDeviceStatus::OUTPUT_DEVICE_STATUS_ERROR_INTERNAL);
++      return;
++    }
+     TRACE_EVENT_INSTANT2(
+         "webaudio", "RealtimeAudioDestinationHandler::SetSinkDescriptor_Swap",
+         TRACE_EVENT_SCOPE_THREAD, "old_sink_id",
+diff --git a/third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.h b/third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.h
+--- a/third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.h
++++ b/third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.h
+@@ -6,6 +6,7 @@
+ #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBAUDIO_REALTIME_AUDIO_DESTINATION_HANDLER_H_
+ 
+ #include <atomic>
++#include <optional>
+ #include "base/memory/weak_ptr.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/time/time.h"
+@@ -130,6 +131,10 @@
+ 
+   const WebAudioLatencyHint latency_hint_;
+ 
++  // Captured once on the main thread; no configuration lookup in audio work.
++  std::optional<uint32_t> uxr_channel_limit_;
++  bool has_uxr_channel_policy_ = false;
++
+   // Holds the audio device thread that runs the real time audio context.
+   scoped_refptr<AudioDestination> platform_destination_;
+ 
+diff --git a/base/uxr_audio_defaults.h b/base/uxr_audio_defaults.h
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_audio_defaults.h
+@@ -0,0 +1,45 @@
++// Copyright 2026. Explicit environment defaults for the native audio pipeline.
++#ifndef BASE_UXR_AUDIO_DEFAULTS_H_
++#define BASE_UXR_AUDIO_DEFAULTS_H_
++
++#include <algorithm>
++#include <cstdint>
++#include <optional>
++
++namespace base::uxr_audio_defaults_v1 {
++
++// Leave validation to the native AudioContext path. In particular, an invalid
++// explicit script value must not be replaced by a valid environment default.
++inline std::optional<float> ResolveSampleRate(
++    std::optional<float> explicit_rate,
++    std::optional<float> environment_rate) {
++  return explicit_rate.has_value() ? explicit_rate : environment_rate;
++}
++
++// A limit can only reduce the capability reported by the selected backend.
++inline uint32_t ChannelCapacity(
++    uint32_t native_capacity,
++    std::optional<uint32_t> environment_limit) {
++  return environment_limit.has_value()
++      ? std::min(native_capacity, environment_limit.value())
++      : native_capacity;
++}
++
++// Call only when a channel limit/default was explicitly configured.
++// An explicit default is an exact request; unsupported values never clamp.
++// With a limit alone, the native initial count is reduced to the allowed cap.
++inline std::optional<uint32_t> InitialChannelCount(
++    uint32_t native_initial_count,
++    uint32_t actual_capacity,
++    std::optional<uint32_t> environment_default) {
++  const uint32_t desired = environment_default.value_or(
++      std::min(native_initial_count, actual_capacity));
++  if (desired == 0 || desired > actual_capacity) {
++    return std::nullopt;
++  }
++  return desired;
++}
++
++}  // namespace base::uxr_audio_defaults_v1
++
++#endif  // BASE_UXR_AUDIO_DEFAULTS_H_
+diff --git a/base/uxr_audio_defaults_tests.cc b/base/uxr_audio_defaults_tests.cc
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_audio_defaults_tests.cc
+@@ -0,0 +1,71 @@
++// Copyright 2026. Native pipeline policy tests; not a hardware/DSP simulation.
++#include "base/uxr_audio_defaults.h"
++
++#include <cmath>
++#include <cstdio>
++#include <limits>
++#include <optional>
++
++int RunAudioDefaultsTests() {
++  using namespace base::uxr_audio_defaults_v1;
++  unsigned checks = 0;
++  unsigned failures = 0;
++  const auto check = [&](bool actual, const char* label) {
++    ++checks;
++    if (!actual) {
++      ++failures;
++      std::printf("FAIL audio-defaults: %s\n", label);
++    }
++  };
++
++  // Historical Shard native/donor/custom probes observed 48000/44100/32000.
++  // Unset stays nullopt, so the real backend, not this helper, supplies 48000.
++  check(!ResolveSampleRate({}, {}).has_value(), "unset keeps native backend");
++  check(ResolveSampleRate({}, 44100) == 44100, "donor default 44100");
++  check(ResolveSampleRate({}, 32000) == 32000, "custom default 32000");
++  check(ResolveSampleRate(48000, 32000) == 48000, "explicit 48000 wins");
++  check(ResolveSampleRate(22050, 44100) == 22050, "explicit 22050 wins");
++  check(ResolveSampleRate(0, 44100) == 0, "invalid explicit zero not hidden");
++  check(ResolveSampleRate(2999, 44100) == 2999, "invalid explicit low not hidden");
++  check(ResolveSampleRate(768001, 44100) == 768001, "invalid explicit high not hidden");
++  check(std::isnan(ResolveSampleRate(
++            std::numeric_limits<float>::quiet_NaN(), 44100).value()),
++        "explicit NaN not replaced");
++  check(ResolveSampleRate({}, 3000) == 3000, "native lower bound forwarded");
++  check(ResolveSampleRate({}, 768000) == 768000, "native upper bound forwarded");
++
++  // Unlike the original Shard getter, a requested six-channel cap on a
++  // two-channel backend must not advertise six hardware channels.
++  check(ChannelCapacity(2, {}) == 2, "native stereo capacity");
++  check(ChannelCapacity(2, 6) == 2, "cap cannot invent six channels");
++  check(ChannelCapacity(8, 6) == 6, "six-channel cap on capable backend");
++  check(ChannelCapacity(2, 1) == 1, "mono cap");
++  check(ChannelCapacity(0, 6) == 0, "unavailable backend stays unavailable");
++  check(ChannelCapacity(32, 32) == 32, "maximum supported policy bound");
++  check(ChannelCapacity(8, {}) == 8, "unset cap preserves backend capacity");
++
++  check(InitialChannelCount(2, 2, {}) == 2, "native default stereo");
++  check(InitialChannelCount(2, 1, {}) == 1, "cap alone selects actual mono");
++  check(InitialChannelCount(2, 6, {}) == 2, "cap alone does not expand default");
++  check(InitialChannelCount(2, 2, 1) == 1, "exact mono default");
++  check(InitialChannelCount(2, 8, 6) == 6, "exact six on capable backend");
++  check(!InitialChannelCount(2, 2, 6).has_value(),
++        "exact six rejected on stereo backend");
++  check(!InitialChannelCount(2, 1, 2).has_value(),
++        "exact two rejected by mono cap");
++  check(!InitialChannelCount(2, 0, {}).has_value(),
++        "zero-capacity configured context rejected");
++  check(!InitialChannelCount(2, 2, 0).has_value(),
++        "invalid zero default rejected defensively");
++  check(InitialChannelCount(2, 32, 32) == 32, "exact maximum default");
++
++  std::printf("{\"audio_default_checks\":%u,\"failures\":%u}\n",
++              checks, failures);
++  return failures ? 1 : 0;
++}
++
++#ifdef UXR_AUDIO_DEFAULTS_STANDALONE
++int main() {
++  return RunAudioDefaultsTests();
++}
++#endif
