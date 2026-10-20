@@ -29,6 +29,24 @@ REQUIRED = {
         'source_set("test_extension_system")',
         'public_deps = [ ":test_extension_system" ]',
     ],
+    'chrome/test/base/testing_browser_process.h': [
+        '#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)\n'
+        '  safe_browsing::SafeBrowsingService* safe_browsing_service() override;\n'
+        '#endif',
+        '#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)\n'
+        '  void SetSafeBrowsingService(safe_browsing::SafeBrowsingService* sb_service);\n'
+        '#endif',
+        '#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)\n'
+        '  scoped_refptr<safe_browsing::SafeBrowsingService> sb_service_;\n'
+        '#endif',
+    ],
+    'chrome/test/base/testing_browser_process.cc': [
+        '#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)\n'
+        'safe_browsing::SafeBrowsingService*\n'
+        'TestingBrowserProcess::safe_browsing_service()',
+        '#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)\n'
+        'void TestingBrowserProcess::SetSafeBrowsingService(',
+    ],
     'chrome/browser/webauthn/authenticator_request_dialog_controller.cc': [
         'std::get_if<Mechanism::Credential>(&model_->mechanisms[0].type)',
         'transport_availability_.has_win_native_api_authenticator && credential &&',
@@ -122,6 +140,14 @@ REQUIRED = {
     ],
 }
 FORBIDDEN = {
+    'chrome/test/base/testing_browser_process.h': [
+        'speech_recognition_small_expert_model_installer',
+        'SpeechRecognitionSmallExpertModelInstaller',
+    ],
+    'chrome/test/base/testing_browser_process.cc': [
+        'speech_recognition_small_expert_model_installer',
+        'SpeechRecognitionSmallExpertModelInstaller',
+    ],
     'content/browser/webauth/webauth_request_security_checker_impl.cc': ['9oo91e.qjz9zk', '95tat1c.qjz9zk'],
     'content/browser/webauth/webauth_request_security_checker_impl.h': ['9oo91e.qjz9zk', '95tat1c.qjz9zk'],
     'components/signin/internal/identity_manager/primary_account_mutator_impl.cc': ['bool is_signin_allowed = false;'],

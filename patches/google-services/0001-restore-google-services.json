@@ -89,6 +89,8 @@
     "chrome/common/google_url_loader_throttle.cc",
     "chrome/test/BUILD.gn",
     "chrome/test/base/BUILD.gn",
+    "chrome/test/base/testing_browser_process.cc",
+    "chrome/test/base/testing_browser_process.h",
     "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
     "components/affiliations/core/browser/hash_affiliation_fetcher.h",
     "components/assist_ranker/ranker_url_fetcher.cc",
@@ -508,6 +510,14 @@
       "sha256": "3f7506fb4c68cd79c88663012cb2e9829a99a7df2513f6d6c8f4c94d0e61943b"
     },
     {
+      "path": "chrome/test/base/testing_browser_process.cc",
+      "sha256": "5f1f26ed33c54462130fbce366ef2c5e682cfd33c1daba7b4551d089c891fe04"
+    },
+    {
+      "path": "chrome/test/base/testing_browser_process.h",
+      "sha256": "b11ca05a1bf31f5d3df9a1425f44c6a74bd58c3f1a3114f66cf8cf7b99ee9f27"
+    },
+    {
       "path": "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
       "sha256": "41bed191f7abd224330f967c1cd14b3dde19e2939c6d9e3a4f438af7088a37bf"
     },
@@ -759,6 +769,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "bea27d2e1197fd059e89db7071906bc7a3f262d85b9d0b5067cf1b51eb2797ef",
+  "patch_sha256": "16e93d80542ee55009fa951284b0257bc3df85c767254bd58a5ab497994a6a22",
   "qualification": "Source replay only; requires native build and actual account tests"
 }
