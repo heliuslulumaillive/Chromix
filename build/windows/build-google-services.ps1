@@ -183,7 +183,7 @@ New-Item -ItemType Directory -Path $logs -Force | Out-Null
 Push-Location $src
 try {
   Checked { & (Join-Path $out 'gn.exe') gen $out --fail-on-unused-args 2>&1 | Tee-Object -FilePath (Join-Path $logs "gn-stage-$Stage.log") }
-  Checked { python -B -X utf8 (Join-Path $repo 'tools\google_services_cache_audit.py') --ninja $ninja --out $out --report (Join-Path $logs "cache-audit-stage-$Stage.json") }
+  Checked { python -B -X utf8 (Join-Path $repo 'tools\google_services_cache_audit.py') --ninja $ninja --out $out --target chrome --target device_unittests --report (Join-Path $logs "cache-audit-stage-$Stage.json") }
   # GN and the dry run can take minutes. Count them before reserving the tail.
   $elapsed = ([DateTimeOffset]::UtcNow - [DateTimeOffset]::Parse($session.started_at)).TotalMinutes
   $compileBudgetMinutes = [Math]::Min($CompileMinutes, [Math]::Floor(355 - $elapsed - $FinalizeReserveMinutes))
@@ -195,7 +195,7 @@ try {
   $env:NINJA_STATUS = '[%f/%t] active=%r rate=%c/s elapsed=%es '
   $log = Join-Path $logs "ninja-stage-$Stage.log"
   $errorLog = Join-Path $logs "ninja-stage-$Stage.stderr.log"
-  $process = Start-Process -FilePath $ninja -ArgumentList @('-C', $out, '-j', $jobs, 'chrome') -WorkingDirectory $src -WindowStyle Hidden -RedirectStandardOutput $log -RedirectStandardError $errorLog -PassThru
+  $process = Start-Process -FilePath $ninja -ArgumentList @('-C', $out, '-j', $jobs, 'chrome', 'device_unittests') -WorkingDirectory $src -WindowStyle Hidden -RedirectStandardOutput $log -RedirectStandardError $errorLog -PassThru
   $processHandle = $process.Handle
   $clock = [Diagnostics.Stopwatch]::StartNew()
   $timedOut = $false
@@ -218,8 +218,11 @@ try {
     throw "Ninja failed: $($process.ExitCode)"
   }
   if (-not $timedOut) {
+    $nativeTests = Join-Path $logs "native-passkey-unittests-stage-$Stage.json"
+    Checked { & (Join-Path $out 'device_unittests.exe') '--gtest_filter=WinAuthenticatorTest.*' '--test-launcher-jobs=1' "--test-launcher-summary-output=$nativeTests" 2>&1 | Tee-Object -FilePath (Join-Path $logs "native-passkey-unittests-stage-$Stage.log") }
     if (Test-Path -LiteralPath 'C:\c\dist') { throw 'Expected a fresh candidate output directory' }
     Checked { & "$PSScriptRoot\package-win.ps1" -Out $out -Dest 'C:\c\dist' -Arch x64 }
+    Copy-Item -LiteralPath $nativeTests -Destination 'C:\c\dist\native-passkey-unittests.json'
     $smokeReport = Join-Path $logs "candidate-smoke-stage-$Stage\report.json"
     Checked { python -X utf8 (Join-Path $repo 'tools\verify_windows_bundle.py') --bundle 'C:\c\dist\chromix' --arch x64 --native --version '155.0.8059.39' --report $smokeReport | Select-Object -Last 12 }
     Copy-Item -LiteralPath $smokeReport -Destination 'C:\c\dist\candidate-smoke.json'

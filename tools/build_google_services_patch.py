@@ -108,6 +108,13 @@ def main():
     _, chromix_bytes = select(args.repo, "windows")
     chromix = [(name, data.decode()) for name, data in chromix_bytes]
     targets = set(config["extra_sources"])
+    overlays = []
+    for name in config.get('restoration_overlays', []):
+        patch = (args.repo / name).resolve()
+        if not patch.is_relative_to(args.repo.resolve()) or not patch.is_file():
+            raise ValueError('Restoration overlay must be a repository file')
+        overlays.append(patch)
+        targets.update(path for path, _, _ in sections(patch.read_text()))
     targets.update(restored_pruned)
     for name, data in core:
         if name in removed:
@@ -175,6 +182,15 @@ def main():
             count += 1
         trees.append(tree)
         print(f"{variant}: replayed {count} relevant patch fragments", flush=True)
+
+    for patch in overlays:
+        command = [args.patch_bin, '-p1', '--batch', '--forward', '--fuzz=0',
+                   '--no-backup-if-mismatch', '-i', str(patch)]
+        for extra in (['--dry-run'], []):
+            run = subprocess.run(command + extra, cwd=trees[1], capture_output=True,
+                                 text=True, encoding='utf-8', errors='replace', timeout=30)
+            if run.returncode:
+                raise RuntimeError(f'Restoration overlay {patch.name}:\n{run.stdout}{run.stderr}')
 
     generation = trees[1] / "components/password_manager/core/browser/password_feature_manager_impl.cc"
     text = generation.read_text()

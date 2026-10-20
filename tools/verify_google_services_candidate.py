@@ -53,9 +53,39 @@ def validate_source_recipe(inner, outer, repo=REPO):
         raise ValueError('Candidate preparation inputs must be an object')
     for name in ('build/google-services-win155.json',
                  'patches/google-services/0001-restore-google-services.json',
+                 'patches/google-services/0002-windows-native-passkey-discovery.patch',
                  'patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch'):
         if inputs.get(name) != sha256(repo / name):
             raise ValueError('Candidate source inputs do not match: ' + name)
+
+
+NATIVE_PASSKEY_TESTS = {
+    'WinAuthenticatorTest.GetCredentialInformationForRequest_' + suffix
+    for suffix in ('NativeProvidersEmptyCache', 'NativeProvidersFilteredCache',
+                   'NativeProvidersPreservesMatch', 'NativeProvidersRespectsTransports',
+                   'NativeProvidersUnavailableBeforeV9')
+}
+
+
+def validate_native_passkey_tests(report):
+    iterations = report.get('per_iteration_data', [])
+    if not isinstance(iterations, list) or not iterations:
+        raise ValueError('Native passkey regression results are missing')
+    executed = set()
+    for iteration in iterations:
+        if not isinstance(iteration, dict):
+            raise ValueError('Invalid native passkey regression results')
+        for name, attempts in iteration.items():
+            if not name.startswith('WinAuthenticatorTest.'):
+                continue
+            if (not isinstance(attempts, list) or not attempts
+                    or any(not isinstance(attempt, dict) or attempt.get('status') != 'SUCCESS'
+                           for attempt in attempts)):
+                raise ValueError('Native passkey regression failed: ' + name)
+            executed.add(name)
+    if not NATIVE_PASSKEY_TESTS.issubset(executed):
+        raise ValueError('Native passkey regression coverage is incomplete')
+    return sorted(executed)
 
 
 def inventory(bundle):
@@ -65,6 +95,9 @@ def inventory(bundle):
 
 def verify_candidate(artifact_dir, source, report_dir, record):
     validate_source_run(source)
+    native_tests = artifact_dir / 'native-passkey-unittests.json'
+    record['native_passkey_regression_tests'] = validate_native_passkey_tests(read_object(native_tests))
+    record['native_passkey_regression_sha256'] = sha256(native_tests)
     archive = artifact_dir / 'chromix-win-x64.zip'
     manifest = artifact_dir / 'SHA256SUMS'
     bundle_report = extract_archive(archive, manifest, report_dir.parent / 'verified-browser', 'x64')

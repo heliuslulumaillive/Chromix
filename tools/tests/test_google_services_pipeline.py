@@ -34,6 +34,7 @@ def source_recipe():
             'preparation_inputs': {name: candidate.sha256(REPO / name) for name in (
                 'build/google-services-win155.json',
                 'patches/google-services/0001-restore-google-services.json',
+                'patches/google-services/0002-windows-native-passkey-discovery.patch',
                 'patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch')}}
 
 
@@ -71,6 +72,9 @@ class CandidateIdentityTest(unittest.TestCase):
                 path.mkdir(parents=True)
             archive = artifact / 'chromix-win-x64.zip'
             archive.write_bytes(b'original archive')
+            (artifact / 'native-passkey-unittests.json').write_text(json.dumps({
+                'per_iteration_data': [{name: [{'status': 'SUCCESS'}]
+                                        for name in candidate.NATIVE_PASSKEY_TESTS}]}))
             receipt = source_recipe()
             for path in (artifact, bundle):
                 (path / 'google-services-source.json').write_text(json.dumps(receipt))
@@ -115,6 +119,21 @@ class CandidateIdentityTest(unittest.TestCase):
         for mutation in ('missing_check', 'wrong_binary', 'changed_file', 'timeout'):
             with self.subTest(mutation=mutation), self.assertRaises(ValueError):
                 self.exercise_verification(mutation)
+
+
+class NativePasskeyEvidenceTest(unittest.TestCase):
+    def test_requires_executed_regressions_and_rejects_failed_retries(self):
+        results = {name: [{'status': 'SUCCESS'}] for name in candidate.NATIVE_PASSKEY_TESTS}
+        self.assertEqual(set(candidate.validate_native_passkey_tests(
+            {'per_iteration_data': [results]})), candidate.NATIVE_PASSKEY_TESTS)
+        missing = copy.deepcopy(results)
+        del missing[next(iter(missing))]
+        failed = copy.deepcopy(results)
+        failed[next(iter(failed))].insert(0, {'status': 'FAILURE'})
+        for report in ({}, {'per_iteration_data': []},
+                       {'per_iteration_data': [missing]}, {'per_iteration_data': [failed]}):
+            with self.subTest(report=report), self.assertRaises(ValueError):
+                candidate.validate_native_passkey_tests(report)
 
 
 class CacheAuditTest(unittest.TestCase):

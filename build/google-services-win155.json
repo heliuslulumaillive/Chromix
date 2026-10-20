@@ -100,6 +100,9 @@
       "components/sync/service/sync_prefs.cc"
     ]
   },
+  "restoration_overlays": [
+    "patches/google-services/0002-windows-native-passkey-discovery.patch"
+  ],
   "extra_sources": [
     "chrome/browser/BUILD.gn",
     "chrome/browser/security_events/BUILD.gn",

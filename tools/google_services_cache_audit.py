@@ -45,13 +45,14 @@ def main():
     parser.add_argument('--ninja', type=Path, required=True)
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--target', action='append', default=[])
     args = parser.parse_args()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     result = {'schema_version': 1, 'compiler_invoked': False, 'status': 'failed'}
     try:
         result.update(summarize_log(args.out / '.ninja_log'))
         env = {**os.environ, 'NINJA_STATUS': '[%f/%t] '}
-        plan = subprocess.run([str(args.ninja), '-C', str(args.out), '-n', 'chrome'],
+        plan = subprocess.run([str(args.ninja), '-C', str(args.out), '-n', *(args.target or ['chrome'])],
                               env=env, capture_output=True, text=True, timeout=240)
         args.report.with_suffix('.log').write_text(plan.stdout + plan.stderr, encoding='utf-8')
         if plan.returncode:

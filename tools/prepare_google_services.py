@@ -153,6 +153,7 @@ def recipe_identity(repo: Path):
         'build/google-services-win155.json',
         'patches/google-services/0001-restore-google-services.patch',
         'patches/google-services/0001-restore-google-services.json',
+        'patches/google-services/0002-windows-native-passkey-discovery.patch',
         'patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch',
     ]
     inputs = {name: hashlib.sha256((repo / name).read_bytes()).hexdigest() for name in files}

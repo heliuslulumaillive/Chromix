@@ -129,6 +129,9 @@
     "components/translate/core/browser/translate_script.cc",
     "components/variations/net/variations_http_headers.cc",
     "content/browser/preloading/prefetch/prefetch_resource_request_utils.cc",
+    "device/fido/win/authenticator.cc",
+    "device/fido/win/authenticator.h",
+    "device/fido/win/authenticator_unittest.cc",
     "extensions/browser/extension_util.cc",
     "extensions/browser/extension_util.h",
     "extensions/browser/updater/extension_downloader.cc",
@@ -663,6 +666,18 @@
       "sha256": "f435761e367522629912e59ffa0b7e3d4608fb25e873c9831934ea4536899ac8"
     },
     {
+      "path": "device/fido/win/authenticator.cc",
+      "sha256": "ccb4284d04778c4bd815cc5d8942a900f59984fbfea26de5b95ecd7c9be54739"
+    },
+    {
+      "path": "device/fido/win/authenticator.h",
+      "sha256": "ef8cb08fbae919fcae0bf41f8da62e07ad2221d7cdafc7701d92fc9c305fbd6b"
+    },
+    {
+      "path": "device/fido/win/authenticator_unittest.cc",
+      "sha256": "fb39a8825da6633ebaf2a830a9fefcf5138667ce3622a4a0340c871d5071f1c0"
+    },
+    {
       "path": "extensions/browser/extension_util.cc",
       "sha256": "596e1f6491cfd8eb309a34d7ba778371d880577b4032a3c71ddedc5e2e377796"
     },
@@ -714,6 +729,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "259902eae2c06f57bd8020c60399315db1c34089b17222aa56bfea2a496e5bb3",
+  "patch_sha256": "4360719d61f25d2c69250798e3cf074809aac8aeb842b59d6eabe822b004739f",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

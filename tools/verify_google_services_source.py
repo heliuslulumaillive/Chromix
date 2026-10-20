@@ -12,6 +12,19 @@ import re
 CPP_TOKENS = re.compile(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|(?P<comment>//[^\r\n]*|/\*[\s\S]*?\*/)')
 
 REQUIRED = {
+    'device/fido/win/authenticator.cc': [
+        'api->Version() >= WEBAUTHN_API_VERSION_9',
+        'credentials.empty() && supports_native_passkey_providers',
+        'FilterFoundCredentials(&credentials, allow_list)',
+        'FidoRequestHandlerBase::RecognizedCredential::kUnknown',
+    ],
+    'device/fido/win/authenticator_unittest.cc': [
+        'GetCredentialInformationForRequest_NativeProvidersEmptyCache',
+        'GetCredentialInformationForRequest_NativeProvidersFilteredCache',
+        'GetCredentialInformationForRequest_NativeProvidersPreservesMatch',
+        'GetCredentialInformationForRequest_NativeProvidersRespectsTransports',
+        'GetCredentialInformationForRequest_NativeProvidersUnavailableBeforeV9',
+    ],
     'chrome/browser/BUILD.gn': ['"//chrome/browser/security_events"'],
     'chrome/browser/enterprise/BUILD.gn': ['"signin/managed_profile_creation_controller.cc"'],
     'chrome/browser/enterprise/signin/managed_profile_creation_controller.cc': [
