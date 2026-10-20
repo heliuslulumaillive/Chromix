@@ -118,6 +118,7 @@ jobs:
             C:/c/dist/google-services-runtime.json
             C:/c/dist/candidate-smoke.json
             C:/c/dist/native-passkey-unittests.json
+            C:/c/dist/native-passkey-launcher.json
           if-no-files-found: error
           retention-days: 14
           compression-level: 0

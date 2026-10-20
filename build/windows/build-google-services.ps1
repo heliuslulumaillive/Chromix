@@ -209,12 +209,14 @@ try {
   }
   if (-not $timedOut) {
     $nativeTests = Join-Path $logs "native-passkey-unittests-stage-$Stage.json"
-    Checked { & (Join-Path $out 'native_passkey_unittests.exe') '--gtest_filter=WinAuthenticatorTest.*:AuthenticatorRequestDialogControllerTest.*' '--test-launcher-jobs=1' "--test-launcher-summary-output=$nativeTests" 2>&1 | Tee-Object -FilePath (Join-Path $logs "native-passkey-unittests-stage-$Stage.log") }
+    $nativeLauncher = Join-Path $logs "native-passkey-launcher-stage-$Stage.json"
+    Checked { & "$PSScriptRoot\run-native-passkey-tests.ps1" -Executable (Join-Path $out 'native_passkey_unittests.exe') -Summary $nativeTests -Log (Join-Path $logs "native-passkey-unittests-stage-$Stage.log") -Receipt $nativeLauncher -WorkingDirectory $src }
     Checked { python -B -X utf8 (Join-Path $repo 'tools\verify_google_services_candidate.py') --native-tests-json $nativeTests }
     if (Test-Path -LiteralPath 'C:\c\dist') { throw 'Expected a fresh candidate output directory' }
     Checked { & "$PSScriptRoot\package-win.ps1" -Out $out -Dest 'C:\c\dist' -Arch x64 -SkipArchive }
     $buildRecordHash = (Get-FileHash -LiteralPath 'C:\c\dist\chromix\google-services-build.json' -Algorithm SHA256).Hash.ToLowerInvariant()
     Copy-Item -LiteralPath $nativeTests -Destination 'C:\c\dist\native-passkey-unittests.json'
+    Copy-Item -LiteralPath $nativeLauncher -Destination 'C:\c\dist\native-passkey-launcher.json'
     $smokeReport = Join-Path $logs "candidate-smoke-stage-$Stage\report.json"
     Checked { python -X utf8 (Join-Path $repo 'tools\verify_windows_bundle.py') --bundle 'C:\c\dist\chromix' --arch x64 --native --version '155.0.8059.39' --report $smokeReport | Select-Object -Last 12 }
     Copy-Item -LiteralPath $smokeReport -Destination 'C:\c\dist\candidate-smoke.json'

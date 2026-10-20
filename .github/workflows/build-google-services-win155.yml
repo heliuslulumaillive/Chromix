@@ -6,6 +6,7 @@ on:
       - '.github/workflows/build-google-services-win155.yml'
       - '.github/workflows/google-services-win155-worker.yml'
       - 'build/windows/build-google-services.ps1'
+      - 'build/windows/run-native-passkey-tests.ps1'
       - 'build/windows/ensure-windows-sdk.ps1'
       - 'build/windows/package-win.ps1'
       - 'tools/verify_windows_bundle.py'
