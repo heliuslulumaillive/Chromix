@@ -86,6 +86,8 @@
     "chrome/browser/ui/webui/suggest_internals/suggest_internals_handler.cc",
     "chrome/browser/webauthn/authenticator_request_dialog_controller.cc",
     "chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc",
+    "chrome/browser/webauthn/chrome_authenticator_request_delegate.cc",
+    "chrome/browser/webauthn/win_native_credential_enumeration_unittest.cc",
     "chrome/common/google_url_loader_throttle.cc",
     "chrome/test/BUILD.gn",
     "chrome/test/base/BUILD.gn",
@@ -137,6 +139,12 @@
     "components/translate/core/browser/translate_script.cc",
     "components/variations/net/variations_http_headers.cc",
     "content/browser/preloading/prefetch/prefetch_resource_request_utils.cc",
+    "content/browser/webauth/authenticator_common_impl.cc",
+    "content/browser/webauth/authenticator_common_impl.h",
+    "device/fido/ctap_get_assertion_request.h",
+    "device/fido/fido_discovery_factory.h",
+    "device/fido/public/features.cc",
+    "device/fido/public/features.h",
     "device/fido/win/authenticator.cc",
     "device/fido/win/authenticator.h",
     "device/fido/win/authenticator_unittest.cc",
@@ -498,6 +506,10 @@
       "sha256": "836c60bc38f960042a9d6ab471577efce359ae899d478e5ed26958dcdaaa24f5"
     },
     {
+      "path": "chrome/browser/webauthn/chrome_authenticator_request_delegate.cc",
+      "sha256": "f5ad5d7cd5ca415b398ff9ff4aaa63b674dedf75e21fd04dfe4bb2cce246e401"
+    },
+    {
       "path": "chrome/common/google_url_loader_throttle.cc",
       "sha256": "6e48bc095f55697a5dd113fcfc36d4842a3c39a77d821c191878f4a98ecf6e01"
     },
@@ -706,6 +718,30 @@
       "sha256": "f435761e367522629912e59ffa0b7e3d4608fb25e873c9831934ea4536899ac8"
     },
     {
+      "path": "content/browser/webauth/authenticator_common_impl.cc",
+      "sha256": "87d6aa5ebcc3d51c85603a4ac63563acb74d717a6ad206058ef480e95694be8c"
+    },
+    {
+      "path": "content/browser/webauth/authenticator_common_impl.h",
+      "sha256": "8188ce9fc03c4248b61779661084a421ff6e73c15de8857e90bae4aa9a84e8e6"
+    },
+    {
+      "path": "device/fido/ctap_get_assertion_request.h",
+      "sha256": "daa49e8a70e549ac32e397c6b1c7c2236b446a162efc92ce1876b26a73a65856"
+    },
+    {
+      "path": "device/fido/fido_discovery_factory.h",
+      "sha256": "828806d2d81c408cf2636063cbd6905c11bf052a9d7b32b0a461790e6adaeb1f"
+    },
+    {
+      "path": "device/fido/public/features.cc",
+      "sha256": "a3a3e3888eb6b8a8a082423fcc49e856ea0de3c9596f4783f788f7159c492a1a"
+    },
+    {
+      "path": "device/fido/public/features.h",
+      "sha256": "69f52385c9dbbb81eba4c7ba5d95f60647812b6c9e59615643e13ff07df62ca4"
+    },
+    {
       "path": "device/fido/win/authenticator.cc",
       "sha256": "ccb4284d04778c4bd815cc5d8942a900f59984fbfea26de5b95ecd7c9be54739"
     },
@@ -769,6 +805,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "16e93d80542ee55009fa951284b0257bc3df85c767254bd58a5ab497994a6a22",
+  "patch_sha256": "b0c6db49826fb7db449d6def289e7dec4d4a07e716dac26898eb1479aeb2d370",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

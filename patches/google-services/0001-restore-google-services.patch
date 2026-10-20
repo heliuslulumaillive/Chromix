@@ -3059,6 +3059,316 @@
  #endif
  
  TEST_F(AuthenticatorRequestDialogControllerTest, NoAvailableTransports) {
+--- a/chrome/browser/webauthn/chrome_authenticator_request_delegate.cc
++++ b/chrome/browser/webauthn/chrome_authenticator_request_delegate.cc
+@@ -501,6 +501,13 @@
+   DCHECK(request_type == device::FidoRequestType::kGetAssertion ||
+          resident_key_requirement.has_value());
+ 
++#if BUILDFLAG(IS_WIN)
++  // Reset even on early returns or a restarted request.
++  if (discovery_factory) {
++    discovery_factory->set_allow_win_native_credential_enumeration_skip(false);
++  }
++#endif
++
+   // Without the UI enabled, discoveries like caBLE, Android AOA, iCloud
+   // keychain, and the enclave, don't make sense.
+   if (!webauthn_ui_enabled()) {
+@@ -618,6 +625,20 @@
+   ConfigureICloudKeychain(request_source, rp_id);
+ #endif
+ 
++#if BUILDFLAG(IS_WIN)
++  // Keep metadata for autofill, ambient/immediate UI, GPM and any explicit
++  // Chrome hybrid discovery. Do not derive this decision from an RP or hint.
++  discovery_factory->set_allow_win_native_credential_enumeration_skip(
++      base::FeatureList::IsEnabled(
++          device::kWebAuthnWinNativeModalSkipCredentialEnumeration) &&
++      request_type == device::FidoRequestType::kGetAssertion &&
++      request_source == RequestSource::kWebAuthentication &&
++      dialog_controller_->ui_presentation() == UIPresentation::kModal &&
++      !enclave_controller_ && !IsVirtualEnvironmentEnabled() &&
++      !discovery_factory->IsTestOverride() &&
++      !discovery_factory->force_hybrid_discovery());
++#endif
++
+   MaybeStartPasswordFetch(origin, /*synthesize_tai=*/false);
+ }
+ 
+--- /dev/null
++++ b/chrome/browser/webauthn/win_native_credential_enumeration_unittest.cc
+@@ -0,0 +1,270 @@
++// Copyright 2026 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "chrome/browser/webauthn/chrome_authenticator_request_delegate.h"
++
++#include <memory>
++#include <optional>
++#include <vector>
++
++#include "base/functional/bind.h"
++#include "base/test/scoped_feature_list.h"
++#include "chrome/browser/signin/identity_manager_factory.h"
++#include "chrome/browser/sync/sync_service_factory.h"
++#include "chrome/browser/webauthn/passkey_model_factory.h"
++#include "chrome/test/base/chrome_render_view_host_test_harness.h"
++#include "components/keyed_service/core/keyed_service.h"
++#include "components/signin/public/base/consent_level.h"
++#include "components/signin/public/identity_manager/identity_test_utils.h"
++#include "components/sync/test/test_sync_service.h"
++#include "components/webauthn/core/browser/test_passkey_model.h"
++#include "content/browser/webauth/authenticator_common_impl.h"
++#include "content/public/browser/browser_context.h"
++#include "crypto/scoped_fake_unexportable_key_provider.h"
++#include "device/fido/ctap_get_assertion_request.h"
++#include "device/fido/fido_discovery_base.h"
++#include "device/fido/fido_discovery_factory.h"
++#include "device/fido/public/features.h"
++#include "device/fido/public/fido_constants.h"
++#include "device/fido/public/public_key_credential_descriptor.h"
++#include "testing/gtest/include/gtest/gtest.h"
++#include "url/gurl.h"
++#include "url/origin.h"
++
++namespace {
++
++using RequestSource =
++    content::AuthenticatorRequestClientDelegate::RequestSource;
++using UIPresentation =
++    content::AuthenticatorRequestClientDelegate::UIPresentation;
++using Mediation = blink::mojom::Mediation;
++
++class TestOverrideDiscoveryFactory : public device::FidoDiscoveryFactory {
++ public:
++  bool IsTestOverride() override { return true; }
++};
++
++class WinNativeCredentialEnumerationTest
++    : public ChromeRenderViewHostTestHarness {
++ public:
++  void SetUp() override {
++    ChromeRenderViewHostTestHarness::SetUp();
++    PasskeyModelFactory::GetInstance()->SetTestingFactoryAndUse(
++        profile(),
++        base::BindRepeating(
++            [](content::BrowserContext*) -> std::unique_ptr<KeyedService> {
++              return std::make_unique<webauthn::TestPasskeyModel>();
++            }));
++    SyncServiceFactory::GetInstance()->SetTestingFactory(
++        browser_context(),
++        base::BindRepeating(
++            [](content::BrowserContext*) -> std::unique_ptr<KeyedService> {
++              return std::make_unique<syncer::TestSyncService>();
++            }));
++  }
++
++  void Configure(
++      ChromeAuthenticatorRequestDelegate& delegate,
++      device::FidoDiscoveryFactory& factory,
++      UIPresentation presentation = UIPresentation::kModal,
++      RequestSource source = RequestSource::kWebAuthentication,
++      device::FidoRequestType type = device::FidoRequestType::kGetAssertion,
++      bool browser_passkeys_available = false) {
++    delegate.SetRelyingPartyId("example.com");
++    delegate.SetUIPresentation(presentation);
++    delegate.ConfigureDiscoveries(
++        url::Origin::Create(GURL("https://example.com")), "example.com", source,
++        type,
++        type == device::FidoRequestType::kMakeCredential
++            ? std::make_optional(device::ResidentKeyRequirement::kRequired)
++            : std::nullopt,
++        device::UserVerificationRequirement::kRequired,
++        /*cmtg_key_requested=*/false, /*user_name=*/std::nullopt,
++        browser_passkeys_available, &factory);
++  }
++};
++
++TEST_F(WinNativeCredentialEnumerationTest, DefaultDisabledAndReset) {
++  base::test::ScopedFeatureList features;
++  features.InitAndDisableFeature(
++      device::kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  device::FidoDiscoveryFactory factory;
++  factory.set_allow_win_native_credential_enumeration_skip(true);
++  ChromeAuthenticatorRequestDelegate delegate(main_rfh());
++  Configure(delegate, factory);
++  EXPECT_FALSE(factory.allow_win_native_credential_enumeration_skip());
++}
++
++TEST_F(WinNativeCredentialEnumerationTest, OrdinaryModalOnly) {
++  base::test::ScopedFeatureList features;
++  features.InitAndEnableFeature(
++      device::kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  for (const auto presentation :
++       {UIPresentation::kModal, UIPresentation::kAutofill,
++        UIPresentation::kAmbient, UIPresentation::kModalImmediate,
++        UIPresentation::kPasskeyUpgrade, UIPresentation::kDisabled}) {
++    SCOPED_TRACE(static_cast<int>(presentation));
++    device::FidoDiscoveryFactory factory;
++    factory.set_allow_win_native_credential_enumeration_skip(true);
++    ChromeAuthenticatorRequestDelegate delegate(main_rfh());
++    Configure(delegate, factory, presentation);
++    EXPECT_EQ(factory.allow_win_native_credential_enumeration_skip(),
++              presentation == UIPresentation::kModal);
++  }
++}
++
++TEST_F(WinNativeCredentialEnumerationTest, OrdinaryGetSourceOnly) {
++  base::test::ScopedFeatureList features;
++  features.InitAndEnableFeature(
++      device::kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  for (const auto source :
++       {RequestSource::kSecurePaymentConfirmation, RequestSource::kInternal}) {
++    device::FidoDiscoveryFactory factory;
++    ChromeAuthenticatorRequestDelegate delegate(main_rfh());
++    Configure(delegate, factory, UIPresentation::kModal, source);
++    EXPECT_FALSE(factory.allow_win_native_credential_enumeration_skip());
++  }
++  device::FidoDiscoveryFactory factory;
++  ChromeAuthenticatorRequestDelegate delegate(main_rfh());
++  Configure(delegate, factory, UIPresentation::kModal,
++            RequestSource::kWebAuthentication,
++            device::FidoRequestType::kMakeCredential);
++  EXPECT_FALSE(factory.allow_win_native_credential_enumeration_skip());
++}
++
++TEST_F(WinNativeCredentialEnumerationTest, VirtualAndOverrideRetainDiscovery) {
++  base::test::ScopedFeatureList features;
++  features.InitAndEnableFeature(
++      device::kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  {
++    device::FidoDiscoveryFactory factory;
++    ChromeAuthenticatorRequestDelegate delegate(main_rfh());
++    delegate.SetVirtualEnvironment(true);
++    Configure(delegate, factory);
++    EXPECT_FALSE(factory.allow_win_native_credential_enumeration_skip());
++  }
++  TestOverrideDiscoveryFactory factory;
++  ChromeAuthenticatorRequestDelegate delegate(main_rfh());
++  Configure(delegate, factory);
++  EXPECT_FALSE(factory.allow_win_native_credential_enumeration_skip());
++}
++
++TEST_F(WinNativeCredentialEnumerationTest, GpmControllerRetainsDiscovery) {
++  crypto::ScopedFakeUnexportableKeyProvider key_provider;
++  base::test::ScopedFeatureList features;
++  features.InitAndEnableFeature(
++      device::kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  signin::MakePrimaryAccountAvailable(
++      IdentityManagerFactory::GetForProfile(profile()), "test@example.com",
++      signin::ConsentLevel::kSignin);
++  device::FidoDiscoveryFactory factory;
++  ChromeAuthenticatorRequestDelegate delegate(main_rfh());
++  Configure(delegate, factory, UIPresentation::kModal,
++            RequestSource::kWebAuthentication,
++            device::FidoRequestType::kGetAssertion,
++            /*browser_passkeys_available=*/true);
++  ASSERT_NE(delegate.enclave_controller_for_testing(), nullptr);
++  EXPECT_FALSE(factory.allow_win_native_credential_enumeration_skip());
++}
++
++device::CtapGetAssertionRequest MakeAllowedRequest() {
++  device::CtapGetAssertionRequest request("example.com", "{}");
++  request.allow_list.emplace_back(device::CredentialType::kPublicKey,
++                                  std::vector<uint8_t>{1, 2, 3});
++  return request;
++}
++
++TEST_F(WinNativeCredentialEnumerationTest,
++       IntentReachesCommonAndResetsOnRetry) {
++  base::test::ScopedFeatureList features;
++  features.InitAndEnableFeature(
++      device::kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  device::FidoDiscoveryFactory factory;
++  ChromeAuthenticatorRequestDelegate delegate(main_rfh());
++  auto request = MakeAllowedRequest();
++  device::CtapGetAssertionOptions options;
++  Configure(delegate, factory);
++  ASSERT_TRUE(factory.allow_win_native_credential_enumeration_skip());
++  content::AuthenticatorCommonImpl::ConfigureWindowsNativeCredentialEnumeration(
++      RequestSource::kWebAuthentication, Mediation::MODAL, factory,
++      /*additional_platform_discoveries=*/{}, request, options);
++  ASSERT_TRUE(options.skip_windows_credential_enumeration);
++
++  // The same factory/options must not retain opt-in when a retry needs hybrid.
++  factory.set_force_hybrid_discovery(true);
++  Configure(delegate, factory);
++  ASSERT_FALSE(factory.allow_win_native_credential_enumeration_skip());
++  content::AuthenticatorCommonImpl::ConfigureWindowsNativeCredentialEnumeration(
++      RequestSource::kWebAuthentication, Mediation::MODAL, factory,
++      /*additional_platform_discoveries=*/{}, request, options);
++  EXPECT_FALSE(options.skip_windows_credential_enumeration);
++}
++
++TEST(WinNativeCredentialEnumerationCommonTest, RejectsOtherRequestModes) {
++  auto request = MakeAllowedRequest();
++  device::CtapGetAssertionOptions options;
++  device::FidoDiscoveryFactory factory;
++  factory.set_allow_win_native_credential_enumeration_skip(true);
++  for (const auto mediation :
++       {Mediation::CONDITIONAL, Mediation::AMBIENT, Mediation::IMMEDIATE}) {
++    options.skip_windows_credential_enumeration = true;
++    content::AuthenticatorCommonImpl::
++        ConfigureWindowsNativeCredentialEnumeration(
++            RequestSource::kWebAuthentication, mediation, factory,
++            /*additional_platform_discoveries=*/{}, request, options);
++    EXPECT_FALSE(options.skip_windows_credential_enumeration);
++  }
++  for (const auto source :
++       {RequestSource::kSecurePaymentConfirmation, RequestSource::kInternal}) {
++    options.skip_windows_credential_enumeration = true;
++    content::AuthenticatorCommonImpl::
++        ConfigureWindowsNativeCredentialEnumeration(
++            source, Mediation::MODAL, factory,
++            /*additional_platform_discoveries=*/{}, request, options);
++    EXPECT_FALSE(options.skip_windows_credential_enumeration);
++  }
++}
++
++TEST(WinNativeCredentialEnumerationCommonTest, PreservesRequestAndOptions) {
++  auto request = MakeAllowedRequest();
++  const auto original_list = request.allow_list;
++  device::CtapGetAssertionOptions options;
++  device::FidoDiscoveryFactory factory;
++  factory.set_allow_win_native_credential_enumeration_skip(true);
++  options.is_off_the_record_context = false;
++  options.hints = {blink::mojom::Hint::HYBRID};
++  content::AuthenticatorCommonImpl::ConfigureWindowsNativeCredentialEnumeration(
++      RequestSource::kWebAuthentication, Mediation::MODAL, factory,
++      /*additional_platform_discoveries=*/{}, request, options);
++  EXPECT_TRUE(options.skip_windows_credential_enumeration);
++  EXPECT_EQ(request.allow_list, original_list);
++  EXPECT_FALSE(options.is_off_the_record_context);
++  EXPECT_EQ(options.hints, std::vector{blink::mojom::Hint::HYBRID});
++
++  for (int rejected_case = 0; rejected_case < 4; ++rejected_case) {
++    SCOPED_TRACE(rejected_case);
++    auto current_request = request;
++    if (rejected_case == 3) {
++      current_request.allow_list.clear();
++    }
++    TestOverrideDiscoveryFactory overridden_factory;
++    device::FidoDiscoveryFactory& current_factory =
++        rejected_case == 1 ? overridden_factory : factory;
++    current_factory.set_allow_win_native_credential_enumeration_skip(
++        rejected_case != 0);
++    std::vector<std::unique_ptr<device::FidoDiscoveryBase>> additional;
++    if (rejected_case == 2) {
++      // Its presence is enough to deny the optimization. Never start it.
++      additional.push_back(nullptr);
++    }
++    options.skip_windows_credential_enumeration = true;
++    content::AuthenticatorCommonImpl::
++        ConfigureWindowsNativeCredentialEnumeration(
++            RequestSource::kWebAuthentication, Mediation::MODAL,
++            current_factory, additional, current_request, options);
++    EXPECT_FALSE(options.skip_windows_credential_enumeration);
++  }
++}
++
++}  // namespace
 --- a/chrome/common/google_url_loader_throttle.cc
 +++ b/chrome/common/google_url_loader_throttle.cc
 @@ -26,6 +26,10 @@
@@ -3249,7 +3559,7 @@
  #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 --- a/chrome/test/BUILD.gn
 +++ b/chrome/test/BUILD.gn
-@@ -4679,6 +4679,80 @@
+@@ -4679,6 +4679,84 @@
    sources = [ "mojom/echo.test-mojom" ]
  }
  
@@ -3260,6 +3570,7 @@
 +      "base/run_all_unittests.cc",
 +      "../../device/fido/win/authenticator_unittest.cc",
 +      "../browser/webauthn/authenticator_request_dialog_model_unittest.cc",
++      "../browser/webauthn/win_native_credential_enumeration_unittest.cc",
 +    ]
 +    # These native fixtures need the profile harness and Chrome test main,
 +    # not the aggregate test support that builds unrelated WebUI test data.
@@ -3292,9 +3603,12 @@
 +      "//chrome:resources",
 +      "//chrome:strings",
 +      "//components/prefs",
++      "//components/signin/public/identity_manager:test_support",
 +      "//components/strings",
++      "//components/sync:test_support",
 +      "//components/vector_icons",
 +      "//components/webauthn/core/browser:passkey_model",
++      "//components/webauthn/core/browser:test_support",
 +      "//content/test:test_support",
 +      "//crypto:test_support",
 +      "//device/fido",
@@ -6481,9 +6795,207 @@
    AddVariationsHeaderForPrefetch(resource_request.cors_exempt_headers,
                                   resource_request.url, prefetch_request,
                                   IsFirstPartyContext(resource_request));
+--- a/content/browser/webauth/authenticator_common_impl.cc
++++ b/content/browser/webauth/authenticator_common_impl.cc
+@@ -986,6 +986,26 @@
+       req_state_->request_handler.get());
+ }
+ 
++#if BUILDFLAG(IS_WIN)
++// static
++void AuthenticatorCommonImpl::ConfigureWindowsNativeCredentialEnumeration(
++    AuthenticatorRequestClientDelegate::RequestSource request_source,
++    blink::mojom::Mediation mediation,
++    device::FidoDiscoveryFactory& discovery_factory,
++    base::span<const std::unique_ptr<device::FidoDiscoveryBase>>
++        additional_platform_discoveries,
++    const device::CtapGetAssertionRequest& request,
++    device::CtapGetAssertionOptions& options) {
++  // Always assign, including false, so retry cannot retain a previous opt-in.
++  options.skip_windows_credential_enumeration =
++      discovery_factory.allow_win_native_credential_enumeration_skip() &&
++      request_source == AuthenticatorRequestClientDelegate::RequestSource::
++                            kWebAuthentication &&
++      mediation == Mediation::MODAL && !discovery_factory.IsTestOverride() &&
++      additional_platform_discoveries.empty() && !request.allow_list.empty();
++}
++#endif
++
+ void AuthenticatorCommonImpl::StartGetAssertionRequest(
+     bool allow_skipping_pin_touch) {
+   req_state_->request_result.reset();
+@@ -1024,6 +1044,12 @@
+       discovery_factory()->IsTestOverride()
+           ? std::vector<std::unique_ptr<device::FidoDiscoveryBase>>()
+           : req_state_->request_delegate->CreatePlatformDiscoveries();
++#if BUILDFLAG(IS_WIN)
++  ConfigureWindowsNativeCredentialEnumeration(
++      RequestSource(), req_state_->mediation_.value_or(Mediation::MODAL),
++      *discovery_factory(), platform_discoveries, *ctap_get_assertion_request,
++      *ctap_get_assertion_options);
++#endif
+   auto request_handler = std::make_unique<device::GetAssertionRequestHandler>(
+       discovery_factory(), std::move(platform_discoveries),
+       std::move(transports), *ctap_get_assertion_request,
+--- a/content/browser/webauth/authenticator_common_impl.h
++++ b/content/browser/webauth/authenticator_common_impl.h
+@@ -12,8 +12,10 @@
+ #include <string>
+ #include <vector>
+ 
++#include "base/containers/span.h"
+ #include "base/memory/weak_ptr.h"
+ #include "base/types/strong_alias.h"
++#include "build/build_config.h"
+ #include "content/browser/webauth/authenticator_request_outcome_enums.h"
+ #include "content/browser/webauth/client_data_json.h"
+ #include "content/common/content_export.h"
+@@ -30,6 +32,9 @@
+ namespace device {
+ 
+ class FidoDiscoveryFactory;
++class FidoDiscoveryBase;
++struct CtapGetAssertionOptions;
++struct CtapGetAssertionRequest;
+ 
+ enum class FidoReturnCode : uint8_t;
+ 
+@@ -96,6 +101,20 @@
+ 
+   ~AuthenticatorCommonImpl() override;
+ 
++#if BUILDFLAG(IS_WIN)
++  // Recompute the per-request metadata policy after all embedder discoveries
++  // are configured. Kept separate so the complete eligibility boundary can be
++  // tested without running an authentication ceremony.
++  static void ConfigureWindowsNativeCredentialEnumeration(
++      AuthenticatorRequestClientDelegate::RequestSource request_source,
++      blink::mojom::Mediation mediation,
++      device::FidoDiscoveryFactory& discovery_factory,
++      base::span<const std::unique_ptr<device::FidoDiscoveryBase>>
++          additional_platform_discoveries,
++      const device::CtapGetAssertionRequest& request,
++      device::CtapGetAssertionOptions& options);
++#endif
++
+   // AuthenticatorCommon:
+   void MakeCredential(
+       url::Origin caller_origin,
+--- a/device/fido/ctap_get_assertion_request.h
++++ b/device/fido/ctap_get_assertion_request.h
+@@ -64,6 +64,11 @@
+   // Indicates whether the request was created in an off-the-record
+   // BrowserContext (e.g. Chrome Incognito mode).
+   bool is_off_the_record_context = false;
++
++  // Explicit content/embedder authorization to omit Windows metadata discovery
++  // for an ordinary modal request routed exclusively through the native picker.
++  // It does not affect the actual assertion or its Windows API options.
++  bool skip_windows_credential_enumeration = false;
+ 
+   // The set of hints passed by the relying party.
+   // https://w3c.github.io/webauthn/#enum-hints.
+--- a/device/fido/fido_discovery_factory.h
++++ b/device/fido/fido_discovery_factory.h
+@@ -129,6 +129,15 @@
+     force_hybrid_discovery_ = force_hybrid_discovery;
+   }
+   bool force_hybrid_discovery() const { return force_hybrid_discovery_; }
++
++  // Per-request embedder intent. The content layer additionally checks the
++  // mediation, allow-list, test factory and extra platform discoveries.
++  void set_allow_win_native_credential_enumeration_skip(bool allow) {
++    allow_win_native_credential_enumeration_skip_ = allow;
++  }
++  bool allow_win_native_credential_enumeration_skip() const {
++    return allow_win_native_credential_enumeration_skip_;
++  }
+ #endif  // BUILDFLAG(IS_WIN)
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+@@ -190,6 +199,7 @@
+       enclave_ui_request_stream_;
+ #if BUILDFLAG(IS_WIN)
+   bool force_hybrid_discovery_ = false;
++  bool allow_win_native_credential_enumeration_skip_ = false;
+ #endif  // BUILDFLAG(IS_WIN)
+ };
+ 
+--- a/device/fido/public/features.cc
++++ b/device/fido/public/features.cc
+@@ -58,6 +58,10 @@
+ BASE_FEATURE(kWebAuthUseNativeWinApi,
+              "WebAuthenticationUseNativeWinApi",
+              base::FEATURE_ENABLED_BY_DEFAULT);
++
++// Not yet enabled by default. Requires native popup timing before rollout.
++BASE_FEATURE(kWebAuthnWinNativeModalSkipCredentialEnumeration,
++             base::FEATURE_DISABLED_BY_DEFAULT);
+ #endif  // BUILDFLAG(IS_WIN)
+ 
+ // This is used to enable an experiment to reject WebAuthn requests
+--- a/device/fido/public/features.h
++++ b/device/fido/public/features.h
+@@ -33,6 +33,11 @@
+ // Controls whether on Windows, U2F/CTAP2 requests are forwarded to the
+ // native WebAuthentication API, where available.
+ COMPONENT_EXPORT(FIDO_PUBLIC) BASE_DECLARE_FEATURE(kWebAuthUseNativeWinApi);
++
++// Experimental metadata-scan bypass for explicitly eligible modal Windows
++// requests. This never changes the assertion's allow-list or provider options.
++COMPONENT_EXPORT(FIDO_PUBLIC)
++BASE_DECLARE_FEATURE(kWebAuthnWinNativeModalSkipCredentialEnumeration);
+ #endif  // BUILDFLAG(IS_WIN)
+ 
+ COMPONENT_EXPORT(FIDO_PUBLIC)
 --- a/device/fido/win/authenticator.cc
 +++ b/device/fido/win/authenticator.cc
-@@ -383,8 +383,12 @@
+@@ -13,12 +13,14 @@
+ #include <utility>
+ #include <vector>
+ 
++#include "base/feature_list.h"
+ #include "base/functional/bind.h"
+ #include "base/functional/callback_helpers.h"
+ #include "base/notreached.h"
+ #include "base/strings/string_number_conversions.h"
+ #include "base/strings/string_util_win.h"
+ #include "base/strings/utf_string_conversions.h"
++#include "base/task/sequenced_task_runner.h"
+ #include "base/task/task_traits.h"
+ #include "base/task/thread_pool.h"
+ #include "components/device_event_log/device_event_log.h"
+@@ -374,6 +376,29 @@
+         FidoRequestHandlerBase::RecognizedCredential::kNoRecognizedCredential);
+     return;
+   }
++  if (request_options.skip_windows_credential_enumeration &&
++      !request.allow_list.empty() &&
++      win_api_->Version() >= WEBAUTHN_API_VERSION_9 &&
++      base::FeatureList::IsEnabled(
++          kWebAuthnWinNativeModalSkipCredentialEnumeration)) {
++    // Windows still receives the complete, unchanged assertion. Unknown keeps
++    // Hello, native passkey managers and external providers in its own picker.
++    // Preserve asynchronous completion and cancellation of the metadata
++    // request.
++    FIDO_LOG(EVENT) << "Skipping Windows metadata for eligible modal request";
++    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE,
++        base::BindOnce(
++            [](base::WeakPtr<WinWebAuthnApiAuthenticator> authenticator,
++               GetPlatformCredentialInfoForRequestCallback callback) {
++              if (authenticator) {
++                std::move(callback).Run(
++                    {}, FidoRequestHandlerBase::RecognizedCredential::kUnknown);
++              }
++            },
++            weak_factory_.GetWeakPtr(), std::move(callback)));
++    return;
++  }
+   FIDO_LOG(DEBUG) << "Silently discovering credentials for " << request.rp_id;
+   // WebAuthNGetPlatformCredentialList can display a first-use consent prompt.
+   // Run it off-sequence so the prompt cannot block the browser UI.
+@@ -383,8 +408,12 @@
         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
        base::BindOnce(
            [](WinWebAuthnApi* api, std::u16string rp_id, bool is_incognito) {
@@ -6498,7 +7010,7 @@
            },
            win_api_, base::UTF8ToUTF16(request.rp_id),
            request_options.is_off_the_record_context),
-@@ -396,9 +400,9 @@
+@@ -396,9 +425,9 @@
  void WinWebAuthnApiAuthenticator::GetPlatformCredentialInfoForRequestDone(
      std::vector<PublicKeyCredentialDescriptor> allow_list,
      GetPlatformCredentialInfoForRequestCallback callback,
@@ -6511,7 +7023,7 @@
    if (!success) {
      std::move(callback).Run(
          /*credentials=*/{},
-@@ -419,6 +423,19 @@
+@@ -419,6 +448,19 @@
    if (!allow_list.empty()) {
      FilterFoundCredentials(&credentials, allow_list);
    }
@@ -6553,7 +7065,247 @@
    // change at run-time in tests.
 --- a/device/fido/win/authenticator_unittest.cc
 +++ b/device/fido/win/authenticator_unittest.cc
-@@ -195,6 +195,101 @@
+@@ -9,6 +9,7 @@
+ #include <memory>
+ #include <vector>
+ 
++#include "base/compiler_specific.h"
+ #include "base/run_loop.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/test/bind.h"
+@@ -32,6 +33,7 @@
+ #include "device/fido/public/public_key_credential_rp_entity.h"
+ #include "device/fido/public/public_key_credential_user_entity.h"
+ #include "device/fido/win/fake_webauthn_api.h"
++#include "device/fido/win/type_conversions.h"
+ #include "device/fido/win/util.h"
+ #include "device/fido/win/webauthn_api.h"
+ #include "testing/gmock/include/gmock/gmock.h"
+@@ -181,6 +183,223 @@
+                   ->bBrowserInPrivateMode);
+ }
+ 
++TEST_F(WinAuthenticatorTest, NativePickerSkipFeatureDisabled) {
++  EXPECT_EQ(kWebAuthnWinNativeModalSkipCredentialEnumeration.default_state,
++            base::FEATURE_DISABLED_BY_DEFAULT);
++  base::test::ScopedFeatureList feature;
++  feature.InitAndDisableFeature(
++      kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  CtapGetAssertionRequest request(kRpId, "");
++  request.allow_list.emplace_back(CredentialType::kPublicKey, kCredentialId);
++  CtapGetAssertionOptions options;
++  options.skip_windows_credential_enumeration = true;
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(request, options,
++                                                      future.GetCallback());
++  ASSERT_TRUE(future.Wait());
++  EXPECT_NE(fake_webauthn_api_->last_get_credentials_options(), nullptr);
++}
++
++TEST_F(WinAuthenticatorTest, NativePickerSkipRequiresExplicitRequest) {
++  base::test::ScopedFeatureList feature;
++  feature.InitAndEnableFeature(
++      kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  CtapGetAssertionRequest request(kRpId, "");
++  request.allow_list.emplace_back(CredentialType::kPublicKey, kCredentialId);
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(
++      request, CtapGetAssertionOptions(), future.GetCallback());
++  ASSERT_TRUE(future.Wait());
++  EXPECT_NE(fake_webauthn_api_->last_get_credentials_options(), nullptr);
++}
++
++TEST_F(WinAuthenticatorTest, NativePickerSkipsMetadataOnly) {
++  base::test::ScopedFeatureList feature;
++  feature.InitAndEnableFeature(
++      kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  fake_webauthn_api_->InjectDiscoverableCredential(
++      kCredentialId, PublicKeyCredentialRpEntity(kRpId),
++      PublicKeyCredentialUserEntity(kUserId, kUserName, kUserDisplayName),
++      kProviderName);
++  CtapGetAssertionRequest request(kRpId, "");
++  request.allow_list.emplace_back(CredentialType::kPublicKey, kCredentialId);
++  CtapGetAssertionOptions options;
++  options.skip_windows_credential_enumeration = true;
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(request, options,
++                                                      future.GetCallback());
++  EXPECT_FALSE(future.IsReady());
++  ASSERT_TRUE(future.Wait());
++  EXPECT_EQ(fake_webauthn_api_->last_get_credentials_options(), nullptr);
++  EXPECT_TRUE(std::get<0>(future.Get()).empty());
++  EXPECT_EQ(std::get<1>(future.Get()),
++            FidoRequestHandlerBase::RecognizedCredential::kUnknown);
++}
++
++TEST_F(WinAuthenticatorTest, NativePickerSkipRequiresNonemptyAllowList) {
++  base::test::ScopedFeatureList feature;
++  feature.InitAndEnableFeature(
++      kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  CtapGetAssertionRequest request(kRpId, "");
++  CtapGetAssertionOptions options;
++  options.skip_windows_credential_enumeration = true;
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(request, options,
++                                                      future.GetCallback());
++  ASSERT_TRUE(future.Wait());
++  EXPECT_NE(fake_webauthn_api_->last_get_credentials_options(), nullptr);
++}
++
++TEST_F(WinAuthenticatorTest, NativePickerSkipRequiresApiV9) {
++  base::test::ScopedFeatureList feature;
++  feature.InitAndEnableFeature(
++      kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  SetVersion(WEBAUTHN_API_VERSION_8);
++  CtapGetAssertionRequest request(kRpId, "");
++  request.allow_list.emplace_back(CredentialType::kPublicKey, kCredentialId);
++  CtapGetAssertionOptions options;
++  options.skip_windows_credential_enumeration = true;
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(request, options,
++                                                      future.GetCallback());
++  ASSERT_TRUE(future.Wait());
++  EXPECT_NE(fake_webauthn_api_->last_get_credentials_options(), nullptr);
++  EXPECT_EQ(
++      std::get<1>(future.Get()),
++      FidoRequestHandlerBase::RecognizedCredential::kNoRecognizedCredential);
++}
++
++TEST_F(WinAuthenticatorTest, NativePickerSkipRetainsTransportFilter) {
++  base::test::ScopedFeatureList feature;
++  feature.InitAndEnableFeature(
++      kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  CtapGetAssertionRequest request(kRpId, "");
++  request.allow_list.emplace_back(
++      CredentialType::kPublicKey, kCredentialId,
++      base::flat_set<FidoTransportProtocol>{
++          FidoTransportProtocol::kUsbHumanInterfaceDevice});
++  CtapGetAssertionOptions options;
++  options.skip_windows_credential_enumeration = true;
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(request, options,
++                                                      future.GetCallback());
++  ASSERT_TRUE(future.Wait());
++  EXPECT_EQ(fake_webauthn_api_->last_get_credentials_options(), nullptr);
++  EXPECT_EQ(
++      std::get<1>(future.Get()),
++      FidoRequestHandlerBase::RecognizedCredential::kNoRecognizedCredential);
++}
++
++TEST_F(WinAuthenticatorTest, NativePickerSkipDropsCallbackAfterDestruction) {
++  base::test::ScopedFeatureList feature;
++  feature.InitAndEnableFeature(
++      kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  CtapGetAssertionRequest request(kRpId, "");
++  request.allow_list.emplace_back(CredentialType::kPublicKey, kCredentialId);
++  CtapGetAssertionOptions options;
++  options.skip_windows_credential_enumeration = true;
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(request, options,
++                                                      future.GetCallback());
++  authenticator_.reset();
++  task_environment.RunUntilIdle();
++  EXPECT_FALSE(future.IsReady());
++  EXPECT_EQ(fake_webauthn_api_->last_get_credentials_options(), nullptr);
++}
++
++// Capture the native boundary, without signing or choosing an authenticator.
++class NativePickerRecordingApi : public FakeWinWebAuthnApi {
++ public:
++  HRESULT AuthenticatorGetAssertion(
++      HWND,
++      LPCWSTR,
++      PCWEBAUTHN_CLIENT_DATA,
++      PCWEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS options,
++      PWEBAUTHN_ASSERTION*) override {
++    legacy_count = options->CredentialList.cCredentials;
++    for (DWORD i = 0; i < options->pAllowCredentialList->cCredentials; ++i) {
++      const auto* credential =
++          UNSAFE_TODO(options->pAllowCredentialList->ppCredentials[i]);
++      const auto id = ToIdSpan(*credential);
++      ids.emplace_back(id.begin(), id.end());
++      transports.push_back(credential->dwTransports);
++    }
++    for (DWORD i = 0; i < options->cCredentialHints; ++i) {
++      hints.emplace_back(UNSAFE_TODO(options->ppwszCredentialHints[i]));
++    }
++    attachment = options->dwAuthenticatorAttachment;
++    verification = options->dwUserVerificationRequirement;
++    private_mode = options->bBrowserInPrivateMode;
++    autofill = options->bAutoFill;
++    flags = options->dwFlags;
++    timeout = options->dwTimeoutMilliseconds;
++    return NTE_NOT_FOUND;
++  }
++
++  DWORD legacy_count = 0;
++  std::vector<std::vector<uint8_t>> ids;
++  std::vector<DWORD> transports;
++  std::vector<std::wstring> hints;
++  DWORD attachment = 0;
++  DWORD verification = 0;
++  BOOL private_mode = TRUE;
++  BOOL autofill = TRUE;
++  DWORD flags = 0;
++  DWORD timeout = 0;
++};
++
++TEST_F(WinAuthenticatorTest, NativePickerSkipPreservesAssertionOptions) {
++  base::test::ScopedFeatureList feature;
++  feature.InitAndEnableFeature(
++      kWebAuthnWinNativeModalSkipCredentialEnumeration);
++  auto api = std::make_unique<NativePickerRecordingApi>();
++  api->set_version(WEBAUTHN_API_VERSION_9);
++  api->set_supports_silent_discovery(true);
++  auto authenticator =
++      std::make_unique<WinWebAuthnApiAuthenticator>(nullptr, api.get());
++  CtapGetAssertionRequest request(kRpId, "{}");
++  request.allow_list.emplace_back(
++      CredentialType::kPublicKey, kCredentialId,
++      base::flat_set<FidoTransportProtocol>{FidoTransportProtocol::kInternal});
++  request.allow_list.emplace_back(
++      CredentialType::kPublicKey, kCredentialId2,
++      base::flat_set<FidoTransportProtocol>{
++          FidoTransportProtocol::kUsbHumanInterfaceDevice,
++          FidoTransportProtocol::kHybrid});
++  request.user_verification = UserVerificationRequirement::kRequired;
++  CtapGetAssertionOptions options;
++  options.skip_windows_credential_enumeration = true;
++  options.hints = {blink::mojom::Hint::HYBRID,
++                   blink::mojom::Hint::SECURITY_KEY};
++  GetCredentialFuture metadata;
++  authenticator->GetPlatformCredentialInfoForRequest(request, options,
++                                                     metadata.GetCallback());
++  ASSERT_TRUE(metadata.Wait());
++  ASSERT_EQ(api->last_get_credentials_options(), nullptr);
++  GetAssertionFuture assertion;
++  authenticator->GetAssertion(request, options, assertion.GetCallback());
++  ASSERT_TRUE(assertion.Wait());
++  EXPECT_EQ(api->legacy_count, 2u);
++  EXPECT_THAT(api->ids, testing::ElementsAre(kCredentialId, kCredentialId2));
++  EXPECT_THAT(api->transports,
++              testing::ElementsAre(WEBAUTHN_CTAP_TRANSPORT_INTERNAL,
++                                   WEBAUTHN_CTAP_TRANSPORT_USB |
++                                       WEBAUTHN_CTAP_TRANSPORT_HYBRID));
++  EXPECT_THAT(api->hints, testing::ElementsAre(L"hybrid", L"security-key"));
++  EXPECT_EQ(api->attachment, WEBAUTHN_AUTHENTICATOR_ATTACHMENT_ANY);
++  EXPECT_EQ(api->verification, WEBAUTHN_USER_VERIFICATION_REQUIREMENT_REQUIRED);
++  EXPECT_FALSE(api->private_mode);
++  EXPECT_FALSE(api->autofill);
++  EXPECT_EQ(api->flags, 0u);
++  EXPECT_EQ(api->timeout, 300000u);
++}
++
+ // Tests getting credential information for an empty allow-list request that
+ // does not have valid credentials on a Windows version that supports silent
+ // discovery.
+@@ -195,6 +414,101 @@
  
    EXPECT_EQ(std::get<0>(future.Get()),
              std::vector<DiscoverableCredentialMetadata>{});

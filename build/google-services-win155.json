@@ -101,9 +101,17 @@
     ]
   },
   "restoration_overlays": [
-    "patches/google-services/0002-windows-native-passkey-discovery.patch"
+    "patches/google-services/0002-windows-native-passkey-discovery.patch",
+    "patches/google-services/0003-windows-native-passkey-latency.patch"
   ],
   "extra_sources": [
+    "chrome/browser/webauthn/chrome_authenticator_request_delegate.cc",
+    "content/browser/webauth/authenticator_common_impl.cc",
+    "content/browser/webauth/authenticator_common_impl.h",
+    "device/fido/ctap_get_assertion_request.h",
+    "device/fido/fido_discovery_factory.h",
+    "device/fido/public/features.cc",
+    "device/fido/public/features.h",
     "chrome/browser/BUILD.gn",
     "chrome/browser/security_events/BUILD.gn",
     "chrome/browser/security_events/security_event_recorder_factory.cc",

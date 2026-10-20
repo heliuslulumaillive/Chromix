@@ -17,6 +17,7 @@ REQUIRED = {
         'test("native_passkey_unittests")',
         '"../browser/webauthn/authenticator_request_dialog_model_unittest.cc"',
         '"../../device/fido/win/authenticator_unittest.cc"',
+        '"../browser/webauthn/win_native_credential_enumeration_unittest.cc"',
         'assert_no_deps = [',
         '"//chrome/test/base:chrome_render_view_host_test_harness"',
         '"//chrome/test/base:chrome_unit_test_suite"',
@@ -61,6 +62,13 @@ REQUIRED = {
         'credentials.empty() && supports_native_passkey_providers',
         'FilterFoundCredentials(&credentials, allow_list)',
         'FidoRequestHandlerBase::RecognizedCredential::kUnknown',
+        'request_options.skip_windows_credential_enumeration',
+        '!request.allow_list.empty()',
+        'win_api_->Version() >= WEBAUTHN_API_VERSION_9',
+        'base::FeatureList::IsEnabled(kWebAuthnWinNativeModalSkipCredentialEnumeration)',
+        'base::SequencedTaskRunner::GetCurrentDefault()->PostTask(',
+        'weak_factory_.GetWeakPtr(), std::move(callback)',
+        'FIDO_LOG(EVENT) << "Skipping Windows metadata for eligible modal request"',
     ],
     'device/fido/win/authenticator_unittest.cc': [
         'GetCredentialInformationForRequest_NativeProvidersEmptyCache',
@@ -68,6 +76,51 @@ REQUIRED = {
         'GetCredentialInformationForRequest_NativeProvidersPreservesMatch',
         'GetCredentialInformationForRequest_NativeProvidersRespectsTransports',
         'GetCredentialInformationForRequest_NativeProvidersUnavailableBeforeV9',
+        'NativePickerSkipsMetadataOnly',
+        'NativePickerSkipPreservesAssertionOptions',
+        'NativePickerSkipDropsCallbackAfterDestruction',
+    ],
+    'chrome/browser/webauthn/chrome_authenticator_request_delegate.cc': [
+        'set_allow_win_native_credential_enumeration_skip(false)',
+        'device::kWebAuthnWinNativeModalSkipCredentialEnumeration',
+        'request_type == device::FidoRequestType::kGetAssertion',
+        'request_source == RequestSource::kWebAuthentication',
+        'dialog_controller_->ui_presentation() == UIPresentation::kModal',
+        '!enclave_controller_ && !IsVirtualEnvironmentEnabled()',
+        '!discovery_factory->IsTestOverride()',
+        '!discovery_factory->force_hybrid_discovery()',
+    ],
+    'content/browser/webauth/authenticator_common_impl.h': [
+        'static void ConfigureWindowsNativeCredentialEnumeration(',
+    ],
+    'content/browser/webauth/authenticator_common_impl.cc': [
+        'options.skip_windows_credential_enumeration =',
+        'discovery_factory.allow_win_native_credential_enumeration_skip()',
+        'mediation == Mediation::MODAL && !discovery_factory.IsTestOverride()',
+        'additional_platform_discoveries.empty() && !request.allow_list.empty()',
+        'ConfigureWindowsNativeCredentialEnumeration('
+        'RequestSource(), req_state_->mediation_.value_or(Mediation::MODAL),'
+        '*discovery_factory(), platform_discoveries,'
+        '*ctap_get_assertion_request, *ctap_get_assertion_options)',
+    ],
+    'device/fido/ctap_get_assertion_request.h': [
+        'bool skip_windows_credential_enumeration = false;',
+    ],
+    'device/fido/fido_discovery_factory.h': [
+        'bool allow_win_native_credential_enumeration_skip_ = false;',
+    ],
+    'device/fido/public/features.h': [
+        'BASE_DECLARE_FEATURE(kWebAuthnWinNativeModalSkipCredentialEnumeration)',
+    ],
+    'device/fido/public/features.cc': [
+        'BASE_FEATURE(kWebAuthnWinNativeModalSkipCredentialEnumeration,'
+        'base::FEATURE_DISABLED_BY_DEFAULT)',
+    ],
+    'chrome/browser/webauthn/win_native_credential_enumeration_unittest.cc': [
+        'OrdinaryModalOnly', 'OrdinaryGetSourceOnly',
+        'VirtualAndOverrideRetainDiscovery', 'GpmControllerRetainsDiscovery',
+        'IntentReachesCommonAndResetsOnRetry', 'RejectsOtherRequestModes',
+        'PreservesRequestAndOptions', 'additional.push_back(nullptr)',
     ],
     'chrome/browser/BUILD.gn': ['"//chrome/browser/security_events"'],
     'chrome/browser/enterprise/BUILD.gn': ['"signin/managed_profile_creation_controller.cc"'],

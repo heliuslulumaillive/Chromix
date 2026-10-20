@@ -35,6 +35,7 @@ def source_recipe():
                 'build/google-services-win155.json',
                 'patches/google-services/0001-restore-google-services.json',
                 'patches/google-services/0002-windows-native-passkey-discovery.patch',
+                'patches/google-services/0003-windows-native-passkey-latency.patch',
                 'patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch')}}
 
 
@@ -74,7 +75,8 @@ class CandidateIdentityTest(unittest.TestCase):
             archive.write_bytes(b'original archive')
             (artifact / 'native-passkey-unittests.json').write_text(json.dumps({
                 'per_iteration_data': [{name: [{'status': 'SUCCESS'}]
-                                        for name in candidate.NATIVE_PASSKEY_TESTS}]}))
+                                        for name in candidate.NATIVE_PASSKEY_TESTS |
+                                        {'WinAuthenticatorTest.ExistingNonRequiredCase'}}]}))
             receipt = source_recipe()
             for path in (artifact, bundle):
                 (path / 'google-services-source.json').write_text(json.dumps(receipt))
@@ -115,6 +117,14 @@ class CandidateIdentityTest(unittest.TestCase):
         self.assertFalse(result['source_checkpoint_restored'])
         self.assertEqual(result['google_account_and_cloud_access'], 'not_tested')
 
+    def test_reports_required_cases_separately_from_all_passed_cases(self):
+        result = self.exercise_verification()
+        self.assertEqual(result['required_native_passkey_regression_tests'],
+                         sorted(candidate.NATIVE_PASSKEY_TESTS))
+        self.assertEqual(set(result['native_passkey_regression_tests']),
+                         candidate.NATIVE_PASSKEY_TESTS |
+                         {'WinAuthenticatorTest.ExistingNonRequiredCase'})
+
     def test_incomplete_wrong_binary_and_mutated_results_cannot_pass(self):
         for mutation in ('missing_check', 'wrong_binary', 'changed_file', 'timeout'):
             with self.subTest(mutation=mutation), self.assertRaises(ValueError):
@@ -122,6 +132,21 @@ class CandidateIdentityTest(unittest.TestCase):
 
 
 class NativePasskeyEvidenceTest(unittest.TestCase):
+    def test_old_success_receipt_cannot_cover_new_opt_in_behavior(self):
+        old_only = {
+            name: [{'status': 'SUCCESS'}]
+            for name in candidate.NATIVE_PASSKEY_TESTS
+            if 'NativePicker' not in name and not name.startswith('WinNative')
+        }
+        self.assertEqual(len(old_only), 8)
+        with self.assertRaisesRegex(ValueError, 'coverage is incomplete'):
+            candidate.validate_native_passkey_tests({'per_iteration_data': [old_only]})
+
+    def test_launcher_includes_each_required_suite(self):
+        launcher = (REPO / 'build/windows/run-native-passkey-tests.ps1').read_text()
+        for suite in candidate.NATIVE_PASSKEY_SUITES:
+            self.assertIn(suite + '*', launcher)
+
     def test_requires_executed_regressions_and_rejects_failed_retries(self):
         results = {name: [{'status': 'SUCCESS'}] for name in candidate.NATIVE_PASSKEY_TESTS}
         self.assertEqual(set(candidate.validate_native_passkey_tests(

@@ -150,10 +150,12 @@ def apply_patch(src: Path, executable: str, patch: Path, *, reverse=False):
 def recipe_identity(repo: Path):
     files = [
         'tools/prepare_google_services.py', 'tools/verify_google_services_source.py',
+        'tools/build_google_services_patch.py',
         'build/google-services-win155.json',
         'patches/google-services/0001-restore-google-services.patch',
         'patches/google-services/0001-restore-google-services.json',
         'patches/google-services/0002-windows-native-passkey-discovery.patch',
+        'patches/google-services/0003-windows-native-passkey-latency.patch',
         'patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch',
     ]
     inputs = {name: hashlib.sha256((repo / name).read_bytes()).hexdigest() for name in files}

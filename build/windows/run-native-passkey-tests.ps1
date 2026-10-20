@@ -28,7 +28,7 @@ $record = [ordered]@{
   host_process_id=$hostProcess.Id;original_host_priority=$originalPriority.ToString();
   test_host_priority=$null;restored_host_priority=$null;native_exit_code=$null;
   startup_assertions_unchanged=$true;
-  test_filter='WinAuthenticatorTest.*:AuthenticatorRequestDialogControllerTest.*'
+  test_filter='WinAuthenticatorTest.*:AuthenticatorRequestDialogControllerTest.*:WinNativeCredentialEnumerationTest.*:WinNativeCredentialEnumerationCommonTest.*'
 }
 $locationPushed = $false
 try {

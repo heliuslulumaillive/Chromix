@@ -54,6 +54,7 @@ def validate_source_recipe(inner, outer, repo=REPO):
     for name in ('build/google-services-win155.json',
                  'patches/google-services/0001-restore-google-services.json',
                  'patches/google-services/0002-windows-native-passkey-discovery.patch',
+                 'patches/google-services/0003-windows-native-passkey-latency.patch',
                  'patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch'):
         if inputs.get(name) != sha256(repo / name):
             raise ValueError('Candidate source inputs do not match: ' + name)
@@ -70,6 +71,36 @@ NATIVE_PASSKEY_TESTS.update({
     'AuthenticatorRequestDialogControllerTest.WinCredMatchEmptyAllowList',
     'AuthenticatorRequestDialogControllerTest.ConditionalUIWindowsCancel',
 })
+NATIVE_PASSKEY_TESTS.update(
+    'WinAuthenticatorTest.' + name for name in (
+        'NativePickerSkipFeatureDisabled',
+        'NativePickerSkipRequiresExplicitRequest',
+        'NativePickerSkipsMetadataOnly',
+        'NativePickerSkipRequiresNonemptyAllowList',
+        'NativePickerSkipRequiresApiV9',
+        'NativePickerSkipRetainsTransportFilter',
+        'NativePickerSkipDropsCallbackAfterDestruction',
+        'NativePickerSkipPreservesAssertionOptions',
+    )
+)
+NATIVE_PASSKEY_TESTS.update(
+    'WinNativeCredentialEnumerationTest.' + name for name in (
+        'DefaultDisabledAndReset',
+        'OrdinaryModalOnly',
+        'OrdinaryGetSourceOnly',
+        'VirtualAndOverrideRetainDiscovery',
+        'GpmControllerRetainsDiscovery',
+        'IntentReachesCommonAndResetsOnRetry',
+    )
+)
+NATIVE_PASSKEY_TESTS.update({
+    'WinNativeCredentialEnumerationCommonTest.RejectsOtherRequestModes',
+    'WinNativeCredentialEnumerationCommonTest.PreservesRequestAndOptions',
+})
+NATIVE_PASSKEY_SUITES = (
+    'WinAuthenticatorTest.', 'AuthenticatorRequestDialogControllerTest.',
+    'WinNativeCredentialEnumerationTest.', 'WinNativeCredentialEnumerationCommonTest.',
+)
 
 
 def validate_native_passkey_tests(report):
@@ -81,7 +112,7 @@ def validate_native_passkey_tests(report):
         if not isinstance(iteration, dict):
             raise ValueError('Invalid native passkey regression results')
         for name, attempts in iteration.items():
-            if not name.startswith(('WinAuthenticatorTest.', 'AuthenticatorRequestDialogControllerTest.')):
+            if not name.startswith(NATIVE_PASSKEY_SUITES):
                 continue
             if (not isinstance(attempts, list) or not attempts
                     or any(not isinstance(attempt, dict) or attempt.get('status') != 'SUCCESS'
@@ -102,6 +133,7 @@ def verify_candidate(artifact_dir, source, report_dir, record):
     validate_source_run(source)
     native_tests = artifact_dir / 'native-passkey-unittests.json'
     record['native_passkey_regression_tests'] = validate_native_passkey_tests(read_object(native_tests))
+    record['required_native_passkey_regression_tests'] = sorted(NATIVE_PASSKEY_TESTS)
     record['native_passkey_regression_sha256'] = sha256(native_tests)
     archive = artifact_dir / 'chromix-win-x64.zip'
     manifest = artifact_dir / 'SHA256SUMS'

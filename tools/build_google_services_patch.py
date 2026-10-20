@@ -109,12 +109,16 @@ def main():
     chromix = [(name, data.decode()) for name, data in chromix_bytes]
     targets = set(config["extra_sources"])
     overlays = []
+    overlay_created = set()
     for name in config.get('restoration_overlays', []):
         patch = (args.repo / name).resolve()
         if not patch.is_relative_to(args.repo.resolve()) or not patch.is_file():
             raise ValueError('Restoration overlay must be a repository file')
         overlays.append(patch)
-        targets.update(path for path, _, _ in sections(patch.read_text()))
+        for path, new, _ in sections(patch.read_text()):
+            targets.add(path)
+            if new:
+                overlay_created.add(path)
     targets.update(restored_pruned)
     for name, data in core:
         if name in removed:
@@ -128,6 +132,7 @@ def main():
     targets = {p for p in targets if not re.match(r"chrome/browser/(?:ungoogled|bromite)_.*\.h$", p)}
     all_patches = [("core", *p) for p in core] + [("windows", *p) for p in windows] + [("chromix", *p) for p in chromix]
     created = {path for _, _, data in all_patches for path, new, _ in sections(data) if new and path in targets}
+    created.update(overlay_created)
     pristine = args.work / "pristine"
     pristine.mkdir(parents=True, exist_ok=True)
 
