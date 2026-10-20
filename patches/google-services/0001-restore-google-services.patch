@@ -295,6 +295,65 @@
  }
  
  void TokenManagedProfileCreationDelegate::OnManagedProfileInitialized(
+--- a/chrome/browser/extensions/BUILD.gn
++++ b/chrome/browser/extensions/BUILD.gn
+@@ -1559,6 +1559,38 @@
+   }
+ }
+ 
++# TestingProfile only needs the fake extension system, not browser-test
++# helpers and their WebUI test resources.
++source_set("test_extension_system") {
++  testonly = true
++  sources = [
++    "test_extension_system.cc",
++    "test_extension_system.h",
++  ]
++
++  public_deps = [
++    "//base",
++    "//build:chromeos_buildflags",
++    "//extensions/browser",
++    "//extensions/buildflags",
++    "//services/data_decoder/public/cpp:test_support",
++  ]
++  deps = [
++    ":extensions",
++    "//chrome/browser/profiles:profile",
++    "//chrome/common",
++    "//components/prefs",
++    "//components/services/unzip:in_process",
++    "//components/services/unzip/content",
++    "//components/value_store:test_support",
++    "//content/public/browser",
++  ]
++  if (is_chromeos) {
++    public_deps += [ "//components/user_manager" ]
++    deps += [ "//components/user_manager:test_support" ]
++  }
++}
++
+ static_library("test_support") {
+   testonly = true
+ 
+@@ -1620,8 +1652,6 @@
+     "test_extension_menu_icon_loader.h",
+     "test_extension_service.cc",
+     "test_extension_service.h",
+-    "test_extension_system.cc",
+-    "test_extension_system.h",
+     "user_scripts_test_util.cc",
+     "user_scripts_test_util.h",
+     "webstore_installer_test.cc",
+@@ -1672,7 +1702,7 @@
+     "//url",
+   ]
+ 
+-  public_deps = []
++  public_deps = [ ":test_extension_system" ]
+ 
+   if (is_android) {
+     sources += [
 --- a/chrome/browser/extensions/api/identity/identity_get_auth_token_function.cc
 +++ b/chrome/browser/extensions/api/identity/identity_get_auth_token_function.cc
 @@ -38,6 +38,7 @@
@@ -3271,6 +3330,17 @@
  test("unit_tests") {
    use_xvfb = use_xvfb_in_this_config
  
+--- a/chrome/test/base/BUILD.gn
++++ b/chrome/test/base/BUILD.gn
+@@ -350,7 +350,7 @@
+   if (enable_extensions_core) {
+     deps += [
+       "//chrome/browser/extensions",
+-      "//chrome/browser/extensions:test_support",
++      "//chrome/browser/extensions:test_extension_system",
+     ]
+   }
+   if (enable_extensions) {
 --- a/components/affiliations/core/browser/hash_affiliation_fetcher.cc
 +++ b/components/affiliations/core/browser/hash_affiliation_fetcher.cc
 @@ -131,10 +131,6 @@

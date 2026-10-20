@@ -13,6 +13,7 @@
     "chrome/browser/enterprise/signin/oidc_managed_profile_creation_delegate.cc",
     "chrome/browser/enterprise/signin/profile_management_disclaimer_service.cc",
     "chrome/browser/enterprise/signin/token_managed_profile_creation_delegate.cc",
+    "chrome/browser/extensions/BUILD.gn",
     "chrome/browser/extensions/api/identity/identity_get_auth_token_function.cc",
     "chrome/browser/extensions/api/settings_private/prefs_util.cc",
     "chrome/browser/extensions/chrome_content_browser_client_extensions_part.cc",
@@ -87,6 +88,7 @@
     "chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc",
     "chrome/common/google_url_loader_throttle.cc",
     "chrome/test/BUILD.gn",
+    "chrome/test/base/BUILD.gn",
     "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
     "components/affiliations/core/browser/hash_affiliation_fetcher.h",
     "components/assist_ranker/ranker_url_fetcher.cc",
@@ -192,6 +194,10 @@
     {
       "path": "chrome/browser/enterprise/signin/token_managed_profile_creation_delegate.cc",
       "sha256": "5abdd7cd2aed7e4a1bc90708fa78461e4eadd37da07e74568bf63fddbb761309"
+    },
+    {
+      "path": "chrome/browser/extensions/BUILD.gn",
+      "sha256": "bfbffb90bc6ba28f8e15a7bd6df77a25d265ca055dd637edfc76a83364fa18e2"
     },
     {
       "path": "chrome/browser/extensions/api/identity/identity_get_auth_token_function.cc",
@@ -498,6 +504,10 @@
       "sha256": "4b1c4e75e9298e44953d57c11d3aeb12dee6b036b6f9071a887d3a7cc213e832"
     },
     {
+      "path": "chrome/test/base/BUILD.gn",
+      "sha256": "3f7506fb4c68cd79c88663012cb2e9829a99a7df2513f6d6c8f4c94d0e61943b"
+    },
+    {
       "path": "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
       "sha256": "41bed191f7abd224330f967c1cd14b3dde19e2939c6d9e3a4f438af7088a37bf"
     },
@@ -749,6 +759,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "df005e248ff477251869f9311a0b82590d247ef051edc350ddc647ed74e5bbee",
+  "patch_sha256": "bea27d2e1197fd059e89db7071906bc7a3f262d85b9d0b5067cf1b51eb2797ef",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

@@ -22,6 +22,13 @@ REQUIRED = {
         '"//chrome/test/base:chrome_unit_test_suite"',
         '"//chrome/test/data/webui:*"',
     ],
+    'chrome/test/base/BUILD.gn': [
+        '"//chrome/browser/extensions:test_extension_system"',
+    ],
+    'chrome/browser/extensions/BUILD.gn': [
+        'source_set("test_extension_system")',
+        'public_deps = [ ":test_extension_system" ]',
+    ],
     'chrome/browser/webauthn/authenticator_request_dialog_controller.cc': [
         'std::get_if<Mechanism::Credential>(&model_->mechanisms[0].type)',
         'transport_availability_.has_win_native_api_authenticator && credential &&',
