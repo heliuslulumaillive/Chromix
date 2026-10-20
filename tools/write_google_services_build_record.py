@@ -45,6 +45,10 @@ def main():
         'google_account_and_cloud_access': 'not_tested',
         'files': {},
     }
+    if 'build_variant' in source:
+        if source['build_variant'] != 'fingerprint-modes-win155':
+            raise ValueError('Unsupported explicit build variant')
+        record['build_variant'] = source['build_variant']
     destination = args.bundle / 'google-services-build.json'
     for path in sorted(args.bundle.rglob('*')):
         if path.is_file() and path != destination:

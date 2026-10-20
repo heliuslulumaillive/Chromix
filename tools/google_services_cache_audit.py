@@ -47,6 +47,8 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--target', action='append', default=[])
     parser.add_argument('--refresh-manifest', action='store_true')
+    parser.add_argument('--ensure-manifest', action='store_true',
+                        help='Ask Ninja to update build.ninja before planning; GN runs only for dirty inputs')
     args = parser.parse_args()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     result = {'schema_version': 1, 'compiler_invoked': False, 'status': 'failed'}
@@ -55,6 +57,19 @@ def main():
         env = {**os.environ, 'NINJA_STATUS': '[%f/%t] '}
         targets = args.target or ['chrome']
         result['targets'] = targets
+        if args.ensure_manifest:
+            # New targets can be absent from the inherited graph, so refresh
+            # this single metadata target before asking for their dry run.
+            # Ninja checks build.ninja's actual dependencies and does nothing
+            # when the restored GN inputs retain their timestamps.
+            refresh = subprocess.run([str(args.ninja), '-C', str(args.out), 'build.ninja'],
+                                     env=env, capture_output=True, text=True, timeout=240)
+            args.report.with_suffix('.manifest-refresh.log').write_text(
+                refresh.stdout + refresh.stderr, encoding='utf-8')
+            if refresh.returncode:
+                raise ValueError('Ninja manifest refresh failed')
+            result.update(manifest_checked=True,
+                          manifest_refreshed='Regenerating ninja files' in refresh.stdout)
         for attempt in range(2):
             plan = subprocess.run([str(args.ninja), '-C', str(args.out), '-n', *targets],
                                   env=env, capture_output=True, text=True, timeout=240)
@@ -62,6 +77,8 @@ def main():
             if plan.returncode:
                 raise ValueError('Ninja could not plan the restored tree; see dry-run log')
             pending = pending_count(plan.stdout)
+            if args.ensure_manifest and pending is None:
+                raise ValueError('Ninja manifest is still dirty after the metadata check')
             if pending is not None or not args.refresh_manifest:
                 break
             if attempt:

@@ -1,4 +1,5 @@
 name: Google services Windows x64
+run-name: ${{ inputs.build_variant == 'fingerprint-modes-win155' && 'Compatible fingerprint modes / Windows 155' || github.workflow }}
 on:
   push:
     branches: [codex/google-services-win155]
@@ -26,6 +27,15 @@ on:
       - 'patches/google-services/**'
   workflow_dispatch:
     inputs:
+      build_variant:
+        description: 'Use the existing Google-service flow or explicitly select the isolated fingerprint-mode flow'
+        type: choice
+        options: [google-services-self-use, fingerprint-modes-win155]
+        default: google-services-self-use
+      allow_bootstrap_donor:
+        description: 'Fingerprint mode only: import pinned completed checkpoint 39396862771 at stage 1'
+        type: boolean
+        default: false
       operation:
         description: 'Verify an existing candidate, or explicitly resume a completed checkpoint'
         type: choice
@@ -48,8 +58,17 @@ permissions:
   contents: read
   actions: read
 jobs:
+  fingerprint-modes:
+    if: github.event_name == 'workflow_dispatch' && inputs.build_variant == 'fingerprint-modes-win155'
+    uses: ./.github/workflows/build-fingerprint-modes-win155.yml
+    with:
+      operation: ${{ inputs.operation }}
+      source_run: ${{ inputs.source_run }}
+      allow_bootstrap_donor: ${{ inputs.allow_bootstrap_donor }}
+      max_stages: ${{ inputs.max_stages }}
+    secrets: inherit
   verify-candidate:
-    if: github.event_name == 'push' || inputs.operation == 'verify'
+    if: inputs.build_variant != 'fingerprint-modes-win155' && (github.event_name == 'push' || inputs.operation == 'verify')
     runs-on: windows-2022
     timeout-minutes: 30
     steps:
@@ -116,7 +135,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
   build-1:
-    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'resume'
+    if: inputs.build_variant != 'fingerprint-modes-win155' && github.event_name == 'workflow_dispatch' && inputs.operation == 'resume'
     uses: ./.github/workflows/google-services-win155-worker.yml
     with:
       stage: 1
@@ -124,7 +143,7 @@ jobs:
     secrets: inherit
   build-2:
     needs: build-1
-    if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.operation == 'resume' && needs.build-1.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 2
+    if: always() && !cancelled() && inputs.build_variant != 'fingerprint-modes-win155' && github.event_name == 'workflow_dispatch' && inputs.operation == 'resume' && needs.build-1.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 2
     uses: ./.github/workflows/google-services-win155-worker.yml
     with:
       stage: 2
@@ -132,7 +151,7 @@ jobs:
     secrets: inherit
   build-3:
     needs: build-2
-    if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.operation == 'resume' && needs.build-2.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 3
+    if: always() && !cancelled() && inputs.build_variant != 'fingerprint-modes-win155' && github.event_name == 'workflow_dispatch' && inputs.operation == 'resume' && needs.build-2.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 3
     uses: ./.github/workflows/google-services-win155-worker.yml
     with:
       stage: 3
@@ -140,7 +159,7 @@ jobs:
     secrets: inherit
   build-4:
     needs: build-3
-    if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.operation == 'resume' && needs.build-3.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 4
+    if: always() && !cancelled() && inputs.build_variant != 'fingerprint-modes-win155' && github.event_name == 'workflow_dispatch' && inputs.operation == 'resume' && needs.build-3.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 4
     uses: ./.github/workflows/google-services-win155-worker.yml
     with:
       stage: 4
@@ -148,7 +167,7 @@ jobs:
     secrets: inherit
   require-candidate:
     needs: [build-1, build-2, build-3, build-4]
-    if: always() && !cancelled() && github.event_name == 'workflow_dispatch' && inputs.operation == 'resume'
+    if: always() && !cancelled() && inputs.build_variant != 'fingerprint-modes-win155' && github.event_name == 'workflow_dispatch' && inputs.operation == 'resume'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

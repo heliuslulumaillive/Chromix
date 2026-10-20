@@ -1,0 +1,43 @@
+{
+  "path": "tools/tests/fixtures/font-allowlist-v1/ChromixOwnedProbe-Regular.ttf",
+  "sha256": "1a4670b97d09fe70f1bcce5b90676728bdb065beb2f7ae89a2d2e6e450a60e4f",
+  "fonttools_version": "4.60.1",
+  "source_generator": {
+    "path": "validation-work/font-addon-evidence.py",
+    "sha256": "8116ae7a7b6d00bc5204688f73adb19628266108f7fb47ff645ea0e63b63e2d0"
+  },
+  "family": "ChromixOwnedProbe",
+  "postscriptName": "ChromixOwnedProbe-Regular",
+  "glyphs": {
+    "space": {
+      "codepoint": 32,
+      "advance_units": 300
+    },
+    "A": {
+      "codepoint": 65,
+      "advance_units": 800,
+      "outline": [
+        [
+          100,
+          0
+        ],
+        [
+          100,
+          700
+        ],
+        [
+          700,
+          700
+        ],
+        [
+          700,
+          0
+        ]
+      ]
+    }
+  },
+  "units_per_em": 1000,
+  "expected_width_A_at_20px": 16,
+  "license": "CC0-1.0",
+  "scope": "Original fixture for downloaded FontFace testing only; not a production persona font asset."
+}

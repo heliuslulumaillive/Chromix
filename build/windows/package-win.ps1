@@ -63,6 +63,15 @@ if (Test-Path -LiteralPath $serviceMetadata -PathType Leaf) {
   $serviceVariant = Get-Content -LiteralPath $serviceMetadata -Raw | ConvertFrom-Json
   if ($serviceVariant.variant -cne 'google-services-self-use') { throw 'Unsupported Google-service metadata' }
   Copy-Item -LiteralPath $serviceMetadata -Destination (Join-Path $Bundle 'google-services-source.json')
+  if ($serviceVariant.build_variant -ceq 'fingerprint-modes-win155') {
+    # Include the contract before the immutable pre-validation inventory is made.
+    $capabilities = Join-Path $Repo 'build/fingerprint-modes-capabilities.json'
+    $contract = Get-Content -LiteralPath $capabilities -Raw | ConvertFrom-Json
+    if ($contract.build_variant -cne 'fingerprint-modes-win155' -or $contract.schema_version -ne 1) {
+      throw 'Fingerprint-mode capability contract does not match this build'
+    }
+    Copy-Item -LiteralPath $capabilities -Destination (Join-Path $Bundle 'fingerprint-modes-capabilities.json')
+  }
 }
 
 $required = @(

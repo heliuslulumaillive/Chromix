@@ -1,0 +1,234 @@
+name: Fingerprint modes Windows 155 worker
+on:
+  workflow_call:
+    inputs:
+      stage:
+        type: number
+        required: true
+      resume_run:
+        type: string
+        required: true
+      allow_bootstrap_donor:
+        type: boolean
+        required: false
+        default: false
+    outputs:
+      finished:
+        value: ${{ jobs.build.outputs.finished }}
+      resume_needed:
+        value: ${{ jobs.build.outputs.resume_needed }}
+      resume_source:
+        value: ${{ jobs.build.outputs.resume_source }}
+      recovery_source:
+        value: ${{ jobs.build.outputs.recovery_source }}
+    secrets:
+      UPSTREAM_ACTIONS_TOKEN:
+        required: true
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 355
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      finished: ${{ steps.candidate.outcome == 'success' }}
+      resume_needed: ${{ steps.continuation.outputs.resume_needed }}
+      resume_source: ${{ steps.continuation.outputs.resume_source }}
+      recovery_source: ${{ steps.continuation.outputs.recovery_source }}
+    steps:
+      - name: Start the total job budget before checkout and dependency restoration
+        shell: pwsh
+        run: |
+          @{ started_at = [DateTimeOffset]::UtcNow.ToString('o') } | ConvertTo-Json | Set-Content -LiteralPath 'C:\fingerprint-modes-build-session.json'
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Pin the runtime test interpreter independently of Chromium build tools
+        shell: pwsh
+        run: '"FINGERPRINT_TEST_NODE=$((Get-Command node).Source)" | Add-Content $env:GITHUB_ENV'
+      - name: Install small workflow contract test dependency
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.3
+      - name: Check source and checkpoint contracts before large downloads
+        shell: pwsh
+        run: python -B -X utf8 -m unittest tools.tests.test_google_services tools.tests.test_google_services_checkpoint tools.tests.test_fingerprint_build_pipeline tools.tests.test_fingerprint_packaging tools.tests.test_build_telemetry
+      - name: Select and validate a complete checkpoint before SDK setup
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_ACTIONS_TOKEN }}
+          FP_BUILD_STAGE: ${{ inputs.stage }}
+          FP_RESUME_RUN: ${{ inputs.resume_run }}
+          FP_ALLOW_BOOTSTRAP: ${{ inputs.allow_bootstrap_donor }}
+        run: build/windows/build-google-services.ps1 -Phase SelectCheckpoint -Stage $env:FP_BUILD_STAGE -ResumeRun $env:FP_RESUME_RUN -BuildVariant fingerprint-modes-win155 -AllowBootstrapDonor:($env:FP_ALLOW_BOOTSTRAP -eq 'true')
+      - name: Identify the pinned Windows SDK cache
+        id: sdk
+        shell: pwsh
+        run: |
+          $sdk = & ./build/windows/ensure-windows-sdk.ps1 -Arch x64 -ChromiumVersion '155.0.8059.39' -Describe | ConvertFrom-Json
+          "root=$($sdk.root.Replace('\','/'))" | Add-Content $env:GITHUB_OUTPUT
+          "version=$($sdk.version)" | Add-Content $env:GITHUB_OUTPUT
+          $image = if ($env:ImageVersion) { $env:ImageVersion } else { 'unknown-image' }
+          "key=windows-sdk-x64-v1-$($sdk.release)-$image-${{ hashFiles('build/windows/ensure-windows-sdk.ps1') }}" | Add-Content $env:GITHUB_OUTPUT
+      - name: Restore the exact SDK dependency cache
+        id: sdk-cache
+        uses: actions/cache/restore@v4
+        with:
+          key: ${{ steps.sdk.outputs.key }}
+          path: |
+            ${{ steps.sdk.outputs.root }}/Include/${{ steps.sdk.outputs.version }}
+            ${{ steps.sdk.outputs.root }}/Lib/${{ steps.sdk.outputs.version }}
+            ${{ steps.sdk.outputs.root }}/bin/${{ steps.sdk.outputs.version }}
+            ${{ steps.sdk.outputs.root }}/UnionMetadata/${{ steps.sdk.outputs.version }}
+            ${{ steps.sdk.outputs.root }}/References/${{ steps.sdk.outputs.version }}
+            ${{ steps.sdk.outputs.root }}/Debuggers/x64
+      - name: Install missing prerequisites and verify restored SDK files
+        id: prerequisites
+        shell: pwsh
+        run: build/windows/build-google-services.ps1 -Phase Prerequisites -BuildVariant fingerprint-modes-win155
+      - name: Save verified SDK files for subsequent compile segments
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          key: ${{ steps.sdk.outputs.key }}
+          path: |
+            ${{ steps.sdk.outputs.root }}/Include/${{ steps.sdk.outputs.version }}
+            ${{ steps.sdk.outputs.root }}/Lib/${{ steps.sdk.outputs.version }}
+            ${{ steps.sdk.outputs.root }}/bin/${{ steps.sdk.outputs.version }}
+            ${{ steps.sdk.outputs.root }}/UnionMetadata/${{ steps.sdk.outputs.version }}
+            ${{ steps.sdk.outputs.root }}/References/${{ steps.sdk.outputs.version }}
+            ${{ steps.sdk.outputs.root }}/Debuggers/x64
+      - name: Restore cache volumes concurrently and prepare only changed source
+        id: restore
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_ACTIONS_TOKEN }}
+          FP_BUILD_STAGE: ${{ inputs.stage }}
+          FP_RESUME_RUN: ${{ inputs.resume_run }}
+        run: build/windows/build-google-services.ps1 -Phase Restore -Stage $env:FP_BUILD_STAGE -ResumeRun $env:FP_RESUME_RUN -BuildVariant fingerprint-modes-win155
+      - name: Compile the browser, passkey regressions and fingerprint modes tests
+        id: build
+        shell: pwsh
+        env:
+          CHROMIX_JOBS: auto
+          FP_BUILD_STAGE: ${{ inputs.stage }}
+        run: build/windows/build-google-services.ps1 -Phase Build -Stage $env:FP_BUILD_STAGE -BuildVariant fingerprint-modes-win155 -AdditionalNinjaTargets uxr_surface_modes_tests -FingerprintValidationScript build/windows/verify-fingerprint-modes.ps1
+      - name: Upload the tested candidate
+        id: candidate
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && steps.build.outputs.finished == 'true' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingerprint-modes-win155-x64
+          overwrite: true
+          path: |
+            C:/c/dist/chromix-win-x64.zip
+            C:/c/dist/SHA256SUMS
+            C:/c/dist/google-services-source.json
+            C:/c/dist/google-services-runtime.json
+            C:/c/dist/candidate-smoke.json
+            C:/c/dist/native-passkey-unittests.json
+            C:/c/dist/native-passkey-launcher.json
+            C:/c/dist/fingerprint-modes-validation.json
+            C:/c/dist/modes-native.json
+            C:/c/dist/modes-runtime.json
+            C:/c/dist/fingerprint-modes-capabilities.json
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Upload concise build and transfer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: fingerprint-modes-win155-logs-s${{ inputs.stage }}
+          path: |
+            C:/c/chromix/fingerprint-modes-build-logs/
+            C:/c/chromix/google-services-source.json
+            C:/fingerprint-modes-checkpoint-selection.json
+            C:/fingerprint-modes-transfer.json
+            C:/c/chromix/fingerprint-modes-stage-state.json
+            C:/c/dist/fingerprint-modes-validation.json
+            C:/c/dist/modes-native.json
+            C:/c/dist/modes-runtime.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Preserve changed build outputs unless candidate delivery succeeded
+        id: checkpoint
+        if: ${{ !cancelled() && steps.restore.outputs.checkpoint_ready == 'true' && steps.build.outputs.cache_may_change == 'true' && steps.candidate.outcome != 'success' }}
+        shell: pwsh
+        env:
+          FP_BUILD_STAGE: ${{ inputs.stage }}
+        run: build/windows/build-google-services.ps1 -Phase Checkpoint -Stage $env:FP_BUILD_STAGE -BuildVariant fingerprint-modes-win155
+      - name: Save checkpoint volume 1
+        id: part1
+        if: ${{ !cancelled() && steps.checkpoint.outputs.checkpoint == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingerprint-modes-win155-tree-s${{ inputs.stage }}-part1
+          path: C:/fingerprint-modes-parts/tree.7z.001
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Save checkpoint volume 2
+        id: part2
+        if: ${{ !cancelled() && steps.checkpoint.outputs.checkpoint == 'true' && fromJSON(steps.checkpoint.outputs.parts) >= 2 }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingerprint-modes-win155-tree-s${{ inputs.stage }}-part2
+          path: C:/fingerprint-modes-parts/tree.7z.002
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Save checkpoint volume 3
+        id: part3
+        if: ${{ !cancelled() && steps.checkpoint.outputs.checkpoint == 'true' && fromJSON(steps.checkpoint.outputs.parts) >= 3 }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingerprint-modes-win155-tree-s${{ inputs.stage }}-part3
+          path: C:/fingerprint-modes-parts/tree.7z.003
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Save checkpoint volume 4
+        id: part4
+        if: ${{ !cancelled() && steps.checkpoint.outputs.checkpoint == 'true' && fromJSON(steps.checkpoint.outputs.parts) >= 4 }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingerprint-modes-win155-tree-s${{ inputs.stage }}-part4
+          path: C:/fingerprint-modes-parts/tree.7z.004
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Commit the checkpoint only after every volume uploaded
+        id: manifest
+        if: >-
+          ${{ !cancelled() && steps.checkpoint.outputs.checkpoint == 'true' &&
+              steps.part1.outcome == 'success' &&
+              (fromJSON(steps.checkpoint.outputs.parts) < 2 || steps.part2.outcome == 'success') &&
+              (fromJSON(steps.checkpoint.outputs.parts) < 3 || steps.part3.outcome == 'success') &&
+              (fromJSON(steps.checkpoint.outputs.parts) < 4 || steps.part4.outcome == 'success') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingerprint-modes-win155-checkpoint-s${{ inputs.stage }}
+          path: C:/fingerprint-modes-parts/checkpoint.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Continue only a budget stop or a recoverable delivery failure
+        id: continuation
+        if: ${{ !cancelled() && steps.restore.outputs.checkpoint_ready == 'true' }}
+        shell: pwsh
+        run: >-
+          python -B -X utf8 tools/google_services_checkpoint.py continue
+          --build-variant fingerprint-modes-win155
+          --build-outcome '${{ steps.build.outcome || 'skipped' }}'
+          --candidate-ready '${{ steps.build.outputs.finished || 'false' }}'
+          --candidate-outcome '${{ steps.candidate.outcome || 'skipped' }}'
+          --cache-changed '${{ steps.build.outputs.cache_may_change || 'false' }}'
+          --checkpoint-outcome '${{ steps.manifest.outcome || 'skipped' }}'
+          --source-run '${{ inputs.resume_run }}'
+          --current-run '${{ github.run_id }}'
