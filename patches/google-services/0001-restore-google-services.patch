@@ -18338,7 +18338,7 @@
 +    std::vector<uint8_t> expected(output);
 +    for (size_t i = 0; i < diff_count; ++i) {
 +      const auto patch =
-+          base::span<const uint8_t>(pool).subspan(diff_at + i * 5, 5);
++          base::span<const uint8_t>(pool).subspan(diff_at + i * 5, size_t{5});
 +      const uint32_t at = uint32_t{patch[0]} | (uint32_t{patch[1]} << 8) |
 +                          (uint32_t{patch[2]} << 16) |
 +                          (uint32_t{patch[3]} << 24);
@@ -18483,7 +18483,7 @@
 +span<uint8_t> Pixel(const UxrPixelRegion& region, uint32_t x, uint32_t y) {
 +  return region.bytes.subspan(
 +      static_cast<size_t>(y) * region.row_stride + static_cast<size_t>(x) * 4,
-+      4);
++      size_t{4});
 +}
 +
 +uint32_t Channel(const UxrPixelRegion& region, uint32_t logical_rgb) {

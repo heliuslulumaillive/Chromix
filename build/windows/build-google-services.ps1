@@ -306,7 +306,14 @@ try {
   if ($audit.status -ne 'passed' -or $null -eq $audit.pending_actions) { throw 'A real incremental build plan is required before compilation' }
   Output 'compiler_started' 'true'
   Output 'cache_may_change' $(if ($audit.pending_actions -gt 0 -or ($isFingerprint -and ($sourceChanged -or $audit.manifest_refreshed))) { 'true' } else { 'false' })
-  $process = Start-Process -FilePath $ninja -ArgumentList (@('-C', $out, '-j', $jobs) + $targets) -WorkingDirectory $src -WindowStyle Hidden -RedirectStandardOutput $log -RedirectStandardError $errorLog -PassThru
+  $ninjaArguments = @('-C', $out, '-j', $jobs)
+  if ($isFingerprint) {
+    # Collect a bounded set of independent compiler errors and keep successful
+    # objects, instead of paying another full checkpoint transfer per error.
+    # Any compiler failure still fails this stage and blocks candidate delivery.
+    $ninjaArguments += @('-k', '20')
+  }
+  $process = Start-Process -FilePath $ninja -ArgumentList ($ninjaArguments + $targets) -WorkingDirectory $src -WindowStyle Hidden -RedirectStandardOutput $log -RedirectStandardError $errorLog -PassThru
   $processHandle = $process.Handle
   $clock = [Diagnostics.Stopwatch]::StartNew()
   $timedOut = $false

@@ -7,12 +7,12 @@
   "ordered_overlays": [
     {
       "path": "patches/fingerprint-modes/0001-independent-mode-contract.patch",
-      "sha256": "078df4b21e73367f01f3ed30620336910b09208ee1ef55a85dc52490c598ea4e",
+      "sha256": "69cd13a82e00a17c6356cb43451216ac6a858e3ebb9ea54ded7b5f7d58fac726",
       "files": 16
     },
     {
       "path": "patches/fingerprint-modes/0002-graphics.patch",
-      "sha256": "f28c192acda4eac17d0c1194f38dce14b342364154da339e3bf8a79714e9c4af",
+      "sha256": "0e315464dec8e302ea2b3c698f25c53a7c56640ced21fd9eb0750a9789d5b241",
       "files": 12
     },
     {
@@ -42,12 +42,12 @@
       "0005-installed-font-allowlists.patch"
     ]
   },
-  "combined_patch_sha256": "2c0959ef20bff4c70e2e2966f235ed1467c2ab1063004516c91f579d5f38c75d",
+  "combined_patch_sha256": "cb77d7c9fb5f07cfb68e16208108a7ec33fd76bb262b58f2426a4f49df89040b",
   "combined_patch_changed_files": 209,
   "source_upgrade": {
-    "from_run": 39396862771,
-    "from_patch_sha256": "16e93d80542ee55009fa951284b0257bc3df85c767254bd58a5ab497994a6a22",
-    "unchanged_file_timestamps_preserved": 195,
+    "from_run": 39487719761,
+    "from_patch_sha256": "2c0959ef20bff4c70e2e2966f235ed1467c2ab1063004516c91f579d5f38c75d",
+    "unchanged_file_timestamps_preserved": 256,
     "idempotent": true
   },
   "qualification": "Pinned source replay and donor-upgrade identity only; compiled and runtime evidence is separate."
