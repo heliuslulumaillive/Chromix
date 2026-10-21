@@ -79,6 +79,11 @@
       "path": "patches/fingerprint-modes/0015-original-cloak-async-export.patch",
       "sha256": "b3a15789bea06c7566acce1706e202d7661cac605fc46bef97634d0b150e987e",
       "files": 1
+    },
+    {
+      "path": "patches/fingerprint-modes/0016-original-cloak-string-api.patch",
+      "sha256": "15a15f97484b9e2043daf69adbd2db30aab680bbfc01183243468e5946190999",
+      "files": 1
     }
   ],
   "sequential_incremental_files": {
@@ -149,7 +154,8 @@
     ],
     "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc": [
       "0002-graphics.patch",
-      "0009-original-cloak-reference-bank.patch"
+      "0009-original-cloak-reference-bank.patch",
+      "0016-original-cloak-string-api.patch"
     ],
     "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc": [
       "0002-graphics.patch",
@@ -205,7 +211,7 @@
       "0011-original-cloak-webgpu.patch"
     ]
   },
-  "combined_patch_sha256": "41eaf76e07a45185a7336f89a117ebb3b615eed83139b72b90c65c947fbd8a08",
+  "combined_patch_sha256": "ff3a21bab6b7086a58fd4be2ff55e8789e9a2c52e52f145b9f51009498b3fc97",
   "combined_patch_changed_files": 229,
   "source_upgrade": {
     "from_run": 39498745053,
@@ -629,6 +635,77 @@
       "compatible_graphics_cases": 12626
     },
     "sourcePipelineTests": 59,
+    "realObjectCheckpointDownloaded": false,
+    "fullChromiumCompiled": false
+  },
+  "original_string_api_fix": {
+    "sourceBaseCommit": "36f929720520a770255834eb75105d53d2f553c5",
+    "sourceBasePatchSHA256": "41eaf76e07a45185a7336f89a117ebb3b615eed83139b72b90c65c947fbd8a08",
+    "changedExistingFiles": [
+      "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc"
+    ],
+    "addedSourceFiles": [],
+    "unchangedCompositeSourceOutputs": 228,
+    "compilerErrorsFixed": 2,
+    "apiHeaderSHA256": "b06a5d95ec173df680e184fd962d086290cdc438119e8bd3531a26e164964dc4",
+    "corePixelAlgorithmChanged": false,
+    "nativeBrowserAccepted": false,
+    "qualification": "Two calls corrected to the actual pinned Blink String.empty API after auditing all unique compiler errors in the completed exact-run diagnostic artifact. Full compiler and browser acceptance remain pending.",
+    "checkpointUpgradeEvidence": {
+      "path": "owned/research/cloak-parity-20261021/kernel/string-api-source-upgrade-v1/result.json",
+      "sha256": "f99e4f00903691094128aca3f6280e09b459aa5a78ba14295b078dbf02d60898",
+      "bytes": 2921
+    },
+    "checkpointUpgrade": {
+      "actual-ci-211607": {
+        "status": "passed_selected_source_upgrade",
+        "fromPatchSHA256": "8d2c1ab2fc0f39c18f8b9dd8f8d036180b3c8c52f186749975c45462a3cbe17a",
+        "fromReceiptSHA256": "d9eacc6189b2712acc09977788a49ec3bd21c35db4e9f629c1fa1df150dab213",
+        "fromReceiptPath": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\complete-ci-watch-1955\\logs-artifact\\c\\chromix\\google-services-source.json",
+        "receiptProvenance": "completed_diagnostic_artifact_from_actual_CI_39650249224",
+        "toPatchSHA256": "ff3a21bab6b7086a58fd4be2ff55e8789e9a2c52e52f145b9f51009498b3fc97",
+        "changedExistingSources": [
+          "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc",
+          "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc"
+        ],
+        "addedSourceFiles": [],
+        "removedSourceFiles": [],
+        "unchangedSourceBytesAndMtimesPreserved": 266,
+        "allCompositeOutputsMatch": 229,
+        "idempotentSecondPrepare": true,
+        "syntheticObjectSentinelUnchanged": true,
+        "dependencyInputs": 33
+      },
+      "async-fix-36f9297-fixture": {
+        "status": "passed_selected_source_upgrade",
+        "fromPatchSHA256": "41eaf76e07a45185a7336f89a117ebb3b615eed83139b72b90c65c947fbd8a08",
+        "fromReceiptSHA256": "f54aced68478c762c30625c11a589ebb8c8a8bfcd8ced4adf06b877066486929",
+        "fromReceiptPath": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\async-source-upgrade-v1\\complete-source-211607-fixture\\chromix\\google-services-source.json",
+        "receiptProvenance": "locally_generated_async_fix_source_fixture_not_CI",
+        "toPatchSHA256": "ff3a21bab6b7086a58fd4be2ff55e8789e9a2c52e52f145b9f51009498b3fc97",
+        "changedExistingSources": [
+          "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc"
+        ],
+        "addedSourceFiles": [],
+        "removedSourceFiles": [],
+        "unchangedSourceBytesAndMtimesPreserved": 267,
+        "allCompositeOutputsMatch": 229,
+        "idempotentSecondPrepare": true,
+        "syntheticObjectSentinelUnchanged": true,
+        "dependencyInputs": 33
+      }
+    },
+    "sourcePipelineTests": 59,
+    "compilerErrorEvidence": {
+      "path": "owned/research/cloak-parity-20261021/kernel/complete-ci-watch-1955/compile-failure-analysis.json",
+      "sha256": "4a9f87b9b8a50b02bb765e5a6ff767a91b8ba7e655051bf40a3f86960640ed36",
+      "bytes": 2634
+    },
+    "allCompilerErrorsAudit": {
+      "path": "owned/research/cloak-parity-20261021/kernel/complete-ci-watch-1955/all-compiler-errors-audit.json",
+      "sha256": "e396e5bfa803fb3a3348526d9c57e24361fdc4256da60ce7d17501bf3f01c0d0",
+      "bytes": 3700
+    },
     "realObjectCheckpointDownloaded": false,
     "fullChromiumCompiled": false
   }

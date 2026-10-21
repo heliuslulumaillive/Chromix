@@ -125511,7 +125511,7 @@
 +        base::UxrConfig::GetInstance().SurfaceModes(), source, false);
 +    if (context)
 +      export_context.reference = context->UxrSelectExportReference(
-+          mime_type.IsEmpty() ? std::string("image/png") : mime_type.Utf8(), quality);
++          mime_type.empty() ? std::string("image/png") : mime_type.Utf8(), quality);
 +    if (context && export_context.policy.IsLegacy() &&
          context->ReadBridgePixels(&bridge_pixels, image_bitmap->width(),
                                    image_bitmap->height())) {
@@ -125538,7 +125538,7 @@
 +        base::UxrConfig::GetInstance().SurfaceModes(), source, false);
 +    if (context_)
 +      export_context.reference = context_->UxrSelectExportReference(
-+          mime_type.IsEmpty() ? std::string("image/png") : mime_type.Utf8(), quality);
++          mime_type.empty() ? std::string("image/png") : mime_type.Utf8(), quality);
      async_creator = MakeGarbageCollected<CanvasAsyncBlobCreator>(
          image_bitmap, options,
          CanvasAsyncBlobCreator::kHTMLCanvasToBlobCallback, callback, start_time,
