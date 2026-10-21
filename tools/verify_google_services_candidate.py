@@ -110,11 +110,42 @@ def validate_source_recipe(inner, outer, repo=REPO, *, build_variant=GOOGLE_VARI
             raise ValueError('Candidate source inputs do not match: ' + name)
 
 
+ORIGINAL_NATIVE_COUNTS = {
+    'original_pixel_checks': 78,
+    'original_reference_checks': 2660,
+    'original_audio_checks': 337,
+}
+COMPATIBLE_RUNTIME_SCOPE = 'compatible-v1-covered-groups'
+ORIGINAL_RUNTIME_SURFACES = {
+    'canvas_pixels', 'webgl_pixels', 'canvas_references', 'webgl_references',
+    'text', 'fonts', 'audio', 'voices', 'webgpu_identity', 'webgpu_features', 'webgpu_limits', 'memory',
+}
+
+
+def validate_original_runtime_scope(report):
+    """This build runner has no original-mode browser scenarios or acceptance."""
+    original = report.get('original_runtime_acceptance')
+    if (report.get('full_strategy_acceptance_scope') != COMPATIBLE_RUNTIME_SCOPE
+            or report.get('full_original_cloak_acceptance') is not False
+            or not isinstance(original, dict)
+            or set(original) != {'status', 'source_goldens_are_runtime_acceptance', 'surfaces'}
+            or original.get('status') != 'not_tested'
+            or original.get('source_goldens_are_runtime_acceptance') is not False
+            or not isinstance(original.get('surfaces'), dict)
+            or set(original['surfaces']) != ORIGINAL_RUNTIME_SURFACES):
+        raise ValueError('Original runtime acceptance must remain explicitly not_tested in this runner')
+    for name, surface in original['surfaces'].items():
+        if (not isinstance(surface, dict) or set(surface) != {'status', 'evidence', 'reason'}
+                or surface.get('status') != 'not_tested' or surface.get('evidence') != []
+                or not isinstance(surface.get('reason'), str) or not surface['reason']):
+            raise ValueError('Native/source goldens cannot supply original browser acceptance: ' + name)
+
+
 def validate_mode_native(report, payload):
     expected = {
         'config-legacy': ('legacy', {'configuration_checks'}, '--config-legacy'),
         'config-chromix': ('chromix', {'configuration_checks'}, '--config-chromix'),
-        'config-original': ('original', {'original_pixel_checks', 'configuration_checks'}, '--config-original'),
+        'config-original': ('original', {*ORIGINAL_NATIVE_COUNTS, 'configuration_checks'}, '--config-original'),
         'production-helpers-and-config': ('production', {
             'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks', 'font_allowlist_checks',
             'audio_default_checks', 'configuration_checks'}, None),
@@ -167,6 +198,8 @@ def validate_mode_native(report, payload):
             values = [record[field] for record in records if field in record]
             if len(values) != 1 or type(values[0]) is not int or values[0] <= 0:
                 raise ValueError('Native mode group did not execute: ' + field)
+            if group == 'original' and field in ORIGINAL_NATIVE_COUNTS and values[0] != ORIGINAL_NATIVE_COUNTS[field]:
+                raise ValueError('Native mode group differs from the pinned suite: ' + field)
             counts[group + '.' + field] = values[0]
         if not any(r.get('status') == 'passed' and r.get('configuration_checks', 0) > 0 for r in records):
             raise ValueError('Native mode configuration acceptance is missing')
@@ -176,6 +209,7 @@ def validate_mode_native(report, payload):
 
 
 def validate_positive_coverage(report, checks):
+    validate_original_runtime_scope(report)
     coverage, skipped = report.get('positive_acceptance'), report.get('not_tested')
     if not isinstance(coverage, dict) or set(coverage) != set(FINGERPRINT_POSITIVE_SCENARIOS):
         raise ValueError('Runtime positive strategy coverage is incomplete')
@@ -323,6 +357,9 @@ def validate_fingerprint_tests(report_path, bundle, payload_hashes=None):
             or report.get('coverage_limits') != runtime['coverage_limits']
             or report.get('positive_acceptance') != runtime['positive_acceptance']
             or report.get('full_strategy_acceptance') is not runtime['full_strategy_acceptance']
+            or report.get('full_strategy_acceptance_scope') != runtime['full_strategy_acceptance_scope']
+            or report.get('full_original_cloak_acceptance') is not False
+            or report.get('original_runtime_acceptance') != runtime['original_runtime_acceptance']
             or report.get('partial') is not runtime['partial']):
         raise ValueError('Fingerprint summary does not preserve actual runtime coverage')
     return {'status': 'passed', 'report_sha256': sha256(report_path), 'files': files,
@@ -330,7 +367,10 @@ def validate_fingerprint_tests(report_path, bundle, payload_hashes=None):
             'not_tested': runtime['not_tested'],
             'positive_acceptance': runtime['positive_acceptance'],
             'full_strategy_acceptance': runtime['full_strategy_acceptance'], 'partial': runtime['partial'],
-            'execution_scope': 'Validated build-time native/runtime receipts bound to these exact browser bytes',
+            'full_strategy_acceptance_scope': runtime['full_strategy_acceptance_scope'],
+            'full_original_cloak_acceptance': False,
+            'original_runtime_acceptance': runtime['original_runtime_acceptance'],
+            'execution_scope': 'Exact-browser-byte receipts for native helper/configuration tests and compatible-v1-covered-groups browser scenarios; no original-mode Web API runtime acceptance',
             'additional_gpu_hardware_acceptance': 'not_tested_by_receipt_verification'}
 
 

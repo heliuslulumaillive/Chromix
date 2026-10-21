@@ -523,6 +523,23 @@ export const BASIC_SCENARIOS = new Set([
   "cloak_audio_positive", "audio_defaults_44100", "audio_defaults_32000",
   "audio_default_mono", "audio_default_stereo", "audio_default_32",
 ]);
+export const ORIGINAL_RUNTIME_SURFACES = [
+  "canvas_pixels", "webgl_pixels", "canvas_references", "webgl_references",
+  "text", "fonts", "audio", "voices", "webgpu_identity", "webgpu_features", "webgpu_limits", "memory",
+];
+export function originalRuntimeScope() {
+  return {
+    full_strategy_acceptance_scope: "compatible-v1-covered-groups",
+    full_original_cloak_acceptance: false,
+    original_runtime_acceptance: {
+      status: "not_tested", source_goldens_are_runtime_acceptance: false,
+      surfaces: Object.fromEntries(ORIGINAL_RUNTIME_SURFACES.map(surface => [surface, {
+        status: "not_tested", evidence: [],
+        reason: "This runner executes compatible-v1 browser scenarios; native helper goldens do not exercise this original Web API path.",
+      }])),
+    },
+  };
+}
 export function summarizePositiveAcceptance(checks, notTested) {
   const positive_acceptance = {};
   for (const group of POSITIVE_GROUPS) {
@@ -537,7 +554,7 @@ export function summarizePositiveAcceptance(checks, notTested) {
       missing: missing.map(c => ({ scenario: c.scenario, name: c.name, reason: c.reason })) };
   }
   const full_strategy_acceptance = Object.values(positive_acceptance).every(c => c.status === "observed_pass");
-  return { positive_acceptance, full_strategy_acceptance, partial: !full_strategy_acceptance };
+  return { positive_acceptance, full_strategy_acceptance, partial: !full_strategy_acceptance, ...originalRuntimeScope() };
 }
 
 export function verifyResults(records, baselineOnly = false, oracle = null) {
@@ -864,7 +881,7 @@ async function main() {
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const origin = `http://127.0.0.1:${server.address().port}`, url = `${origin}/${token}/`;
-  const report = { schema_version: 1, status: "failed", browser_sha256: await sha256(browser), chrome_dll_sha256: await sha256(dll),
+  const report = { schema_version: 1, status: "failed", ...originalRuntimeScope(), browser_sha256: await sha256(browser), chrome_dll_sha256: await sha256(dll),
     capabilities_sha256: await sha256(path.resolve(args.capabilities)), harness_sha256: await sha256(fileURLToPath(import.meta.url)),
     started_at: new Date().toISOString(), node: process.version, transport: "Raw CDP; sensor emulation only, no API replacement or automatic UA/font/media/viewport emulation",
     synthetic_media_only: true, credentials_environment_removed: true, external_pages: false, baseline_only: !!args["baseline-only"], scenarios: [],
@@ -1012,7 +1029,10 @@ async function main() {
   }
   console.log(JSON.stringify({ status: report.status, required_checks: report.checks?.length ?? 0,
     failures: report.failed?.map(c => ({ scenario: c.scenario, name: c.name })) ?? [], not_tested: report.not_tested?.length ?? 0,
-    full_strategy_acceptance: report.full_strategy_acceptance, partial: report.partial }));
+    full_strategy_acceptance: report.full_strategy_acceptance,
+    full_strategy_acceptance_scope: report.full_strategy_acceptance_scope,
+    full_original_cloak_acceptance: report.full_original_cloak_acceptance,
+    original_runtime_acceptance_status: report.original_runtime_acceptance.status, partial: report.partial }));
   return ["passed", "baseline_only"].includes(report.status) ? 0 : 1;
 }
 

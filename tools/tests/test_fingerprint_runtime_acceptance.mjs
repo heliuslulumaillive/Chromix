@@ -6,7 +6,7 @@ import zlib from "node:zlib";
 import { referenceAcceptanceProbe, validateReferenceAcceptance } from "../fingerprint_reference_acceptance.mjs";
 import { audioAcceptanceProbe, validateAudioAcceptance } from "../fingerprint_audio_acceptance.mjs";
 import { fontAcceptanceProbe, validateFontAcceptance } from "../fingerprint_font_acceptance.mjs";
-import { summarizePositiveAcceptance, verifyResults, scenarios, BASIC_SCENARIOS, POSITIVE_GROUPS } from "../verify_fingerprint_modes_runtime.mjs";
+import { summarizePositiveAcceptance, verifyResults, scenarios, BASIC_SCENARIOS, POSITIVE_GROUPS, ORIGINAL_RUNTIME_SURFACES } from "../verify_fingerprint_modes_runtime.mjs";
 
 const oracle = JSON.parse(fs.readFileSync(new URL("./fixtures/fingerprint-runtime-v1/positive-oracles.json", import.meta.url)));
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -97,6 +97,24 @@ test("a partial report cannot become full by counting an unrelated positive", ()
   assert.equal(result.partial, true);
   actual[0].passed = false;
   assert.equal(summarizePositiveAcceptance(actual, missing).positive_acceptance.cloak_audio.status, "failed");
+});
+
+test("all compatible positives leave every original browser path untested", () => {
+  const checks = POSITIVE_GROUPS.map(group => ({ scenario: "explicit-fixture", name: group,
+    acceptance_group: group, passed: true }));
+  const report = summarizePositiveAcceptance(checks, []);
+  assert.equal(report.full_strategy_acceptance, true);
+  assert.equal(report.full_strategy_acceptance_scope, "compatible-v1-covered-groups");
+  assert.equal(report.full_original_cloak_acceptance, false);
+  assert.equal(report.original_runtime_acceptance.status, "not_tested");
+  assert.equal(report.original_runtime_acceptance.source_goldens_are_runtime_acceptance, false);
+  assert.equal(Object.keys(report.original_runtime_acceptance.surfaces).length, 12);
+  assert.deepEqual(Object.keys(report.original_runtime_acceptance.surfaces), ORIGINAL_RUNTIME_SURFACES);
+  for (const value of Object.values(report.original_runtime_acceptance.surfaces)) {
+    assert.equal(value.status, "not_tested");
+    assert.deepEqual(value.evidence, []);
+    assert.ok(value.reason.length);
+  }
 });
 test("optional text candidates do not erase a genuine distinguishable hit", () => {
   const actual = [{ scenario: "cloak_text_positive", name: "text_reference_100_eligible_replacement", passed: true, acceptance_group: "cloak_text" }];

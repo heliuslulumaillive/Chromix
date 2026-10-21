@@ -1,0 +1,109 @@
+diff --git a/base/uxr_surface_reference_data.h b/base/uxr_surface_reference_data.h
+--- a/base/uxr_surface_reference_data.h
++++ b/base/uxr_surface_reference_data.h
+@@ -1694,7 +1694,25 @@
+   {"72px Arimo, serif", "mmmmmmmmmllllliii", {0x1.4c08800000000p+9, 0x1.4b47000000000p+9, 0x1.8ae0000000000p+5, 0x0.0p+0, -0x1.2900000000000p+0, 0x1.0400000000000p+6, 0x1.2000000000000p+4, 0x1.a000000000000p+5, -0x1.2000000000000p+4}},
+   {"72px Ubuntu, serif", "mmmmmmmmmllllliii", {0x1.4c08800000000p+9, 0x1.4b47000000000p+9, 0x1.8ae0000000000p+5, 0x0.0p+0, -0x1.2900000000000p+0, 0x1.0400000000000p+6, 0x1.2000000000000p+4, 0x1.a000000000000p+5, -0x1.2000000000000p+4}},
+   {"72px \"Helvetica Neue\", serif", "mmmmmmmmmllllliii", {0x1.544ed80000000p+9, 0x1.51dc280000000p+9, 0x1.9b43940000000p+5, 0x0.0p+0, -0x1.26e97a0000000p+2, 0x1.1400000000000p+6, 0x1.e000000000000p+3, 0x1.b9999a0000000p+5, -0x1.e000000000000p+3}},
+   {"72px \"Lucida Console\", serif", "mmmmmmmmmllllliii", {0x1.4c08800000000p+9, 0x1.4b47000000000p+9, 0x1.8ae0000000000p+5, 0x0.0p+0, -0x1.2900000000000p+0, 0x1.0400000000000p+6, 0x1.2000000000000p+4, 0x1.a000000000000p+5, -0x1.2000000000000p+4}},
+ };
++
++// Original Windows 155 TextMetrics reference consumer. noise=false does not
++// disable this table; raw does. Non-macOS personas use the Windows table.
++// Only the public metrics are replaced; this does not install or render fonts.
++inline const TextReferenceRow* FindOriginalCloakTextReference(
++    bool mac, std::string_view font, std::string_view text,
++    double native_width, bool raw) {
++  if (raw || (!text.empty() && !(native_width > 0)))
++    return nullptr;
++  if (mac && font == "13.7px -apple-system, \"system-ui\", \"Segoe UI\", Roboto, sans-serif")
++    font = "13.7px -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif";
++  const auto& rows = mac ? kMacTextReferences : kWindowsTextReferences;
++  for (const auto& row : rows) {
++    if (row.font == font && row.text == text)
++      return &row;
++  }
++  return nullptr;
++}
+ }  // namespace base::uxr_surface_v1
+ #endif  // BASE_UXR_SURFACE_REFERENCE_DATA_H_
+diff --git a/third_party/blink/renderer/core/html/canvas/text_metrics.cc b/third_party/blink/renderer/core/html/canvas/text_metrics.cc
+--- a/third_party/blink/renderer/core/html/canvas/text_metrics.cc
++++ b/third_party/blink/renderer/core/html/canvas/text_metrics.cc
+@@ -102,10 +102,29 @@
+   const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
+   if (modes.text.mode == base::UxrSurfaceMode::kShardX &&
+       !modes.noise_disabled && !modes.raw) {
+     width_ = base::uxr_surface_v1::TextWidth(
+         width_, static_cast<uint32_t>(modes.text.seed), modes.text.amount);
++    return;
++  }
++  if (modes.text.mode == base::UxrSurfaceMode::kCloakOriginal) {
++    const bool mac = base::uxr_surface_v1::AsciiEqual(modes.platform, "macos") ||
++                     base::uxr_surface_v1::AsciiEqual(modes.platform, "MacIntel");
++    const auto* row = base::uxr_surface_v1::FindOriginalCloakTextReference(
++        mac, serialized_font.Utf8(), text_.Utf8(), width_, modes.raw);
++    if (row) {
++      width_ = row->values[0];
++      actual_bounding_box_right_ = row->values[1];
++      actual_bounding_box_ascent_ = row->values[2];
++      actual_bounding_box_descent_ = row->values[3];
++      actual_bounding_box_left_ = row->values[4];
++      font_bounding_box_ascent_ = em_height_ascent_ = row->values[5];
++      font_bounding_box_descent_ = em_height_descent_ = row->values[6];
++      baselines_->setHanging(row->values[7]);
++      baselines_->setIdeographic(row->values[8]);
++      baselines_->setAlphabetic(0);
++    }
+     return;
+   }
+   if (modes.text.mode != base::UxrSurfaceMode::kCloak || modes.raw ||
+       (!text_.empty() && !(width_ > 0))) {
+     return;
+diff --git a/third_party/blink/renderer/modules/speech/speech_synthesis.cc b/third_party/blink/renderer/modules/speech/speech_synthesis.cc
+--- a/third_party/blink/renderer/modules/speech/speech_synthesis.cc
++++ b/third_party/blink/renderer/modules/speech/speech_synthesis.cc
+@@ -171,11 +171,42 @@
+     Vector<mojom::blink::SpeechSynthesisVoicePtr> mojom_voices) {
+   // Populate at the native asynchronous notification boundary, not inside a
+   // getter. The list, default voice and voiceschanged event stay synchronized.
+   const auto& config = base::UxrConfig::GetInstance();
+   const auto modes = config.SurfaceModes();
+-  if (modes.voices.mode == base::UxrSurfaceMode::kCloak) {
++  if (modes.voices.mode == base::UxrSurfaceMode::kCloakOriginal) {
++    std::string platform = modes.platform;
++    if (platform.empty()) {
++#if BUILDFLAG(IS_MAC)
++      platform = "macos";
++#elif BUILDFLAG(IS_WIN)
++      platform = "windows";
++#else
++      platform = "linux";
++#endif
++    }
++    const bool mac = base::uxr_surface_v1::AsciiEqual(platform, "macos") ||
++                     base::uxr_surface_v1::AsciiEqual(platform, "MacIntel");
++    const bool windows = base::uxr_surface_v1::AsciiEqual(platform, "windows") ||
++                         base::uxr_surface_v1::AsciiEqual(platform, "Win32");
++    std::string locale = config.Get("uxr-voices-mode-locale");
++    if (locale.empty())
++      locale = "en-US";
++    Vector<mojom::blink::SpeechSynthesisVoicePtr> presentation;
++    base::uxr_surface_v1::ForEachCloakVoice(
++        windows, mac, locale, config.Get("uxr-voices-mode-sapi") != "false",
++        [&](std::string_view name, std::string_view lang, bool local,
++            bool default_voice) {
++          // UTF-8 names include NBSP, diacritics and non-Latin scripts.
++          const String voice_name = String::FromUtf8(name);
++          presentation.push_back(mojom::blink::SpeechSynthesisVoice::New(
++              voice_name, voice_name, String::FromUtf8(lang), local,
++              default_voice));
++        });
++    // Public metadata mirrors the shipped table, not installed speech engines.
++    mojom_voices = std::move(presentation);
++  } else if (modes.voices.mode == base::UxrSurfaceMode::kCloak) {
+     std::string platform = modes.platform;
+     if (platform.empty()) {
+ #if BUILDFLAG(IS_MAC)
+       platform = "macos";
+ #elif BUILDFLAG(IS_WIN)

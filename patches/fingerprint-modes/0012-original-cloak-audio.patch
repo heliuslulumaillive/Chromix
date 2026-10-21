@@ -1,0 +1,1798 @@
+diff --git a/base/BUILD.gn b/base/BUILD.gn
+--- a/base/BUILD.gn
++++ b/base/BUILD.gn
+@@ -6677,6 +6677,7 @@
+       "uxr_surface_modes_test_main.cc",
+       "uxr_graphics_mode_goldens.cc",
+       "uxr_cloak_reference_goldens.cc",
++      "uxr_original_audio_goldens.cc",
+       "uxr_surface_golden_tests.cc",
+       "uxr_gpu_mode_golden_tests.cc",
+       "uxr_hardware_golden_tests.cc",
+diff --git a/base/uxr_original_audio_goldens.cc b/base/uxr_original_audio_goldens.cc
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_original_audio_goldens.cc
+@@ -0,0 +1,850 @@
++#include "base/uxr_original_audio_reference.h"
++#include <bit>
++#include <cstdint>
++#include <iostream>
++#include <limits>
++#include <vector>
++namespace {
++using namespace base::uxr_surface_v1;
++int checks=0,failures=0;
++void Check(bool value,const char* label) {
++  ++checks;if(!value){++failures;std::cerr<<label<<"\n";}
++}
++uint64_t BytesHash(std::span<const float> samples) {
++  uint64_t hash=14695981039346656037ULL;
++  for(float value:samples) {
++    const uint32_t bits=std::bit_cast<uint32_t>(value);
++    for(unsigned shift=0;shift<32;shift+=8)
++      hash=(hash^((bits>>shift)&255u))*1099511628211ULL;
++  }
++  return hash;
++}
++}  // namespace
++int RunOriginalCloakAudioGoldenTests() {
++  checks=failures=0;
++  using namespace base::uxr_surface_v1;
++
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/single/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/single/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/single/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/single/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/single/windows selection");
++Check(pcm==before,"graph/single/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/direct_destination/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/direct_destination/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/direct_destination/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/direct_destination/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/direct_destination/windows selection");
++Check(pcm==before,"graph/direct_destination/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/duplicate_destination/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/duplicate_destination/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/duplicate_destination/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/duplicate_destination/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/duplicate_destination/windows selection");
++Check(pcm==before,"graph/duplicate_destination/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/duplicate_three/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/duplicate_three/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/duplicate_three/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/duplicate_three/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/duplicate_three/windows selection");
++Check(pcm==before,"graph/duplicate_three/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,2,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/disconnect_then_reconnect/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==true,"graph/disconnect_then_reconnect/macos selection");
++Check(BytesHash(pcm)==0x72f5fd6b66ef9cfaULL,"graph/disconnect_then_reconnect/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,2,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/disconnect_then_reconnect/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==false,"graph/disconnect_then_reconnect/windows selection");
++Check(pcm==before,"graph/disconnect_then_reconnect/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,2,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/double_destination/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==true,"graph/double_destination/macos selection");
++Check(BytesHash(pcm)==0x72f5fd6b66ef9cfaULL,"graph/double_destination/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,2,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/double_destination/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==false,"graph/double_destination/windows selection");
++Check(pcm==before,"graph/double_destination/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,2,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/double_then_remove/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==true,"graph/double_then_remove/macos selection");
++Check(BytesHash(pcm)==0x72f5fd6b66ef9cfaULL,"graph/double_then_remove/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,2,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/double_then_remove/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==false,"graph/double_then_remove/windows selection");
++Check(pcm==before,"graph/double_then_remove/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/invalid_output/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/invalid_output/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/invalid_output/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/invalid_output/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/invalid_output/windows selection");
++Check(pcm==before,"graph/invalid_output/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/invalid_input/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/invalid_input/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/invalid_input/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/invalid_input/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/invalid_input/windows selection");
++Check(pcm==before,"graph/invalid_input/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/unconnected_disconnect/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/unconnected_disconnect/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/unconnected_disconnect/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/unconnected_disconnect/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/unconnected_disconnect/windows selection");
++Check(pcm==before,"graph/unconnected_disconnect/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/unused_oscillator_after/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/unused_oscillator_after/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/unused_oscillator_after/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/unused_oscillator_after/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/unused_oscillator_after/windows selection");
++Check(pcm==before,"graph/unused_oscillator_after/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/unused_compressor_after/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/unused_compressor_after/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/unused_compressor_after/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/unused_compressor_after/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/unused_compressor_after/windows selection");
++Check(pcm==before,"graph/unused_compressor_after/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,false,5000,1,0x1.5888000000000p+15f,1,0x1.b800000000000p+8f,-0x1.8000000000000p+4f,0x1.e000000000000p+4f,0x1.8000000000000p+3f,0x1.89374c0000000p-9f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/unused_nodes_before/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/unused_nodes_before/macos selection");
++Check(pcm==before,"graph/unused_nodes_before/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,false,5000,1,0x1.5888000000000p+15f,1,0x1.b800000000000p+8f,-0x1.8000000000000p+4f,0x1.e000000000000p+4f,0x1.8000000000000p+3f,0x1.89374c0000000p-9f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/unused_nodes_before/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/unused_nodes_before/windows selection");
++Check(pcm==before,"graph/unused_nodes_before/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/constructors/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/constructors/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/constructors/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/constructors/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/constructors/windows selection");
++Check(pcm==before,"graph/constructors/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,2,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/disconnected_decoy_path/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==true,"graph/disconnected_decoy_path/macos selection");
++Check(BytesHash(pcm)==0x72f5fd6b66ef9cfaULL,"graph/disconnected_decoy_path/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,2,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/disconnected_decoy_path/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==false,"graph/disconnected_decoy_path/windows selection");
++Check(pcm==before,"graph/disconnected_decoy_path/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,2,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/zero_gain_destination/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==true,"graph/zero_gain_destination/macos selection");
++Check(BytesHash(pcm)==0x72f5fd6b66ef9cfaULL,"graph/zero_gain_destination/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,2,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/zero_gain_destination/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==false,"graph/zero_gain_destination/windows selection");
++Check(pcm==before,"graph/zero_gain_destination/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,2,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/two_channels/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/two_channels/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/two_channels/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,2,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/two_channels/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/two_channels/windows selection");
++Check(pcm==before,"graph/two_channels/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.7700000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/rate_48000/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/rate_48000/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/rate_48000/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.7700000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/rate_48000/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/rate_48000/windows selection");
++Check(pcm==before,"graph/rate_48000/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,44100,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/length_44100/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/length_44100/macos selection");
++Check(BytesHash(pcm)==0x3eaed23e43c4d441ULL,"graph/length_44100/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,44100,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/length_44100/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/length_44100/windows selection");
++Check(pcm==before,"graph/length_44100/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,1000,1,0x1.5888000000000p+15f,1,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/length_1000/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/length_1000/macos selection");
++Check(BytesHash(pcm)==0x412b4ce35db63b71ULL,"graph/length_1000/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,1000,1,0x1.5888000000000p+15f,1,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/length_1000/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/length_1000/windows selection");
++Check(pcm==before,"graph/length_1000/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,1000,1,0x1.5888000000000p+15f,1,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/length_1000_duplicate/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/length_1000_duplicate/macos selection");
++Check(BytesHash(pcm)==0x412b4ce35db63b71ULL,"graph/length_1000_duplicate/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,1000,1,0x1.5888000000000p+15f,1,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/length_1000_duplicate/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/length_1000_duplicate/windows selection");
++Check(pcm==before,"graph/length_1000_duplicate/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,1000,1,0x1.5888000000000p+15f,2,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/length_1000_double/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==false,"graph/length_1000_double/macos selection");
++Check(pcm==before,"graph/length_1000_double/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,1000,1,0x1.5888000000000p+15f,2,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/length_1000_double/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==false,"graph/length_1000_double/windows selection");
++Check(pcm==before,"graph/length_1000_double/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,0,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/no_destination/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,0u);
++Check(replaced==true,"graph/no_destination/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/no_destination/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,0,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/no_destination/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,0u);
++Check(replaced==false,"graph/no_destination/windows selection");
++Check(pcm==before,"graph/no_destination/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/decoy_without_start/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/decoy_without_start/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/decoy_without_start/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/decoy_without_start/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/decoy_without_start/windows selection");
++Check(pcm==before,"graph/decoy_without_start/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9001060000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"graph/threshold_near/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"graph/threshold_near/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"graph/threshold_near/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9001060000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/threshold_near/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/threshold_near/windows selection");
++Check(pcm==before,"graph/threshold_near/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.90147a0000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/threshold_far/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/threshold_far/macos selection");
++Check(pcm==before,"graph/threshold_far/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.90147a0000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"graph/threshold_far/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"graph/threshold_far/windows selection");
++Check(pcm==before,"graph/threshold_far/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"first-node/constructors_options/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"first-node/constructors_options/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"first-node/constructors_options/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/constructors_options/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/constructors_options/windows selection");
++Check(pcm==before,"first-node/constructors_options/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,false,5000,1,0x1.5888000000000p+15f,1,0x1.b800000000000p+8f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/unused_first_oscillator/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/unused_first_oscillator/macos selection");
++Check(pcm==before,"first-node/unused_first_oscillator/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,false,5000,1,0x1.5888000000000p+15f,1,0x1.b800000000000p+8f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/unused_first_oscillator/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/unused_first_oscillator/windows selection");
++Check(pcm==before,"first-node/unused_first_oscillator/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.8000000000000p+4f,0x1.e000000000000p+4f,0x1.8000000000000p+3f,0x1.89374c0000000p-9f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/unused_first_compressor/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/unused_first_compressor/macos selection");
++Check(pcm==before,"first-node/unused_first_compressor/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.8000000000000p+4f,0x1.e000000000000p+4f,0x1.8000000000000p+3f,0x1.89374c0000000p-9f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/unused_first_compressor/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/unused_first_compressor/windows selection");
++Check(pcm==before,"first-node/unused_first_compressor/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"first-node/configured_first_unconnected_active_sine/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"first-node/configured_first_unconnected_active_sine/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"first-node/configured_first_unconnected_active_sine/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/configured_first_unconnected_active_sine/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/configured_first_unconnected_active_sine/windows selection");
++Check(pcm==before,"first-node/configured_first_unconnected_active_sine/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,false,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/first_oscillator_mutated_before_start/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/first_oscillator_mutated_before_start/macos selection");
++Check(pcm==before,"first-node/first_oscillator_mutated_before_start/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,false,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/first_oscillator_mutated_before_start/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/first_oscillator_mutated_before_start/windows selection");
++Check(pcm==before,"first-node/first_oscillator_mutated_before_start/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.4000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/first_compressor_mutated_before_start/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/first_compressor_mutated_before_start/macos selection");
++Check(pcm==before,"first-node/first_compressor_mutated_before_start/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.4000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/first_compressor_mutated_before_start/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/first_compressor_mutated_before_start/windows selection");
++Check(pcm==before,"first-node/first_compressor_mutated_before_start/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"first-node/invalid_compressor_constructor/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"first-node/invalid_compressor_constructor/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"first-node/invalid_compressor_constructor/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/invalid_compressor_constructor/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/invalid_compressor_constructor/windows selection");
++Check(pcm==before,"first-node/invalid_compressor_constructor/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"first-node/invalid_custom_oscillator_constructor/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"first-node/invalid_custom_oscillator_constructor/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"first-node/invalid_custom_oscillator_constructor/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/invalid_custom_oscillator_constructor/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/invalid_custom_oscillator_constructor/windows selection");
++Check(pcm==before,"first-node/invalid_custom_oscillator_constructor/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.387ffe0000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"first-node/frequency_minus_one_ulp/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"first-node/frequency_minus_one_ulp/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"first-node/frequency_minus_one_ulp/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.387ffe0000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/frequency_minus_one_ulp/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/frequency_minus_one_ulp/windows selection");
++Check(pcm==before,"first-node/frequency_minus_one_ulp/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880020000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"first-node/frequency_plus_one_ulp/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"first-node/frequency_plus_one_ulp/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"first-node/frequency_plus_one_ulp/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880020000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/frequency_plus_one_ulp/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/frequency_plus_one_ulp/windows selection");
++Check(pcm==before,"first-node/frequency_plus_one_ulp/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880040000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/frequency_plus_two_ulp/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/frequency_plus_two_ulp/macos selection");
++Check(pcm==before,"first-node/frequency_plus_two_ulp/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880040000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/frequency_plus_two_ulp/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/frequency_plus_two_ulp/windows selection");
++Check(pcm==before,"first-node/frequency_plus_two_ulp/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,1000,1,0x1.7700000000000p+15f,1,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/short_rate_48000/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/short_rate_48000/macos selection");
++Check(pcm==before,"first-node/short_rate_48000/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,1000,1,0x1.7700000000000p+15f,1,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/short_rate_48000/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/short_rate_48000/windows selection");
++Check(pcm==before,"first-node/short_rate_48000/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,1000,2,0x1.5888000000000p+15f,1,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/short_two_channels/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/short_two_channels/macos selection");
++Check(pcm==before,"first-node/short_two_channels/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,1000,2,0x1.5888000000000p+15f,1,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/short_two_channels/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/short_two_channels/windows selection");
++Check(pcm==before,"first-node/short_two_channels/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,1000,1,0x1.5888000000000p+15f,0,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/short_no_destination/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,0u);
++Check(replaced==false,"first-node/short_no_destination/macos selection");
++Check(pcm==before,"first-node/short_no_destination/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,1000,1,0x1.5888000000000p+15f,0,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/short_no_destination/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,0u);
++Check(replaced==false,"first-node/short_no_destination/windows selection");
++Check(pcm==before,"first-node/short_no_destination/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"first-node/start_gate_then_mutate/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"first-node/start_gate_then_mutate/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"first-node/start_gate_then_mutate/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/start_gate_then_mutate/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/start_gate_then_mutate/windows selection");
++Check(pcm==before,"first-node/start_gate_then_mutate/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,false,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/wrong_gate_then_fix/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/wrong_gate_then_fix/macos selection");
++Check(pcm==before,"first-node/wrong_gate_then_fix/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,false,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/wrong_gate_then_fix/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"first-node/wrong_gate_then_fix/windows selection");
++Check(pcm==before,"first-node/wrong_gate_then_fix/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"first-node/suspend_add_destination/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==true,"first-node/suspend_add_destination/macos selection");
++Check(BytesHash(pcm)==0x72f5fd6b66ef9cfaULL,"first-node/suspend_add_destination/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/suspend_add_destination/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==false,"first-node/suspend_add_destination/windows selection");
++Check(pcm==before,"first-node/suspend_add_destination/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,2,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"first-node/suspend_remove_destination/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==true,"first-node/suspend_remove_destination/macos selection");
++Check(BytesHash(pcm)==0x72f5fd6b66ef9cfaULL,"first-node/suspend_remove_destination/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,2,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/suspend_remove_destination/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==false,"first-node/suspend_remove_destination/windows selection");
++Check(pcm==before,"first-node/suspend_remove_destination/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,1000,1,0x1.5888000000000p+15f,1,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"first-node/short_suspend_add_destination/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==false,"first-node/short_suspend_add_destination/macos selection");
++Check(pcm==before,"first-node/short_suspend_add_destination/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,1000,1,0x1.5888000000000p+15f,1,0x1.3870fc0000000p+13f,-0x1.a000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.a36e2e0000000p-14f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"first-node/short_suspend_add_destination/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,2u);
++Check(replaced==false,"first-node/short_suspend_add_destination/windows selection");
++Check(pcm==before,"first-node/short_suspend_add_destination/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.0624de0000000p-10f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"precision/attack_float001/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"precision/attack_float001/macos selection");
++Check(pcm==before,"precision/attack_float001/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.0624de0000000p-10f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"precision/attack_float001/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"precision/attack_float001/windows selection");
++Check(pcm==before,"precision/attack_float001/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.0624dc0000000p-10f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"precision/attack_previous_float/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"precision/attack_previous_float/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"precision/attack_previous_float/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x1.0624dc0000000p-10f,0x1.0000000000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"precision/attack_previous_float/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"precision/attack_previous_float/windows selection");
++Check(pcm==before,"precision/attack_previous_float/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0106240000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==true,"precision/release_plus001/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==true,"precision/release_plus001/macos selection");
++Check(BytesHash(pcm)==0x5312c0968f603041ULL,"precision/release_plus001/macos all output bytes");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.0106240000000p-2f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"precision/release_plus001/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"precision/release_plus001/windows selection");
++Check(pcm==before,"precision/release_plus001/windows native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.fdf3b60000000p-3f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"precision/release_minus001/macos gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"precision/release_minus001/macos selection");
++Check(pcm==before,"precision/release_minus001/macos native buffer unchanged");
++}
++{ OriginalAudioGraphInputs q{false,true,true,true,5000,1,0x1.5888000000000p+15f,1,0x1.3880000000000p+13f,-0x1.9000000000000p+5f,0x1.4000000000000p+5f,0x1.8000000000000p+3f,0x0.0p+0f,0x1.fdf3b60000000p-3f};
++const bool eligible=OriginalAudioGraphEligible(q);
++Check(eligible==false,"precision/release_minus001/windows gate");
++std::vector<float> pcm(q.frames,0.125f); const auto before=pcm;
++const bool replaced=ApplyOriginalAudioReference(std::span(pcm),eligible,q.mac,1u);
++Check(replaced==false,"precision/release_minus001/windows selection");
++Check(pcm==before,"precision/release_minus001/windows native buffer unchanged");
++}
++Check(BytesHash(OriginalAudioReferenceFor(44100u,0u))==0x3eaed23e43c4d441ULL,"original row 0 bytes");
++Check(BytesHash(OriginalAudioReferenceFor(5000u,0u))==0x5312c0968f603041ULL,"original row 1 bytes");
++Check(BytesHash(OriginalAudioReferenceFor(5000u,2u))==0x72f5fd6b66ef9cfaULL,"original row 2 bytes");
++Check(BytesHash(OriginalAudioReferenceFor(1000u,0u))==0x412b4ce35db63b71ULL,"original row 3 bytes");
++
++{ OriginalAudioGraphInputs q{true,true,true,true,5000,1,44100,1,10000,-50,40,12,0,0.25f};
++  const auto valid=q;
++  q.has_first_oscillator=false;Check(!OriginalAudioGraphEligible(q),"missing oscillator");q=valid;
++  q.has_first_compressor=false;Check(!OriginalAudioGraphEligible(q),"missing compressor");q=valid;
++  for(float* value:{&q.frequency,&q.threshold,&q.knee,&q.ratio,&q.attack,&q.release}) {
++    const float saved=*value;*value=std::numeric_limits<float>::quiet_NaN();
++    Check(!OriginalAudioGraphEligible(q),"NaN gate rejects");
++    *value=std::numeric_limits<float>::infinity();Check(!OriginalAudioGraphEligible(q),"infinite gate rejects");*value=saved;
++  }
++  q.frames=1000;q.frequency=9998.123f;q.threshold=-52;q.attack=0.0001f;
++  Check(OriginalAudioGraphEligible(q),"strict 1000 baseline");
++  q.attack=std::nextafter(q.attack,1.0f);Check(!OriginalAudioGraphEligible(q),"strict 1000 single ULP rejects");
++}
++Check(OriginalAudioReferenceFor(44100,2).empty(),"no multiple row for 44100");
++Check(OriginalAudioReferenceFor(1000,2).empty(),"no multiple row for 1000");
++Check(OriginalAudioReferenceFor(4999,0).empty(),"unknown length native");
++{ std::vector<float> pcm(5000,0.5f);const auto before=pcm;
++  Check(!ApplyOriginalAudioReference(std::span(pcm),false,true,1)&&pcm==before,"false start snapshot does not mutate");
++  Check(!ApplyOriginalAudioReference(std::span(pcm),true,false,1)&&pcm==before,"non-Mac completion does not mutate"); }
++// Old compatible-v1 byte matcher and strict mono/rate guards remain independent.
++for(const auto& row:kAudioReferencePairs) {
++  std::vector<float> pcm(row.native.begin(),row.native.end());
++  Check(TryCloakAudioReference(std::span(pcm),true,1,44100.0f),"compatible original exact PCM accepted");
++  Check(BytesHash(pcm)==BytesHash(row.reference),"compatible original bytes unchanged");
++  pcm.assign(row.native.begin(),row.native.end());
++  pcm.back()=std::bit_cast<float>(std::bit_cast<uint32_t>(pcm.back())^1u);const auto damaged=pcm;
++  Check(!TryCloakAudioReference(std::span(pcm),true,1,44100.0f)&&pcm==damaged,"compatible single-bit mismatch retained");
++  pcm.assign(row.native.begin(),row.native.end());const auto native=pcm;
++  Check(!TryCloakAudioReference(std::span(pcm),true,2,44100.0f)&&pcm==native,"compatible stereo guard retained");
++  Check(!TryCloakAudioReference(std::span(pcm),true,1,48000.0f)&&pcm==native,"compatible rate guard retained");
++  Check(!TryCloakAudioReference(std::span(pcm),false,1,44100.0f)&&pcm==native,"compatible platform guard retained");
++}
++std::cout<<"{\"original_audio_checks\":"<<checks<<",\"failures\":"<<failures<<"}\n";
++return failures?1:0;
++}
+diff --git a/base/uxr_original_audio_multiple.inc b/base/uxr_original_audio_multiple.inc
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_original_audio_multiple.inc
+@@ -0,0 +1,629 @@
++// Original reference row: length=5000, destination counter >1.
++// Original buffer SHA256: 9f27ca9c5e1c76872e263f4a9307ae665abcbbe4b32335095c371783f83209ce
++inline constexpr float kOriginalMacAudio5000Multiple[] = {
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,0x0.0p+0f,
++  0x0.0p+0f,0x1.3903080000000p-1f,0x1.6c6cb00000000p-3f,-0x1.1e8bfa0000000p-1f,-0x1.5d0c980000000p-2f,0x1.d798320000000p-2f,0x1.e65f140000000p-2f,-0x1.4a1be40000000p-2f,
++  -0x1.23448c0000000p-1f,0x1.4138400000000p-3f,0x1.3ab0c40000000p-1f,0x1.68d79a0000000p-6f,-0x1.37760c0000000p-1f,-0x1.97bb700000000p-3f,0x1.19d8320000000p-1f,0x1.6ff8240000000p-2f,
++  -0x1.c8ae700000000p-2f,-0x1.f4f4400000000p-2f,0x1.36f2ee0000000p-2f,0x1.27c5a00000000p-1f,-0x1.15a6380000000p-3f,-0x1.3c06620000000p-1f,-0x1.68f2460000000p-5f,0x1.3583060000000p-1f,
++  0x1.c29a2c0000000p-3f,-0x1.14c6b00000000p-1f,-0x1.82754e0000000p-2f,0x1.b929a00000000p-2f,0x1.0177120000000p-1f,-0x1.235c480000000p-2f,-0x1.2be93e0000000p-1f,0x1.d34b980000000p-4f,
++  0x1.3cf6b40000000p-1f,0x1.0ead6c0000000p-4f,-0x1.332b6e0000000p-1f,-0x1.ecfc140000000p-3f,0x1.0f59760000000p-1f,0x1.947e840000000p-2f,-0x1.a90eda0000000p-2f,-0x1.0824120000000p-1f,
++  0x1.0f5df00000000p-2f,0x1.2fada80000000p-1f,-0x1.7a88fa0000000p-4f,-0x1.3d80900000000p-1f,-0x1.68b4ba0000000p-4f,0x1.306eca0000000p-1f,0x1.0b69060000000p-2f,-0x1.0991660000000p-1f,
++  -0x1.a60ccc0000000p-2f,0x1.9862120000000p-2f,0x1.0e7e5a0000000p-1f,-0x1.f5fb6e0000000p-3f,-0x1.3311120000000p-1f,0x1.2120d80000000p-4f,0x1.3da36a0000000p-1f,0x1.c271e80000000p-4f,
++  -0x1.2d4da20000000p-1f,-0x1.2006b40000000p-2f,0x1.036fb40000000p-1f,0x1.b7192e0000000p-2f,-0x1.87274e0000000p-2f,-0x1.1482ba0000000p-1f,0x1.cc824c0000000p-3f,0x1.3610d00000000p-1f,
++  -0x1.8e5d4a0000000p-5f,-0x1.3d5d280000000p-1f,-0x1.0de23c0000000p-3f,0x1.29c73a0000000p-1f,0x1.344ef20000000p-2f,-0x1.f9eb0e0000000p-2f,-0x1.c79d040000000p-2f,0x1.7563d80000000p-2f,
++  0x1.1a2f300000000p-1f,-0x1.a25ece0000000p-3f,-0x1.38ac960000000p-1f,0x1.b345540000000p-6f,0x1.3caf5e0000000p-1f,0x1.3a48700000000p-3f,-0x1.25de580000000p-1f,-0x1.483c5c0000000p-2f,
++  0x1.ec4c1a0000000p-2f,0x1.d7945c0000000p-2f,-0x1.631e9a0000000p-2f,-0x1.1f82840000000p-1f,0x1.779fa00000000p-3f,0x1.3ae3d80000000p-1f,-0x1.2267720000000p-8f,-0x1.3b9a3e0000000p-1f,
++  -0x1.665d340000000p-3f,0x1.21940a0000000p-1f,0x1.5bc8520000000p-2f,-0x1.de06a40000000p-2f,-0x1.e6f9c00000000p-2f,0x1.505d5c0000000p-2f,0x1.247ad20000000p-1f,-0x1.4c52460000000p-3f,
++  -0x1.3cb5b00000000p-1f,-0x1.22d3980000000p-6f,0x1.3a1dfa0000000p-1f,0x1.9211ec0000000p-3f,-0x1.1ce9840000000p-1f,-0x1.6eec4a0000000p-2f,0x1.cf1f040000000p-2f,0x1.f5c7f20000000p-2f,
++  -0x1.3d25f60000000p-2f,-0x1.29164c0000000p-1f,0x1.20848c0000000p-3f,0x1.3e216a0000000p-1f,0x1.4745be0000000p-5f,-0x1.383ad40000000p-1f,-0x1.bd58540000000p-3f,0x1.17e0260000000p-1f,
++  0x1.81a1d00000000p-2f,-0x1.bf99cc0000000p-2f,-0x1.01fcf20000000p-1f,0x1.297e660000000p-2f,0x1.2d534a0000000p-1f,-0x1.e8890a0000000p-4f,-0x1.3f26520000000p-1f,-0x1.fd0bf20000000p-5f,
++  0x1.35f1240000000p-1f,0x1.e821ea0000000p-3f,-0x1.1279320000000p-1f,-0x1.93e2500000000p-2f,0x1.af7b460000000p-2f,0x1.08c4e40000000p-1f,-0x1.156c720000000p-2f,-0x1.312faa0000000p-1f,
++  0x1.8f400c0000000p-4f,0x1.3fc31c0000000p-1f,0x1.593ffe0000000p-4f,-0x1.3340d40000000p-1f,-0x1.092fb40000000p-2f,0x1.0cb5f20000000p-1f,0x1.a5a7280000000p-2f,-0x1.9ec8360000000p-2f,
++  -0x1.0f39880000000p-1f,0x1.00f6ae0000000p-2f,0x1.34aa5a0000000p-1f,-0x1.354b3a0000000p-4f,-0x1.3ff80e0000000p-1f,-0x1.b3b35e0000000p-4f,0x1.302b520000000p-1f,0x1.1e02220000000p-2f,
++  -0x1.0698a00000000p-1f,-0x1.b6eb0c0000000p-2f,0x1.8d86760000000p-2f,0x1.1559020000000p-1f,-0x1.d8479a0000000p-3f,-0x1.37c2340000000p-1f,0x1.b590620000000p-5f,0x1.3fc50a0000000p-1f,
++  0x1.06e1ca0000000p-3f,-0x1.2cb1740000000p-1f,-0x1.3280e80000000p-2f,0x1.0022d00000000p-1f,0x1.c7a8060000000p-2f,-0x1.7bbb5e0000000p-2f,-0x1.1b20cc0000000p-1f,0x1.adf4100000000p-3f,
++  0x1.3a75c60000000p-1f,-0x1.ff54260000000p-6f,-0x1.3f29800000000p-1f,-0x1.33a9000000000p-3f,0x1.28d3ba0000000p-1f,0x1.46a4f80000000p-2f,-0x1.f2ad4c0000000p-2f,-0x1.d7d82c0000000p-2f,
++  0x1.696c000000000p-2f,0x1.208efe0000000p-1f,-0x1.8301f80000000p-3f,-0x1.3cc4360000000p-1f,0x1.2464ba0000000p-7f,0x1.3e25dc0000000p-1f,0x1.6020000000000p-3f,-0x1.2493b80000000p-1f,
++  -0x1.5a685c0000000p-2f,0x1.e46c680000000p-2f,0x1.e776260000000p-2f,-0x1.569ece0000000p-2f,-0x1.25a1e20000000p-1f,0x1.577de20000000p-3f,0x1.3eacaa0000000p-1f,0x1.b784cc0000000p-7f,
++  -0x1.3cba300000000p-1f,-0x1.8c38dc0000000p-3f,0x1.1ff2640000000p-1f,0x1.6dc3b80000000p-2f,-0x1.d586d20000000p-2f,-0x1.f67bec0000000p-2f,0x1.4358fe0000000p-2f,0x1.2a56fe0000000p-1f,
++  -0x1.2b75660000000p-3f,-0x1.402d900000000p-1f,-0x1.250aac0000000p-5f,0x1.3ae6100000000p-1f,0x1.b7e45e0000000p-3f,-0x1.1af0ce0000000p-1f,-0x1.80b0280000000p-2f,0x1.c600dc0000000p-2f,
++  0x1.0272540000000p-1f,-0x1.2fa12a0000000p-2f,-0x1.2eacf20000000p-1f,0x1.fdedd40000000p-4f,0x1.4146f00000000p-1f,0x1.dc26e60000000p-5f,-0x1.38aab80000000p-1f,-0x1.e314d60000000p-3f,
++  0x1.1590ce0000000p-1f,0x1.9328000000000p-2f,-0x1.b5e0900000000p-2f,-0x1.0955e60000000p-1f,0x1.1b7d340000000p-2f,0x1.32a2720000000p-1f,-0x1.a424820000000p-4f,-0x1.41f84a0000000p-1f,
++  -0x1.497f1e0000000p-4f,0x1.3608a60000000p-1f,0x1.06dd8c0000000p-2f,-0x1.0fd41e0000000p-1f,-0x1.a525460000000p-2f,0x1.a52a4e0000000p-2f,0x1.0fe63c0000000p-1f,-0x1.06f41a0000000p-2f,
++  -0x1.3636020000000p-1f,0x1.49a8e40000000p-4f,0x1.42413c0000000p-1f,0x1.a4a8a20000000p-4f,-0x1.33008e0000000p-1f,-0x1.1be4f00000000p-2f,0x1.09bc660000000p-1f,0x1.b6a1c20000000p-2f,
++  -0x1.93e3840000000p-2f,-0x1.1621180000000p-1f,0x1.e418520000000p-3f,0x1.3966500000000p-1f,-0x1.dd31ec0000000p-5f,-0x1.4221840000000p-1f,-0x1.ff72260000000p-4f,0x1.2f932a0000000p-1f,
++  0x1.3099a20000000p-2f,-0x1.034b940000000p-1f,-0x1.c7974e0000000p-2f,0x1.8211560000000p-2f,0x1.1c04620000000p-1f,-0x1.b998780000000p-3f,-0x1.3c32140000000p-1f,0x1.2622460000000p-5f,
++  0x1.4198d60000000p-1f,0x1.2cdeca0000000p-3f,-0x1.2bc1420000000p-1f,-0x1.44f4500000000p-2f,0x1.f905e00000000p-2f,0x1.d7ff740000000p-2f,-0x1.6fb8fa0000000p-2f,-0x1.218d2c0000000p-1f,
++  0x1.8e75f20000000p-3f,0x1.3e97240000000p-1f,-0x1.b9b1920000000p-7f,-0x1.40a6480000000p-1f,-0x1.59b45a0000000p-3f,0x1.278b840000000p-1f,0x1.58ec540000000p-2f,-0x1.eaca2a0000000p-2f,
++  -0x1.e7d3f20000000p-2f,0x1.5ce1300000000p-2f,0x1.26b9aa0000000p-1f,-0x1.62bc600000000p-3f,-0x1.4095a20000000p-1f,-0x1.27229e0000000p-7f,0x1.3f4afc0000000p-1f,0x1.862fae0000000p-3f,
++  -0x1.22f39a0000000p-1f,-0x1.6c7e2c0000000p-2f,0x1.dbe7a80000000p-2f,0x1.f711b00000000p-2f,-0x1.498e7e0000000p-2f,-0x1.2b88e00000000p-1f,0x1.367bf40000000p-3f,0x1.422cc00000000p-1f,
++  0x1.023a1a0000000p-5f,-0x1.3d87440000000p-1f,-0x1.b23fb60000000p-3f,0x1.1dfaec0000000p-1f,0x1.7fa2680000000p-2f,-0x1.cc63f00000000p-2f,-0x1.02d9380000000p-1f,0x1.35c7c20000000p-2f,
++  0x1.2ff8e40000000p-1f,-0x1.09c34c0000000p-3f,-0x1.435bc60000000p-1f,-0x1.baaad60000000p-5f,0x1.3b5b6e0000000p-1f,0x1.ddd5ea0000000p-3f,-0x1.18a31c0000000p-1f,-0x1.9252660000000p-2f,
++  0x1.bc43360000000p-2f,0x1.09d8b00000000p-1f,-0x1.2193e80000000p-2f,-0x1.3407f40000000p-1f,0x1.b93e760000000p-4f,0x1.4422300000000p-1f,0x1.396d6a0000000p-4f,-0x1.38c8100000000p-1f,
++  -0x1.04726a0000000p-2f,0x1.12ed940000000p-1f,0x1.a487b00000000p-2f,-0x1.ab8af00000000p-2f,-0x1.1084dc0000000p-1f,0x1.0cf8980000000p-2f,0x1.37b4a60000000p-1f,-0x1.5e3f800000000p-4f,
++  -0x1.447f720000000p-1f,-0x1.9548e00000000p-4f,0x1.35cd9a0000000p-1f,0x1.19ae660000000p-2f,-0x1.0cdbce0000000p-1f,-0x1.b63bc60000000p-2f,0x1.9a3f8a0000000p-2f,0x1.16dae40000000p-1f,
++  -0x1.eff84c0000000p-3f,-0x1.3afce80000000p-1f,0x1.02a5740000000p-4f,0x1.44729a0000000p-1f,0x1.f0c8fc0000000p-4f,-0x1.326c980000000p-1f,-0x1.2e97ae0000000p-2f,0x1.066f7c0000000p-1f,
++  0x1.c768d40000000p-2f,-0x1.8866e80000000p-2f,-0x1.1cd8cc0000000p-1f,0x1.c54ade0000000p-3f,0x1.3de02c0000000p-1f,-0x1.4d1fb00000000p-5f,-0x1.43fc380000000p-1f,-0x1.25e8340000000p-3f,
++  0x1.2ea65c0000000p-1f,0x1.4327a80000000p-2f,-0x1.ff56320000000p-2f,-0x1.d809600000000p-2f,0x1.76065c0000000p-2f,0x1.227cb60000000p-1f,-0x1.99f81a0000000p-3f,-0x1.405d440000000p-1f,
++  0x1.2865520000000p-6f,0x1.431c200000000p-1f,0x1.531f700000000p-3f,-0x1.2a7bca0000000p-1f,-0x1.5757880000000p-2f,0x1.f1205a0000000p-2f,0x1.e816d40000000p-2f,-0x1.6323a80000000p-2f,
++  -0x1.27c4220000000p-1f,0x1.6e0b9c0000000p-3f,0x1.4272820000000p-1f,0x1.29cfaa0000000p-8f,-0x1.41d1f80000000p-1f,-0x1.7ffbf40000000p-3f,0x1.25ede20000000p-1f,0x1.6b200c0000000p-2f,
++  -0x1.e242180000000p-2f,-0x1.f78c280000000p-2f,0x1.4fc4f60000000p-2f,0x1.2cad820000000p-1f,-0x1.4194ca0000000p-3f,-0x1.441fc80000000p-1f,-0x1.bdd5de0000000p-6f,0x1.401e880000000p-1f,
++  0x1.ac6f520000000p-3f,-0x1.20fe6e0000000p-1f,-0x1.7e7af80000000p-2f,0x1.d2c0540000000p-2f,0x1.0332500000000p-1f,-0x1.3bf0ce0000000p-2f,-0x1.31372e0000000p-1f,0x1.14a17a0000000p-3f,
++  0x1.4564680000000p-1f,0x1.98a38e0000000p-5f,-0x1.3e02440000000p-1f,-0x1.d86b020000000p-3f,0x1.1baeba0000000p-1f,0x1.9161f80000000p-2f,-0x1.c2a0560000000p-2f,-0x1.0a4d7c0000000p-1f,
++  0x1.27adea0000000p-2f,0x1.355f740000000p-1f,-0x1.ce877a0000000p-4f,-0x1.463fb40000000p-1f,-0x1.2910ba0000000p-4f,0x1.3b7dc80000000p-1f,0x1.01eea40000000p-2f,-0x1.1600d20000000p-1f,
++  -0x1.a3cddc0000000p-2f,0x1.b1e77a0000000p-2f,0x1.1114b60000000p-1f,-0x1.1301240000000p-2f,-0x1.3925160000000p-1f,0x1.7309180000000p-4f,0x1.46b14e0000000p-1f,0x1.859c060000000p-4f,
++  -0x1.38917e0000000p-1f,-0x1.175eb00000000p-2f,0x1.0ff5b60000000p-1f,0x1.b5ba480000000p-2f,-0x1.a099440000000p-2f,-0x1.17867c0000000p-1f,0x1.fbe3ca0000000p-3f,0x1.3c868e0000000p-1f,
++  -0x1.16e9680000000p-4f,-0x1.46b8b20000000p-1f,-0x1.e1d0260000000p-4f,0x1.353dde0000000p-1f,0x1.2c7cea0000000p-2f,-0x1.098f1e0000000p-1f,-0x1.c71f1a0000000p-2f,0x1.8ebaf60000000p-2f,
++  0x1.1d9f840000000p-1f,-0x1.d10cdc0000000p-3f,-0x1.3f818a0000000p-1f,0x1.748ad40000000p-5f,0x1.4655000000000p-1f,0x1.1ec7040000000p-3f,-0x1.3183b60000000p-1f,-0x1.4142260000000p-2f,
++  0x1.02cee80000000p-1f,0x1.d7f6ec0000000p-2f,-0x1.7c53560000000p-2f,-0x1.235e180000000p-1f,0x1.a58b2a0000000p-3f,0x1.4215f00000000p-1f,-0x1.74fb680000000p-6f,-0x1.4587080000000p-1f,
++  -0x1.4c5d2a0000000p-3f,0x1.2d64880000000p-1f,0x1.55a7840000000p-2f,-0x1.f76f620000000p-2f,-0x1.e83cac0000000p-2f,0x1.6967da0000000p-2f,0x1.28c0560000000p-1f,-0x1.796e200000000p-3f,
++  -0x1.4442aa0000000p-1f,-0x1.daa2e20000000p-17f,0x1.444ec40000000p-1f,0x1.799a7e0000000p-3f,-0x1.28e17e0000000p-1f,-0x1.69a6820000000p-2f,0x1.e896f00000000p-2f,0x1.f7ea620000000p-2f,
++  -0x1.55fe880000000p-2f,-0x1.2dc4320000000p-1f,0x1.4cc31e0000000p-3f,0x1.4606b40000000p-1f,0x1.76147c0000000p-6f,-0x1.42ac5c0000000p-1f,-0x1.a670120000000p-3f,0x1.23fbca0000000p-1f,
++  0x1.7d38920000000p-2f,-0x1.d9192e0000000p-2f,-0x1.037d580000000p-1f,0x1.421d600000000p-2f,0x1.3268240000000p-1f,-0x1.1f992c0000000p-3f,-0x1.4761680000000p-1f,-0x1.760b420000000p-5f,
++  0x1.40a0480000000p-1f,0x1.d2cf500000000p-3f,-0x1.1eb5200000000p-1f,-0x1.9057060000000p-2f,0x1.c8fa980000000p-2f,0x1.0ab45a0000000p-1f,-0x1.2dcb5e0000000p-2f,-0x1.36aa600000000p-1f,
++  0x1.e3fa820000000p-4f,0x1.4852200000000p-1f,0x1.186fcc0000000p-4f,-0x1.3e2ada0000000p-1f,-0x1.fea9f60000000p-3f,0x1.190e920000000p-1f,0x1.a2fac00000000p-2f,-0x1.b83ffa0000000p-2f,
++  -0x1.1197540000000p-1f,0x1.190dbc0000000p-2f,0x1.3a88c00000000p-1f,-0x1.87fe6e0000000p-4f,-0x1.48d7ee0000000p-1f,-0x1.75a6b60000000p-4f,0x1.3b4c760000000p-1f,0x1.14f83c0000000p-2f,
++  -0x1.1309f60000000p-1f,-0x1.b51de00000000p-2f,0x1.a6eed80000000p-2f,0x1.18242a0000000p-1f,-0x1.03ebca0000000p-2f,-0x1.3e02760000000p-1f,0x1.2b5bbc0000000p-4f,0x1.48f3040000000p-1f,
++  0x1.d28c400000000p-4f,-0x1.3806580000000p-1f,-0x1.2a4a7e0000000p-2f,0x1.0ca9440000000p-1f,0x1.c6babc0000000p-2f,-0x1.950cfa0000000p-2f,-0x1.1e58980000000p-1f,0x1.dcd8400000000p-3f,
++  0x1.4116440000000p-1f,-0x1.9c62820000000p-5f,-0x1.48a3100000000p-1f,-0x1.1780f60000000p-3f,0x1.3459240000000p-1f,0x1.3f448c0000000p-2f,-0x1.05ee780000000p-1f,-0x1.d7cad80000000p-2f,
++  0x1.82a0120000000p-2f,0x1.2432080000000p-1f,-0x1.b12e300000000p-3f,-0x1.43c2820000000p-1f,0x1.c27c580000000p-6f,0x1.47e7ea0000000p-1f,0x1.4571160000000p-3f,-0x1.3046380000000p-1f,
++  -0x1.53dec20000000p-2f,0x1.fdb7b20000000p-2f,0x1.e847940000000p-2f,-0x1.6facc20000000p-2f,-0x1.29af320000000p-1f,0x1.84e26c0000000p-3f,0x1.4606bc0000000p-1f,-0x1.2bc91c0000000p-8f,
++  -0x1.46c1c80000000p-1f,-0x1.730d9e0000000p-3f,0x1.2bce6a0000000p-1f,0x1.6814220000000p-2f,-0x1.eee5f20000000p-2f,-0x1.f82d640000000p-2f,0x1.5c39da0000000p-2f,0x1.2ecde80000000p-1f,
++  -0x1.5805100000000p-3f,-0x1.47e1a80000000p-1f,-0x1.2d4dac0000000p-6f,0x1.45308c0000000p-1f,0x1.a044620000000p-3f,-0x1.26f2c00000000p-1f,-0x1.7bdc160000000p-2f,0x1.df6bc00000000p-2f,
++  0x1.03ba740000000p-1f,-0x1.484ccc0000000p-2f,-0x1.338b480000000p-1f,0x1.2aa38c0000000p-3f,0x1.4951fc0000000p-1f,0x1.52e38a0000000p-5f,-0x1.43344a0000000p-1f,-0x1.cd06500000000p-3f,
++  0x1.21b49e0000000p-1f,0x1.8f305e0000000p-2f,-0x1.cf4f220000000p-2f,-0x1.0b0cc40000000p-1f,0x1.33ec1c0000000p-2f,0x1.37e6ac0000000p-1f,-0x1.f99dec0000000p-4f,-0x1.4a57d00000000p-1f,
++  -0x1.0781b20000000p-4f,0x1.40ce0e0000000p-1f,0x1.f9443c0000000p-3f,-0x1.1c162a0000000p-1f,-0x1.a20b220000000p-2f,0x1.be94f40000000p-2f,0x1.120b320000000p-1f,-0x1.1f1efa0000000p-2f,
++  -0x1.3bde7c0000000p-1f,0x1.9d29320000000p-4f,0x1.4af2ac0000000p-1f,0x1.6562d60000000p-4f,-0x1.3dfe9a0000000p-1f,-0x1.1278640000000p-2f,0x1.1619160000000p-1f,0x1.b465f60000000p-2f,
++  -0x1.ad42c40000000p-2f,-0x1.18b39a0000000p-1f,0x1.09ebfe0000000p-2f,0x1.3f71760000000p-1f,-0x1.4007aa0000000p-4f,-0x1.4b224e0000000p-1f,-0x1.c2f6a40000000p-4f,0x1.3ac6a00000000p-1f,
++  0x1.27febc0000000p-2f,-0x1.0fbf320000000p-1f,-0x1.c63a720000000p-2f,0x1.9b5d960000000p-2f,0x1.1f039a0000000p-1f,-0x1.e8b3ca0000000p-3f,-0x1.429df80000000p-1f,0x1.c4abec0000000p-5f,
++  0x1.4ae6540000000p-1f,0x1.100f440000000p-3f,-0x1.3727080000000p-1f,-0x1.3d2df20000000p-2f,0x1.090a1c0000000p-1f,0x1.d782b00000000p-2f,-0x1.88eb840000000p-2f,-0x1.24f8ea0000000p-1f,
++  0x1.bcdd6a0000000p-3f,0x1.45629a0000000p-1f,-0x1.086a880000000p-5f,-0x1.4a3e100000000p-1f,-0x1.3e5e360000000p-3f,0x1.331fd60000000p-1f,0x1.51fd6c0000000p-2f,-0x1.01fb2a0000000p-1f,
++  -0x1.e837000000000p-2f,0x1.75f0160000000p-2f,0x1.2a8fdc0000000p-1f,-0x1.9062aa0000000p-3f,-0x1.47bd3e0000000p-1f,0x1.2e0a6e0000000p-7f,0x1.4929100000000p-1f,0x1.6c57960000000p-3f,
++  -0x1.2eb2680000000p-1f,-0x1.6667060000000p-2f,0x1.f52a2a0000000p-2f,0x1.f852fe0000000p-2f,-0x1.6273100000000p-2f,-0x1.2fc8000000000p-1f,0x1.6353980000000p-3f,0x1.49ae460000000p-1f,
++  0x1.c72bca0000000p-7f,-0x1.47a8980000000p-1f,-0x1.99ecf60000000p-3f,0x1.29e0ac0000000p-1f,0x1.7a64900000000p-2f,-0x1.e5b5240000000p-2f,-0x1.03e8a60000000p-1f,0x1.4e7a980000000p-2f,
++  0x1.349f9e0000000p-1f,-0x1.35bf2e0000000p-3f,-0x1.4b351c0000000p-1f,-0x1.2f42ca0000000p-5f,0x1.45bd500000000p-1f,0x1.c7101e0000000p-3f,-0x1.24acba0000000p-1f,-0x1.8df0120000000p-2f,
++  0x1.d59d6e0000000p-2f,0x1.0b56c80000000p-1f,-0x1.3a0f7e0000000p-2f,-0x1.3915600000000p-1f,0x1.07b5780000000p-3f,0x1.4c517c0000000p-1f,0x1.ec99620000000p-5f,-0x1.4367f40000000p-1f,
++  -0x1.f3b0da0000000p-3f,0x1.1f18020000000p-1f,0x1.a1013e0000000p-2f,-0x1.c4e5e60000000p-2f,-0x1.12717e0000000p-1f,0x1.2534b80000000p-2f,0x1.3d27680000000p-1f,-0x1.b281da0000000p-4f,
++  -0x1.4d024c0000000p-1f,-0x1.54d4b00000000p-4f,0x1.40a8560000000p-1f,0x1.0fe1da0000000p-2f,-0x1.1923480000000p-1f,-0x1.b393c40000000p-2f,0x1.b394200000000p-2f,0x1.1935f60000000p-1f,
++  -0x1.0ff1b40000000p-2f,-0x1.40d39a0000000p-1f,0x1.54e48a0000000p-4f,0x1.4d466a0000000p-1f,0x1.b314640000000p-4f,-0x1.3d7e5c0000000p-1f,-0x1.259ac80000000p-2f,0x1.12cf760000000p-1f,
++  0x1.c59e680000000p-2f,-0x1.a1ab980000000p-2f,-0x1.1fa00a0000000p-1f,0x1.f497da0000000p-3f,0x1.44178a0000000p-1f,-0x1.ed63be0000000p-5f,-0x1.4d1d120000000p-1f,-0x1.0875fa0000000p-3f,
++  0x1.39eaee0000000p-1f,0x1.3afc4e0000000p-2f,-0x1.0c1f6e0000000p-1f,-0x1.d71c5c0000000p-2f,0x1.8f33680000000p-2f,0x1.25af300000000p-1f,-0x1.c8990c0000000p-3f,-0x1.46f35e0000000p-1f,
++  0x1.300e0c0000000p-5f,0x1.4c87540000000p-1f,0x1.371de40000000p-3f,-0x1.35f00a0000000p-1f,-0x1.50005a0000000p-2f,0x1.0515780000000p-1f,0x1.e807f60000000p-2f,-0x1.7c32240000000p-2f,
++  -0x1.2b61580000000p-1f,0x1.9bf3aa0000000p-3f,0x1.4966220000000p-1f,-0x1.c82d540000000p-7f,-0x1.4b85560000000p-1f,-0x1.6573dc0000000p-3f,0x1.318ef20000000p-1f,0x1.649fc40000000p-2f,
++  -0x1.fb67f40000000p-2f,-0x1.f85c1c0000000p-2f,0x1.68adf60000000p-2f,0x1.30b4bc0000000p-1f,-0x1.6eb6940000000p-3f,-0x1.4b6ef60000000p-1f,-0x1.31a1f60000000p-7f,0x1.4a17500000000p-1f,
++  0x1.9368c00000000p-3f,-0x1.2cc8e20000000p-1f,-0x1.78d3740000000p-2f,0x1.ebf9da0000000p-2f,0x1.04098c0000000p-1f,-0x1.54acd40000000p-2f,-0x1.35a7200000000p-1f,0x1.40ef7e0000000p-3f,
++  0x1.4d0ce00000000p-1f,0x1.0b0fb80000000p-5f,-0x1.483d680000000p-1f,-0x1.c0ed480000000p-3f,0x1.279ef80000000p-1f,0x1.8c94c60000000p-2f,-0x1.dbe5ea0000000p-2f,-0x1.0b93a60000000p-1f,
++  0x1.4034440000000p-2f,0x1.3a36a20000000p-1f,-0x1.12ae3e0000000p-3f,-0x1.4e3ea40000000p-1f,-0x1.c9af740000000p-5f,0x1.45f74e0000000p-1f,0x1.edf03c0000000p-3f,-0x1.2212060000000p-1f,
++  -0x1.9fdbfa0000000p-2f,0x1.cb2ee00000000p-2f,0x1.12c89c0000000p-1f,-0x1.2b4a6c0000000p-2f,-0x1.3e60ba0000000p-1f,0x1.c7ffa80000000p-4f,0x1.4f03560000000p-1f,0x1.4402240000000p-4f,
++  -0x1.4345a80000000p-1f,-0x1.0d32020000000p-2f,0x1.1c243c0000000p-1f,0x1.b2a34a0000000p-2f,-0x1.b9dbb60000000p-2f,-0x1.19a7100000000p-1f,0x1.15f6f40000000p-2f,0x1.4225000000000p-1f,
++  -0x1.69e98c0000000p-4f,-0x1.4f5b6e0000000p-1f,-0x1.a2e8600000000p-4f,0x1.4029ca0000000p-1f,0x1.231d480000000p-2f,-0x1.15d7c80000000p-1f,-0x1.c4e48c0000000p-2f,0x1.a7f1c60000000p-2f,
++  0x1.202cc20000000p-1f,-0x1.0040f00000000p-2f,-0x1.4582080000000p-1f,0x1.0b378a0000000p-4f,0x1.4f46b20000000p-1f,0x1.00b5e80000000p-3f,-0x1.3ca4da0000000p-1f,-0x1.38b2f20000000p-2f,
++  0x1.0f2ef00000000p-1f,0x1.d699600000000p-2f,-0x1.95789c0000000p-2f,-0x1.2657420000000p-1f,0x1.d45fce0000000p-3f,0x1.4876b60000000p-1f,-0x1.5820a80000000p-5f,-0x1.4ec5240000000p-1f,
++  -0x1.2fb5560000000p-3f,0x1.38b7e20000000p-1f,0x1.4dea220000000p-2f,-0x1.082b000000000p-1f,-0x1.e7bd260000000p-2f,0x1.8273360000000p-2f,0x1.2c24d20000000p-1f,-0x1.a791e80000000p-3f,
++  -0x1.4b01de0000000p-1f,0x1.32141a0000000p-6f,0x1.4dd6880000000p-1f,0x1.5e66fe0000000p-3f,-0x1.3463700000000p-1f,-0x1.62be6c0000000p-2f,0x1.00ce5e0000000p-1f,0x1.f849480000000p-2f,
++  -0x1.6ee84e0000000p-2f,-0x1.3192c20000000p-1f,0x1.7a27da0000000p-3f,0x1.4d21ba0000000p-1f,0x1.34522c0000000p-8f,-0x1.4c79fe0000000p-1f,-0x1.8cb7b00000000p-3f,0x1.2fa7ac0000000p-1f,
++  0x1.77260c0000000p-2f,-0x1.f234320000000p-2f,-0x1.041a740000000p-1f,0x1.5adc4e0000000p-2f,0x1.369e140000000p-1f,-0x1.4c2ffa0000000p-3f,-0x1.4ed4e00000000p-1f,-0x1.ccbc6e0000000p-6f,
++  0x1.4aafde0000000p-1f,0x1.ba98460000000p-3f,-0x1.2a86f40000000p-1f,-0x1.8b1b420000000p-2f,0x1.e223180000000p-2f,0x1.0bbec40000000p-1f,-0x1.46582c0000000p-2f,-0x1.3b46540000000p-1f,
++  0x1.1db94e0000000p-3f,0x1.501bd80000000p-1f,0x1.a62e720000000p-5f,-0x1.48798e0000000p-1f,-0x1.e7fb6a0000000p-3f,0x1.2503240000000p-1f,0x1.9e97880000000p-2f,-0x1.d16f280000000p-2f,
++  -0x1.130f1e0000000p-1f,0x1.3161f20000000p-2f,0x1.3f8a240000000p-1f,-0x1.dda8fa0000000p-4f,-0x1.50f66e0000000p-1f,-0x1.32e0e20000000p-4f,0x1.45d8360000000p-1f,0x1.0a69340000000p-2f,
++  -0x1.1f1e9c0000000p-1f,-0x1.b195b00000000p-2f,0x1.c01eb80000000p-2f,0x1.1a09a20000000p-1f,-0x1.1c00fc0000000p-2f,-0x1.4368600000000p-1f,0x1.7f20480000000p-4f,0x1.5164580000000p-1f,
++  0x1.926d200000000p-4f,-0x1.42cc440000000p-1f,-0x1.2087000000000p-2f,0x1.18da7c0000000p-1f,0x1.c40eaa0000000p-2f,-0x1.ae35fe0000000p-2f,-0x1.20ab200000000p-1f,0x1.063b080000000p-2f,
++  0x1.46df020000000p-1f,-0x1.1ff6c40000000p-4f,-0x1.5164b80000000p-1f,-0x1.f19ca00000000p-4f,0x1.3f561a0000000p-1f,0x1.364f840000000p-2f,-0x1.1238b40000000p-1f,-0x1.d5fbe40000000p-2f,
++  0x1.9bb9a80000000p-2f,0x1.26f1000000000p-1f,-0x1.e02e7a0000000p-3f,-0x1.49ebda0000000p-1f,0x1.808f4a0000000p-5f,0x1.50f61c0000000p-1f,0x1.2825d20000000p-3f,-0x1.3b75240000000p-1f,
++  -0x1.4bba200000000p-2f,0x1.0b39600000000p-1f,0x1.e753b80000000p-2f,-0x1.88adea0000000p-2f,-0x1.2cd7b60000000p-1f,0x1.b336d40000000p-3f,0x1.4c8d1c0000000p-1f,-0x1.80d6480000000p-6f,
++  -0x1.5018ae0000000p-1f,-0x1.572e920000000p-3f,0x1.372b840000000p-1f,0x1.60c07c0000000p-2f,-0x1.03e0560000000p-1f,-0x1.f813ac0000000p-2f,0x1.751b380000000p-2f,0x1.325ed80000000p-1f,
++  -0x1.85a0a40000000p-3f,-0x1.4ec33c0000000p-1f,-0x1.fec3da0000000p-16f,0x1.4ecd980000000p-1f,0x1.85d9ce0000000p-3f,-0x1.327b260000000p-1f,-0x1.755bf80000000p-2f,0x1.f85fe40000000p-2f,
++  0x1.041b4c0000000p-1f,-0x1.6108800000000p-2f,-0x1.3784fc0000000p-1f,0x1.577ae00000000p-3f,0x1.508e740000000p-1f,0x1.8266fa0000000p-6f,-0x1.4d16b40000000p-1f,-0x1.b41a700000000p-3f,
++  0x1.2d67460000000p-1f,0x1.8987740000000p-2f,-0x1.e859c80000000p-2f,-0x1.0bdc800000000p-1f,0x1.4c7dec0000000p-2f,0x1.3c49460000000p-1f,-0x1.28d8860000000p-3f,-0x1.51ee1e0000000p-1f,
++  -0x1.822cec0000000p-5f,0x1.4af3ce0000000p-1f,0x1.e1dd0c0000000p-3f,-0x1.27ef920000000p-1f,-0x1.9d3c200000000p-2f,0x1.d7adbc0000000p-2f,0x1.134a180000000p-1f,-0x1.377e460000000p-2f,
++  -0x1.40a8c40000000p-1f,0x1.f3808a0000000p-4f,0x1.52e0860000000p-1f,0x1.217efa0000000p-4f,-0x1.4864560000000p-1f,-0x1.078bd00000000p-2f,0x1.2215760000000p-1f,0x1.b072520000000p-2f,
++  -0x1.c661520000000p-2f,-0x1.1a60960000000p-1f,0x1.22105e0000000p-2f,0x1.44a0c00000000p-1f,-0x1.94870e0000000p-4f,-0x1.5363820000000p-1f,-0x1.81ac980000000p-4f,0x1.4566f80000000p-1f,
++  0x1.1dda640000000p-2f,-0x1.1bd8900000000p-1f,-0x1.c31f5a0000000p-2f,0x1.b476bc0000000p-2f,0x1.211c0a0000000p-1f,-0x1.0c3a560000000p-2f,-0x1.482ece0000000p-1f,0x1.34e2e80000000p-4f,
++  0x1.5376fe0000000p-1f,0x1.e17f840000000p-4f,-0x1.41fdf60000000p-1f,-0x1.33d4180000000p-2f,0x1.153cac0000000p-1f,0x1.d540b40000000p-2f,-0x1.a1f7e00000000p-2f,-0x1.277c020000000p-1f,
++  0x1.ec08de0000000p-3f,0x1.4b538a0000000p-1f,-0x1.a970f40000000p-5f,-0x1.531c1e0000000p-1f,-0x1.206dbc0000000p-3f,0x1.3e2af00000000p-1f,0x1.4971a40000000p-2f,-0x1.0e44340000000p-1f,
++  -0x1.e6d0f40000000p-2f,0x1.8eeabe0000000p-2f,0x1.2d7f1c0000000p-1f,-0x1.beeea00000000p-3f,-0x1.4e0f5e0000000p-1f,0x1.d091b00000000p-6f,0x1.5255240000000p-1f,0x1.4fd2280000000p-3f,
++  -0x1.39f1c80000000p-1f,-0x1.5eafb60000000p-2f,0x1.06f40c0000000p-1f,0x1.f7ce680000000p-2f,-0x1.7b58020000000p-2f,-0x1.3324e40000000p-1f,0x1.91347c0000000p-3f,0x1.5061940000000p-1f,
++  -0x1.3453520000000p-8f,-0x1.5121300000000p-1f,-0x1.7edcda0000000p-3f,0x1.3551700000000p-1f,0x1.7384940000000p-2f,-0x1.fe97220000000p-2f,-0x1.0417500000000p-1f,0x1.6741e80000000p-2f,
++  0x1.3869160000000p-1f,-0x1.62e6340000000p-3f,-0x1.5247480000000p-1f,-0x1.371de40000000p-6f,0x1.4f7f1c0000000p-1f,0x1.ad7d6c0000000p-3f,-0x1.304ac00000000p-1f,-0x1.87e8fc0000000p-2f,
++  0x1.ee99440000000p-2f,0x1.0bf5980000000p-1f,-0x1.52ae780000000p-2f,-0x1.3d487e0000000p-1f,0x1.340f9c0000000p-3f,0x1.53bdcc0000000p-1f,0x1.5dbd720000000p-5f,-0x1.4d6cb20000000p-1f,
++  -0x1.dba1780000000p-3f,0x1.2adc2c0000000p-1f,0x1.9bd16a0000000p-2f,-0x1.ddefbc0000000p-2f,-0x1.137d800000000p-1f,0x1.3da2240000000p-2f,0x1.41c0700000000p-1f,-0x1.04c1b00000000p-3f,
++  -0x1.54c4c20000000p-1f,-0x1.0fe1ae0000000p-4f,0x1.4aec160000000p-1f,0x1.049d8a0000000p-2f,-0x1.250a140000000p-1f,-0x1.af3b780000000p-2f,0x1.cca4920000000p-2f,0x1.1aaea00000000p-1f,
++  -0x1.28269c0000000p-2f,-0x1.45d1680000000p-1f,0x1.aa1a760000000p-4f,0x1.555d420000000p-1f,0x1.70b1420000000p-4f,-0x1.47fef60000000p-1f,-0x1.1b1e0a0000000p-2f,0x1.1ed66e0000000p-1f,
++  0x1.c221760000000p-2f,-0x1.babec20000000p-2f,-0x1.2187ea0000000p-1f,0x1.1244540000000p-2f,0x1.497cd00000000p-1f,-0x1.4a07880000000p-4f,-0x1.558afe0000000p-1f,-0x1.d134160000000p-4f,
++  0x1.44ab240000000p-1f,0x1.314ef60000000p-2f,-0x1.1848da0000000p-1f,-0x1.d4831c0000000p-2f,0x1.a849340000000p-2f,0x1.2809680000000p-1f,-0x1.f80a0c0000000p-3f,-0x1.4cc1a80000000p-1f,
++  0x1.d2d0820000000p-5f,0x1.554c0c0000000p-1f,0x1.18a1500000000p-3f,-0x1.40ed4e0000000p-1f,-0x1.4727640000000p-2f,0x1.115d080000000p-1f,0x1.e654f20000000p-2f,-0x1.9541380000000p-2f,
++  -0x1.2e2da80000000p-1f,0x1.cad2380000000p-3f,0x1.4f9bce0000000p-1f,-0x1.10a2160000000p-5f,-0x1.549e0c0000000p-1f,-0x1.4863fc0000000p-3f,0x1.3cc5960000000p-1f,0x1.5c9e840000000p-2f,
++  -0x1.0a150e0000000p-1f,-0x1.f78e6a0000000p-2f,0x1.81abf20000000p-2f,0x1.33f05a0000000p-1f,-0x1.9cef700000000p-3f,-0x1.5206f20000000p-1f,0x1.3728960000000p-7f,0x1.537ce80000000p-1f,
++  0x1.77cac80000000p-3f,-0x1.3830820000000p-1f,-0x1.71a6ee0000000p-2f,0x1.026f9e0000000p-1f,0x1.04122a0000000p-1f,-0x1.6d8d1a0000000p-2f,-0x1.394ddc0000000p-1f,0x1.6e705e0000000p-3f,
++  0x1.54029e0000000p-1f,0x1.d5c1e80000000p-7f,-0x1.51eb6c0000000p-1f,-0x1.a6c88e0000000p-3f,0x1.3333960000000p-1f,0x1.863f0e0000000p-2f,-0x1.f4e6d20000000p-2f,-0x1.0c0bae0000000p-1f,
++  0x1.58ef600000000p-2f,0x1.3e47920000000p-1f,-0x1.3f69880000000p-3f,-0x1.5590840000000p-1f,-0x1.38d2e00000000p-5f,0x1.4feb800000000p-1f,0x1.d54e160000000p-3f,-0x1.2dd0f80000000p-1f,
++  -0x1.9a614c0000000p-2f,0x1.e4476a0000000p-2f,0x1.13b2c60000000p-1f,-0x1.43dcae0000000p-2f,-0x1.42df380000000p-1f,0x1.0fec000000000p-3f,0x1.56b5180000000p-1f,0x1.fc21740000000p-5f,
++  -0x1.4d84120000000p-1f,-0x1.01ac080000000p-2f,0x1.28113c0000000p-1f,0x1.ae0f100000000p-2f,-0x1.d30d2e0000000p-2f,-0x1.1b08240000000p-1f,0x1.2e5ce40000000p-2f,0x1.4713f60000000p-1f,
++  -0x1.c00a480000000p-4f,-0x1.576da20000000p-1f,-0x1.5f8f920000000p-4f,0x1.4ab0880000000p-1f,0x1.1867a80000000p-2f,-0x1.21eebe0000000p-1f,-0x1.c139220000000p-2f,0x1.c1336a0000000p-2f,
++  0x1.2204a80000000p-1f,-0x1.1871c60000000p-2f,-0x1.4ae00a0000000p-1f,0x1.5f80ec0000000p-4f,0x1.57b6ce0000000p-1f,0x1.c0c5460000000p-4f,-0x1.47705a0000000p-1f,-0x1.2ed1ee0000000p-2f,
++  0x1.1b6aba0000000p-1f,0x1.d3d7b80000000p-2f,-0x1.aebe160000000p-2f,-0x1.28a3b60000000p-1f,0x1.021f560000000p-2f,0x1.4e3e9c0000000p-1f,-0x1.fcb5d00000000p-5f,-0x1.578b700000000p-1f,
++  -0x1.10c5ac0000000p-3f,0x1.43be6c0000000p-1f,0x1.44dc880000000p-2f,-0x1.1482e80000000p-1f,-0x1.e5de4c0000000p-2f,0x1.9baedc0000000p-2f,0x1.2ee1240000000p-1f,-0x1.d6dafc0000000p-3f,
++  -0x1.512eca0000000p-1f,0x1.3971d20000000p-5f,0x1.56ee600000000p-1f,0x1.40e1a40000000p-3f,-0x1.3fa12a0000000p-1f,-0x1.5a86200000000p-2f,0x1.0d3e740000000p-1f,0x1.f74dca0000000p-2f,
++  -0x1.8812480000000p-2f,-0x1.34be7e0000000p-1f,0x1.a8cc980000000p-3f,0x1.53b2800000000p-1f,-0x1.d5f0b60000000p-7f,-0x1.55e1960000000p-1f,-0x1.70a7b00000000p-3f,0x1.3b1a600000000p-1f,
++  0x1.6fc81e0000000p-2f,-0x1.05a0780000000p-1f,-0x1.0411320000000p-1f,0x1.73f0820000000p-2f,0x1.3a3bf40000000p-1f,-0x1.7a25ca0000000p-3f,-0x1.55cbf20000000p-1f,-0x1.3bb7c40000000p-7f,
++  0x1.54697a0000000p-1f,0x1.a00bb40000000p-3f,-0x1.3630620000000p-1f,-0x1.849ef20000000p-2f,0x1.fb5b8e0000000p-2f,0x1.0c2cd40000000p-1f,-0x1.5f52b80000000p-2f,-0x1.3f57ce0000000p-1f,
++  0x1.4af5100000000p-3f,0x1.5778f40000000p-1f,0x1.13827a0000000p-5f,-0x1.5282f00000000p-1f,-0x1.ceff480000000p-3f,0x1.30df2c0000000p-1f,0x1.9901340000000p-2f,-0x1.eac9de0000000p-2f,
++  -0x1.13f50e0000000p-1f,0x1.4a38aa0000000p-2f,0x1.440e2a0000000p-1f,-0x1.1b42e80000000p-3f,-0x1.58b7020000000p-1f,-0x1.d81b320000000p-5f,0x1.502d860000000p-1f,0x1.fd70040000000p-3f,
++  -0x1.2b28560000000p-1f,-0x1.ace6300000000p-2f,0x1.d9908a0000000p-2f,0x1.1b65ee0000000p-1f,-0x1.34a9320000000p-2f,-0x1.485b7a0000000p-1f,0x1.d63eae0000000p-4f,0x1.5983460000000p-1f,
++  0x1.4e34500000000p-4f,-0x1.4d67180000000p-1f,-0x1.15a4a00000000p-2f,0x1.250b600000000p-1f,0x1.c044dc0000000p-2f,-0x1.c7b3480000000p-2f,-0x1.227bf00000000p-1f,0x1.1eaad40000000p-2f,
++  0x1.4c3e780000000p-1f,-0x1.75374e0000000p-4f,-0x1.59dea00000000p-1f,-0x1.b015ae0000000p-4f,0x1.4a32c60000000p-1f,0x1.2c3ff60000000p-2f,-0x1.1e8cca0000000p-1f,-0x1.d319740000000p-2f,
++  0x1.b53a380000000p-2f,0x1.29364a0000000p-1f,-0x1.0846ec0000000p-2f,-0x1.4fb6ee0000000p-1f,0x1.138db00000000p-4f,0x1.59c99c0000000p-1f,0x1.08c8100000000p-3f,-0x1.4691da0000000p-1f,
++  -0x1.4283480000000p-2f,0x1.17aea80000000p-1f,0x1.e55e380000000p-2f,-0x1.a22ca40000000p-2f,-0x1.2f93860000000p-1f,0x1.e309340000000p-3f,0x1.52c4c60000000p-1f,-0x1.62ca500000000p-5f,
++  -0x1.59459e0000000p-1f,-0x1.3944700000000p-3f,0x1.4286fc0000000p-1f,0x1.5868240000000p-2f,-0x1.1073f80000000p-1f,-0x1.f70e6e0000000p-2f,0x1.8e90bc0000000p-2f,0x1.3591820000000p-1f,
++  -0x1.b4d6140000000p-3f,-0x1.55664e0000000p-1f,0x1.3b6c000000000p-6f,0x1.5851840000000p-1f,0x1.696f420000000p-3f,-0x1.3e11aa0000000p-1f,-0x1.6de5e40000000p-2f,0x1.08dda60000000p-1f,
++  0x1.0411420000000p-1f,-0x1.7a6b6a0000000p-2f,-0x1.3b2d3a0000000p-1f,0x1.8601680000000p-3f,0x1.5799ee0000000p-1f,0x1.3f02520000000p-8f,-0x1.56ed080000000p-1f,-0x1.99388e0000000p-3f,
++  0x1.3932c80000000p-1f,0x1.82f4f80000000p-2f,-0x1.00edde0000000p-1f,-0x1.0c49b60000000p-1f,0x1.65c1700000000p-2f,0x1.4063cc0000000p-1f,-0x1.569a900000000p-3f,-0x1.595d700000000p-1f,
++  -0x1.db7ad00000000p-6f,0x1.5516e40000000p-1f,0x1.c88d4c0000000p-3f,-0x1.33eab60000000p-1f,-0x1.978d760000000p-2f,0x1.f14cb20000000p-2f,0x1.142d580000000p-1f,-0x1.509a160000000p-2f,
++  -0x1.4533ac0000000p-1f,0x1.26b02c0000000p-3f,0x1.5ab0ee0000000p-1f,0x1.b39b660000000p-5f,-0x1.52d0f20000000p-1f,-0x1.f760c80000000p-3f,0x1.2e3c6a0000000p-1f,0x1.aba9ae0000000p-2f,
++  -0x1.e015420000000p-2f,-0x1.1bba4a0000000p-1f,0x1.3afcc40000000p-2f,0x1.499bba0000000p-1f,-0x1.eca56a0000000p-4f,-0x1.5b94220000000p-1f,-0x1.3c9cf20000000p-4f,0x1.501bda0000000p-1f,
++  0x1.12d1dc0000000p-2f,-0x1.2829be0000000p-1f,-0x1.bf42ea0000000p-2f,0x1.ce3b000000000p-2f,0x1.22ee640000000p-1f,-0x1.24f1080000000p-2f,-0x1.4d9acc0000000p-1f,0x1.8b23500000000p-4f,
++  0x1.5c07620000000p-1f,0x1.9f28a40000000p-4f,-0x1.4cf9700000000p-1f,-0x1.29a29c0000000p-2f,0x1.21b5160000000p-1f,0x1.d2527a0000000p-2f,-0x1.bbc5540000000p-2f,-0x1.29c6c60000000p-1f,
++  0x1.0e7e2a0000000p-2f,0x1.512f1c0000000p-1f,-0x1.2900ce0000000p-4f,-0x1.5c09ce0000000p-1f,-0x1.00ad500000000p-3f,0x1.4969500000000p-1f,0x1.401d0a0000000p-2f,-0x1.1adf5c0000000p-1f,
++  -0x1.e4d3340000000p-2f,0x1.a8b6b80000000p-2f,0x1.3041820000000p-1f,-0x1.ef528a0000000p-3f,-0x1.5457760000000p-1f,0x1.8c9f7a0000000p-5f,0x1.5b9b0e0000000p-1f,0x1.3186ea0000000p-3f,
++  -0x1.456c6a0000000p-1f,-0x1.56380e0000000p-2f,0x1.13aa780000000p-1f,0x1.f6bcdc0000000p-2f,-0x1.95154a0000000p-2f,-0x1.365af40000000p-1f,0x1.c0f39c0000000p-3f,0x1.5711140000000p-1f,
++  -0x1.8cd6b00000000p-6f,-0x1.5ab9680000000p-1f,-0x1.620ebe0000000p-3f,0x1.4102760000000p-1f,0x1.6beb3a0000000p-2f,-0x1.0c180e0000000p-1f,-0x1.0404180000000p-1f,0x1.80e6d80000000p-2f,
++  0x1.3c112c0000000p-1f,-0x1.91effa0000000p-3f,-0x1.595bae0000000p-1f,-0x1.65b68c0000000p-15f,0x1.5966760000000p-1f,0x1.9236540000000p-3f,-0x1.3c2e840000000p-1f,-0x1.8130b80000000p-2f,
++  0x1.042b5c0000000p-1f,0x1.0c58ac0000000p-1f,-0x1.6c33d20000000p-2f,-0x1.4162e40000000p-1f,0x1.6256200000000p-3f,0x1.5b36ec0000000p-1f,0x1.8ed28a0000000p-6f,-0x1.57a2b00000000p-1f,
++  -0x1.c1eef20000000p-3f,0x1.36f1dc0000000p-1f,0x1.9601440000000p-2f,-0x1.f7ce380000000p-2f,-0x1.1459880000000p-1f,0x1.5702400000000p-2f,0x1.464e860000000p-1f,-0x1.3237180000000p-3f,
++  -0x1.5ca26e0000000p-1f,-0x1.8e88740000000p-5f,0x1.556f120000000p-1f,0x1.f128aa0000000p-3f,-0x1.314e7e0000000p-1f,-0x1.aa568e0000000p-2f,0x1.e69bf60000000p-2f,0x1.1c04000000000p-1f,
++  -0x1.4159080000000p-2f,-0x1.4ad2280000000p-1f,0x1.01a1860000000p-3f,0x1.5d9d400000000p-1f,0x1.2abb2a0000000p-4f,-0x1.52cb940000000p-1f,-0x1.0fe9900000000p-2f,0x1.2b45760000000p-1f,
++  0x1.be29780000000p-2f,-0x1.d4c4c20000000p-2f,-0x1.2355060000000p-1f,0x1.2b3e660000000p-2f,0x1.4eec140000000p-1f,-0x1.a14ac40000000p-4f,-0x1.5e26c40000000p-1f,-0x1.8df9060000000p-4f,
++  0x1.4fb8ac0000000p-1f,0x1.26ef660000000p-2f,-0x1.24d8a40000000p-1f,-0x1.d172b00000000p-2f,0x1.c24d060000000p-2f,0x1.2a49bc0000000p-1f,-0x1.14b9940000000p-2f,-0x1.5299e20000000p-1f,
++  0x1.3ea0da0000000p-4f,0x1.5e3d9c0000000p-1f,0x1.f0d9b80000000p-4f,-0x1.4c366e0000000p-1f,-0x1.3d9df20000000p-2f,0x1.1e094a0000000p-1f,0x1.e42aec0000000p-2f,-0x1.af3af20000000p-2f,
++  -0x1.30dfc40000000p-1f,0x1.fba2bc0000000p-3f,0x1.55dab40000000p-1f,-0x1.b6d3100000000p-5f,-0x1.5de2740000000p-1f,-0x1.29a0080000000p-3f,0x1.4846be0000000p-1f,0x1.53edf20000000p-2f,
++  -0x1.16da360000000p-1f,-0x1.f64cfc0000000p-2f,0x1.9b95220000000p-2f,0x1.3715380000000p-1f,-0x1.cd1b500000000p-3f,-0x1.58ada00000000p-1f,0x1.df10660000000p-6f,0x1.5d155e0000000p-1f,
++  0x1.5a85e40000000p-3f,-0x1.43ead40000000p-1f,-0x1.69d8000000000p-2f,0x1.0f4d8a0000000p-1f,0x1.03e9720000000p-1f,-0x1.8761f20000000p-2f,-0x1.3ce7cc0000000p-1f,0x1.9deb120000000p-3f,
++  0x1.5b11500000000p-1f,-0x1.3d65440000000p-8f,-0x1.5bd6580000000p-1f,-0x1.8b0b460000000p-3f,0x1.3f23e00000000p-1f,0x1.7f53900000000p-2f,-0x1.07662a0000000p-1f,-0x1.0c5ab20000000p-1f,
++  0x1.72a8240000000p-2f,0x1.4255340000000p-1f,-0x1.6e25520000000p-3f,-0x1.5d05180000000p-1f,-0x1.4129c00000000p-6f,0x1.5a25ae0000000p-1f,0x1.bb25a80000000p-3f,-0x1.39f30e0000000p-1f,
++  -0x1.945c1a0000000p-2f,0x1.fe4b220000000p-2f,0x1.1478780000000p-1f,-0x1.5d6ce80000000p-2f,-0x1.475c420000000p-1f,0x1.3dd2dc0000000p-3f,0x1.5e88360000000p-1f,0x1.68f0f20000000p-5f,
++  -0x1.5803be0000000p-1f,-0x1.eac27c0000000p-3f,0x1.345a060000000p-1f,0x1.a8e93e0000000p-2f,-0x1.ed1d4c0000000p-2f,-0x1.1c3f3e0000000p-1f,0x1.47b7700000000p-2f,0x1.4bfa860000000p-1f,
++  -0x1.0d05e40000000p-3f,-0x1.5f997a0000000p-1f,-0x1.1891ce0000000p-4f,0x1.55709c0000000p-1f,0x1.0ce8f00000000p-2f,-0x1.2e5a4e0000000p-1f,-0x1.bcf39a0000000p-2f,0x1.db47dc0000000p-2f,
++  0x1.23ac780000000p-1f,-0x1.318f100000000p-2f,-0x1.502e6e0000000p-1f,0x1.b79bfc0000000p-4f,0x1.6038ca0000000p-1f,0x1.7c76320000000p-4f,-0x1.526d920000000p-1f,-0x1.2422760000000p-2f,
++  0x1.27f5de0000000p-1f,0x1.d075140000000p-2f,-0x1.c8d1660000000p-2f,-0x1.2abdc40000000p-1f,0x1.1afa4e0000000p-2f,0x1.53f6b60000000p-1f,-0x1.5479440000000p-4f,-0x1.6065c80000000p-1f,
++  -0x1.e007120000000p-4f,0x1.4efb340000000p-1f,0x1.3b057c0000000p-2f,-0x1.212e9e0000000p-1f,-0x1.e366fc0000000p-2f,0x1.b5bebe0000000p-2f,0x1.3170560000000p-1f,-0x1.0400d60000000p-2f,
++  -0x1.5751960000000p-1f,0x1.e1802e0000000p-5f,0x1.601fe60000000p-1f,0x1.2190ae0000000p-3f,-0x1.4b1a560000000p-1f,-0x1.518ad40000000p-2f,0x1.1a06920000000p-1f,0x1.f5c2ce0000000p-2f,
++  -0x1.a216460000000p-2f,-0x1.37c2260000000p-1f,0x1.d953da0000000p-3f,0x1.5a3e1e0000000p-1f,-0x1.19246c0000000p-5f,-0x1.5f677c0000000p-1f,-0x1.52d2780000000p-3f,0x1.46cc3e0000000p-1f,
++  0x1.67ab2c0000000p-2f,-0x1.1280220000000p-1f,-0x1.03c12a0000000p-1f,0x1.8dde0e0000000p-2f,0x1.3db1020000000p-1f,-0x1.a9fa8a0000000p-3f,-0x1.5cbb180000000p-1f,0x1.4077f60000000p-7f,
++  0x1.5e3c5a0000000p-1f,0x1.83b8900000000p-3f,-0x1.42120e0000000p-1f,-0x1.7d5ec80000000p-2f,0x1.0a9d060000000p-1f,0x1.0c4f7a0000000p-1f,-0x1.791c660000000p-2f,-0x1.433a360000000p-1f,
++  0x1.7a02b00000000p-3f,0x1.5ec6d00000000p-1f,0x1.e52c580000000p-7f,-0x1.5c9e100000000p-1f,-0x1.b4332c0000000p-3f,0x1.3cecb40000000p-1f,0x1.929dc00000000p-2f,-0x1.025ff60000000p-1f,
++  -0x1.1489940000000p-1f,0x1.63d7b80000000p-2f,0x1.485c2e0000000p-1f,-0x1.497e100000000p-3f,-0x1.60613a0000000p-1f,-0x1.42daf60000000p-5f,0x1.5a8dd40000000p-1f,0x1.e4322a0000000p-3f,
++  -0x1.375e5c0000000p-1f,-0x1.a761f40000000p-2f,0x1.f397720000000p-2f,0x1.1c6cde0000000p-1f,-0x1.4e17360000000p-2f,-0x1.4d154a0000000p-1f,0x1.187bd80000000p-3f,0x1.61899a0000000p-1f,
++  0x1.0627b40000000p-4f,-0x1.580c2e0000000p-1f,-0x1.09d2e00000000p-2f,0x1.3168aa0000000p-1f,0x1.bba4a00000000p-2f,-0x1.e1c66e0000000p-2f,-0x1.23f6ba0000000p-1f,0x1.37e1ca0000000p-2f,
++  0x1.5163fa0000000p-1f,-0x1.ce1d940000000p-4f,-0x1.623fba0000000p-1f,-0x1.6aad840000000p-4f,0x1.551a0c0000000p-1f,0x1.213e2c0000000p-2f,-0x1.2b0e040000000p-1f,-0x1.cf5dd40000000p-2f,
++  0x1.cf52bc0000000p-2f,0x1.2b243e0000000p-1f,-0x1.2140380000000p-2f,-0x1.5546ca0000000p-1f,0x1.6a81b20000000p-4f,0x1.6282ee0000000p-1f,0x1.cee9200000000p-4f,-0x1.51b7b60000000p-1f,
++  -0x1.3855ac0000000p-2f,0x1.244f420000000p-1f,0x1.e288f20000000p-2f,-0x1.bc40920000000p-2f,-0x1.31f3a80000000p-1f,0x1.0a36880000000p-2f,0x1.58bc200000000p-1f,-0x1.064a480000000p-4f,
++  -0x1.6252f40000000p-1f,-0x1.1959f20000000p-3f,0x1.4de6160000000p-1f,0x1.4f10220000000p-2f,-0x1.1d2e9c0000000p-1f,-0x1.f51db00000000p-2f,0x1.a895fc0000000p-2f,0x1.38619a0000000p-1f,
++  -0x1.e59a000000000p-3f,-0x1.5bc1da0000000p-1f,0x1.432df00000000p-5f,0x1.61aeca0000000p-1f,0x1.4af6520000000p-3f,-0x1.49a5d40000000p-1f,-0x1.6565880000000p-2f,0x1.15ae060000000p-1f,
++  0x1.038b040000000p-1f,-0x1.9459b40000000p-2f,-0x1.3e6c160000000p-1f,0x1.b616a20000000p-3f,0x1.5e57940000000p-1f,-0x1.e452d40000000p-7f,-0x1.60975c0000000p-1f,-0x1.7c39f40000000p-3f,
++  0x1.44f8a60000000p-1f,0x1.7b4ef40000000p-2f,-0x1.0dd0760000000p-1f,-0x1.0c36240000000p-1f,0x1.7f91e80000000p-2f,0x1.44114c0000000p-1f,-0x1.85f3f60000000p-3f,-0x1.607c540000000p-1f,
++  -0x1.45edd00000000p-7f,0x1.5f0cdc0000000p-1f,0x1.ad13a80000000p-3f,-0x1.3fe0120000000p-1f,-0x1.90c57e0000000p-2f,0x1.05980e0000000p-1f,0x1.148d260000000p-1f,-0x1.6a45aa0000000p-2f,
++  -0x1.494f260000000p-1f,0x1.553fc20000000p-3f,0x1.622f0a0000000p-1f,0x1.1c3c280000000p-5f,-0x1.5d0f700000000p-1f,-0x1.dd74320000000p-3f,0x1.3a5d660000000p-1f,0x1.a5c1920000000p-2f,
++  -0x1.fa0edc0000000p-2f,-0x1.1c8d440000000p-1f,0x1.547b8a0000000p-2f,0x1.4e23d20000000p-1f,-0x1.240a520000000p-3f,-0x1.636f2c0000000p-1f,-0x1.e6eb2a0000000p-5f,0x1.5a9fba0000000p-1f,
++  0x1.06a5e60000000p-2f,-0x1.3472840000000p-1f,-0x1.ba3c240000000p-2f,0x1.e8427e0000000p-2f,0x1.2433f40000000p-1f,-0x1.3e3ad60000000p-2f,-0x1.528d9e0000000p-1f,0x1.e4c5ec0000000p-4f,
++  0x1.643c460000000p-1f,0x1.58a3480000000p-4f,-0x1.57be6c0000000p-1f,-0x1.1e45540000000p-2f,0x1.2e20ec0000000p-1f,0x1.ce2e780000000p-2f,-0x1.d5d0de0000000p-2f,-0x1.2b7e540000000p-1f,
++  0x1.2789a60000000p-2f,0x1.568ace0000000p-1f,-0x1.80b64c0000000p-4f,-0x1.6495980000000p-1f,-0x1.bd88120000000p-4f,0x1.546c080000000p-1f,0x1.358ff80000000p-2f,-0x1.276aac0000000p-1f,
++  -0x1.e191f80000000p-2f,0x1.c2bf3e0000000p-2f,0x1.3269e40000000p-1f,-0x1.10701c0000000p-2f,-0x1.5a1a140000000p-1f,0x1.1c03340000000p-4f,0x1.647b100000000p-1f,0x1.1100920000000p-3f,
++  -0x1.50a9c00000000p-1f,-0x1.4c7ed20000000p-2f,0x1.2051e40000000p-1f,0x1.f4602a0000000p-2f,-0x1.af14060000000p-2f,-0x1.38f4760000000p-1f,0x1.f1ead60000000p-3f,0x1.5d3a320000000p-1f,
++  -0x1.6d9c660000000p-5f,-0x1.63ec760000000p-1f,-0x1.42f69a0000000p-3f,0x1.4c784a0000000p-1f,0x1.6309d80000000p-2f,-0x1.18d86c0000000p-1f,-0x1.0348d60000000p-1f,0x1.9ad4560000000p-2f,
++  0x1.3f1ada0000000p-1f,-0x1.c243c20000000p-3f,-0x1.5fe8e80000000p-1f,0x1.44f52a0000000p-6f,0x1.62e9520000000p-1f,0x1.7492e40000000p-3f,-0x1.47d9060000000p-1f,-0x1.7927fa0000000p-2f,
++  0x1.1100d60000000p-1f,0x1.0c0ff80000000p-1f,-0x1.8608f20000000p-2f,-0x1.44dbda0000000p-1f,0x1.91f5c20000000p-3f,0x1.6226500000000p-1f,0x1.498dbe0000000p-8f,-0x1.6172620000000p-1f,
++  -0x1.a5cb440000000p-3f,0x1.42cd280000000p-1f,0x1.8ed4f40000000p-2f,-0x1.08cd600000000p-1f,-0x1.1483c40000000p-1f,0x1.70b5c00000000p-2f,0x1.4a356e0000000p-1f,-0x1.6114020000000p-3f,
++  -0x1.63f17c0000000p-1f,-0x1.ea360e0000000p-6f,0x1.5f87f00000000p-1f,0x1.d68c140000000p-3f,-0x1.3d567c0000000p-1f,-0x1.a408120000000p-2f,0x1.00409c0000000p-1f,0x1.1ca0a80000000p-1f,
++  -0x1.5ae2c80000000p-2f,-0x1.4f25820000000p-1f,0x1.2fac5a0000000p-3f,0x1.6549880000000p-1f,0x1.c100d00000000p-5f,-0x1.5d2a820000000p-1f,-0x1.0363460000000p-2f,0x1.3776960000000p-1f,
++  0x1.b8baa80000000p-2f,-0x1.eebb1c0000000p-2f,-0x1.2464100000000p-1f,0x1.4497020000000p-2f,0x1.53aa920000000p-1f,-0x1.fba1b20000000p-4f,-0x1.662dea0000000p-1f,-0x1.464f5c0000000p-4f,
++  0x1.5a5aa80000000p-1f,0x1.1b34bc0000000p-2f,-0x1.312f520000000p-1f,-0x1.cce5560000000p-2f,0x1.dc4d3a0000000p-2f,0x1.2bcb340000000p-1f,-0x1.2dd9820000000p-2f,-0x1.57c2c60000000p-1f,
++  0x1.971eba0000000p-4f,0x1.669e080000000p-1f,0x1.abd9ee0000000p-4f,-0x1.5718fc0000000p-1f,-0x1.32b2fc0000000p-2f,0x1.2a82240000000p-1f,0x1.e081300000000p-2f,-0x1.c93d6a0000000p-2f,
++  -0x1.32d32a0000000p-1f,0x1.16b0fc0000000p-2f,0x1.5b6c0a0000000p-1f,-0x1.31f3ee0000000p-4f,-0x1.66991a0000000p-1f,-0x1.087eaa0000000p-3f,0x1.5366040000000p-1f,0x1.49d5540000000p-2f,
++  -0x1.23712c0000000p-1f,-0x1.f3875c0000000p-2f,0x1.b591480000000p-2f,0x1.3979ba0000000p-1f,-0x1.fe4a9c0000000p-3f,-0x1.5ea59e0000000p-1f,0x1.987d780000000p-5f,0x1.661f980000000p-1f,
++  0x1.3acd1e0000000p-3f,-0x1.4f43760000000p-1f,-0x1.6095420000000p-2f,0x1.1bfeee0000000p-1f,0x1.02f92c0000000p-1f,-0x1.a1503c0000000p-2f,-0x1.3fbce00000000p-1f,0x1.ce7c440000000p-3f,
++  0x1.616e740000000p-1f,-0x1.9890d00000000p-6f,-0x1.65316a0000000p-1f,-0x1.6cc72a0000000p-3f,0x1.4ab22e0000000p-1f,0x1.76ea540000000p-2f,-0x1.142d800000000p-1f,-0x1.0bdd8e0000000p-1f,
++  0x1.8c7f620000000p-2f,0x1.459a100000000p-1f,-0x1.9e05d80000000p-3f,-0x1.63c5160000000p-1f,-0x1.f4e3260000000p-15f,0x1.63ce8c0000000p-1f,0x1.9e5cd40000000p-3f,-0x1.45b3b00000000p-1f,
++  -0x1.8ccdc80000000p-2f,0x1.0bff5a0000000p-1f,0x1.146e1c0000000p-1f,-0x1.77267e0000000p-2f,-0x1.4b0f880000000p-1f,0x1.6cf7420000000p-3f,0x1.65a8f20000000p-1f,0x1.9b135a0000000p-6f,
++  -0x1.61f7880000000p-1f,-0x1.cf7d8a0000000p-3f,0x1.40496e0000000p-1f,0x1.a237f80000000p-2f,-0x1.03771e0000000p-1f,-0x1.1ca7d20000000p-1f,0x1.614b720000000p-2f,0x1.501b5e0000000p-1f,
++  -0x1.3b60260000000p-3f,-0x1.6719160000000p-1f,-0x1.9aa0ea0000000p-5f,0x1.5faca20000000p-1f,0x1.000cb80000000p-2f,-0x1.3a74fc0000000p-1f,-0x1.b721dc0000000p-2f,0x1.f52e7c0000000p-2f,
++  0x1.2487680000000p-1f,-0x1.4af6d00000000p-2f,-0x1.54bb2c0000000p-1f,0x1.0952f80000000p-3f,0x1.6814b00000000p-1f,0x1.33b79a0000000p-4f,-0x1.5cee7a0000000p-1f,-0x1.180e940000000p-2f,
++  0x1.34383c0000000p-1f,0x1.cb83120000000p-2f,-0x1.e2c6360000000p-2f,-0x1.2c0b000000000p-1f,0x1.342d200000000p-2f,0x1.58ee120000000p-1f,-0x1.adb5980000000p-4f,-0x1.689ba40000000p-1f,
++  -0x1.99e5bc0000000p-4f,0x1.59bdc60000000p-1f,0x1.2fbf8c0000000p-2f,-0x1.2d94e60000000p-1f,-0x1.df579c0000000p-2f,0x1.cfb96e0000000p-2f,0x1.332fd80000000p-1f,-0x1.1cf7540000000p-2f,
++  -0x1.5cb2560000000p-1f,0x1.48150a0000000p-4f,0x1.68ad700000000p-1f,0x1.ffb22c0000000p-4f,-0x1.561b520000000p-1f,-0x1.4715f80000000p-2f,0x1.268cc00000000p-1f,0x1.f296d40000000p-2f,
++  -0x1.bc0e8e0000000p-2f,-0x1.39f3040000000p-1f,0x1.055bc00000000p-2f,0x1.6006400000000p-1f,-0x1.c3ca000000000p-5f,-0x1.6849b20000000p-1f,-0x1.327f120000000p-3f,0x1.52081e0000000p-1f,
++  0x1.5e0a660000000p-2f,-0x1.1f22560000000p-1f,-0x1.029d720000000p-1f,0x1.a7cc2e0000000p-2f,0x1.4052900000000p-1f,-0x1.dac6800000000p-3f,-0x1.62e8f60000000p-1f,0x1.ed1b8c0000000p-6f,
++  0x1.6770b00000000p-1f,0x1.64d2c80000000p-3f,-0x1.4d85a00000000p-1f,-0x1.7495300000000p-2f,0x1.1757c60000000p-1f,0x1.0b9ea80000000p-1f,-0x1.92f8c40000000p-2f,-0x1.464c3e0000000p-1f,
++  0x1.aa28ca0000000p-3f,0x1.6559140000000p-1f,-0x1.45bc880000000p-8f,-0x1.66222c0000000p-1f,-0x1.96c4d80000000p-3f,0x1.48948c0000000p-1f,0x1.8aae420000000p-2f,-0x1.0f2f2a0000000p-1f,
++  -0x1.144b860000000p-1f,0x1.7d99d80000000p-2f,0x1.4bdd0c0000000p-1f,-0x1.78ef1c0000000p-3f,-0x1.6755000000000p-1f,-0x1.4ae8c40000000p-6f,0x1.645e080000000p-1f,0x1.c842ce0000000p-3f,
++  -0x1.4336600000000p-1f,-0x1.a04e360000000p-2f,0x1.06ab160000000p-1f,0x1.1ca1600000000p-1f,-0x1.67b72a0000000p-2f,-0x1.5103c00000000p-1f,0x1.4728680000000p-3f,0x1.68dcca0000000p-1f,
++  0x1.73b4840000000p-5f,-0x1.6225640000000p-1f,-0x1.f93eaa0000000p-3f,0x1.3d6d360000000p-1f,0x1.b56ea40000000p-2f,-0x1.fb9d940000000p-2f,-0x1.249db20000000p-1f,0x1.5157ce0000000p-2f,
++  0x1.55bee80000000p-1f,-0x1.14e6f80000000p-3f,-0x1.69f0000000000p-1f,-0x1.20e1c80000000p-4f,0x1.5f79140000000p-1f,0x1.14d3a80000000p-2f,-0x1.373b2e0000000p-1f,-0x1.ca08b00000000p-2f,
++  0x1.e939fe0000000p-2f,0x1.2c3e0c0000000p-1f,-0x1.3a83640000000p-2f,-0x1.5a0d060000000p-1f,0x1.c471f80000000p-4f,0x1.6a8e460000000p-1f,0x1.87b0da0000000p-4f,-0x1.5c59e20000000p-1f,
++  -0x1.2cb7260000000p-2f,0x1.30a1ee0000000p-1f,0x1.de15860000000p-2f,-0x1.d631560000000p-2f,-0x1.337fa40000000p-1f,0x1.2340a00000000p-2f,0x1.5dec500000000p-1f,-0x1.5e610a0000000p-4f,
++  -0x1.6ab6f40000000p-1f,-0x1.ee24b20000000p-4f,0x1.58c84c0000000p-1f,0x1.44410c0000000p-2f,-0x1.29a34c0000000p-1f,-0x1.f18de40000000p-2f,0x1.c288a40000000p-2f,0x1.3a5fca0000000p-1f,
++  -0x1.0b96c80000000p-2f,-0x1.615ace0000000p-1f,0x1.ef6e6e0000000p-5f,0x1.6a69280000000p-1f,0x1.2a0dde0000000p-3f,-0x1.54c49a0000000p-1f,-0x1.5b69440000000p-2f,0x1.2240740000000p-1f,
++  0x1.0234640000000p-1f,-0x1.ae46200000000p-2f,-0x1.40da860000000p-1f,0x1.e71bbc0000000p-3f,0x1.64564c0000000p-1f,-0x1.213ea60000000p-5f,-0x1.69a48c0000000p-1f,-0x1.5cb6a20000000p-3f,
++  0x1.50503c0000000p-1f,0x1.7226860000000p-2f,-0x1.1a7cce0000000p-1f,-0x1.0b51680000000p-1f,0x1.996f5c0000000p-2f,0x1.46ef780000000p-1f,-0x1.b658360000000p-3f,-0x1.66df160000000p-1f,
++  0x1.496f980000000p-7f,0x1.686a040000000p-1f,0x1.8f02a00000000p-3f,-0x1.4b6ccc0000000p-1f,-0x1.8874e60000000p-2f,0x1.125a2e0000000p-1f,0x1.141ac40000000p-1f,-0x1.840c700000000p-2f,
++  -0x1.4c9c4e0000000p-1f,0x1.84f55c0000000p-3f,0x1.68f4420000000p-1f,0x1.f3985e0000000p-7f,-0x1.66ba140000000p-1f,-0x1.c0de5c0000000p-3f,0x1.461c1a0000000p-1f,0x1.9e4b880000000p-2f,
++  -0x1.09dbd60000000p-1f,-0x1.1c8da20000000p-1f,0x1.6e23fc0000000p-2f,0x1.51df5e0000000p-1f,-0x1.53033e0000000p-3f,-0x1.6a95240000000p-1f,-0x1.4c4bfe0000000p-5f,0x1.6495340000000p-1f,
++  0x1.f23a320000000p-3f,-0x1.405fcc0000000p-1f,-0x1.b3a3880000000p-2f,0x1.01041e0000000p-1f,0x1.24a70e0000000p-1f,-0x1.57bd4a0000000p-2f,-0x1.56b66e0000000p-1f,0x1.2091660000000p-3f,
++  0x1.6bc0ac0000000p-1f,0x1.0dc5880000000p-4f,-0x1.61fba20000000p-1f,-0x1.1182860000000p-2f,0x1.3a39340000000p-1f,0x1.c875180000000p-2f,-0x1.efab8a0000000p-2f,-0x1.2c64200000000p-1f,
++  0x1.40de760000000p-2f,0x1.5b1f920000000p-1f,-0x1.db5fb60000000p-4f,-0x1.6c75e80000000p-1f,-0x1.7532b00000000p-4f,0x1.5eed660000000p-1f,0x1.2997040000000p-2f,-0x1.33a9980000000p-1f,
++  -0x1.dcb8560000000p-2f,0x1.dca59e0000000p-2f,0x1.33c12e0000000p-1f,-0x1.298ebe0000000p-2f,-0x1.5f18440000000p-1f,0x1.74dda20000000p-4f,0x1.6cb3fe0000000p-1f,0x1.dc47c00000000p-4f,
++  -0x1.5b6b620000000p-1f,-0x1.4152780000000p-2f,0x1.2cb33c0000000p-1f,0x1.f0670c0000000p-2f,-0x1.c8fe1a0000000p-2f,-0x1.3abc9e0000000p-1f,0x1.11d5d60000000p-2f,0x1.62a0400000000p-1f,
++  -0x1.0dbf420000000p-4f,-0x1.6c7bb00000000p-1f,-0x1.2173820000000p-3f,0x1.5777440000000p-1f,0x1.58adc20000000p-2f,-0x1.2558ec0000000p-1f,-0x1.01bdae0000000p-1f,0x1.b4bb4a0000000p-2f,
++  0x1.41543a0000000p-1f,-0x1.f378a40000000p-3f,-0x1.65b6300000000p-1f,0x1.4c4bb60000000p-5f,0x1.6bccda0000000p-1f,0x1.5475da0000000p-3f,-0x1.53123a0000000p-1f,-0x1.6fa1020000000p-2f,
++  0x1.1d9cb20000000p-1f,0x1.0af7580000000p-1f,-0x1.9fe3c20000000p-2f,-0x1.4785c00000000p-1f,0x1.c291e40000000p-3f,0x1.6859140000000p-1f,-0x1.f197400000000p-7f,-0x1.6aa7aa0000000p-1f,
++  -0x1.871c020000000p-3f,0x1.4e3d960000000p-1f,0x1.8624e60000000p-2f,-0x1.1581300000000p-1f,-0x1.13dd840000000p-1f,0x1.8a7dec0000000p-2f,0x1.4d4f020000000p-1f,-0x1.9108dc0000000p-3f,
++  -0x1.6a87b80000000p-1f,-0x1.4fbd640000000p-7f,0x1.690c260000000p-1f,0x1.b953a60000000p-3f,-0x1.48fa940000000p-1f,-0x1.9c31700000000p-2f,0x1.0d086e0000000p-1f,0x1.1c6cf40000000p-1f,
++  -0x1.7490520000000p-2f,-0x1.52ad9a0000000p-1f,0x1.5eeb0c0000000p-3f,0x1.6c40ca0000000p-1f,0x1.2471d00000000p-5f,-0x1.66fa1a0000000p-1f,-0x1.eb0cde0000000p-3f,0x1.434a0a0000000p-1f,
++  0x1.b1bd860000000p-2f,-0x1.04352c0000000p-1f,-0x1.24a1980000000p-1f,0x1.5e22420000000p-2f,0x1.579edc0000000p-1f,-0x1.2c4cda0000000p-3f,-0x1.6d833a0000000p-1f,-0x1.f4cf100000000p-5f,
++  0x1.64723a0000000p-1f,0x1.0e199a0000000p-2f,-0x1.3d2e800000000p-1f,-0x1.c6c4860000000p-2f,0x1.f613700000000p-2f,0x1.2c7a300000000p-1f,-0x1.47398a0000000p-2f,-0x1.5c22300000000p-1f,
++  0x1.f271340000000p-4f,0x1.6e4f4c0000000p-1f,0x1.626e000000000p-4f,-0x1.6175740000000p-1f,-0x1.265ef20000000p-2f,0x1.36a9700000000p-1f,0x1.db3efa0000000p-2f,-0x1.e3135a0000000p-2f,
++  -0x1.33f3da0000000p-1f,0x1.2fded00000000p-2f,0x1.60361a0000000p-1f,-0x1.8b861c0000000p-4f,-0x1.6ea4ce0000000p-1f,-0x1.ca241e0000000p-4f,0x1.5e050a0000000p-1f,0x1.3e4cbc0000000p-2f,
++  -0x1.2fbd900000000p-1f,-0x1.ef263c0000000p-2f,0x1.cf6ffa0000000p-2f,0x1.3b0c3c0000000p-1f,-0x1.1819b40000000p-2f,-0x1.63d9280000000p-1f,0x1.23f5a20000000p-4f,0x1.6e83700000000p-1f,
++  0x1.18b4a60000000p-3f,-0x1.5a21e60000000p-1f,-0x1.55dba40000000p-2f,0x1.286ca00000000p-1f,0x1.0139c20000000p-1f,-0x1.bb2fba0000000p-2f,-0x1.41c0b00000000p-1f,0x1.ffe2ee0000000p-3f,
++  0x1.6709d80000000p-1f,-0x1.77ca9c0000000p-5f,-0x1.6deaec0000000p-1f,-0x1.4c0d4e0000000p-3f,0x1.55cce00000000p-1f,0x1.6d03160000000p-2f,-0x1.20b8dc0000000p-1f,-0x1.0a8ffe0000000p-1f,
++  0x1.a657da0000000p-2f,0x1.480e740000000p-1f,-0x1.cedaf00000000p-3f,-0x1.69c6220000000p-1f,0x1.4dc7f60000000p-6f,0x1.6cda300000000p-1f,0x1.7f0a6c0000000p-3f,-0x1.51060a0000000p-1f,
++  -0x1.83ba660000000p-2f,0x1.18a33c0000000p-1f,0x1.13915a0000000p-1f,-0x1.90ee280000000p-2f,-0x1.4df24a0000000p-1f,0x1.9d2a540000000p-3f,0x1.6c0c840000000p-1f,0x1.53d1b80000000p-8f,
++  -0x1.6b51960000000p-1f,-0x1.b19ae40000000p-3f,0x1.4bcf660000000p-1f,0x1.99fa620000000p-2f,-0x1.102f8e0000000p-1f,-0x1.1c3bf80000000p-1f,0x1.7afa880000000p-2f,0x1.536b600000000p-1f,
++  -0x1.6ae2fe0000000p-3f,-0x1.6ddd3e0000000p-1f,-0x1.f826da0000000p-6f,0x1.6952560000000p-1f,0x1.e3af480000000p-3f,-0x1.462b540000000p-1f,-0x1.afbcbe0000000p-2f,0x1.0760a40000000p-1f,
++  0x1.248d3c0000000p-1f,-0x1.6485320000000p-2f,-0x1.5878520000000p-1f,0x1.3815920000000p-3f,0x1.6f383e0000000p-1f,0x1.cd9d240000000p-5f,-0x1.66ddb40000000p-1f,-0x1.0a9bf00000000p-2f,
++  0x1.401c0c0000000p-1f,0x1.c4fafe0000000p-2f,-0x1.fc73f20000000p-2f,-0x1.2c82e60000000p-1f,0x1.4d94e20000000p-2f,0x1.5d17ba0000000p-1f,-0x1.04d24a0000000p-3f,-0x1.701cd60000000p-1f,
++  -0x1.4f6d700000000p-4f,0x1.63f3f80000000p-1f,0x1.2312300000000p-2f,-0x1.39a2f80000000p-1f,-0x1.d9ad5a0000000p-2f,0x1.e97b200000000p-2f,0x1.3419920000000p-1f,-0x1.3630e80000000p-2f,
++  -0x1.61472a0000000p-1f,0x1.a252120000000p-4f,0x1.708a0e0000000p-1f,0x1.b7c0880000000p-4f,-0x1.6095820000000p-1f,-0x1.3b31e20000000p-2f,0x1.32c18e0000000p-1f,0x1.edcc6c0000000p-2f,
++  -0x1.d5dc860000000p-2f,-0x1.3b4e3e0000000p-1f,0x1.1e5f4e0000000p-2f,0x1.6504620000000p-1f,-0x1.3a540e0000000p-4f,-0x1.707e820000000p-1f,-0x1.0fd3ba0000000p-3f,0x1.5cc1ec0000000p-1f,
++  0x1.52f0860000000p-2f,-0x1.2b792c0000000p-1f,-0x1.00a7140000000p-1f,0x1.c19d9a0000000p-2f,0x1.421d220000000p-1f,-0x1.06295c0000000p-2f,-0x1.684d740000000p-1f,0x1.a3a5540000000p-5f,
++  0x1.6ffa580000000p-1f,0x1.437bbe0000000p-3f,-0x1.587b7c0000000p-1f,-0x1.6a499c0000000p-2f,0x1.23cc8c0000000p-1f,0x1.0a18260000000p-1f,-0x1.acc4ec0000000p-2f,-0x1.4885d60000000p-1f,
++  0x1.db29980000000p-3f,0x1.6b22aa0000000p-1f,-0x1.a395ba0000000p-6f,-0x1.6efe640000000p-1f,-0x1.76cef20000000p-3f,0x1.53c3700000000p-1f,0x1.81349a0000000p-2f,-0x1.1bbea60000000p-1f,
++  -0x1.13360a0000000p-1f,0x1.975a900000000p-2f,0x1.4e86920000000p-1f,-0x1.a958080000000p-3f,-0x1.6d84040000000p-1f,-0x1.2ea4600000000p-14f,0x1.6d8c840000000p-1f,0x1.a9ba7c0000000p-3f,
++  -0x1.4e9d820000000p-1f,-0x1.97ac780000000p-2f,0x1.1353d40000000p-1f,0x1.1bff4a0000000p-1f,-0x1.8167360000000p-2f,-0x1.541e520000000p-1f,0x1.76ec800000000p-3f,0x1.6f70d40000000p-1f,
++  0x1.a682740000000p-6f,-0x1.6ba46a0000000p-1f,-0x1.dc2e920000000p-3f,0x1.49098c0000000p-1f,0x1.ada7f60000000p-2f,-0x1.0a8cd60000000p-1f,-0x1.246f580000000p-1f,0x1.6aef2a0000000p-2f,
++  0x1.5949960000000p-1f,-0x1.43f70a0000000p-3f,-0x1.70e6e20000000p-1f,-0x1.a5ecfc0000000p-5f,0x1.6945680000000p-1f,0x1.070c200000000p-2f,-0x1.4308b20000000p-1f,-0x1.c31f020000000p-2f,
++  0x1.016bce0000000p-1f,0x1.2c82a60000000p-1f,-0x1.53f8ae0000000p-2f,-0x1.5e051e0000000p-1f,0x1.1084be0000000p-3f,0x1.71e3cc0000000p-1f,0x1.3c2a6e0000000p-4f,-0x1.666e000000000p-1f,
++  -0x1.1fb2480000000p-2f,0x1.3c9a5a0000000p-1f,0x1.d806f20000000p-2f,-0x1.efe49a0000000p-2f,-0x1.3434ec0000000p-1f,0x1.3c89fe0000000p-2f,0x1.624ea20000000p-1f,-0x1.b951be0000000p-4f,
++  -0x1.72675c0000000p-1f,-0x1.a518600000000p-4f,0x1.63203e0000000p-1f,0x1.3802200000000p-2f,-0x1.35c2ca0000000p-1f,-0x1.ec5c040000000p-2f,0x1.dc49e60000000p-2f,0x1.3b856e0000000p-1f,
++  -0x1.24acdc0000000p-2f,-0x1.6626520000000p-1f,0x1.50e6d60000000p-4f,0x1.7272be0000000p-1f,0x1.06cffa0000000p-3f,-0x1.5f5e1a0000000p-1f,-0x1.4ff4d00000000p-2f,0x1.2e84560000000p-1f,
++  0x1.000c320000000p-1f,-0x1.c80f700000000p-2f,-0x1.4272e40000000p-1f,0x1.0c6a1a0000000p-2f,0x1.698cea0000000p-1f,-0x1.cfe0e00000000p-5f,-0x1.7208900000000p-1f,-0x1.3ad1c60000000p-3f,
++  0x1.5b2be00000000p-1f,0x1.6785a80000000p-2f,-0x1.26e4d20000000p-1f,-0x1.099d380000000p-1f,0x1.b33e080000000p-2f,0x1.48fcb00000000p-1f,-0x1.e793d80000000p-3f,-0x1.6c81880000000p-1f,
++  0x1.fa270e0000000p-6f,0x1.7127a20000000p-1f,0x1.6e807e0000000p-3f,-0x1.56884a0000000p-1f,-0x1.7eaaa20000000p-2f,0x1.1ee2c60000000p-1f,0x1.12db520000000p-1f,-0x1.9dd8620000000p-2f,
++  -0x1.4f1dea0000000p-1f,0x1.b5a3dc0000000p-3f,0x1.6f00b00000000p-1f,-0x1.4d77ae0000000p-8f,-0x1.6fce600000000p-1f,-0x1.a1c9ca0000000p-3f,0x1.5173960000000p-1f,0x1.955acc0000000p-2f,
++  -0x1.16805e0000000p-1f,-0x1.1bc2980000000p-1f,0x1.87e3040000000p-2f,0x1.54d2cc0000000p-1f,-0x1.83121e0000000p-3f,-0x1.7107040000000p-1f,-0x1.541eb80000000p-6f,0x1.6dfa060000000p-1f,
++  0x1.d496340000000p-3f,-0x1.4bec520000000p-1f,-0x1.ab895e0000000p-2f,0x1.0dbe3c0000000p-1f,0x1.244da20000000p-1f,-0x1.7165520000000p-2f,-0x1.5a181a0000000p-1f,0x1.4ff23c0000000p-3f,
++  0x1.7294340000000p-1f,0x1.7dccd60000000p-5f,-0x1.6bad2a0000000p-1f,-0x1.036e460000000p-2f,0x1.45f6bc0000000p-1f,0x1.c1352a0000000p-2f,-0x1.04a1200000000p-1f,-0x1.2c7ccc0000000p-1f,
++  0x1.5a66be0000000p-2f,0x1.5eeee40000000p-1f,-0x1.1c51c00000000p-3f,-0x1.73a97c0000000p-1f,-0x1.28b0cc0000000p-4f,0x1.68e9260000000p-1f,0x1.1c45620000000p-2f,-0x1.3f95500000000p-1f,
++  -0x1.d656f20000000p-2f,0x1.f65a2c0000000p-2f,0x1.344e720000000p-1f,-0x1.42f27a0000000p-2f,-0x1.6357fa0000000p-1f,0x1.d08c860000000p-4f,0x1.744a5c0000000p-1f,0x1.9240900000000p-4f,
++  -0x1.65b3fc0000000p-1f,-0x1.34cce60000000p-2f,0x1.38cf320000000p-1f,0x1.eaee360000000p-2f,-0x1.e2cf520000000p-2f,-0x1.3bc2640000000p-1f,0x1.2b101a0000000p-2f,0x1.6752740000000p-1f,
++  -0x1.67bd860000000p-4f,-0x1.7474c60000000p-1f,-0x1.fb76ac0000000p-4f,0x1.620a8c0000000p-1f,0x1.4cf9740000000p-2f,-0x1.31a11e0000000p-1f,-0x1.feed980000000p-2f,0x1.cea0920000000p-2f,
++  0x1.42d27a0000000p-1f,-0x1.12c4760000000p-2f,-0x1.6ad98e0000000p-1f,0x1.fca78a0000000p-5f,0x1.74262c0000000p-1f,0x1.3216080000000p-3f,-0x1.5decb00000000p-1f,-0x1.64c2520000000p-2f,
++  0x1.2a0c820000000p-1f,0x1.0926320000000p-1f,-0x1.b9d24a0000000p-2f,-0x1.497a500000000p-1f,0x1.f428f40000000p-3f,0x1.6de8fa0000000p-1f,-0x1.28dfe20000000p-5f,-0x1.735a7e0000000p-1f,
++  -0x1.661c860000000p-3f,0x1.5956e80000000p-1f,0x1.7c1a380000000p-2f,-0x1.22108e0000000p-1f,-0x1.127f9c0000000p-1f,0x1.a468980000000p-2f,0x1.4fb63c0000000p-1f,-0x1.c212b60000000p-3f,
++  -0x1.7080080000000p-1f,0x1.51bc580000000p-7f,0x1.7214520000000p-1f,0x1.99be320000000p-3f,-0x1.544eec0000000p-1f,-0x1.92fe3c0000000p-2f,0x1.19b38a0000000p-1f,0x1.1b82d80000000p-1f,
++  -0x1.8e6f200000000p-2f,-0x1.55870c0000000p-1f,0x1.8f589c0000000p-3f,0x1.72a0320000000p-1f,0x1.00c68c0000000p-6f,-0x1.7055740000000p-1f,-0x1.ccec7c0000000p-3f,0x1.4ed6a00000000p-1f,
++  0x1.a967900000000p-2f,-0x1.10f92e0000000p-1f,-0x1.242e3c0000000p-1f,0x1.77ef220000000p-2f,0x1.5aed700000000p-1f,-0x1.5c10220000000p-3f,-0x1.744c820000000p-1f,-0x1.5555fa0000000p-5f,
++  0x1.6e23360000000p-1f,0x1.ff9ce00000000p-3f,-0x1.48f52a0000000p-1f,-0x1.bf54ae0000000p-2f,0x1.07e6820000000p-1f,0x1.2c81260000000p-1f,-0x1.60f0ee0000000p-2f,-0x1.5fe8080000000p-1f,
++  0x1.2845bc0000000p-3f,0x1.7582980000000p-1f,0x1.1514740000000p-4f,-0x1.6b7a4a0000000p-1f,-0x1.18dd700000000p-2f,0x1.42a69e0000000p-1f,0x1.d4b88a0000000p-2f,-0x1.fcf5f60000000p-2f,
++  -0x1.3475840000000p-1f,0x1.4977b20000000p-2f,0x1.6472280000000p-1f,-0x1.e812960000000p-4f,-0x1.763fba0000000p-1f,-0x1.7f4a000000000p-4f,0x1.685a320000000p-1f,0x1.3199dc0000000p-2f,
++  -0x1.3bec820000000p-1f,-0x1.e98a7a0000000p-2f,0x1.e970780000000p-2f,0x1.3c07000000000p-1f,-0x1.3189060000000p-2f,-0x1.68877e0000000p-1f,0x1.7ecfb80000000p-4f,0x1.7680180000000p-1f,
++  0x1.e91f9e0000000p-4f,-0x1.64c0120000000p-1f,-0x1.49f6e00000000p-2f,0x1.34c6300000000p-1f,0x1.fdbed00000000p-2f,-0x1.d542240000000p-2f,-0x1.4331880000000p-1f,0x1.192e060000000p-2f,
++  0x1.6c26ea0000000p-1f,-0x1.14f2760000000p-4f,-0x1.76458c0000000p-1f,-0x1.293f2a0000000p-3f,0x1.60b0100000000p-1f,0x1.61f1e80000000p-2f,-0x1.2d38a80000000p-1f,-0x1.08aa8c0000000p-1f,
++  0x1.c073000000000p-2f,0x1.49f5c60000000p-1f,-0x1.006e020000000p-2f,-0x1.6f51440000000p-1f,0x1.551e740000000p-5f,0x1.7591340000000p-1f,0x1.5da0020000000p-3f,-0x1.5c2c140000000p-1f,
++  -0x1.7982a20000000p-2f,0x1.25471e0000000p-1f,0x1.1223ba0000000p-1f,-0x1.ab0cc00000000p-2f,-0x1.5052700000000p-1f,0x1.cea6be0000000p-3f,0x1.72077e0000000p-1f,-0x1.fe99740000000p-7f,
++  -0x1.7465ee0000000p-1f,-0x1.91a3fc0000000p-3f,0x1.5738620000000p-1f,0x1.90a39c0000000p-2f,-0x1.1cf59e0000000p-1f,-0x1.1b48d00000000p-1f,0x1.95162e0000000p-2f,0x1.5645ac0000000p-1f,
++  -0x1.9bcb3a0000000p-3f,-0x1.74478c0000000p-1f,-0x1.592a380000000p-7f,0x1.72c1cc0000000p-1f,0x1.c538980000000p-3f,-0x1.51d3760000000p-1f,-0x1.a74ade0000000p-2f,0x1.14447a0000000p-1f,
++  0x1.24152a0000000p-1f,-0x1.7e94840000000p-2f,-0x1.5bcbc20000000p-1f,0x1.6857a40000000p-3f,0x1.760f600000000p-1f,0x1.2c68a20000000p-5f,-0x1.70a4840000000p-1f,-0x1.f84bf40000000p-3f,
++  0x1.4bfe780000000p-1f,0x1.bd70060000000p-2f,-0x1.0b36220000000p-1f,-0x1.2c852e0000000p-1f,0x1.678d4a0000000p-2f,0x1.60e1f80000000p-1f,-0x1.345bd20000000p-3f,-0x1.775d2e0000000p-1f,
++  -0x1.0139ba0000000p-4f,0x1.6e0d6e0000000p-1f,0x1.1565e80000000p-2f,-0x1.45ba8e0000000p-1f,-0x1.d30b220000000p-2f,0x1.01cd120000000p-1f,0x1.3495e60000000p-1f,-0x1.5008ea0000000p-2f,
++  -0x1.6586b60000000p-1f,0x1.ffd21c0000000p-4f,0x1.78311a0000000p-1f,0x1.6c0f1e0000000p-4f,-0x1.6afe420000000p-1f,-0x1.2e545e0000000p-2f,0x1.3f0a640000000p-1f,0x1.e815b80000000p-2f,
++  -0x1.f019b20000000p-2f,-0x1.3c44fc0000000p-1f,0x1.380e7c0000000p-2f,0x1.69b8cc0000000p-1f,-0x1.96216a0000000p-4f,-0x1.788af40000000p-1f,-0x1.d695280000000p-4f,0x1.6777fe0000000p-1f,
++  0x1.46e9680000000p-2f,-0x1.37f0600000000p-1f,-0x1.fc895c0000000p-2f,0x1.dbf1560000000p-2f,0x1.4390300000000p-1f,-0x1.1fa6f40000000p-2f,-0x1.6d77140000000p-1f,0x1.2bc8000000000p-4f,
++  0x1.786ae60000000p-1f,0x1.2053460000000p-3f,-0x1.637c1e0000000p-1f,-0x1.5f1d140000000p-2f,0x1.306ea20000000p-1f,0x1.082f8e0000000p-1f,-0x1.c727900000000p-2f,-0x1.4a74f00000000p-1f,
++  0x1.06d8f40000000p-2f,0x1.70c0080000000p-1f,-0x1.81cf9c0000000p-5f,-0x1.77d08a0000000p-1f,-0x1.5511d00000000p-3f,0x1.5f0b480000000p-1f,0x1.76e74a0000000p-2f,-0x1.2887760000000p-1f,
++  -0x1.11c8300000000p-1f,0x1.b1c28a0000000p-2f,0x1.50f0d00000000p-1f,-0x1.db5aa20000000p-3f,-0x1.73924a0000000p-1f,0x1.568c980000000p-6f,0x1.76bbca0000000p-1f,0x1.8973380000000p-3f,
++  -0x1.5a26a00000000p-1f,-0x1.8e3f8c0000000p-2f,0x1.203c900000000p-1f,0x1.1b0aa00000000p-1f,-0x1.9bc8240000000p-2f,-0x1.5700840000000p-1f,0x1.a854c40000000p-3f,0x1.75eb840000000p-1f,
++  0x1.5dd4600000000p-8f,-0x1.752b800000000p-1f,-0x1.bd63380000000p-3f,0x1.54cea60000000p-1f,0x1.a51bee0000000p-2f,-0x1.1790ca0000000p-1f,-0x1.23f3100000000p-1f,0x1.8540760000000p-2f,
++  0x1.5ca1e00000000p-1f,-0x1.74b6880000000p-3f,-0x1.77cb7a0000000p-1f,-0x1.0302360000000p-5f,0x1.7321060000000p-1f,0x1.f0d66a0000000p-3f,-0x1.4f05ba0000000p-1f,-0x1.bb784e0000000p-2f,
++  0x1.0e86920000000p-1f,0x1.2c801c0000000p-1f,-0x1.6e314a0000000p-2f,-0x1.61d4120000000p-1f,0x1.4089800000000p-3f,0x1.79320e0000000p-1f,0x1.da40e60000000p-5f,-0x1.709d4c0000000p-1f,
++  -0x1.11dd540000000p-2f,0x1.48ce120000000p-1f,0x1.d14ccc0000000p-2f,-0x1.0521ac0000000p-1f,-0x1.34aec20000000p-1f,0x1.56a38a0000000p-2f,0x1.6695a00000000p-1f,-0x1.0be3d60000000p-3f,
++  -0x1.7a1f140000000p-1f,-0x1.5897da0000000p-4f,0x1.6da1880000000p-1f,0x1.2aff520000000p-2f,-0x1.4229e60000000p-1f,-0x1.e691ee0000000p-2f,0x1.f6c96e0000000p-2f,0x1.3c7c220000000p-1f,
++  -0x1.3e9e840000000p-2f,-0x1.6ae4660000000p-1f,0x1.ada78e0000000p-4f,0x1.7a919c0000000p-1f,0x1.c3c5200000000p-4f,-0x1.6a2de80000000p-1f,-0x1.43c9400000000p-2f,0x1.3b1a9c0000000p-1f,
++  0x1.fb40780000000p-2f,-0x1.e2a5aa0000000p-2f,-0x1.43e5620000000p-1f,0x1.2629860000000p-2f,0x1.6ebeb00000000p-1f,-0x1.42d9060000000p-4f,-0x1.7a89360000000p-1f,-0x1.17421e0000000p-3f,
++  0x1.66431e0000000p-1f,0x1.5c31d80000000p-2f,-0x1.33a21a0000000p-1f,-0x1.07a82c0000000p-1f,0x1.cddcb80000000p-2f,0x1.4ae71e0000000p-1f,-0x1.0d4bae0000000p-2f,-0x1.7221fa0000000p-1f,
++  0x1.aef2f80000000p-5f,0x1.7a04620000000p-1f,0x1.4c58740000000p-3f,-0x1.61e1480000000p-1f,-0x1.7430e00000000p-2f,0x1.2bc2280000000p-1f,0x1.115d480000000p-1f,-0x1.b876000000000p-2f,
++  -0x1.517f280000000p-1f,0x1.e81ae40000000p-3f,0x1.750dca0000000p-1f,-0x1.aec59a0000000p-6f,-0x1.7904560000000p-1f,-0x1.8114820000000p-3f,0x1.5d0ace0000000p-1f,0x1.8bbeb60000000p-2f,
++  -0x1.237e100000000p-1f,-0x1.1abcb00000000p-1f,0x1.a278400000000p-2f,0x1.57ab9e0000000p-1f,-0x1.b4ee880000000p-3f,-0x1.77813c0000000p-1f,-0x1.81700a0000000p-14f,0x1.7789580000000p-1f,
++  0x1.b5658e0000000p-3f,-0x1.57c1600000000p-1f,-0x1.a2d4420000000p-2f,0x1.1ad8740000000p-1f,0x1.23c38c0000000p-1f,-0x1.8bebae0000000p-2f,-0x1.5d6aa60000000p-1f,0x1.8122fa0000000p-3f,
++  0x1.797bb00000000p-1f,0x1.b254300000000p-6f,-0x1.75940a0000000p-1f,-0x1.e93a3c0000000p-3f,0x1.5206760000000p-1f,0x1.b9697a0000000p-2f,-0x1.11d4120000000p-1f,-0x1.2c6ea40000000p-1f,
++  0x1.74d64e0000000p-2f,0x1.62ba240000000p-1f,-0x1.4cc8880000000p-3f,-0x1.7afc100000000p-1f,-0x1.b19a360000000p-5f,0x1.7324980000000p-1f,0x1.0e40ec0000000p-2f,-0x1.4bdbcc0000000p-1f,
++  -0x1.cf77140000000p-2f,0x1.08738e0000000p-1f,0x1.34bb1e0000000p-1f,-0x1.5d405a0000000p-2f,-0x1.6798120000000p-1f,0x1.17f00c0000000p-3f,0x1.7c01cc0000000p-1f,0x1.44e1da0000000p-4f,
++  -0x1.703ba20000000p-1f,-0x1.2795580000000p-2f,0x1.4542d80000000p-1f,0x1.e4f50a0000000p-2f,-0x1.fd73560000000p-2f,-0x1.3ca5a20000000p-1f,0x1.452fdc0000000p-2f,0x1.6c023e0000000p-1f,
++  -0x1.c55a180000000p-4f,-0x1.7c8b9c0000000p-1f,-0x1.b0ac9e0000000p-4f,0x1.6cd9720000000p-1f,0x1.4090940000000p-2f,-0x1.3e3dec0000000p-1f,-0x1.f9daf00000000p-2f,0x1.e953ea0000000p-2f,
++  0x1.442b420000000p-1f,-0x1.2caf200000000p-2f,-0x1.6ff72c0000000p-1f,0x1.5a16d40000000p-4f,0x1.7c99e60000000p-1f,0x1.0e09e20000000p-3f,-0x1.68ff5c0000000p-1f,-0x1.592d440000000p-2f,
++  0x1.36cec40000000p-1f,0x1.0712520000000p-1f,-0x1.d48d880000000p-2f,-0x1.4b4a640000000p-1f,0x1.13c2920000000p-2f,0x1.7376100000000p-1f,-0x1.dc7dd00000000p-5f,-0x1.7c2c6e0000000p-1f,
++  -0x1.4378840000000p-3f,0x1.64ae980000000p-1f,0x1.7162240000000p-2f,-0x1.2ef8200000000p-1f,-0x1.10e50a0000000p-1f,0x1.bf27b40000000p-2f,0x1.5200340000000p-1f,-0x1.f4e8ce0000000p-3f,
++  -0x1.767d3e0000000p-1f,0x1.03ea3e0000000p-5f,0x1.7b43120000000p-1f,0x1.788ef20000000p-3f,-0x1.5fe8480000000p-1f,-0x1.8926d20000000p-2f,0x1.26bc0e0000000p-1f,0x1.1a622c0000000p-1f,
++  -0x1.a9293c0000000p-2f,-0x1.584a4a0000000p-1f,0x1.c1977a0000000p-3f,0x1.790baa0000000p-1f,-0x1.55c95a0000000p-8f,-0x1.79de2c0000000p-1f,-0x1.ad3dce0000000p-3f,0x1.5aae060000000p-1f,
++  0x1.a073d40000000p-2f,-0x1.1e1da60000000p-1f,-0x1.2386dc0000000p-1f,0x1.9299320000000p-2f,0x1.5e26a80000000p-1f,-0x1.8da3d40000000p-3f,-0x1.7b20600000000p-1f,-0x1.5d9c660000000p-6f,
++  0x1.77fde00000000p-1f,0x1.e171c20000000p-3f,-0x1.55011a0000000p-1f,-0x1.b740e00000000p-2f,0x1.151eec0000000p-1f,0x1.2c4f7c0000000p-1f,-0x1.7b7e480000000p-2f,-0x1.6392a20000000p-1f,
++  0x1.591bd40000000p-3f,0x1.7cba000000000p-1f,0x1.8866ae0000000p-5f,-0x1.75a2320000000p-1f,-0x1.0a8d760000000p-2f,0x1.4ee30a0000000p-1f,0x1.cd86820000000p-2f,-0x1.0bc30c0000000p-1f,
++  -0x1.34b9420000000p-1f,0x1.63e0060000000p-2f,0x1.688cbc0000000p-1f,-0x1.2413220000000p-3f,-0x1.7dd8500000000p-1f,-0x1.30e34e0000000p-4f,0x1.72cc280000000p-1f,0x1.24138e0000000p-2f,
++  -0x1.48560a0000000p-1f,-0x1.e33d440000000p-2f,0x1.020cc20000000p-1f,0x1.3cc1540000000p-1f,-0x1.4bc6260000000p-2f,-0x1.6d13300000000p-1f,0x1.dd315c0000000p-4f,0x1.7e7aca0000000p-1f,
++  0x1.9d55000000000p-4f,-0x1.6f7cb20000000p-1f,-0x1.3d43980000000p-2f,0x1.415c1e0000000p-1f,0x1.f85e600000000p-2f,-0x1.efff240000000p-2f,-0x1.44653a0000000p-1f,0x1.3338720000000p-2f,
++  0x1.71249a0000000p-1f,-0x1.71800a0000000p-4f,-0x1.7ea1300000000p-1f,-0x1.04b1f80000000p-3f,0x1.6bb4a00000000p-1f,0x1.5614880000000p-2f,-0x1.39f76a0000000p-1f,-0x1.06712e0000000p-1f,
++  0x1.db3c660000000p-2f,0x1.4ba2240000000p-1f,-0x1.1a3eb00000000p-2f,-0x1.74bf400000000p-1f,0x1.0530460000000p-4f,0x1.7e4b360000000p-1f,0x1.3a76fa0000000p-3f,-0x1.6775200000000p-1f,
++  -0x1.6e7ee00000000p-2f,0x1.322a200000000p-1f,0x1.10615a0000000p-1f,-0x1.c5d8a20000000p-2f,-0x1.5275b20000000p-1f,0x1.00e0cc0000000p-2f,0x1.77e1f00000000p-1f,-0x1.30d3a60000000p-5f,
++  -0x1.7d78ca0000000p-1f,-0x1.6fe7340000000p-3f,0x1.62bf000000000p-1f,0x1.86797a0000000p-2f,-0x1.29f66e0000000p-1f,-0x1.19fbda0000000p-1f,0x1.afd9300000000p-2f,0x1.58dcdc0000000p-1f,
++  -0x1.ce4fda0000000p-3f,-0x1.7a8a960000000p-1f,0x1.5a8d340000000p-7f,0x1.7c29600000000p-1f,0x1.a4ee400000000p-3f,-0x1.5d93cc0000000p-1f,-0x1.9dfb7e0000000p-2f,0x1.215f420000000p-1f,
++  0x1.233d2a0000000p-1f,-0x1.99475c0000000p-2f,-0x1.5ed57e0000000p-1f,0x1.9a33f20000000p-3f,0x1.7cb9100000000p-1f,0x1.07f4500000000p-6f,-0x1.7a5dcc0000000p-1f,-0x1.d9805a0000000p-3f,
++  0x1.57f4e40000000p-1f,0x1.b4ffd20000000p-2f,-0x1.1866bc0000000p-1f,-0x1.2c23360000000p-1f,0x1.8227680000000p-2f,0x1.645e680000000p-1f,-0x1.6581960000000p-3f,-0x1.7e6c8a0000000p-1f,
++  -0x1.5eb7a40000000p-5f,0x1.7816c20000000p-1f,0x1.06c52a0000000p-2f,-0x1.51e48c0000000p-1f,-0x1.cb7dfe0000000p-2f,0x1.0f10320000000p-1f,0x1.34aad80000000p-1f,-0x1.6a82fe0000000p-2f,
++  -0x1.69757a0000000p-1f,0x1.3049dc0000000p-3f,0x1.7fa4740000000p-1f,0x1.1ca3e00000000p-4f,-0x1.7554da0000000p-1f,-0x1.207d3c0000000p-2f,0x1.4b64520000000p-1f,0x1.e16e0a0000000p-2f,
++  -0x1.055e8a0000000p-1f,-0x1.3cd0f00000000p-1f,0x1.5260820000000p-2f,0x1.6e18c20000000p-1f,-0x1.f53b580000000p-4f,-0x1.8060160000000p-1f,-0x1.89b5380000000p-4f,0x1.7218be0000000p-1f,
++  0x1.39e0320000000p-2f,-0x1.4476680000000p-1f,-0x1.f6c91e0000000p-2f,0x1.f6a97a0000000p-2f,0x1.4492da0000000p-1f,-0x1.39c8920000000p-2f,-0x1.72468e0000000p-1f,0x1.891ca60000000p-4f,
++  0x1.809ef40000000p-1f,0x1.f668aa0000000p-4f,-0x1.6e630c0000000p-1f,-0x1.52e51a0000000p-2f,0x1.3d1c4c0000000p-1f,0x1.05c38c0000000p-1f,-0x1.e1eb560000000p-2f,-0x1.4bed480000000p-1f,
++  0x1.20c1960000000p-2f,0x1.75fcce0000000p-1f,-0x1.1c5a020000000p-4f,-0x1.8060520000000p-1f,-0x1.314ec00000000p-3f,0x1.6a34980000000p-1f,0x1.6b83d60000000p-2f,-0x1.35589a0000000p-1f,
++  -0x1.0fd0c20000000p-1f,0x1.cc89700000000p-2f,0x1.52de260000000p-1f,-0x1.0755040000000p-2f,-0x1.793aa00000000p-1f,0x1.5e2ecc0000000p-5f,0x1.7fa4980000000p-1f,0x1.6716ae0000000p-3f,
++  -0x1.658f020000000p-1f,-0x1.83b4480000000p-2f,0x1.2d2d9e0000000p-1f,0x1.1988ba0000000p-1f,-0x1.b68ac80000000p-2f,-0x1.5963000000000p-1f,0x1.db13ee0000000p-3f,0x1.7bfed40000000p-1f,
++  -0x1.05e0b00000000p-6f,-0x1.7e6bc20000000p-1f,-0x1.9c7c100000000p-3f,0x1.6073700000000p-1f,0x1.9b6e660000000p-2f,-0x1.249df00000000p-1f,-0x1.22e8260000000p-1f,0x1.9ff5ea0000000p-2f,
++  0x1.5f79540000000p-1f,-0x1.a6d2fe0000000p-3f,-0x1.7e47c80000000p-1f,-0x1.62fd1c0000000p-7f,0x1.7cb5b20000000p-1f,0x1.d16b620000000p-3f,-0x1.5ae3460000000p-1f,-0x1.b2a9de0000000p-2f,
++  0x1.1babee0000000p-1f,0x1.2bebc20000000p-1f,-0x1.88d24e0000000p-2f,-0x1.651f240000000p-1f,0x1.71f68a0000000p-3f,0x1.80152e0000000p-1f,0x1.349a6e0000000p-5f,-0x1.7a835c0000000p-1f,
++  -0x1.02eaac0000000p-2f,0x1.54e0860000000p-1f,0x1.c95fcc0000000p-2f,-0x1.125b100000000p-1f,-0x1.3490e80000000p-1f,0x1.7127900000000p-2f,0x1.6a52da0000000p-1f,-0x1.3c91f40000000p-3f,
++  -0x1.8166620000000p-1f,-0x1.082b980000000p-4f,0x1.77d54a0000000p-1f,0x1.1cd3920000000p-2f,-0x1.4e6d180000000p-1f,-0x1.df88440000000p-2f,0x1.08addc0000000p-1f,0x1.3cd4820000000p-1f,
++  -0x1.58fe900000000p-2f,-0x1.6f12380000000p-1f,0x1.06b7420000000p-3f,0x1.823ac20000000p-1f,0x1.75d25c0000000p-4f,-0x1.74ac6e0000000p-1f,-0x1.3667340000000p-2f,0x1.478b480000000p-1f,
++  0x1.f51b220000000p-2f,-0x1.fd507e0000000p-2f,-0x1.44b3700000000p-1f,0x1.405c4a0000000p-2f,0x1.735c160000000p-1f,-0x1.a0e6da0000000p-4f,-0x1.8291f00000000p-1f,-0x1.e328680000000p-4f,
++  0x1.71093e0000000p-1f,0x1.4f9f820000000p-2f,-0x1.403c760000000p-1f,-0x1.0509900000000p-1f,0x1.e897c20000000p-2f,0x1.4c2bd40000000p-1f,-0x1.2749f00000000p-2f,-0x1.772ea00000000p-1f,
++  0x1.33b2b60000000p-4f,0x1.826b640000000p-1f,0x1.28028e0000000p-3f,-0x1.6cecb20000000p-1f,-0x1.6872ca0000000p-2f,0x1.3882c80000000p-1f,0x1.0f33ce0000000p-1f,-0x1.d3392e0000000p-2f,
++  -0x1.533a180000000p-1f,0x1.0dcef20000000p-2f,0x1.7a87ac0000000p-1f,-0x1.8bf2700000000p-5f,-0x1.81c6840000000p-1f,-0x1.5e216e0000000p-3f,0x1.6857a40000000p-1f,0x1.80d8120000000p-2f,
++  -0x1.3060be0000000p-1f,-0x1.1908de0000000p-1f,0x1.bd3b300000000p-2f,0x1.59dc300000000p-1f,-0x1.e7e8240000000p-3f,-0x1.7d66bc0000000p-1f,0x1.5f677e0000000p-6f,0x1.80a4180000000p-1f,
++  0x1.93e0160000000p-3f,-0x1.634c1c0000000p-1f,-0x1.98c8720000000p-2f,0x1.27d92e0000000p-1f,0x1.2285d40000000p-1f,-0x1.a6a5f00000000p-2f,-0x1.60100a0000000p-1f,0x1.b3833a0000000p-3f,
++  0x1.7fcac00000000p-1f,0x1.682d880000000p-8f,-0x1.7f04360000000p-1f,-0x1.c92c500000000p-3f,0x1.5dcb440000000p-1f,0x1.b03b1a0000000p-2f,-0x1.1eeea20000000p-1f,-0x1.2ba7300000000p-1f,
++  0x1.8f7f640000000p-2f,0x1.65d3300000000p-1f,-0x1.7e7fd60000000p-3f,-0x1.81b2980000000p-1f,-0x1.09fb0e0000000p-5f,0x1.7ce7260000000p-1f,0x1.fdf5080000000p-3f,-0x1.57d6fe0000000p-1f,
++  -0x1.c728f80000000p-2f,0x1.15a3ee0000000p-1f,0x1.346a1c0000000p-1f,-0x1.77d0160000000p-2f,-0x1.6b23ec0000000p-1f,0x1.48ef360000000p-3f,0x1.831dba0000000p-1f,0x1.e6dcf00000000p-5f,
++  -0x1.7a4da80000000p-1f,-0x1.1914500000000p-2f,0x1.5170f80000000p-1f,0x1.dd8a0c0000000p-2f,-0x1.0bfc080000000p-1f,-0x1.3ccb7e0000000p-1f,0x1.5f9e940000000p-2f,0x1.7000540000000p-1f,
++  -0x1.12e2840000000p-3f,-0x1.840b5e0000000p-1f,-0x1.61b5460000000p-4f,0x1.7738360000000p-1f,0x1.32db140000000p-2f,-0x1.4a9b2a0000000p-1f,-0x1.f356de0000000p-2f,0x1.01f9be0000000p-1f,
++  0x1.44c8680000000p-1f,-0x1.46f34a0000000p-2f,-0x1.74664c0000000p-1f,0x1.b8d6200000000p-4f,0x1.847ade0000000p-1f,0x1.cfaa040000000p-4f,-0x1.73a7960000000p-1f,-0x1.4c45fc0000000p-2f,
++  0x1.4357620000000p-1f,0x1.0443f20000000p-1f,-0x1.ef40a80000000p-2f,-0x1.4c5e200000000p-1f,0x1.2dd54e0000000p-2f,0x1.7854880000000p-1f,-0x1.4b353a0000000p-4f,-0x1.846c2c0000000p-1f,
++  -0x1.1e96540000000p-3f,0x1.6f9cfa0000000p-1f,0x1.654d020000000p-2f,-0x1.3ba8540000000p-1f,-0x1.0e8b4c0000000p-1f,0x1.d9e63c0000000p-2f,0x1.538a400000000p-1f,-0x1.144dba0000000p-2f,
++  -0x1.7bc9a40000000p-1f,0x1.ba0bf20000000p-5f,0x1.83df1e0000000p-1f,0x1.550aec0000000p-3f,-0x1.6b19700000000p-1f,-0x1.7de78a0000000p-2f,0x1.338fee0000000p-1f,0x1.187dbe0000000p-1f,
++  -0x1.c3ec000000000p-2f,-0x1.5a49aa0000000p-1f,0x1.f4ca320000000p-3f,0x1.7ec4100000000p-1f,-0x1.b9c7420000000p-6f,-0x1.82d3be0000000p-1f,-0x1.8b1f6c0000000p-3f,0x1.661eaa0000000p-1f,
++  0x1.960c840000000p-2f,-0x1.2b11a00000000p-1f,-0x1.2217a80000000p-1f,0x1.ad56ac0000000p-2f,0x1.609b0c0000000p-1f,-0x1.c0439e0000000p-3f,-0x1.8143320000000p-1f,-0x1.bb3d440000000p-14f,
++  0x1.814a300000000p-1f,0x1.c0c72e0000000p-3f,-0x1.60ada00000000p-1f,-0x1.adb6360000000p-2f,0x1.222ec20000000p-1f,0x1.2b56d00000000p-1f,-0x1.962ea80000000p-2f,-0x1.667bb80000000p-1f,
++  0x1.8b19ce0000000p-3f,0x1.8345b60000000p-1f,0x1.bdcb680000000p-6f,-0x1.7f42ba0000000p-1f,-0x1.f5ee2e0000000p-3f,0x1.5ac7e60000000p-1f,0x1.c4db740000000p-2f,-0x1.18ea9a0000000p-1f,
++  -0x1.3437380000000p-1f,0x1.7e7abe0000000p-2f,0x1.6be9440000000p-1f,-0x1.555f640000000p-3f,-0x1.84ca760000000p-1f,-0x1.bce98a0000000p-5f,0x1.7cbd940000000p-1f,0x1.1540b40000000p-2f,
++  -0x1.546f580000000p-1f,-0x1.db74320000000p-2f,0x1.0f47e40000000p-1f,0x1.3cb6080000000p-1f,-0x1.6643020000000p-2f,-0x1.70e20a0000000p-1f,0x1.1f24060000000p-3f,0x1.85d1440000000p-1f,
++  0x1.4d519a0000000p-4f,-0x1.79bbec0000000p-1f,-0x1.2f38c20000000p-2f,0x1.4da6180000000p-1f,0x1.f179a80000000p-2f,-0x1.054a2e0000000p-1f,-0x1.44d0940000000p-1f,0x1.4d8f2c0000000p-2f,
++  0x1.75648a0000000p-1f,-0x1.d0f7260000000p-4f,-0x1.8659b60000000p-1f,-0x1.bbe42a0000000p-4f,0x1.763e820000000p-1f,0x1.48d60a0000000p-2f,-0x1.466e5e0000000p-1f,-0x1.03721e0000000p-1f,
++  0x1.f5e8960000000p-2f,0x1.4c84200000000p-1f,-0x1.3467580000000p-2f,-0x1.796f260000000p-1f,0x1.62eab60000000p-4f,0x1.8663940000000p-1f,0x1.1504da0000000p-3f,-0x1.7246840000000p-1f,
++  -0x1.6210e40000000p-2f,0x1.3eca520000000p-1f,0x1.0dd68a0000000p-1f,-0x1.e093980000000p-2f,-0x1.53ce0e0000000p-1f,0x1.1ad3640000000p-2f,0x1.7d00640000000p-1f,-0x1.e8959c0000000p-5f,
++  -0x1.85ee7a0000000p-1f,-0x1.4bce880000000p-3f,0x1.6dd4c80000000p-1f,0x1.7ae0280000000p-2f,-0x1.36bc360000000p-1f,-0x1.17e65a0000000p-1f,0x1.ca9b3c0000000p-2f,0x1.5aabba0000000p-1f,
++  -0x1.00db680000000p-2f,-0x1.80169e0000000p-1f,0x1.0a6cc80000000p-5f,0x1.84fa0e0000000p-1f,0x1.823d3c0000000p-3f,-0x1.68ea4a0000000p-1f,-0x1.933b9e0000000p-2f,0x1.2e45e60000000p-1f,
++  0x1.219dbc0000000p-1f,-0x1.b4063a0000000p-2f,-0x1.6119e40000000p-1f,0x1.cd0e600000000p-3f,0x1.82b00c0000000p-1f,-0x1.5d66060000000p-8f,-0x1.8386340000000p-1f,-0x1.b83e600000000p-3f,
++  0x1.6388600000000p-1f,0x1.ab1ab60000000p-2f,-0x1.256a860000000p-1f,-0x1.2af9c20000000p-1f,0x1.9cdbfe0000000p-2f,0x1.6717340000000p-1f,-0x1.97bfec0000000p-3f,-0x1.84cc8e0000000p-1f,
++  -0x1.66d3ec0000000p-6f,0x1.8193f60000000p-1f,0x1.edc1260000000p-3f,-0x1.5db1540000000p-1f,-0x1.c276a00000000p-2f,0x1.1c2d0a0000000p-1f,0x1.33f78c0000000p-1f,-0x1.8524e80000000p-2f,
++  -0x1.6ca1ac0000000p-1f,0x1.61dca20000000p-3f,0x1.866b8a0000000p-1f,0x1.9287b00000000p-5f,-0x1.7f24040000000p-1f,-0x1.115a100000000p-2f,0x1.57670a0000000p-1f,0x1.d947920000000p-2f,
++  -0x1.1291420000000p-1f,-0x1.3c93ee0000000p-1f,0x1.6ce9900000000p-2f,0x1.71b7a00000000p-1f,-0x1.2b79180000000p-3f,-0x1.878c880000000p-1f,-0x1.38af0a0000000p-4f,0x1.7c37480000000p-1f,
++  0x1.2b81d20000000p-2f,-0x1.50abe80000000p-1f,-0x1.ef84f00000000p-2f,0x1.0898ca0000000p-1f,0x1.44cc9c0000000p-1f,-0x1.542f0a0000000p-2f,-0x1.7657440000000p-1f,0x1.e940e60000000p-4f,
++  0x1.882ea60000000p-1f,0x1.a7dcb00000000p-4f,-0x1.78cdee0000000p-1f,-0x1.4551a80000000p-2f,0x1.4980c80000000p-1f,0x1.0294ac0000000p-1f,-0x1.fc8e800000000p-2f,-0x1.4c9e400000000p-1f,
++  0x1.3afdcc0000000p-2f,0x1.7a7e700000000p-1f,-0x1.7ace1e0000000p-4f,-0x1.8850f00000000p-1f,-0x1.0b51aa0000000p-3f,0x1.74e8460000000p-1f,0x1.5ebf0a0000000p-2f,-0x1.41e7900000000p-1f,
++  -0x1.0d15620000000p-1f,0x1.e73df80000000p-2f,0x1.5404fa0000000p-1f,-0x1.215dea0000000p-2f,-0x1.7e2aa60000000p-1f,0x1.0bbd560000000p-4f,0x1.87f2d40000000p-1f,0x1.426d9a0000000p-3f,
++  -0x1.70879e0000000p-1f,-0x1.77c1900000000p-2f,0x1.39e2ee0000000p-1f,0x1.1741980000000p-1f,-0x1.d148860000000p-2f,-0x1.5aff6e0000000p-1f,0x1.0757aa0000000p-2f,0x1.815bcc0000000p-1f,
++  -0x1.3867c20000000p-5f,-0x1.8715420000000p-1f,-0x1.79324e0000000p-3f,0x1.6badd20000000p-1f,0x1.9051a00000000p-2f,-0x1.3176040000000p-1f,-0x1.2116300000000p-1f,0x1.bab5300000000p-2f,
++  0x1.618b340000000p-1f,-0x1.d9e8f60000000p-3f,-0x1.8410ac0000000p-1f,0x1.62af000000000p-7f,0x1.85b85c0000000p-1f,0x1.af8c3e0000000p-3f,-0x1.665c7c0000000p-1f,-0x1.a867160000000p-2f,
++  0x1.28a33e0000000p-1f,0x1.2a8fe40000000p-1f,-0x1.a38b500000000p-2f,-0x1.67a63c0000000p-1f,0x1.a477b60000000p-3f,0x1.86487a0000000p-1f,0x1.0ee1d40000000p-6f,-0x1.83dc8e0000000p-1f,
++  -0x1.e56b6c0000000p-3f,0x1.6095280000000p-1f,0x1.bffa300000000p-2f,-0x1.1f6d980000000p-1f,-0x1.33ab820000000p-1f,0x1.8bd20a0000000p-2f,0x1.6d4e440000000p-1f,-0x1.6e6ea60000000p-3f,
++  -0x1.88020e0000000p-1f,-0x1.67a54e0000000p-5f,0x1.81820a0000000p-1f,0x1.0d5e300000000p-2f,-0x1.5a596c0000000p-1f,-0x1.d7029c0000000p-2f,0x1.15d7740000000p-1f,0x1.3c65c80000000p-1f,
++  -0x1.7390c20000000p-2f,-0x1.7281040000000p-1f,0x1.37dc9a0000000p-3f,0x1.893c520000000p-1f,0x1.23d4bc0000000p-4f,-0x1.7ea8fc0000000p-1f,-0x1.27b7200000000p-2f,0x1.53aa8a0000000p-1f,
++  0x1.ed78040000000p-2f,-0x1.0be3ac0000000p-1f,-0x1.44bb140000000p-1f,0x1.5ace800000000p-2f,0x1.773c240000000p-1f,-0x1.00d54e0000000p-3f,-0x1.89f6720000000p-1f,-0x1.9398880000000p-4f,
++  0x1.7b522a0000000p-1f,0x1.41b7240000000p-2f,-0x1.4c8b000000000p-1f,-0x1.01a9aa0000000p-1f,0x1.01958e0000000p-1f,0x1.4ca9480000000p-1f,-0x1.4194220000000p-2f,-0x1.7b7eae0000000p-1f,
++  0x1.92d1ec0000000p-4f,0x1.8a30cc0000000p-1f,0x1.017da60000000p-3f,-0x1.777f2a0000000p-1f,-0x1.5b56c80000000p-2f,0x1.44fd420000000p-1f,0x1.0c46fa0000000p-1f,-0x1.ede1bc0000000p-2f,
++  -0x1.542dcc0000000p-1f,0x1.27e9b80000000p-2f,0x1.7f474e0000000p-1f,-0x1.23579a0000000p-4f,-0x1.89eb440000000p-1f,-0x1.38ebd00000000p-3f,0x1.7331160000000p-1f,0x1.748d0a0000000p-2f,
++  -0x1.3d04580000000p-1f,-0x1.168fe60000000p-1f,0x1.d7f2c80000000p-2f,0x1.5b45e40000000p-1f,-0x1.0dd9220000000p-2f,-0x1.8294940000000p-1f,0x1.66c43e0000000p-5f,0x1.8925e40000000p-1f,
++  0x1.70026c0000000p-3f,-0x1.6e69960000000p-1f,-0x1.8d50b80000000p-2f,0x1.34a19e0000000p-1f,0x1.2081fa0000000p-1f,-0x1.c162dc0000000p-2f,-0x1.61ef9a0000000p-1f,0x1.e6cf180000000p-3f,
++  0x1.8565620000000p-1f,-0x1.0c2a460000000p-6f,-0x1.87e06c0000000p-1f,-0x1.a6b4a20000000p-3f,0x1.6929260000000p-1f,0x1.a59c2a0000000p-2f,-0x1.2bd8160000000p-1f,-0x1.2a19280000000p-1f,
++  0x1.aa200c0000000p-2f,0x1.67fd4c0000000p-1f,-0x1.b0f1140000000p-3f,-0x1.875be20000000p-1f,-0x1.6bc0780000000p-7f,0x1.85929e0000000p-1f,0x1.dc2c180000000p-3f,-0x1.62cdfc0000000p-1f,
++  -0x1.bc80380000000p-2f,0x1.2204b00000000p-1f,0x1.3292ee0000000p-1f,-0x1.916f960000000p-2f,-0x1.6ce3960000000p-1f,0x1.79e8100000000p-3f,0x1.8846260000000p-1f,0x1.3b371c0000000p-5f,
++  -0x1.826de00000000p-1f,-0x1.084aa60000000p-2f,0x1.5bde4a0000000p-1f,0x1.d2ada00000000p-2f,-0x1.17df8a0000000p-1f,-0x1.3ab88e0000000p-1f,0x1.786eec0000000p-2f,0x1.71696c0000000p-1f,
++  -0x1.42ad600000000p-3f,-0x1.88cb960000000p-1f,-0x1.0d3cf60000000p-4f,0x1.7ee8440000000p-1f,0x1.2226640000000p-2f,-0x1.5499c60000000p-1f,-0x1.e850d60000000p-2f,0x1.0d78e00000000p-1f,
++  0x1.4293360000000p-1f,-0x1.5f3a900000000p-2f,-0x1.75b8f20000000p-1f,0x1.0b6ff20000000p-3f,0x1.8938e80000000p-1f,0x1.7ca8820000000p-4f,-0x1.7b6a560000000p-1f,-0x1.3c09280000000p-2f,
++  0x1.4d76b80000000p-1f,0x1.fe2e780000000p-2f,-0x1.0341380000000p-1f,-0x1.4a933a0000000p-1f,0x1.4621fc0000000p-2f,0x1.7a12580000000p-1f,-0x1.a85cbc0000000p-4f,-0x1.898d120000000p-1f,
++  -0x1.ebf4aa0000000p-4f,0x1.77b1dc0000000p-1f,0x1.55b2200000000p-2f,-0x1.46024e0000000p-1f,-0x1.09c0c00000000p-1f,0x1.f163ec0000000p-2f,0x1.522a2e0000000p-1f,-0x1.2c98660000000p-2f,
++  -0x1.7df2240000000p-1f,0x1.392c020000000p-4f,0x1.8961660000000p-1f,0x1.2d605a0000000p-3f,-0x1.737e440000000p-1f,-0x1.6ef4380000000p-2f,0x1.3e21a20000000p-1f,0x1.1417040000000p-1f,
++  -0x1.db790e0000000p-2f,-0x1.5920be0000000p-1f,0x1.1266800000000p-2f,0x1.80e2780000000p-1f,-0x1.9253340000000p-5f,-0x1.8805fe0000000p-1f,-0x1.63bc600000000p-3f,0x1.6df8680000000p-1f,
++  0x1.86c44a0000000p-2f,-0x1.34f5b20000000p-1f,-0x1.1d33160000000p-1f,0x1.c3af760000000p-2f,0x1.5ecc180000000p-1f,-0x1.eeb4340000000p-3f,-0x1.82a4b20000000p-1f,0x1.63dc400000000p-6f,
++  0x1.85ba920000000p-1f,0x1.9926d40000000p-3f,-0x1.67d1560000000p-1f,-0x1.9de72e0000000p-2f,0x1.2b77300000000p-1f,0x1.2604740000000p-1f,-0x1.ab9bfe0000000p-2f,-0x1.6421160000000p-1f,
++  0x1.b867040000000p-3f,0x1.840bfe0000000p-1f,0x1.6d37360000000p-8f,-0x1.8316da0000000p-1f,-0x1.cdf8bc0000000p-3f,0x1.615bc20000000p-1f,0x1.b48fe00000000p-2f,-0x1.21bb200000000p-1f,
++  -0x1.2e965a0000000p-1f,0x1.9362ae0000000p-2f,0x1.6952c00000000p-1f,-0x1.82333a0000000p-3f,-0x1.8576b20000000p-1f,-0x1.0cb7920000000p-5f,0x1.809e160000000p-1f,0x1.017b740000000p-2f,
++  -0x1.5b30900000000p-1f,-0x1.cb9b640000000p-2f,0x1.18578a0000000p-1f,0x1.376c4c0000000p-1f,-0x1.7b76580000000p-2f,-0x1.6eadc40000000p-1f,0x1.4c1d1e0000000p-3f,0x1.86e2600000000p-1f,
++  0x1.ebb4080000000p-5f,-0x1.7dfb640000000p-1f,-0x1.1bd2e00000000p-2f,0x1.54b8140000000p-1f,0x1.e230e00000000p-2f,-0x1.0e95920000000p-1f,-0x1.3fe0320000000p-1f,0x1.6306160000000p-2f,
++  0x1.7393880000000p-1f,-0x1.1587ac0000000p-3f,-0x1.87cf700000000p-1f,-0x1.652fb80000000p-4f,0x1.7adb820000000p-1f,0x1.35d79e0000000p-2f,-0x1.4dceec0000000p-1f,-0x1.f830340000000p-2f,
++  0x1.0467780000000p-1f,0x1.47c4280000000p-1f,-0x1.49db5c0000000p-2f,-0x1.77a1720000000p-1f,0x1.bc7fc60000000p-4f,0x1.87a85a0000000p-1f,0x1.d3642a0000000p-4f,-0x1.7683bc0000000p-1f,
++  -0x1.4ec3de0000000p-2f,0x1.45ad1a0000000p-1f,0x1.0617840000000p-1f,-0x1.f2991a0000000p-2f,-0x1.4e8c300000000p-1f,0x1.2fbb640000000p-2f,0x1.7aa1400000000p-1f,-0x1.4d1cb60000000p-4f,
++  -0x1.86a0780000000p-1f,-0x1.202d120000000p-3f,0x1.718af60000000p-1f,0x1.671d540000000p-2f,-0x1.3d2eb00000000p-1f,-0x1.0fcdc00000000p-1f,0x1.dbfe8a0000000p-2f,0x1.54fbba0000000p-1f,
++  -0x1.1568e00000000p-2f,-0x1.7d409a0000000p-1f,0x1.bb92820000000p-5f,0x1.8537e60000000p-1f,0x1.56304c0000000p-3f,-0x1.6c393e0000000p-1f,-0x1.7f078e0000000p-2f,0x1.3466a20000000p-1f,
++  0x1.1943760000000p-1f,-0x1.c524f80000000p-2f,-0x1.5b3d320000000p-1f,0x1.f6200a0000000p-3f,0x1.7fd06a0000000p-1f,-0x1.bab4940000000p-6f,-0x1.83e2120000000p-1f,-0x1.8c3cb20000000p-3f,
++  0x1.67180e0000000p-1f,0x1.972c160000000p-2f,-0x1.2be1200000000p-1f,-0x1.22e3cc0000000p-1f,0x1.ae7e680000000p-2f,0x1.6192160000000p-1f,-0x1.c173c20000000p-3f,-0x1.82503a0000000p-1f,
++  -0x1.048eea0000000p-13f,0x1.8256660000000p-1f,0x1.c2087c0000000p-3f,-0x1.61a2580000000p-1f,-0x1.aee5760000000p-2f,0x1.22f74a0000000p-1f,0x1.2c28960000000p-1f,-0x1.9745740000000p-2f,
++  -0x1.6776060000000p-1f,0x1.8c23ea0000000p-3f,0x1.84534a0000000p-1f,0x1.bf494c0000000p-6f,-0x1.804cc80000000p-1f,-0x1.f753ae0000000p-3f,0x1.5bb7f60000000p-1f,0x1.c619ea0000000p-2f,
++  -0x1.19a1fc0000000p-1f,-0x1.34f8820000000p-1f,0x1.7f57540000000p-2f,0x1.6cb2d00000000p-1f,-0x1.5606600000000p-3f,-0x1.8585f80000000p-1f,-0x1.bdd47a0000000p-5f,0x1.7d5a800000000p-1f,
++  0x1.15ae740000000p-2f,-0x1.54e41c0000000p-1f,-0x1.dc0c9c0000000p-2f,0x1.0f924c0000000p-1f,0x1.3d05e00000000p-1f,-0x1.668c360000000p-2f,-0x1.7126720000000p-1f,0x1.1f46c60000000p-3f,
++  0x1.8600480000000p-1f,0x1.4d81340000000p-4f,-0x1.79d16a0000000p-1f,-0x1.2f45500000000p-2f,0x1.4da3fa0000000p-1f,0x1.f16cdc0000000p-2f,-0x1.05382c0000000p-1f,-0x1.44b3e80000000p-1f,
++  0x1.4d62520000000p-2f,0x1.752cf00000000p-1f,-0x1.d091e40000000p-4f,-0x1.86086e0000000p-1f,-0x1.bb8e040000000p-4f,0x1.75dab40000000p-1f,0x1.4879c20000000p-2f,-0x1.46046c0000000p-1f,
++  -0x1.0320d40000000p-1f,0x1.f544ae0000000p-2f,0x1.4c1b2c0000000p-1f,-0x1.3400f60000000p-2f,-0x1.78f7b80000000p-1f,0x1.6268320000000p-4f,0x1.85e7c20000000p-1f,0x1.14b6080000000p-3f,
++  -0x1.71d10a0000000p-1f,-0x1.61a3ec0000000p-2f,0x1.3e65120000000p-1f,0x1.0d82d40000000p-1f,-0x1.dffa400000000p-2f,-0x1.5364660000000p-1f,0x1.1a78320000000p-2f,0x1.7c89d60000000p-1f,
++  -0x1.e7e32a0000000p-5f,-0x1.8575200000000p-1f,-0x1.4b6d660000000p-3f,0x1.6d62e80000000p-1f,0x1.7a6dda0000000p-2f,-0x1.365b5a0000000p-1f,-0x1.1791220000000p-1f,0x1.ca0bb40000000p-2f,
++  0x1.5a42060000000p-1f,-0x1.0089ea0000000p-2f,-0x1.7fa1960000000p-1f,0x1.0a03ac0000000p-5f,0x1.8483bc0000000p-1f,0x1.81ce080000000p-3f,-0x1.687cac0000000p-1f,-0x1.92c4b40000000p-2f,
++  0x1.2de9b80000000p-1f,0x1.2147580000000p-1f,-0x1.b3800c0000000p-2f,-0x1.60afc80000000p-1f,0x1.cc7c8e0000000p-3f,0x1.823b280000000p-1f,-0x1.5c3c480000000p-8f,-0x1.8310680000000p-1f,
++  -0x1.b7bf000000000p-3f,0x1.631bae0000000p-1f,0x1.aa9b4a0000000p-2f,-0x1.2510320000000p-1f,-0x1.2a9fb00000000p-1f,0x1.9c5b7c0000000p-2f,0x1.66aa280000000p-1f,-0x1.973d840000000p-3f,
++  -0x1.8455d20000000p-1f,-0x1.6696060000000p-6f,0x1.811d880000000p-1f,0x1.ed2f660000000p-3f,-0x1.5d453a0000000p-1f,-0x1.c1eea80000000p-2f,0x1.1bd49e0000000p-1f,0x1.3399ac0000000p-1f,
++  -0x1.84aa220000000p-2f,-0x1.6c31b80000000p-1f,0x1.6169760000000p-3f,0x1.85f2de0000000p-1f,0x1.9225540000000p-5f,-0x1.7eacd40000000p-1f,-0x1.1107f40000000p-2f,0x1.56fb7a0000000p-1f,
++  0x1.d8b7860000000p-2f,-0x1.123ae00000000p-1f,-0x1.3c33dc0000000p-1f,0x1.6c75a40000000p-2f,0x1.7147940000000p-1f,-0x1.2b15320000000p-3f,-0x1.87160e0000000p-1f,-0x1.3863400000000p-4f,
++  0x1.7bc4740000000p-1f,0x1.2b2c5c0000000p-2f,-0x1.50466a0000000p-1f,-0x1.eef5740000000p-2f,0x1.0848ca0000000p-1f,0x1.446e380000000p-1f,-0x1.53c7360000000p-2f,-0x1.75ea980000000p-1f,
++  0x1.e89f920000000p-4f,0x1.87bd080000000p-1f,0x1.a7743a0000000p-4f,-0x1.7861040000000p-1f,-0x1.44f8ee0000000p-2f,0x1.4921a40000000p-1f,0x1.024cf60000000p-1f,-0x1.fbfb4c0000000p-2f,
++  -0x1.4c41e40000000p-1f,0x1.3aa1780000000p-2f,0x1.7a15a40000000p-1f,-0x1.7a534e0000000p-4f,-0x1.87e4d40000000p-1f,-0x1.0b11580000000p-3f,0x1.7481fe0000000p-1f,0x1.5e64120000000p-2f,
++  -0x1.418f100000000p-1f,-0x1.0cce460000000p-1f,0x1.e6b6ca0000000p-2f,0x1.53aa4e0000000p-1f,-0x1.210b600000000p-2f,-0x1.7dc4240000000p-1f,0x1.0b633a0000000p-4f,0x1.8789300000000p-1f,
++  0x1.42204e0000000p-3f,-0x1.7023c80000000p-1f,-0x1.77609a0000000p-2f,0x1.398d560000000p-1f,0x1.16f8640000000p-1f,-0x1.d0c8300000000p-2f,-0x1.5aa3900000000p-1f,0x1.070cf20000000p-2f,
++  0x1.80f5360000000p-1f,-0x1.37f0340000000p-5f,-0x1.86aca20000000p-1f,-0x1.78d66e0000000p-3f,0x1.6b4bf60000000p-1f,0x1.8feae40000000p-2f,-0x1.3123520000000p-1f,-0x1.20cada0000000p-1f,
++  0x1.ba3b940000000p-2f,0x1.612e540000000p-1f,-0x1.d962980000000p-3f,-0x1.83aa220000000p-1f,0x1.61b6d00000000p-7f,0x1.8550d60000000p-1f,0x1.af22b40000000p-3f,-0x1.65fcbe0000000p-1f,
++  -0x1.a7fb620000000p-2f,0x1.2854020000000p-1f,0x1.2a437a0000000p-1f,-0x1.a31a8e0000000p-2f,-0x1.674a460000000p-1f,0x1.a402dc0000000p-3f,0x1.85e4de0000000p-1f,0x1.0ee5260000000p-6f,
++  -0x1.8379fc0000000p-1f,-0x1.e4f6be0000000p-3f,0x1.603bf80000000p-1f,0x1.bf8cd00000000p-2f,-0x1.1f250e0000000p-1f,-0x1.3360640000000p-1f,0x1.8b6e180000000p-2f,0x1.6cf5740000000p-1f,
++  -0x1.6e0efe0000000p-3f,-0x1.87a3420000000p-1f,-0x1.6766bc0000000p-5f,0x1.8125580000000p-1f,0x1.0d21160000000p-2f,-0x1.5a068e0000000p-1f,-0x1.d695e60000000p-2f,0x1.1595300000000p-1f,
++  0x1.3c1ce80000000p-1f,-0x1.7337ea0000000p-2f,-0x1.722c240000000p-1f,0x1.378f480000000p-3f,0x1.88e2f00000000p-1f,0x1.239eca0000000p-4f,-0x1.7e52b80000000p-1f,-0x1.2777f80000000p-2f,
++  0x1.535e3a0000000p-1f,0x1.ed0d200000000p-2f,-0x1.0ba77a0000000p-1f,-0x1.4474920000000p-1f,0x1.5a7f9a0000000p-2f,0x1.76eac80000000p-1f,-0x1.00978e0000000p-3f,-0x1.89a1320000000p-1f,
++  -0x1.934eae0000000p-4f,0x1.7b00440000000p-1f,0x1.4175080000000p-2f,-0x1.4c43480000000p-1f,-0x1.01742e0000000p-1f,0x1.015de60000000p-1f,0x1.4c63f40000000p-1f,-0x1.414dd40000000p-2f,
++  -0x1.7b2fbc0000000p-1f,0x1.9271fe0000000p-4f,0x1.89def40000000p-1f,0x1.014e600000000p-3f,-0x1.7731560000000p-1f,-0x1.5b12420000000p-2f,0x1.44ba060000000p-1f,0x1.0c11800000000p-1f,
++  -0x1.ed7b180000000p-2f,-0x1.53e9e40000000p-1f,0x1.27ab6a0000000p-2f,0x1.7efada0000000p-1f,-0x1.23102c0000000p-4f,-0x1.899cd20000000p-1f,-0x1.38b3b80000000p-3f,0x1.72e7420000000p-1f,
++  0x1.7446ce0000000p-2f,-0x1.3cc51a0000000p-1f,-0x1.165b680000000p-1f,0x1.d793f80000000p-2f,0x1.5b046c0000000p-1f,-0x1.0da1680000000p-2f,-0x1.824bc20000000p-1f,0x1.6659fe0000000p-5f,
++  0x1.88dc0e0000000p-1f,0x1.6fc6c00000000p-3f,-0x1.6e24f80000000p-1f,-0x1.8d0be20000000p-2f,0x1.3467be0000000p-1f,0x1.204f2c0000000p-1f,-0x1.c10e180000000p-2f,-0x1.61b1480000000p-1f,
++  0x1.e66f420000000p-3f,0x1.8520ea0000000p-1f,-0x1.0bb28a0000000p-6f,-0x1.879bbe0000000p-1f,-0x1.a674b40000000p-3f,0x1.68ea0e0000000p-1f,0x1.a557ea0000000p-2f,-0x1.2ba3980000000p-1f,
++  -0x1.29e8780000000p-1f,0x1.a9ee720000000p-2f,0x1.67ed5c0000000p-1f,-0x1.b0ed600000000p-3f,-0x1.87786e0000000p-1f,-0x1.6c815e0000000p-7f,0x1.85dbae0000000p-1f,0x1.dcaa4c0000000p-3f,
++  -0x1.6338060000000p-1f,-0x1.bd22e20000000p-2f,0x1.227ac60000000p-1f,0x1.3323960000000p-1f,-0x1.923c6c0000000p-2f,-0x1.6db5d40000000p-1f,0x1.7acbfa0000000p-3f,0x1.8950840000000p-1f,
++  0x1.3c43ee0000000p-5f,-0x1.839b280000000p-1f,-0x1.092a980000000p-2f,0x1.5d0f960000000p-1f,0x1.d463a00000000p-2f,-0x1.18efe80000000p-1f,-0x1.3bfd2e0000000p-1f,0x1.79ff400000000p-2f,
++  0x1.7308bc0000000p-1f,-0x1.441d980000000p-3f,-0x1.8aa8ee0000000p-1f,-0x1.0ea3b60000000p-4f,0x1.80dbba0000000p-1f,0x1.23b2800000000p-2f,-0x1.5673c40000000p-1f,-0x1.eb133e0000000p-2f,
++  0x1.0f068c0000000p-1f,0x1.4472ee0000000p-1f,-0x1.613fb20000000p-2f,-0x1.77e49c0000000p-1f,0x1.0cf3b40000000p-3f,0x1.8b81820000000p-1f,0x1.7ef0c80000000p-4f,-0x1.7d9e5c0000000p-1f,
++  -0x1.3de4480000000p-2f,0x1.4f667a0000000p-1f,0x1.0095660000000p-1f,-0x1.04c24a0000000p-1f,-0x1.4c82360000000p-1f,0x1.4805380000000p-2f,0x1.7c485a0000000p-1f,-0x1.aac4840000000p-4f,
++  -0x1.8bda600000000p-1f,-0x1.eee1dc0000000p-4f,0x1.79e4c00000000p-1f,0x1.57b5dc0000000p-2f,-0x1.47eae60000000p-1f,-0x1.0b51300000000p-1f,0x1.f44d700000000p-2f,0x1.5427d40000000p-1f,
++  -0x1.2e59e00000000p-2f,-0x1.8031f00000000p-1f,0x1.3af80e0000000p-4f,0x1.8bb2c20000000p-1f,0x1.2f2ddc0000000p-3f,-0x1.75aeea0000000p-1f,-0x1.7121940000000p-2f,0x1.4001d80000000p-1f,
++  0x1.15ba160000000p-1f,-0x1.de6ba00000000p-2f,-0x1.5b61b80000000p-1f,0x1.14428e0000000p-2f,0x1.83a0140000000p-1f,-0x1.95360e0000000p-5f,-0x1.8b0a6e0000000p-1f,-0x1.6699e80000000p-3f,
++  0x1.70fe020000000p-1f,0x1.8a1d520000000p-2f,-0x1.37adee0000000p-1f,-0x1.1fcb880000000p-1f,0x1.c7e6200000000p-2f,0x1.622c5a0000000p-1f,-0x1.f391480000000p-3f,-0x1.8690240000000p-1f,
++  0x1.67593c0000000p-6f,0x1.89e0180000000p-1f,0x1.9da1620000000p-3f,-0x1.6bd2740000000p-1f,-0x1.a29fc40000000p-2f,0x1.2ef1020000000p-1f,0x1.2981ee0000000p-1f,-0x1.b0c4d80000000p-2f,
++  -0x1.6885560000000p-1f,0x1.bde8760000000p-3f,0x1.8901c80000000p-1f,0x1.72cd580000000p-8f,-0x1.8835340000000p-1f,-0x1.d4349c0000000p-3f,0x1.662eee0000000p-1f,0x1.baa16e0000000p-2f,
++  -0x1.25ceea0000000p-1f,-0x1.32dabc0000000p-1f,0x1.990f440000000p-2f,0x1.6e6b060000000p-1f,-0x1.879e4e0000000p-3f,-0x1.8af4640000000p-1f,-0x1.1099d20000000p-5f,0x1.860a340000000p-1f,
++  0x1.0520420000000p-2f,-0x1.6015400000000p-1f,-0x1.d21afe0000000p-2f,0x1.1c4a900000000p-1f,0x1.3bd2ea0000000p-1f,-0x1.80cd840000000p-2f,-0x1.73dbc20000000p-1f,0x1.50c4180000000p-3f,
++  0x1.8c67b40000000p-1f,0x1.f2ca6c0000000p-5f,-0x1.8360520000000p-1f,-0x1.1fda0c0000000p-2f,0x1.5987820000000p-1f,0x1.e905380000000p-2f,-0x1.1267260000000p-1f,-0x1.44676c0000000p-1f,
++  0x1.6807040000000p-2f,0x1.78d5ae0000000p-1f,-0x1.196bba0000000p-3f,-0x1.8d5aae0000000p-1f,-0x1.6a511a0000000p-4f,0x1.8037a80000000p-1f,0x1.3a3eac0000000p-2f,-0x1.52878e0000000p-1f,
++  -0x1.ff57ba0000000p-2f,0x1.0827300000000p-1f,0x1.4c953a0000000p-1f,-0x1.4ec4260000000p-2f,-0x1.7d569c0000000p-1f,0x1.c34a3c0000000p-4f,0x1.8dccd20000000p-1f,0x1.dae9260000000p-4f,
++  -0x1.7c90fe0000000p-1f,-0x1.5445c80000000p-2f,0x1.4b16f60000000p-1f,0x1.0a852e0000000p-1f,-0x1.fb1bc40000000p-2f,-0x1.5459180000000p-1f,0x1.350ba00000000p-2f,0x1.815c3a0000000p-1f,
++  -0x1.53073e0000000p-4f,-0x1.8dbcd00000000p-1f,-0x1.2584d20000000p-3f,0x1.786c8e0000000p-1f,0x1.6de58a0000000p-2f,-0x1.4337c60000000p-1f,-0x1.150acc0000000p-1f,0x1.e53ce80000000p-2f,
++  0x1.5bb0520000000p-1f,-0x1.1ae63a0000000p-2f,-0x1.84e57c0000000p-1f,0x1.c465aa0000000p-5f,0x1.8d2b580000000p-1f,0x1.5d477c0000000p-3f,-0x1.73cc740000000p-1f,-0x1.8716340000000p-2f,
++  0x1.3aecf80000000p-1f,0x1.1f39c80000000p-1f,-0x1.ceb9c40000000p-2f,-0x1.6298c00000000p-1f,0x1.005c760000000p-2f,0x1.87f1980000000p-1f,-0x1.c3cb580000000p-6f,-0x1.8c18b00000000p-1f,
++  -0x1.94aa5a0000000p-3f,0x1.6eb2040000000p-1f,0x1.9fcf8a0000000p-2f,-0x1.32396a0000000p-1f,-0x1.290e900000000p-1f,0x1.b798a80000000p-2f,0x1.6910180000000p-1f,-0x1.caef500000000p-3f,
++  -0x1.8a7f140000000p-1f,-0x1.228b320000000p-13f,0x1.8a84f60000000p-1f,0x1.cb971e0000000p-3f,-0x1.691f220000000p-1f,-0x1.b808760000000p-2f,0x1.291ffc0000000p-1f,0x1.32853e0000000p-1f,
++  -0x1.9fe2fa0000000p-2f,-0x1.6f13ca0000000p-1f,0x1.9482120000000p-3f,0x1.8c8d320000000p-1f,0x1.c8f8960000000p-6f,-0x1.88706e0000000p-1f,-0x1.01016e0000000p-2f,0x1.6314d00000000p-1f,
++  0x1.cfbb2c0000000p-2f,-0x1.1fa2a00000000p-1f,-0x1.3b9bc20000000p-1f,0x1.879d740000000p-2f,0x1.74a2760000000p-1f,-0x1.5d7d660000000p-3f,-0x1.8e1b160000000p-1f,-0x1.c7d1960000000p-5f,
++  0x1.85dbaa0000000p-1f,0x1.1bec680000000p-2f,-0x1.5c952a0000000p-1f,-0x1.e6de240000000p-2f,0x1.15c4940000000p-1f,0x1.444e740000000p-1f,-0x1.6ed1120000000p-2f,-0x1.79b94a0000000p-1f,
++  0x1.25f5100000000p-3f,0x1.8f27b00000000p-1f,0x1.556bde0000000p-4f,-0x1.82c70e0000000p-1f,-0x1.3683500000000p-2f,0x1.55a1c80000000p-1f,0x1.fd69c60000000p-2f,-0x1.0b89440000000p-1f,
++  -0x1.4c9a4c0000000p-1f,0x1.5585100000000p-2f,0x1.7e56ec0000000p-1f,-0x1.dbfa440000000p-4f,-0x1.8fb2de0000000p-1f,-0x1.c6a50a0000000p-4f,0x1.7f33b40000000p-1f,0x1.50bd260000000p-2f,
++  -0x1.4e3d440000000p-1f,-0x1.09ab840000000p-1f,0x1.00f3b00000000p-1f,0x1.547c760000000p-1f,-0x1.3bc26c0000000p-2f,-0x1.8279ac0000000p-1f,0x1.6b4baa0000000p-4f,0x1.8fbc400000000p-1f,
++  0x1.1bb66e0000000p-3f,-0x1.7b22a00000000p-1f,-0x1.6a91b20000000p-2f,0x1.4669ba0000000p-1f,0x1.144f140000000p-1f,-0x1.ec0e580000000p-2f,-0x1.5bf2440000000p-1f,0x1.21910c0000000p-2f,
++  0x1.861fe60000000p-1f,-0x1.f407b80000000p-5f,-0x1.8f43680000000p-1f,-0x1.53cf1e0000000p-3f,0x1.7694c60000000p-1f,0x1.83f8620000000p-2f,-0x1.3e29960000000p-1f,-0x1.1e9be00000000p-1f,
++  0x1.d58e360000000p-2f,0x1.62f93a0000000p-1f,-0x1.06f9a60000000p-2f,-0x1.89484a0000000p-1f,0x1.108d1c0000000p-5f,0x1.8e489a0000000p-1f,0x1.8b8a5a0000000p-3f,-0x1.718be20000000p-1f,
++  -0x1.9ce8e60000000p-2f,0x1.357f4c0000000p-1f,0x1.288ebc0000000p-1f,-0x1.be6f0c0000000p-2f,-0x1.698f0c0000000p-1f,0x1.d808060000000p-3f,0x1.8bf1ea0000000p-1f,-0x1.63c3900000000p-8f,
++  -0x1.8ccc100000000p-1f,-0x1.c2d71a0000000p-3f,0x1.6c091c0000000p-1f,0x1.b55a3e0000000p-2f,-0x1.2c6d9a0000000p-1f,-0x1.3224160000000p-1f,0x1.a6b6ea0000000p-2f,0x1.6fb0ce0000000p-1f,
++  -0x1.a172940000000p-3f,-0x1.8e1afc0000000p-1f,-0x1.6fe52c0000000p-6f,0x1.8acd700000000p-1f,0x1.f9a1300000000p-3f,-0x1.660dce0000000p-1f,-0x1.cd447c0000000p-2f,0x1.22f72a0000000p-1f,
++  0x1.3b589a0000000p-1f,-0x1.8e6dce0000000p-2f,-0x1.755cb00000000p-1f,0x1.6a449e0000000p-3f,0x1.8fc34a0000000p-1f,0x1.9c690e0000000p-5f,-0x1.884de00000000p-1f,-0x1.17ebbe0000000p-2f,
++  0x1.5f9c400000000p-1f,0x1.e4a06a0000000p-2f,-0x1.191f6a0000000p-1f,-0x1.44295e0000000p-1f,0x1.759b8c0000000p-2f,0x1.7a91200000000p-1f,-0x1.3290ae0000000p-3f,-0x1.90ea300000000p-1f,
++  -0x1.4050200000000p-4f,0x1.854e040000000p-1f,0x1.32b40e0000000p-2f,-0x1.58b6a20000000p-1f,-0x1.fb660c0000000p-2f,0x1.0ee9140000000p-1f,0x1.4c937c0000000p-1f,-0x1.5c48d60000000p-2f,
++  -0x1.7f4be00000000p-1f,0x1.f4d4940000000p-4f,0x1.918f240000000p-1f,0x1.b21eb20000000p-4f,-0x1.81cefe0000000p-1f,-0x1.4d1fce0000000p-2f,0x1.515f400000000p-1f,0x1.08c6240000000p-1f,
++  -0x1.0458460000000p-1f,-0x1.5493c00000000p-1f,0x1.427e5a0000000p-2f,0x1.838bca0000000p-1f,-0x1.83bc8c0000000p-4f,-0x1.91b1da0000000p-1f,-0x1.11c4ea0000000p-3f,0x1.7dd1600000000p-1f,
++  0x1.6728fc0000000p-2f,-0x1.4997920000000p-1f,-0x1.13873c0000000p-1f,0x1.f2de220000000p-2f,0x1.5c28540000000p-1f,-0x1.2841ca0000000p-2f,-0x1.874ef80000000p-1f,0x1.1204680000000p-4f,
++  0x1.9151f20000000p-1f,0x1.4a33120000000p-3f,-0x1.7956420000000p-1f,-0x1.80c4ca0000000p-2f,0x1.4161f60000000p-1f,0x1.1df1d80000000p-1f,-0x1.dc627a0000000p-2f,-0x1.634d640000000p-1f,
++  0x1.0d9c180000000p-2f,0x1.8a93700000000p-1f,-0x1.3fa26a0000000p-5f,-0x1.906ec00000000p-1f,-0x1.8246bc0000000p-3f,0x1.745e660000000p-1f,0x1.99ea9e0000000p-2f,-0x1.38c1360000000p-1f,
++  -0x1.2802620000000p-1f,0x1.c544520000000p-2f,0x1.6a00da0000000p-1f,-0x1.e52e500000000p-3f,-0x1.8d58860000000p-1f,0x1.6a29040000000p-7f,0x1.8f091a0000000p-1f,0x1.b9ece80000000p-3f,
++  -0x1.6eec160000000p-1f,-0x1.b293420000000p-2f,0x1.2fb8260000000p-1f,0x1.31b5b20000000p-1f,-0x1.ad8c120000000p-2f,-0x1.7040d60000000p-1f,0x1.ae75f40000000p-3f,0x1.8f9d580000000p-1f,
++  0x1.15dbf20000000p-6f,-0x1.8d21560000000p-1f,-0x1.f1147a0000000p-3f,0x1.6900d60000000p-1f,0x1.cab5f00000000p-2f,-0x1.2649920000000p-1f,-0x1.3b08740000000p-1f,0x1.9540f20000000p-2f,
++  0x1.760ae00000000p-1f,-0x1.7720fa0000000p-3f,-0x1.9160c80000000p-1f,-0x1.707dd20000000p-5f,0x1.8ab7c00000000p-1f,0x1.13d5b00000000p-2f,-0x1.629e700000000p-1f,-0x1.e24a7a0000000p-2f,
++  0x1.1c784a0000000p-1f,0x1.43f7ac0000000p-1f,-0x1.7c6afa0000000p-2f,-0x1.7b5cf40000000p-1f,0x1.3f40b60000000p-3f,0x1.92a2460000000p-1f,0x1.2aecea0000000p-4f,-0x1.87cd2a0000000p-1f,
++  -0x1.2ecfd00000000p-2f,0x1.5bc6ac0000000p-1f,0x1.f949480000000p-2f,-0x1.1247ce0000000p-1f,-0x1.4c80440000000p-1f,0x1.6311540000000p-2f,0x1.80355a0000000p-1f,-0x1.06e9040000000p-3f,
++  -0x1.93613c0000000p-1f,-0x1.9d5e240000000p-4f,0x1.84624c0000000p-1f,0x1.496f2e0000000p-2f,-0x1.547bd60000000p-1f,-0x1.07d5800000000p-1f,0x1.07baf40000000p-1f,0x1.549f400000000p-1f,
++  -0x1.493ccc0000000p-2f,-0x1.8492420000000p-1f,0x1.9c547e0000000p-4f,0x1.939d3c0000000p-1f,0x1.07b5700000000p-3f,-0x1.8078160000000p-1f,-0x1.63ab960000000p-2f,0x1.4cc0140000000p-1f,
++  0x1.12b3f20000000p-1f,-0x1.f9aa5a0000000p-2f,-0x1.5c51e00000000p-1f,0x1.2ef5740000000p-2f,0x1.88722e0000000p-1f,-0x1.2a2eba0000000p-4f,-0x1.93561e0000000p-1f,-0x1.4076e40000000p-3f,
++  0x1.7c0fa40000000p-1f,0x1.7d7c600000000p-2f,-0x1.4495e80000000p-1f,-0x1.1d3c3c0000000p-1f,0x1.e3338c0000000p-2f,0x1.6395aa0000000p-1f,-0x1.1444020000000p-2f,-0x1.8bd39e0000000p-1f,
++  0x1.6effcc0000000p-5f,0x1.9277ee0000000p-1f,0x1.78c5340000000p-3f,-0x1.7705c60000000p-1f,-0x1.96a7900000000p-2f,0x1.3bd19c0000000p-1f,0x1.2738f80000000p-1f,-0x1.cbc0be0000000p-2f,
++  -0x1.6a19600000000p-1f,0x1.f1ec4e0000000p-3f,0x1.8e4cbc0000000p-1f,-0x1.11c4660000000p-6f,-0x1.90c2c60000000p-1f,-0x1.b04fe60000000p-3f,0x1.71477a0000000p-1f,0x1.af155c0000000p-2f,
++  -0x1.3286780000000p-1f,-0x1.30bc260000000p-1f,0x1.b3a31c0000000p-2f,0x1.701b6a0000000p-1f,-0x1.bab29c0000000p-3f,-0x1.904b2c0000000p-1f,-0x1.7513040000000p-7f,0x1.8e92aa0000000p-1f,
++  0x1.e74dfa0000000p-3f,-0x1.6b18400000000p-1f,-0x1.c6faf20000000p-2f,0x1.28de000000000p-1f,0x1.39e0180000000p-1f,-0x1.9b01f80000000p-2f,-0x1.75aa7a0000000p-1f,0x1.82fa060000000p-3f,
++  0x1.91d57e0000000p-1f,0x1.4335f80000000p-5f,-0x1.8bff480000000p-1f,-0x1.0eeb520000000p-2f,0x1.649cec0000000p-1f,0x1.de89020000000p-2f,-0x1.1f02f60000000p-1f,-0x1.42d4360000000p-1f,
++  0x1.8229560000000p-2f,0x1.7b0f740000000p-1f,-0x1.4b19a60000000p-3f,-0x1.93314c0000000p-1f,-0x1.148ae60000000p-4f,0x1.892cac0000000p-1f,0x1.2a02fc0000000p-2f,-0x1.5dd8f60000000p-1f,
++  -0x1.f5b1860000000p-2f,0x1.14dfea0000000p-1f,0x1.4b75640000000p-1f,-0x1.68dd1c0000000p-2f,-0x1.8002680000000p-1f,0x1.12bba20000000p-3f,0x1.940a740000000p-1f,0x1.8741700000000p-4f,
++  -0x1.85d95e0000000p-1f,-0x1.44c24e0000000p-2f,0x1.56a1240000000p-1f,0x1.061ece0000000p-1f,-0x1.0a5fe00000000p-1f,-0x1.53ad7a0000000p-1f,0x1.4f13b20000000p-2f,0x1.8479fc0000000p-1f,
++  -0x1.b3d9120000000p-4f,-0x1.9444e00000000p-1f,-0x1.f9682c0000000p-4f,0x1.81d2160000000p-1f,0x1.5ee4c60000000p-2f,-0x1.4eb46a0000000p-1f,-0x1.10d3380000000p-1f,0x1.fe84640000000p-2f,
++  0x1.5b12300000000p-1f,-0x1.346ffa0000000p-2f,-0x1.87e7220000000p-1f,0x1.412b320000000p-4f,0x1.9388860000000p-1f,0x1.352e1a0000000p-3f,-0x1.7cfc760000000p-1f,-0x1.7851d00000000p-2f,
++  0x1.462ddc0000000p-1f,0x1.1b0fa00000000p-1f,-0x1.e7869a0000000p-2f,-0x1.61f7800000000p-1f,0x1.1971340000000p-2f,0x1.8ae0da0000000p-1f,-0x1.9c995a0000000p-5f,-0x1.9256820000000p-1f,
++  -0x1.6d38f00000000p-3f,0x1.77b8bc0000000p-1f,0x1.9146fa0000000p-2f,-0x1.3d4a7c0000000p-1f,-0x1.24f5020000000p-1f,0x1.d0003c0000000p-2f,0x1.6871d20000000p-1f,-0x1.fc51300000000p-3f,
++  -0x1.8d635e0000000p-1f,0x1.6d4b7c0000000p-6f,0x1.90aa160000000p-1f,0x1.a4c0440000000p-3f,-0x1.7201e00000000p-1f,-0x1.a9b6b40000000p-2f,0x1.3405620000000p-1f,0x1.2e79a80000000p-1f,
++  -0x1.b7ec0c0000000p-2f,-0x1.6e75300000000p-1f,0x1.c529ce0000000p-3f,0x1.8f64240000000p-1f,0x1.7a05a40000000p-8f,-0x1.8e7e360000000p-1f,-0x1.dbb2160000000p-3f,0x1.6bd86a0000000p-1f,
++  0x1.c19a500000000p-2f,-0x1.2a63aa0000000p-1f,-0x1.379ea40000000p-1f,0x1.9f58ae0000000p-2f,0x1.7407f40000000p-1f,-0x1.8d8a0a0000000p-3f,-0x1.90ec4c0000000p-1f,-0x1.14d8e00000000p-5f,
++  0x1.8bdac20000000p-1f,0x1.0902f80000000p-2f,-0x1.6542b40000000p-1f,-0x1.d8ef980000000p-2f,0x1.2069f00000000p-1f,0x1.4062f20000000p-1f,-0x1.864d940000000p-2f,-0x1.7928480000000p-1f,
++  0x1.557b480000000p-3f,0x1.91f38c0000000p-1f,0x1.f9d9f60000000p-5f,-0x1.88b2ae0000000p-1f,-0x1.23ca6e0000000p-2f,0x1.5e30980000000p-1f,0x1.ef940c0000000p-2f,-0x1.1609040000000p-1f,
++  -0x1.48abfe0000000p-1f,0x1.6cb5220000000p-2f,0x1.7db3d20000000p-1f,-0x1.1cfefe0000000p-3f,-0x1.9264e60000000p-1f,-0x1.6eeaaa0000000p-4f,0x1.8500980000000p-1f,0x1.3e23060000000p-2f,
++  -0x1.56ab120000000p-1f,-0x1.02c6ac0000000p-1f,0x1.0b52b00000000p-1f,0x1.508c200000000p-1f,-0x1.52b4840000000p-2f,-0x1.81ccd40000000p-1f,0x1.c879060000000p-4f,0x1.925e720000000p-1f,
++  0x1.e05e480000000p-4f,-0x1.80db640000000p-1f,-0x1.5816360000000p-2f,0x1.4ec0d40000000p-1f,0x1.0d73500000000p-1f,-0x1.004eac0000000p-1f,-0x1.5804ee0000000p-1f,0x1.3855640000000p-2f,
++  0x1.85712e0000000p-1f,-0x1.568a080000000p-4f,-0x1.91e0660000000p-1f,-0x1.2892c00000000p-3f,0x1.7c45a40000000p-1f,0x1.719e0e0000000p-2f,-0x1.4676980000000p-1f,-0x1.17ceb20000000p-1f,
++  0x1.ea05280000000p-2f,0x1.5f18840000000p-1f,-0x1.1da22c0000000p-2f,-0x1.88a3800000000p-1f,0x1.c89ac00000000p-5f,0x1.90ebfe0000000p-1f,0x1.6092e00000000p-3f,-0x1.773f3c0000000p-1f,
++  -0x1.8ab2080000000p-2f,0x1.3dcade0000000p-1f,0x1.21d3000000000p-1f,-0x1.d2db3c0000000p-2f,-0x1.65be960000000p-1f,0x1.029a3e0000000p-2f,0x1.8b5b760000000p-1f,-0x1.c77acc0000000p-6f,
++  -0x1.8f7b0e0000000p-1f,-0x1.981d5e0000000p-3f,0x1.71c4b60000000p-1f,0x1.a346cc0000000p-2f,-0x1.34bd760000000p-1f,-0x1.2b7b740000000p-1f,0x1.bb229e0000000p-2f,0x1.6bf3e20000000p-1f,
++  -0x1.ce7d380000000p-3f,-0x1.8d7f9e0000000p-1f,-0x1.49abb20000000p-13f,0x1.8d5e6e0000000p-1f,0x1.cedcbc0000000p-3f,-0x1.6b97c80000000p-1f,-0x1.bafbcc0000000p-2f,0x1.2b0bfe0000000p-1f,
++  0x1.34760a0000000p-1f,-0x1.a26c1a0000000p-2f,-0x1.7144aa0000000p-1f,0x1.96cfac0000000p-3f,0x1.8ec7680000000p-1f,0x1.cbbf4e0000000p-6f,-0x1.8a82220000000p-1f,-0x1.0256580000000p-2f,
++  0x1.64d54c0000000p-1f,0x1.d1f6ce0000000p-2f,-0x1.20f5680000000p-1f,-0x1.3d05de0000000p-1f,0x1.8948ce0000000p-2f,0x1.762f1e0000000p-1f,-0x1.5ed9d20000000p-3f,-0x1.8fa2d20000000p-1f,
++  -0x1.c9a7760000000p-5f,0x1.873c900000000p-1f,0x1.1ce7540000000p-2f,-0x1.5db5aa0000000p-1f,-0x1.e864920000000p-2f,0x1.16953c0000000p-1f,0x1.4539860000000p-1f,-0x1.6fc7d60000000p-2f,
++  -0x1.7abc7e0000000p-1f,0x1.26b4f40000000p-3f,0x1.9038720000000p-1f,0x1.5668780000000p-4f,-0x1.83ce400000000p-1f,-0x1.375b340000000p-2f,0x1.5689420000000p-1f,0x1.fec8400000000p-2f,
++  -0x1.0c3d620000000p-1f,-0x1.4d7d9c0000000p-1f,0x1.5668d00000000p-2f,0x1.7f5b160000000p-1f,-0x1.dd29920000000p-4f,-0x1.90c1b80000000p-1f,-0x1.c7eb260000000p-4f,0x1.80364c0000000p-1f,
++  0x1.51a54e0000000p-2f,-0x1.4f1dd80000000p-1f,-0x1.0a60a00000000p-1f,0x1.019f2e0000000p-1f,0x1.5563540000000p-1f,-0x1.3c92f20000000p-2f,-0x1.837e7a0000000p-1f,0x1.6c2c8c0000000p-4f,
++  0x1.90c8ee0000000p-1f,0x1.1c7e240000000p-3f,-0x1.7c207c0000000p-1f,-0x1.6b89640000000p-2f,0x1.4743380000000p-1f,0x1.1509f00000000p-1f,-0x1.ed544a0000000p-2f,-0x1.5cdc600000000p-1f,
++  0x1.223bf40000000p-2f,0x1.86f4740000000p-1f,-0x1.f4d3d60000000p-5f,-0x1.8feb3a0000000p-1f,-0x1.54533a0000000p-3f,0x1.7704ae0000000p-1f,0x1.845a540000000p-2f,-0x1.3e629e0000000p-1f,
++  -0x1.1ec1420000000p-1f,0x1.d5ac980000000p-2f,0x1.62fed20000000p-1f,-0x1.06eb7a0000000p-2f,-0x1.8922a60000000p-1f,0x1.104df60000000p-5f,0x1.8df7200000000p-1f,0x1.8b2b360000000p-3f,
++  -0x1.7118e60000000p-1f,-0x1.9c562c0000000p-2f,0x1.34fec40000000p-1f,0x1.2806a80000000p-1f,-0x1.bd87680000000p-2f,-0x1.68c4720000000p-1f,0x1.d6e1d80000000p-3f,0x1.8aed380000000p-1f,
++  -0x1.61f0640000000p-8f,-0x1.8ba0c20000000p-1f,-0x1.c174280000000p-3f,0x1.6ad44e0000000p-1f,0x1.b3d7020000000p-2f,-0x1.2b533a0000000p-1f,-0x1.30f8a20000000p-1f,0x1.a5029c0000000p-2f,
++  0x1.6e32860000000p-1f,-0x1.9fb3c40000000p-3f,-0x1.8c6fba0000000p-1f,-0x1.6e8a240000000p-6f,0x1.89189e0000000p-1f,0x1.f76f480000000p-3f,-0x1.6475d00000000p-1f,-0x1.cb33340000000p-2f,
++  0x1.21a1ca0000000p-1f,0x1.39e3be0000000p-1f,-0x1.8c8cae0000000p-2f,-0x1.73970c0000000p-1f,0x1.687f980000000p-3f,0x1.8dd0780000000p-1f,0x1.9a784e0000000p-5f,-0x1.86579a0000000p-1f,
++  -0x1.1684620000000p-2f,0x1.5dcec40000000p-1f,0x1.e2202a0000000p-2f,-0x1.17a5080000000p-1f,-0x1.42726c0000000p-1f,0x1.7398480000000p-2f,0x1.7884240000000p-1f,-0x1.30dbd00000000p-3f,
++  -0x1.8eb1680000000p-1f,-0x1.3e8fae0000000p-4f,0x1.83194c0000000p-1f,0x1.30f5de0000000p-2f,-0x1.56b7800000000p-1f,-0x1.f871520000000p-2f,0x1.0d4ea40000000p-1f,0x1.4a98e60000000p-1f,
++  -0x1.5a1f0e0000000p-2f,-0x1.7cd97a0000000p-1f,0x1.f173800000000p-4f,0x1.8ed32e0000000p-1f,0x1.af267a0000000p-4f,-0x1.7f05760000000p-1f,-0x1.4aab620000000p-2f,0x1.4ecbf00000000p-1f,
++  0x1.06b6420000000p-1f,-0x1.0240d40000000p-1f,-0x1.51c9f00000000p-1f,0x1.3fc5180000000p-2f,0x1.8039440000000p-1f,-0x1.80458e0000000p-4f,-0x1.8e19920000000p-1f,-0x1.0f4ea60000000p-3f,
++  0x1.7a429e0000000p-1f,0x1.63c47c0000000p-2f,-0x1.4666ec0000000p-1f,-0x1.10d32c0000000p-1f,0x1.eddc1c0000000p-2f,0x1.589e2e0000000p-1f,-0x1.252cd00000000p-2f,-0x1.8332620000000p-1f,
++  0x1.0f03ec0000000p-4f,0x1.8cf8240000000p-1f,0x1.469a240000000p-3f,-0x1.751f760000000p-1f,-0x1.7c6e6c0000000p-2f,0x1.3db0da0000000p-1f,0x1.1aa0720000000p-1f,-0x1.d6c2320000000p-2f,
++  -0x1.5f17140000000p-1f,0x1.0a5ecc0000000p-2f,0x1.85d31e0000000p-1f,-0x1.3b9a920000000p-5f,-0x1.8b89ac0000000p-1f,-0x1.7d8dd60000000p-3f,0x1.6fbfec0000000p-1f,0x1.94d1080000000p-2f,
++  -0x1.34d1820000000p-1f,-0x1.2445160000000p-1f,0x1.bf7aa40000000p-2f,0x1.655dd20000000p-1f,-0x1.dee2440000000p-3f,-0x1.882fd00000000p-1f,0x1.64db100000000p-7f,0x1.89c94a0000000p-1f,
++  0x1.b41d200000000p-3f,-0x1.6a08860000000p-1f,-0x1.acc4d60000000p-2f,0x1.2b9ec80000000p-1f,0x1.2d92640000000p-1f,-0x1.a7ad160000000p-2f,-0x1.6b34e00000000p-1f,0x1.a87c9c0000000p-3f,
++  0x1.8a129e0000000p-1f,0x1.123ff40000000p-6f,-0x1.878efc0000000p-1f,-0x1.ea1b1e0000000p-3f,0x1.63e1540000000p-1f,0x1.c42f620000000p-2f,-0x1.22104e0000000p-1f,-0x1.3680120000000p-1f,
++  0x1.8f50040000000p-2f,0x1.707fa20000000p-1f,-0x1.7174000000000p-3f,-0x1.8b42c60000000p-1f,-0x1.6af3ae0000000p-5f,0x1.848a580000000p-1f,0x1.0f7b2c0000000p-2f,-0x1.5ced2c0000000p-1f,
++  -0x1.da78c40000000p-2f,0x1.17cb260000000p-1f,0x1.3e96bc0000000p-1f,-0x1.7603d80000000p-2f,-0x1.74ebe80000000p-1f,0x1.39c02e0000000p-3f,0x1.8ba6100000000p-1f,0x1.25bce60000000p-4f,
++  -0x1.80dcf40000000p-1f,-0x1.2968520000000p-2f,0x1.557eac0000000p-1f,0x1.f0169e0000000p-2f,-0x1.0d3b220000000p-1f,-0x1.4655340000000p-1f,0x1.5c68800000000p-2f,0x1.78f3f60000000p-1f,
++  -0x1.01e0300000000p-3f,-0x1.8ba1640000000p-1f,-0x1.9568700000000p-4f,0x1.7ccc620000000p-1f,0x1.42f65c0000000p-2f,-0x1.4dba2a0000000p-1f,-0x1.0290aa0000000p-1f,0x1.026a160000000p-1f,
++  0x1.4dbef20000000p-1f,-0x1.428ef20000000p-2f,-0x1.7cadba0000000p-1f,0x1.93e0800000000p-4f,0x1.8b5dce0000000p-1f,0x1.0253520000000p-3f,-0x1.7890cc0000000p-1f,-0x1.5c59ea0000000p-2f,
++  0x1.45de6a0000000p-1f,0x1.0d03420000000p-1f,-0x1.ef25300000000p-2f,-0x1.550ffe0000000p-1f,0x1.289d300000000p-2f,0x1.8038a00000000p-1f,-0x1.23de2a0000000p-4f,-0x1.8ad5b80000000p-1f,
++  -0x1.39b7860000000p-3f,0x1.7401360000000p-1f,0x1.7563b80000000p-2f,-0x1.3daa5a0000000p-1f,-0x1.17254e0000000p-1f,0x1.d8d75a0000000p-2f,0x1.5bf30c0000000p-1f,-0x1.0e4daa0000000p-2f,
++  -0x1.8347bc0000000p-1f,0x1.6700a40000000p-5f,0x1.89ce760000000p-1f,0x1.70b36c0000000p-3f,-0x1.6ef9ea0000000p-1f,-0x1.8df4a20000000p-2f,0x1.3510200000000p-1f,0x1.20ecda0000000p-1f,
++  -0x1.c1d4c40000000p-2f,-0x1.6238b80000000p-1f,0x1.e6f2c20000000p-3f,0x1.8578440000000p-1f,-0x1.0b56f40000000p-6f,-0x1.87b72e0000000p-1f,-0x1.a682060000000p-3f,0x1.68cce80000000p-1f,
++  0x1.a520220000000p-2f,-0x1.2b5f1a0000000p-1f,-0x1.2994440000000p-1f,0x1.a94e300000000p-2f,0x1.6754620000000p-1f,-0x1.b007600000000p-3f,-0x1.869bc40000000p-1f,-0x1.6c96a40000000p-7f,
++  0x1.84cb540000000p-1f,0x1.db4da40000000p-3f,-0x1.6211300000000p-1f,-0x1.bb9df20000000p-2f,0x1.2163ec0000000p-1f,0x1.31ef280000000p-1f,-0x1.90867c0000000p-2f,-0x1.6c19240000000p-1f,
++  0x1.78f8b60000000p-3f,0x1.87651c0000000p-1f,0x1.3ae2720000000p-5f,-0x1.8189360000000p-1f,-0x1.07b9420000000p-2f,0x1.5b0a100000000p-1f,0x1.d19bc60000000p-2f,-0x1.172f400000000p-1f,
++  -0x1.3a09ce0000000p-1f,0x1.77a0000000000p-2f,0x1.70bc260000000p-1f,-0x1.420aaa0000000p-3f,-0x1.88350a0000000p-1f,-0x1.0d12c00000000p-4f,0x1.7e75a20000000p-1f,0x1.21e8be0000000p-2f,
++  -0x1.544f780000000p-1f,-0x1.e809680000000p-2f,0x1.0d53040000000p-1f,0x1.426ecc0000000p-1f,-0x1.5f03b80000000p-2f,-0x1.758c900000000p-1f,0x1.0b36720000000p-3f,0x1.8908560000000p-1f,
++  0x1.7cab9a0000000p-4f,-0x1.7b39a60000000p-1f,-0x1.3bed4c0000000p-2f,0x1.4d4a160000000p-1f,0x1.fdf8da0000000p-2f,-0x1.031c640000000p-1f,-0x1.4a6d8e0000000p-1f,0x1.45ee400000000p-2f,
++  0x1.79e52c0000000p-1f,-0x1.a7f7080000000p-4f,-0x1.895c200000000p-1f,-0x1.ebe8740000000p-4f,0x1.77814e0000000p-1f,0x1.5592d40000000p-2f,-0x1.45d6560000000p-1f,-0x1.09a4480000000p-1f,
++  0x1.f0f5520000000p-2f,0x1.51ceb00000000p-1f,-0x1.2c21e60000000p-2f,-0x1.7d4ed40000000p-1f,0x1.385b320000000p-4f,0x1.887d3e0000000p-1f,0x1.2cb4320000000p-3f,-0x1.726f8a0000000p-1f,
++};
+diff --git a/base/uxr_original_audio_reference.h b/base/uxr_original_audio_reference.h
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_original_audio_reference.h
+@@ -0,0 +1,82 @@
++// Copyright 2026. Explicit original-Cloak graph gate; compatible PCM matching
++// remains in uxr_audio_reference_data.h and is not changed by this strategy.
++#ifndef BASE_UXR_ORIGINAL_AUDIO_REFERENCE_H_
++#define BASE_UXR_ORIGINAL_AUDIO_REFERENCE_H_
++#include <cmath>
++#include <cstdint>
++#include <span>
++#include "base/uxr_audio_reference_data.h"
++
++namespace base::uxr_surface_v1 {
++struct OriginalAudioGraphInputs {
++  bool mac = false;
++  bool has_first_oscillator = false;
++  bool has_first_compressor = false;
++  bool triangle = false;
++  uint32_t frames = 0;
++  uint32_t channels = 0;
++  float sample_rate = 0;
++  uint32_t destination_connections = 0;
++  float frequency = 0;
++  float threshold = 0;
++  float knee = 0;
++  float ratio = 0;
++  float attack = 0;
++  float release = 0;
++};
++
++// Called once at successful startRendering entry. These are the CURRENT values
++// of the FIRST nodes created in this context, independent of graph connectivity.
++inline bool OriginalAudioGraphEligible(const OriginalAudioGraphInputs& q) {
++  if (!q.mac || !q.has_first_oscillator || !q.has_first_compressor || !q.triangle)
++    return false;
++  if (q.frames == 1000) {
++    return q.channels == 1 && q.sample_rate == 44100.0f &&
++           q.destination_connections == 1 && q.frequency == 9998.123f &&
++           q.threshold == -52.0f && q.knee == 40.0f && q.ratio == 12.0f &&
++           q.attack == 0.0001f && q.release == 0.25f;
++  }
++  // The getters return float32, but the original cvtss2sd/addsd/ucomisd chain
++  // promotes each value before the subtraction and uses the double 0.001.
++  return std::abs(static_cast<double>(q.frequency) - 10000.0) <= 0.001 &&
++         std::abs(static_cast<double>(q.threshold) + 50.0) <= 0.001 &&
++         std::abs(static_cast<double>(q.knee) - 40.0) <= 0.001 &&
++         std::abs(static_cast<double>(q.ratio) - 12.0) <= 0.001 &&
++         std::abs(static_cast<double>(q.attack)) <= 0.001 &&
++         std::abs(static_cast<double>(q.release) - 0.25) <= 0.001;
++}
++
++#include "base/uxr_original_audio_multiple.inc"
++
++// Selection uses the completion-time monotonically incremented uint32 counter,
++// not a count of currently connected edges and not the start-time value.
++inline std::span<const float> OriginalAudioReferenceFor(
++    size_t length, uint32_t destination_connections) {
++  const bool multiple = destination_connections > 1;
++  if (length == 5000)
++    return multiple ? std::span<const float>(kOriginalMacAudio5000Multiple)
++                    : std::span<const float>(kMacAudio5000);
++  if (!multiple && length == 1000)
++    return kMacAudio1000;
++  if (!multiple && length == 44100)
++    return kMacAudio44100;
++  return {};
++}
++
++template <class Samples>
++inline bool ApplyOriginalAudioReference(Samples channel_zero,
++                                        bool captured_eligibility,
++                                        bool mac_at_completion,
++                                        uint32_t destination_connections) {
++  if (!captured_eligibility || !mac_at_completion)
++    return false;
++  const auto reference = OriginalAudioReferenceFor(
++      channel_zero.size(), destination_connections);
++  if (reference.empty())
++    return false;
++  for (size_t i = 0; i < reference.size(); ++i)
++    channel_zero[i] = reference[i];
++  return true;
++}
++}  // namespace base::uxr_surface_v1
++#endif  // BASE_UXR_ORIGINAL_AUDIO_REFERENCE_H_
+diff --git a/third_party/blink/renderer/modules/webaudio/audio_node.cc b/third_party/blink/renderer/modules/webaudio/audio_node.cc
+--- a/third_party/blink/renderer/modules/webaudio/audio_node.cc
++++ b/third_party/blink/renderer/modules/webaudio/audio_node.cc
+@@ -24,6 +24,7 @@
+  */
+ 
+ #include "third_party/blink/renderer/modules/webaudio/audio_node.h"
++#include "third_party/blink/renderer/modules/webaudio/audio_destination_node.h"
+ 
+ #include <inttypes.h>
+ 
+@@ -220,7 +221,10 @@
+     connected_nodes_[output_index] =
+         MakeGarbageCollected<GCedHeapHashSet<Member<AudioNode>>>();
+   }
+-  connected_nodes_[output_index]->insert(destination);
++  const bool is_new_connection =
++      connected_nodes_[output_index]->insert(destination).is_new_entry;
++  if (is_new_connection && destination == context()->destinationNode())
++    context()->UxrDidAddDestinationConnection();
+ 
+   Handler().UpdatePullStatusIfNeeded();
+ 
+diff --git a/third_party/blink/renderer/modules/webaudio/base_audio_context.cc b/third_party/blink/renderer/modules/webaudio/base_audio_context.cc
+--- a/third_party/blink/renderer/modules/webaudio/base_audio_context.cc
++++ b/third_party/blink/renderer/modules/webaudio/base_audio_context.cc
+@@ -24,6 +24,7 @@
+  */
+ 
+ #include "third_party/blink/renderer/modules/webaudio/base_audio_context.h"
++#include "base/uxr_config.h"
+ 
+ #include "base/metrics/histogram_functions.h"
+ #include "build/build_config.h"
+@@ -893,7 +894,30 @@
+   }
+ }
+ 
++void BaseAudioContext::UxrRememberFirstOscillator(OscillatorNode* node) {
++  DCHECK(IsMainThread());
++  if (base::UxrConfig::GetInstance().SurfaceModes().audio.mode ==
++          base::UxrSurfaceMode::kCloakOriginal && !uxr_first_oscillator_)
++    uxr_first_oscillator_ = node;
++}
++
++void BaseAudioContext::UxrRememberFirstCompressor(DynamicsCompressorNode* node) {
++  DCHECK(IsMainThread());
++  if (base::UxrConfig::GetInstance().SurfaceModes().audio.mode ==
++          base::UxrSurfaceMode::kCloakOriginal && !uxr_first_compressor_)
++    uxr_first_compressor_ = node;
++}
++
++void BaseAudioContext::UxrDidAddDestinationConnection() {
++  DCHECK(IsMainThread());
++  if (base::UxrConfig::GetInstance().SurfaceModes().audio.mode ==
++      base::UxrSurfaceMode::kCloakOriginal)
++    ++uxr_destination_connection_count_;
++}
++
+ void BaseAudioContext::Trace(Visitor* visitor) const {
++  visitor->Trace(uxr_first_oscillator_);
++  visitor->Trace(uxr_first_compressor_);
+   visitor->Trace(destination_node_);
+   visitor->Trace(listener_);
+   visitor->Trace(pending_promise_resolvers_);
+diff --git a/third_party/blink/renderer/modules/webaudio/base_audio_context.h b/third_party/blink/renderer/modules/webaudio/base_audio_context.h
+--- a/third_party/blink/renderer/modules/webaudio/base_audio_context.h
++++ b/third_party/blink/renderer/modules/webaudio/base_audio_context.h
+@@ -157,6 +157,20 @@
+                                  Vector<double> feedback_coef,
+                                  ExceptionState&);
+   OscillatorNode* createOscillator(ExceptionState&);
++  // Explicit original strategy: hold the FIRST successfully created nodes.
++  // Node factory hooks cover both context.create* and new Node(context, options).
++  void UxrRememberFirstOscillator(OscillatorNode*);
++  void UxrRememberFirstCompressor(DynamicsCompressorNode*);
++  void UxrDidAddDestinationConnection();
++  OscillatorNode* UxrFirstOscillator() const {
++    return uxr_first_oscillator_.Get();
++  }
++  DynamicsCompressorNode* UxrFirstCompressor() const {
++    return uxr_first_compressor_.Get();
++  }
++  uint32_t UxrDestinationConnectionCount() const {
++    return uxr_destination_connection_count_;
++  }
+   PannerNode* createPanner(ExceptionState&);
+   PeriodicWave* createPeriodicWave(const Vector<float>& real,
+                                    const Vector<float>& imag,
+@@ -362,6 +376,11 @@
+   void RejectPendingPromiseResolversWithException(const String& message);
+ 
+   Member<AudioDestinationNode> destination_node_;
++  Member<OscillatorNode> uxr_first_oscillator_;
++  Member<DynamicsCompressorNode> uxr_first_compressor_;
++  // Increment only on a newly inserted destination edge; disconnect never
++  // decrements it. uint32 wrap matches the original integer field.
++  uint32_t uxr_destination_connection_count_ = 0;
+ 
+   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+ 
+diff --git a/third_party/blink/renderer/modules/webaudio/dynamics_compressor_node.cc b/third_party/blink/renderer/modules/webaudio/dynamics_compressor_node.cc
+--- a/third_party/blink/renderer/modules/webaudio/dynamics_compressor_node.cc
++++ b/third_party/blink/renderer/modules/webaudio/dynamics_compressor_node.cc
+@@ -120,7 +120,9 @@
+     ExceptionState& exception_state) {
+   DCHECK(IsMainThread());
+ 
+-  return MakeGarbageCollected<DynamicsCompressorNode>(context);
++  auto* node = MakeGarbageCollected<DynamicsCompressorNode>(context);
++  context.UxrRememberFirstCompressor(node);
++  return node;
+ }
+ 
+ DynamicsCompressorNode* DynamicsCompressorNode::Create(
+diff --git a/third_party/blink/renderer/modules/webaudio/offline_audio_context.cc b/third_party/blink/renderer/modules/webaudio/offline_audio_context.cc
+--- a/third_party/blink/renderer/modules/webaudio/offline_audio_context.cc
++++ b/third_party/blink/renderer/modules/webaudio/offline_audio_context.cc
+@@ -25,6 +25,11 @@
+ 
+ #include "base/uxr_config.h"
+ #include "base/uxr_audio_reference_data.h"
++#include "base/uxr_original_audio_reference.h"
++#include "build/build_config.h"
++#include "third_party/blink/renderer/bindings/modules/v8/v8_oscillator_type.h"
++#include "third_party/blink/renderer/modules/webaudio/oscillator_node.h"
++#include "third_party/blink/renderer/modules/webaudio/dynamics_compressor_node.h"
+ #include "base/uxr_surface_reference_data.h"
+ 
+ #include "third_party/blink/renderer/modules/webaudio/offline_audio_context.h"
+@@ -248,6 +253,35 @@
+ 
+   DCHECK(!is_rendering_started_);
+ 
++  const auto original_modes = base::UxrConfig::GetInstance().SurfaceModes();
++  if (original_modes.audio.mode == base::UxrSurfaceMode::kCloakOriginal) {
++    auto* oscillator = UxrFirstOscillator();
++    auto* compressor = UxrFirstCompressor();
++    bool mac = original_modes.platform == "macos";
++#if BUILDFLAG(IS_MAC)
++    mac = mac || original_modes.platform.empty();
++#endif
++    base::uxr_surface_v1::OriginalAudioGraphInputs graph;
++    graph.mac = mac;
++    graph.has_first_oscillator = oscillator != nullptr;
++    graph.has_first_compressor = compressor != nullptr;
++    graph.frames = total_render_frames_;
++    graph.channels = DestinationHandler().NumberOfChannels();
++    graph.sample_rate = DestinationHandler().SampleRate();
++    graph.destination_connections = UxrDestinationConnectionCount();
++    if (oscillator && compressor) {
++      graph.triangle = oscillator->type().AsEnum() == V8OscillatorType::Enum::kTriangle;
++      graph.frequency = oscillator->frequency()->value();
++      graph.threshold = compressor->threshold()->value();
++      graph.knee = compressor->knee()->value();
++      graph.ratio = compressor->ratio()->value();
++      graph.attack = compressor->attack()->value();
++      graph.release = compressor->release()->value();
++    }
++    uxr_original_audio_eligible_ =
++        base::uxr_surface_v1::OriginalAudioGraphEligible(graph);
++  }
++
+   complete_resolver_ = MakeGarbageCollected<ScriptPromiseResolver<AudioBuffer>>(
+       script_state, exception_state.GetContext());
+ 
+@@ -442,6 +476,20 @@
+     }
+ 
+     const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
++    if (modes.audio.mode == base::UxrSurfaceMode::kCloakOriginal &&
++        rendered_buffer->numberOfChannels() > 0) {
++      bool mac = modes.platform == "macos";
++#if BUILDFLAG(IS_MAC)
++      mac = mac || modes.platform.empty();
++#endif
++      if (auto channel = rendered_buffer->getChannelData(0)) {
++        // Original replacement is independent of ordinary noise=false/raw.
++        // Other channels and live AnalyserNode data keep native PCM.
++        base::uxr_surface_v1::ApplyOriginalAudioReference(
++            channel->AsSpan(), uxr_original_audio_eligible_, mac,
++            UxrDestinationConnectionCount());
++      }
++    }
+     if (modes.audio.mode == base::UxrSurfaceMode::kCloak &&
+         rendered_buffer->numberOfChannels() == 1) {
+       const bool mac = base::uxr_surface_v1::AsciiEqual(modes.platform, "macos") ||
+diff --git a/third_party/blink/renderer/modules/webaudio/offline_audio_context.h b/third_party/blink/renderer/modules/webaudio/offline_audio_context.h
+--- a/third_party/blink/renderer/modules/webaudio/offline_audio_context.h
++++ b/third_party/blink/renderer/modules/webaudio/offline_audio_context.h
+@@ -145,6 +145,9 @@
+   // same state when the context is suspended, so we cannot utilize it for this
+   // purpose.
+   bool is_rendering_started_ = false;
++  // Frozen at startRendering. Connections may still be added during suspend;
++  // the completion-time counter is intentionally read separately.
++  bool uxr_original_audio_eligible_ = false;
+ 
+   // Total render sample length.
+   uint32_t total_render_frames_;
+diff --git a/third_party/blink/renderer/modules/webaudio/oscillator_node.cc b/third_party/blink/renderer/modules/webaudio/oscillator_node.cc
+--- a/third_party/blink/renderer/modules/webaudio/oscillator_node.cc
++++ b/third_party/blink/renderer/modules/webaudio/oscillator_node.cc
+@@ -99,6 +99,7 @@
+       return nullptr;
+     }
+   }
++  context.UxrRememberFirstOscillator(node);
+   return node;
+ }
+ 

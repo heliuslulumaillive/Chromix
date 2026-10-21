@@ -79,7 +79,8 @@ function Invoke-OwnedCheck([string]$Executable, [string[]]$Arguments,
   } finally { $process.Dispose() }
 }
 
-function Read-NativeGroups($Execution, [string[]]$RequiredFields) {
+function Read-NativeGroups($Execution, [string[]]$RequiredFields,
+                           [hashtable]$ExpectedCounts = @{}) {
   if ($Execution.exit_code -ne 0 -or $Execution.timed_out) {
     throw "Native check failed: $($Execution.label)"
   }
@@ -108,11 +109,39 @@ function Read-NativeGroups($Execution, [string[]]$RequiredFields) {
     if (-not [double]::IsFinite($count) -or $count -le 0 -or $count % 1 -ne 0) {
       throw "Native coverage group did not execute: $name"
     }
+    if ($ExpectedCounts.ContainsKey($name) -and $rawCount -ne $ExpectedCounts[$name]) {
+      throw "Native coverage group does not match the pinned suite: $name"
+    }
   }
   if (-not @($records | Where-Object { $_.status -ceq 'passed' -and $_.configuration_checks -gt 0 }).Count) {
     throw 'Native configuration acceptance is missing'
   }
   return $records
+}
+
+function Assert-OriginalRuntimeScope($Result) {
+  $names = @('canvas_pixels', 'webgl_pixels', 'canvas_references', 'webgl_references',
+             'text', 'fonts', 'audio', 'voices', 'webgpu_identity', 'webgpu_features', 'webgpu_limits', 'memory')
+  $original = $Result.original_runtime_acceptance
+  if ($Result.full_strategy_acceptance_scope -cne 'compatible-v1-covered-groups' -or
+      $Result.full_original_cloak_acceptance -isnot [bool] -or $Result.full_original_cloak_acceptance -or
+      -not $original -or $original.status -cne 'not_tested' -or
+      $original.source_goldens_are_runtime_acceptance -isnot [bool] -or $original.source_goldens_are_runtime_acceptance -or
+      @($original.PSObject.Properties).Count -ne 3 -or
+      @($original.PSObject.Properties | Where-Object { $_.Name -cnotin @('status', 'source_goldens_are_runtime_acceptance', 'surfaces') }).Count -or
+      -not $original.surfaces -or @($original.surfaces.PSObject.Properties).Count -ne $names.Count -or
+      @($original.surfaces.PSObject.Properties | Where-Object { $_.Name -cnotin $names }).Count) {
+    throw 'Original browser runtime acceptance must remain explicitly not_tested in this runner'
+  }
+  foreach ($name in $names) {
+    $surface = $original.surfaces.$name
+    if (-not $surface -or @($surface.PSObject.Properties).Count -ne 3 -or
+        @($surface.PSObject.Properties | Where-Object { $_.Name -cnotin @('status', 'evidence', 'reason') }).Count -or
+        $surface.status -cne 'not_tested' -or $surface.evidence -isnot [array] -or $surface.evidence.Count -ne 0 -or
+        $surface.reason -isnot [string] -or -not $surface.reason) {
+      throw "Native/source goldens cannot supply original browser acceptance: $name"
+    }
+  }
 }
 
 foreach ($path in @($nativePath, $runtimePath, $reportPath)) {
@@ -121,7 +150,8 @@ foreach ($path in @($nativePath, $runtimePath, $reportPath)) {
 $main = [ordered]@{
   schema_version = 1; status = 'failed'; started_at = [DateTimeOffset]::UtcNow.ToString('o')
   browser_sha256 = $null; chrome_dll_sha256 = $null; files = @{}
-  qualification = 'Required native and bounded loopback runtime acceptance; capability and GPU coverage limits are reported separately'
+  full_strategy_acceptance_scope = 'compatible-v1-covered-groups'; full_original_cloak_acceptance = $false
+  qualification = 'Native helper/configuration tests and bounded compatible-v1 browser groups; original-mode Web API runtime acceptance is not executed here'
 }
 $native = [ordered]@{ schema_version = 1; status = 'failed'; processes = @(); groups = @{} }
 $hostProcess = [Diagnostics.Process]::GetCurrentProcess()
@@ -172,7 +202,13 @@ try {
   $native.groups['chromix'] = @(Read-NativeGroups $chromix @('configuration_checks'))
   $original = Invoke-OwnedCheck $executable @('--config-original', $fixtureRoot) $outPath 'config-original' 180
   $native.processes += $original
-  $native.groups['original'] = @(Read-NativeGroups $original @('original_pixel_checks', 'configuration_checks'))
+  $native.groups['original'] = @(Read-NativeGroups $original @(
+      'original_pixel_checks', 'original_reference_checks', 'original_audio_checks',
+      'configuration_checks') @{
+        original_pixel_checks = 78
+        original_reference_checks = 2660
+        original_audio_checks = 337
+      })
   $helpers = Invoke-OwnedCheck $executable @($fixtureRoot) $outPath 'production-helpers-and-config' 180
   $native.processes += $helpers
   $native.groups['production'] = @(Read-NativeGroups $helpers @(
@@ -190,6 +226,7 @@ try {
     throw 'Fingerprint runtime acceptance failed; see runtime evidence'
   }
   $result = Get-Content -LiteralPath $runtimePath -Raw | ConvertFrom-Json
+  Assert-OriginalRuntimeScope $result
   if ($result.status -cne 'passed' -or $result.baseline_only -or
       $result.browser_sha256 -cne $main.browser_sha256 -or
       $result.chrome_dll_sha256 -cne $main.chrome_dll_sha256 -or
@@ -221,6 +258,9 @@ try {
   $main['coverage_limits'] = $result.coverage_limits
   $main['positive_acceptance'] = $result.positive_acceptance
   $main['full_strategy_acceptance'] = $result.full_strategy_acceptance
+  $main['full_strategy_acceptance_scope'] = $result.full_strategy_acceptance_scope
+  $main['full_original_cloak_acceptance'] = $result.full_original_cloak_acceptance
+  $main['original_runtime_acceptance'] = $result.original_runtime_acceptance
   $main['partial'] = $result.partial
   $main.status = 'passed'
 } catch {

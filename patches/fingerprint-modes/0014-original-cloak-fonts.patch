@@ -1,0 +1,323 @@
+diff --git a/base/uxr_surface_reference_data.h b/base/uxr_surface_reference_data.h
+--- a/base/uxr_surface_reference_data.h
++++ b/base/uxr_surface_reference_data.h
+@@ -943,10 +943,187 @@
+   if (score >= 54 && ContainsFont(kWindowsOffice, family)) return true;
+   if (score >= 67 && ContainsFont(kWindowsHigh, family)) return true;
+   return score >= 72 && AsciiEqual(family, "Roboto");
+ }
+ 
++
++// Original Windows CloakBrowser 155 font-selection policy. Public metric tables
++// are independent. These rules select/reject real installed faces, not assets.
++inline std::string OriginalFontLower(std::string_view value) {
++  std::string result(value);
++  for (char& c : result) {
++    if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
++  }
++  return result;
++}
++struct OriginalFontAlias { std::string_view first, second; };
++inline constexpr OriginalFontAlias kOriginalLocalizedFontAliases[] = {
++  {"microsoft jhenghei", "\345\276\256\350\273\237\346\255\243\351\273\221\351\253\224"},
++  {"microsoft jhenghei light", "\345\276\256\350\273\237\346\255\243\351\273\221\351\253\224 light"},
++  {"microsoft yahei", "\345\276\256\350\275\257\351\233\205\351\273\221"},
++  {"microsoft yahei light", "\345\276\256\350\275\257\351\233\205\351\273\221 light"},
++  {"malgun gothic", "\353\247\221\354\235\200 \352\263\240\353\224\225"},
++  {"yu gothic", "\346\270\270\343\202\264\343\202\267\343\203\203\343\202\257"},
++  {"yu gothic light", "\346\270\270\343\202\264\343\202\267\343\203\203\343\202\257 light"},
++  {"yu gothic medium", "\346\270\270\343\202\264\343\202\267\343\203\203\343\202\257 medium"},
++  {"ms gothic", "\357\274\255\357\274\263 \343\202\264\343\202\267\343\203\203\343\202\257"},
++  {"ms pgothic", "\357\274\255\357\274\263 \357\274\260\343\202\264\343\202\267\343\203\203\343\202\257"},
++  {"simsun", "\345\256\213\344\275\223"},
++  {"nsimsun", "\346\226\260\345\256\213\344\275\223"},
++  {"simsun-extb", "simsun"},
++  {"simsun-extb", "\345\256\213\344\275\223"},
++  {"mingliu-extb", "\347\264\260\346\230\216\351\253\224-extb"},
++  {"pmingliu-extb", "\346\226\260\347\264\260\346\230\216\351\253\224-extb"},
++  {"mingliu_hkscs-extb", "\347\264\260\346\230\216\351\253\224_hkscs-extb"},
++};
++inline constexpr OriginalFontAlias kOriginalWindowsFontAliases[] = {
++  {"helvetica", "arial"},
++  {"times", "times new roman"},
++  {"franklin gothic heavy", "franklin gothic medium"},
++};
++inline constexpr std::string_view kOriginalCommonFontFamilies[] = {
++  "-webkit-standard",
++  "system-ui",
++  "arial",
++  "courier new",
++  "microsoft sans serif",
++  "sans",
++  "times new roman",
++  "cursive",
++  "fantasy",
++  "monospace",
++  "sans-serif",
++  "serif",
++  "math",
++  "blinkmacsystemfont",
++  "noto color emoji",
++  "dejavu math tex gyre",
++};
++inline constexpr std::string_view kOriginalMacCoverageFonts[] = {
++  "Apple Color Emoji",
++  "Arial",
++  "Arial Narrow",
++  "Arial Unicode MS",
++  "Comic Sans MS",
++  "Courier",
++  "Courier New",
++  "Georgia",
++  "Gill Sans",
++  "Helvetica",
++  "Helvetica Neue",
++  "Impact",
++  "Menlo",
++  "Microsoft Sans Serif",
++  "Monaco",
++  "Tahoma",
++  "Times New Roman",
++  "Trebuchet MS",
++  "Webdings",
++  "Wingdings",
++};
++template <class Aliases>
++inline bool OriginalFontAliasMatch(const Aliases& aliases,
++                                   std::string_view first,
++                                   std::string_view second) {
++  for (const auto& row : aliases) {
++    if ((first == row.first && second == row.second) ||
++        (first == row.second && second == row.first)) return true;
++  }
++  return false;
++}
++inline bool OriginalFontBaseNameMatch(std::string_view actual,
++                                     std::string_view requested) {
++  const std::string a = OriginalFontLower(actual);
++  const std::string b = OriginalFontLower(requested);
++  if (a.empty() || b.empty()) return false;
++  return a.starts_with(b) || b.starts_with(a) ||
++      OriginalFontAliasMatch(kOriginalLocalizedFontAliases, a, b) ||
++      (a.starts_with("sitka") && b.starts_with("sitka"));
++}
++inline bool OriginalFontWindowsNameMatch(std::string_view actual,
++                                        std::string_view requested) {
++  return OriginalFontBaseNameMatch(actual, requested) ||
++      OriginalFontAliasMatch(kOriginalWindowsFontAliases,
++                            OriginalFontLower(actual), OriginalFontLower(requested));
++}
++inline bool OriginalWindowsFontPoolContains(std::string_view requested,
++                                           uint64_t seed) {
++  if (CloakFontCandidate(requested, "windows", seed)) return true;
++  const auto any_alias = [&](const auto& aliases) {
++    for (const auto& row : aliases) {
++      if (requested == row.first && CloakFontCandidate(row.second, "windows", seed))
++        return true;
++      if (requested == row.second && CloakFontCandidate(row.first, "windows", seed))
++        return true;
++    }
++    return false;
++  };
++  return any_alias(kOriginalLocalizedFontAliases) ||
++         any_alias(kOriginalWindowsFontAliases);
++}
++struct OriginalFontCoverage {
++  bool windows_ready = true;
++  bool macos_ready = false;
++};
++template <class MatchFamily>
++inline OriginalFontCoverage OriginalFontCoverageFor(
++    std::string_view target, std::string_view host, MatchFamily match_family) {
++  OriginalFontCoverage state;
++  if (target == "windows") {
++    unsigned count = 0;
++    for (const auto name : kWindowsBase)
++      count += OriginalFontWindowsNameMatch(match_family(name), name);
++    state.windows_ready = count >= 25;
++  }
++  if (target == "macos" && target != host) {
++    unsigned count = 0;
++    for (const auto name : kOriginalMacCoverageFonts)
++      count += OriginalFontBaseNameMatch(match_family(name), name);
++    state.macos_ready = count >= 17;
++  }
++  return state;
++}
++enum class OriginalFontAction {
++  kNative, kReject, kVerifyBase, kVerifyWindows, kRemapFranklin
++};
++inline OriginalFontAction OriginalFontSelection(
++    std::string_view requested, std::string_view target, std::string_view host,
++    uint64_t seed, OriginalFontCoverage coverage, bool by_family,
++    unsigned alternate_name, bool explicit_mac_platform) {
++  if (!by_family) return OriginalFontAction::kNative;
++  const std::string family = OriginalFontLower(requested);
++  // Shipped private-name rejection precedes the ordinary last-resort bypass.
++  if (explicit_mac_platform && family.starts_with('.'))
++    return OriginalFontAction::kReject;
++  // Chromium 155: 2=local unique face, 3=last resort. Never pool-filter fallback.
++  if (alternate_name == 3) return OriginalFontAction::kNative;
++  const bool strict_windows = target == "windows" && coverage.windows_ready;
++  const bool strict_macos = target == "macos" && coverage.macos_ready;
++  if (strict_windows) {
++    if (alternate_name == 2 && (family == "times" || family == "helvetica" ||
++                                family == "franklin gothic heavy"))
++      return OriginalFontAction::kReject;
++    if (alternate_name != 2 && family == "franklin gothic")
++      return OriginalFontAction::kRemapFranklin;
++  }
++  const bool in_target = CloakFontCandidate(family, target, seed);
++  if (ContainsFont(kOriginalCommonFontFamilies, family) &&
++      (!(strict_windows || strict_macos) || !in_target))
++    return OriginalFontAction::kNative;
++  if (strict_windows) {
++    return OriginalWindowsFontPoolContains(family, seed)
++        ? OriginalFontAction::kVerifyWindows : OriginalFontAction::kReject;
++  }
++  if (target != host) {
++    if (strict_macos)
++      return in_target ? OriginalFontAction::kVerifyBase : OriginalFontAction::kReject;
++    if (CloakFontCandidate(family, host, seed) && !in_target)
++      return OriginalFontAction::kReject;
++  }
++  return OriginalFontAction::kNative;
++}
++
+ struct TextReferenceRow {
+   std::string_view font;
+   std::string_view text;
+   double values[9];
+ };
+diff --git a/third_party/blink/renderer/platform/fonts/font_cache.cc b/third_party/blink/renderer/platform/fonts/font_cache.cc
+--- a/third_party/blink/renderer/platform/fonts/font_cache.cc
++++ b/third_party/blink/renderer/platform/fonts/font_cache.cc
+@@ -76,18 +76,43 @@
+ #include "third_party/blink/renderer/platform/wtf/text/code_point_iterator.h"
+ #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
+ #include "third_party/blink/renderer/platform/wtf/vector.h"
+ #include "third_party/blink/renderer/platform/wtf/wtf.h"
+ #include "ui/gfx/font_list.h"
++#include "third_party/skia/include/core/SkFontStyle.h"
++#include "third_party/skia/include/core/SkString.h"
++#include "third_party/skia/include/core/SkTypeface.h"
+ 
+ #if BUILDFLAG(IS_WIN)
+ #include "third_party/skia/include/ports/SkTypeface_win.h"
+ #endif
+ 
+ namespace blink {
+ 
+ namespace {
++
++
++base::uxr_surface_v1::OriginalFontCoverage UxrOriginalFontCoverage(
++    const std::string& target, const std::string& host) {
++  // UxrConfig and the selected platform are immutable after process startup.
++  // Match the original's one-time native inventory sample, not a CSS probe or
++  // another FontCache lookup that could recurse through this policy.
++  static const auto coverage = [&] {
++    const auto manager = skia::DefaultFontMgr();
++    return base::uxr_surface_v1::OriginalFontCoverageFor(
++        target, host, [&](std::string_view name) -> std::string {
++          if (!manager) return {};
++          const std::string family(name);
++          const auto face = manager->matchFamilyStyle(family.c_str(), SkFontStyle());
++          if (!face) return {};
++          SkString actual;
++          face->getFamilyName(&actual);
++          return std::string(actual.c_str(), actual.size());
++        });
++  }();
++  return coverage;
++}
+ 
+ bool UxrExplicitFontFamilyAllowed(const String& family, const char* key) {
+   const auto& config = base::UxrConfig::GetInstance();
+   return !config.Has(key) ||
+          base::UxrFontFamilyInAllowlistV1(config.Get(key), family.Utf8());
+@@ -313,16 +338,82 @@
+   TRACE_EVENT0("fonts", "FontCache::GetFontPlatformData");
+ 
+ #if !BUILDFLAG(IS_MAC)
+   if (creation_params.CreationType() == kCreateFontByFamily &&
+       creation_params.Family() == font_family_names::kSystemUi) {
++    const auto system_modes = base::UxrConfig::GetInstance().SurfaceModes();
++    if (system_modes.fonts.mode == base::UxrSurfaceMode::kCloakOriginal &&
++        system_modes.platform == "windows") {
++      // Original explicit-Windows system-ui fast path, before population or
++      // coverage filtering. If unavailable, retain the native system fallback.
++      const FontFaceCreationParams selected(AtomicString("Segoe UI"));
++      if (const auto* selected_data =
++              font_platform_data_cache_.GetOrCreateFontPlatformData(
++                  this, font_description, selected, AlternateFontName::kNoAlternate)) {
++        if (!UxrExplicitFontFamilyAllowed(selected_data->FontFamilyName(),
++                                         "uxr-fonts-allowlist") ||
++            (alternate_font_name == AlternateFontName::kLocalUniqueFace &&
++             !UxrExplicitFontFamilyAllowed(selected_data->FontFamilyName(),
++                                          "uxr-fonts-local-allowlist")))
++          return nullptr;
++        return selected_data;
++      }
++    }
+     return SystemFontPlatformData(font_description);
+   }
+ #endif
+ 
+-  const FontPlatformData* data = font_platform_data_cache_.GetOrCreateFontPlatformData(
+-      this, font_description, creation_params, alternate_font_name);
++  const auto original_modes = base::UxrConfig::GetInstance().SurfaceModes();
++  const bool original_fonts =
++      original_modes.fonts.mode == base::UxrSurfaceMode::kCloakOriginal;
++  auto original_action = base::uxr_surface_v1::OriginalFontAction::kNative;
++  if (original_fonts) {
++#if BUILDFLAG(IS_WIN)
++    const std::string host = "windows";
++#elif BUILDFLAG(IS_MAC)
++    const std::string host = "macos";
++#else
++    const std::string host = "linux";
++#endif
++    const std::string target = original_modes.platform.empty()
++        ? host : original_modes.platform;
++    const bool by_family = creation_params.CreationType() == kCreateFontByFamily;
++    const std::string requested = by_family
++        ? creation_params.Family().GetString().Utf8() : std::string();
++    const bool private_mac_name = original_modes.platform == "macos" &&
++        !requested.empty() && requested.front() == '.';
++    const auto coverage = by_family &&
++            alternate_font_name != AlternateFontName::kLastResort && !private_mac_name
++        ? UxrOriginalFontCoverage(target, host)
++        : base::uxr_surface_v1::OriginalFontCoverage();
++    original_action = base::uxr_surface_v1::OriginalFontSelection(
++        requested, target, host, original_modes.fonts.seed, coverage, by_family,
++        static_cast<unsigned>(alternate_font_name), original_modes.platform == "macos");
++    if (original_action == base::uxr_surface_v1::OriginalFontAction::kReject)
++      return nullptr;
++  }
++
++  const FontPlatformData* data;
++  if (original_action == base::uxr_surface_v1::OriginalFontAction::kRemapFranklin) {
++    const FontFaceCreationParams mapped(AtomicString("Franklin Gothic Medium"));
++    data = font_platform_data_cache_.GetOrCreateFontPlatformData(
++        this, font_description, mapped, alternate_font_name);
++    if (data && !base::uxr_surface_v1::OriginalFontBaseNameMatch(
++                    data->FontFamilyName().Utf8(), "franklin gothic medium"))
++      return nullptr;
++  } else {
++    data = font_platform_data_cache_.GetOrCreateFontPlatformData(
++        this, font_description, creation_params, alternate_font_name);
++    if (data && original_action == base::uxr_surface_v1::OriginalFontAction::kVerifyBase &&
++        !base::uxr_surface_v1::OriginalFontBaseNameMatch(
++            data->FontFamilyName().Utf8(), creation_params.Family().GetString().Utf8()))
++      return nullptr;
++    if (data && original_action == base::uxr_surface_v1::OriginalFontAction::kVerifyWindows &&
++        !base::uxr_surface_v1::OriginalFontWindowsNameMatch(
++            data->FontFamilyName().Utf8(), creation_params.Family().GetString().Utf8()))
++      return nullptr;
++  }
+   // Explicit lists inspect the actual returned face, never a requested alias.
+   // They also apply to generic names; a disallowed generic continues through
+   // the bounded installed-pool fallback below.
+   if (data &&
+       !UxrExplicitFontFamilyAllowed(data->FontFamilyName(),

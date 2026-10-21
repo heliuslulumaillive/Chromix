@@ -1,0 +1,416 @@
+diff --git a/base/uxr_config.cc b/base/uxr_config.cc
+--- a/base/uxr_config.cc
++++ b/base/uxr_config.cc
+@@ -166,10 +166,18 @@
+     bool allowed = false;
+     for (const auto candidate : supported)
+       allowed |= policy->mode == candidate;
+     if (!allowed)
+       return false;
++    const std::string_view surface_name(surface);
++    const bool original_without_seed = surface_name == "text" ||
++        surface_name == "voices" || surface_name == "audio";
++    if (policy->mode == UxrSurfaceMode::kCloakOriginal &&
++        ((original_without_seed && cfg.contains(prefix + "-mode-seed")) ||
++         ((original_without_seed || surface_name == "fonts") &&
++          cfg.contains(prefix + "-amount"))))
++      return false;  // Metadata/audio have no seed; fonts uses seed but no amount.
+     const bool explicit_seed = cfg.contains(prefix + "-mode-seed");
+     std::string seed = value(prefix + "-mode-seed");
+     if (explicit_seed && seed.empty() && !policy->IsNative())
+       return false;
+     if (seed.empty() && policy->mode == UxrSurfaceMode::kChromix) {
+@@ -182,10 +190,15 @@
+     }
+     if (seed.empty())
+       seed = value("uxr-fingerprint-seed");
+     if (seed.empty())
+       seed = value("uxr-canvas-seed");
++    const bool original_seed_consumer = surface_name == "canvas" ||
++        surface_name == "webgl" || surface_name == "fonts";
++    if (policy->mode == UxrSurfaceMode::kCloakOriginal && original_seed_consumer &&
++        seed.size() > 1 && seed.front() == '0')
++      return false;  // Do not silently canonicalize a different raw hash input.
+     if (!policy->IsNative() &&
+         (seed.empty() || seed.find_first_not_of("0123456789") != std::string::npos ||
+          !StringToUint64(seed, &policy->seed) || policy->seed == 0)) {
+       return false;
+     }
+@@ -212,25 +225,25 @@
+   return read("canvas", &modes->canvas, 0, 0,
+               {M::kNative, M::kChromix, M::kShardX, M::kCloak, M::kCloakOriginal}) &&
+          read("webgl", &modes->webgl, 0, 0,
+               {M::kNative, M::kChromix, M::kShardX, M::kCloak, M::kCloakOriginal}) &&
+          read("audio", &modes->audio, 0, 1,
+-              {M::kNative, M::kChromix, M::kShardX, M::kCloak}) &&
++              {M::kNative, M::kChromix, M::kShardX, M::kCloak, M::kCloakOriginal}) &&
+          read("fonts", &modes->fonts, 0, 0,
+-              {M::kNative, M::kChromix, M::kShardX, M::kCloak}) &&
++              {M::kNative, M::kChromix, M::kShardX, M::kCloak, M::kCloakOriginal}) &&
+          read("rects", &modes->rects, 1, 16,
+               {M::kNative, M::kChromix, M::kShardX}) &&
+          read("text", &modes->text, 1, 16,
+-              {M::kNative, M::kChromix, M::kShardX, M::kCloak}) &&
++              {M::kNative, M::kChromix, M::kShardX, M::kCloak, M::kCloakOriginal}) &&
+          read("offset", &modes->offset, 0, 0,
+               {M::kNative, M::kChromix, M::kCloak}) &&
+          read("sensors", &modes->sensors, 0.1, 100,
+               {M::kNative, M::kChromix, M::kShardX}) &&
+          read("media", &modes->media, 0, 0,
+               {M::kNative, M::kChromix, M::kShardX}) &&
+          read("voices", &modes->voices, 0, 0,
+-              {M::kNative, M::kChromix, M::kCloak});
++              {M::kNative, M::kChromix, M::kCloak, M::kCloakOriginal});
+ }
+ 
+ bool ValidateModeCapabilities(const flat_map<std::string, std::string>& cfg,
+                               const UxrSurfaceModes& modes) {
+   const auto value = [&](const char* key) -> std::string_view {
+@@ -268,27 +281,45 @@
+       if (comma == std::string_view::npos)
+         break;
+       offset = comma + 1;
+     }
+   }
+-  for (const char* key : {"uxr-gpu-mode", "uxr-webgl-identity-mode",
+-                          "uxr-webgpu-identity-mode",
++  for (const char* key : {"uxr-gpu-mode", "uxr-webgl-identity-mode"}) {
++    if (!allowed(key, {"native", "custom", "cloak"}))
++      return false;
++  }
++  for (const char* key : {"uxr-webgpu-identity-mode",
+                           "uxr-webgpu-features-mode"}) {
+-    if (!allowed(key, {"native", "custom", "cloak"}))
++    if (!allowed(key, {"native", "custom", "cloak", "cloak-original"}))
++      return false;
++  }
++  for (const char* key : {"uxr-webgpu-identity-mode",
++                          "uxr-webgpu-features-mode",
++                          "uxr-webgpu-limits-mode"}) {
++    if (value(key) == "cloak-original" &&
++        value("uxr-surface-modes-version") != "2")
+       return false;
+   }
+   if (!allowed("uxr-webgl-capabilities-mode", {"native", "custom"}) ||
+-      !allowed("uxr-webgpu-limits-mode", {"native", "cloak"}) ||
++      !allowed("uxr-webgpu-limits-mode", {"native", "cloak", "cloak-original"}) ||
+       !allowed("uxr-voices-mode-sapi", {"true", "false"})) {
+     return false;
+   }
++  if (value("uxr-webgpu-identity-mode") == "cloak-original" &&
++      (cfg.contains("uxr-webgpu-vendor") ||
++       cfg.contains("uxr-webgpu-architecture") ||
++       cfg.contains("uxr-webgpu-description")))
++    return false;
++  if (value("uxr-webgpu-features-mode") == "cloak-original" &&
++      cfg.contains("uxr-webgpu-features"))
++    return false;
+   bool needs_profile = false;
+   for (const char* key : {"uxr-gpu-mode", "uxr-webgl-identity-mode",
+                           "uxr-webgpu-identity-mode",
+                           "uxr-webgpu-features-mode",
+                           "uxr-webgpu-limits-mode"}) {
+-    needs_profile |= value(key) == "cloak";
++    needs_profile |= value(key) == "cloak" || value(key) == "cloak-original";
+   }
+   if (needs_profile) {
+     int index = -1;
+     if (!StringToInt(value("uxr-hardware-resolved-index"), &index) ||
+         !UxrFindGpuProfileV1(value("uxr-hardware-resolved-family"), index)) {
+@@ -410,13 +441,20 @@
+     for (std::string_view value : values)
+       if (it->second == value)
+         return true;
+     return false;
+   };
+-  for (const char* key : {"uxr-identity-mode", "uxr-cpu-mode",
+-                          "uxr-memory-mode", "uxr-screen-mode"}) {
++  for (const char* key : {"uxr-identity-mode", "uxr-cpu-mode", "uxr-screen-mode"}) {
+     if (!allowed(key, {"native", "custom"}))
++      return false;
++  }
++  if (!allowed("uxr-memory-mode", {"native", "custom", "cloak-original"}))
++    return false;
++  if (auto mode = cfg.find("uxr-memory-mode");
++      mode != cfg.end() && mode->second == "cloak-original") {
++    const auto version = cfg.find("uxr-surface-modes-version");
++    if (version == cfg.end() || version->second != "2")
+       return false;
+   }
+   if (auto mode = cfg.find("uxr-cpu-mode");
+       mode != cfg.end() && mode->second == "custom") {
+     auto cpu = cfg.find("uxr-hw-concurrency");
+@@ -426,11 +464,12 @@
+         !StringToInt(cpu->second, &count) || count < 1 || count > 128) {
+       return false;
+     }
+   }
+   if (auto mode = cfg.find("uxr-memory-mode");
+-      mode != cfg.end() && mode->second == "custom") {
++      mode != cfg.end() &&
++      (mode->second == "custom" || mode->second == "cloak-original")) {
+     auto memory = cfg.find("uxr-device-memory");
+     double amount = 0;
+     if (memory == cfg.end() || !StringToDouble(memory->second, &amount) ||
+         !std::isfinite(amount) || amount < 0.25 || amount > 32) {
+       return false;
+diff --git a/base/uxr_config.h b/base/uxr_config.h
+--- a/base/uxr_config.h
++++ b/base/uxr_config.h
+@@ -98,10 +98,13 @@
+   int GetSeededTaskbarHeight() const;
+   int GetSeededNetRttMs() const;
+ 
+  private:
+   friend class NoDestructor<UxrConfig>;
++  // Only the native test executable defines this peer. Production snapshots
++  // remain process-global and immutable; tests construct fresh local instances.
++  friend struct UxrConfigTestPeer;
+   UxrConfig();
+   ~UxrConfig();
+ 
+   mutable Lock lock_;
+   flat_map<std::string, std::string> map_;
+diff --git a/base/uxr_surface_modes_test_main.cc b/base/uxr_surface_modes_test_main.cc
+--- a/base/uxr_surface_modes_test_main.cc
++++ b/base/uxr_surface_modes_test_main.cc
+@@ -9,15 +9,33 @@
+ #include "base/containers/flat_map.h"
+ #include "base/uxr_config.h"
+ 
+ int RunGraphicsGoldenTests(const std::string& fixture_root);
+ int RunOriginalCloakPixelGoldenTests(const std::string& fixture_root);
++int RunCloakReferenceGoldenTests();
++int RunOriginalCloakAudioGoldenTests();
+ int RunSurfaceGoldenTests();
+ int RunGpuModeGoldenTests();
+ int RunHardwareGoldenTests();
+ int RunFontAllowlistTests();
+ int RunAudioDefaultsTests();
++
++namespace base {
++struct UxrConfigTestPeer {
++  struct Observation {
++    bool accepted;
++    bool initialized;
++    UxrSurfaceModes modes;
++    flat_map<std::string, std::string> snapshot;
++  };
++  static Observation Observe(const flat_map<std::string, std::string>& input) {
++    UxrConfig config;
++    const bool accepted = config.SetAll(input);
++    return {accepted, config.IsInitialized(), config.SurfaceModes(), config.Snapshot()};
++  }
++};
++}  // namespace base
+ 
+ namespace {
+ using Config = base::flat_map<std::string, std::string>;
+ using Mode = base::UxrSurfaceMode;
+ unsigned checks = 0;
+@@ -67,11 +85,11 @@
+   auto& config = base::UxrConfig::GetInstance();
+   const Config invalid[] = {
+       Input({{"uxr-surface-modes-version", "3"}}),
+       Input({{"uxr-canvas-mode", "cloak-original"}}),
+       Input({{"uxr-surface-modes-version", "1"}, {"uxr-canvas-mode", "cloak-original"}}),
+-      Input({{"uxr-surface-modes-version", "2"}, {"uxr-text-mode", "cloak-original"}}),
++      Input({{"uxr-surface-modes-version", "2"}, {"uxr-rects-mode", "cloak-original"}}),
+       Input({{"uxr-canvas-mode-seed", "garbage"}}),
+       Input({{"uxr-text-amount", "nan"}}),
+       Input({{"uxr-canvas-mode", "invented"}}),
+       Input({{"uxr-canvas-mode", "shardx"}, {"uxr-canvas-mode-seed", "4294967296"}}),
+       Input({{"uxr-canvas-mode", "shardx"}, {"uxr-canvas-mode-seed", ""}}),
+@@ -186,11 +204,11 @@
+   for (const auto& invalid : {
+            Input({{"uxr-canvas-mode", "cloak-original"}}),
+            Input({{"uxr-surface-modes-version", "1"},
+                   {"uxr-canvas-mode", "cloak-original"}}),
+            Input({{"uxr-surface-modes-version", "2"},
+-                  {"uxr-audio-mode", "cloak-original"}})}) {
++                  {"uxr-rects-mode", "cloak-original"}})}) {
+     Check(!config.SetAll(invalid), "original pixels require explicit v2 and valid surface");
+     Check(!config.IsInitialized(), "rejected original mode publishes no snapshot");
+   }
+   const auto input = Input({
+       {"uxr-surface-modes-version", "2"},
+@@ -210,20 +228,143 @@
+         "original pixel policies remain independent from all other surfaces");
+   Check(config.Snapshot() == input, "original mode preserves exact saved values");
+   Check(config.SetAll(input), "repeated original input is idempotent");
+ }
+ 
++
++void OriginalExtendedPolicyChecks() {
++  const auto observe = [](const Config& input) {
++    return base::UxrConfigTestPeer::Observe(input);
++  };
++  for (const char* surface : {"text", "voices", "audio", "fonts"}) {
++    const std::string key = std::string("uxr-") + surface + "-mode";
++    auto input = Input({{"uxr-surface-modes-version", "2"}});
++    input[key] = "cloak-original";
++    Check(observe(input).accepted, "original extended surface requires supported v2");
++    Check(observe(input).snapshot == input, "original extended surface retains exact config");
++    input[key + "-seed"] = "42";
++    if (std::string_view(surface) == "fonts") {
++      Check(observe(input).accepted, "original fonts accepts a used independent seed");
++      Check(observe(input).modes.fonts.seed == 42,
++            "original fonts consumes the explicit seed");
++      for (const char* bad_seed : {"", "0", "042", "-1", "18446744073709551616"}) {
++        input[key + "-seed"] = bad_seed;
++        Check(!observe(input).accepted, "original fonts rejects invalid seed");
++      }
++    } else {
++      Check(!observe(input).accepted, "original reference policy rejects unused seed");
++    }
++    input.erase(key + "-seed");
++    const std::string amount = std::string("uxr-") + surface + "-amount";
++    input[amount] = "0";
++    Check(!observe(input).accepted, "original reference policy rejects unused amount");
++    input.erase(amount);
++    if (std::string_view(surface) != "fonts") {
++      input["uxr-fingerprint-seed"] = "00042";
++      Check(observe(input).accepted, "unused global seed spelling retains old admission");
++      Check(observe(input).snapshot == input, "metadata reference never rewrites seed text");
++    }
++    input["uxr-surface-modes-version"] = "1";
++    Check(!observe(input).accepted, "original extended surface rejects v1");
++    Check(!observe(input).initialized, "rejected extended mode publishes no snapshot");
++  }
++  for (const char* surface : {"canvas", "webgl", "fonts"}) {
++    const std::string key = std::string("uxr-") + surface + "-mode";
++    auto input = Input({{"uxr-surface-modes-version", "2"}});
++    input[key] = "cloak-original";
++    input[key + "-seed"] = "00042";
++    Check(!observe(input).accepted, "original used explicit seed must be canonical");
++    input.erase(key + "-seed");
++    input["uxr-fingerprint-seed"] = "00042";
++    Check(!observe(input).accepted, "original used inherited seed must be canonical");
++    input["uxr-fingerprint-seed"] = "42";
++    Check(observe(input).accepted, "canonical original seed accepted");
++    Check(observe(input).snapshot == input, "original seed input is never rewritten");
++  }
++  for (const char* mode : {"native", "chromix", "shardx", "cloak"}) {
++    auto input = Input({{"uxr-surface-modes-version", "1"},
++                        {"uxr-canvas-mode-seed", "00042"}});
++    input["uxr-canvas-mode"] = mode;
++    Check(observe(input).accepted, "existing mode seed admission is unchanged");
++    Check(observe(input).snapshot == input, "existing seed spelling is preserved");
++  }
++  for (const char* key : {"uxr-webgpu-identity-mode", "uxr-webgpu-features-mode",
++                          "uxr-webgpu-limits-mode"}) {
++    auto input = Input({{"uxr-surface-modes-version", "2"},
++                        {"uxr-hardware-resolved-family", "intel"},
++                        {"uxr-hardware-resolved-index", "5"}});
++    input[key] = "cloak-original";
++    Check(observe(input).accepted, "original WebGPU option accepts explicit known profile");
++    Check(observe(input).snapshot == input, "original WebGPU choice preserves sparse input");
++    if (std::string_view(key) == "uxr-webgpu-identity-mode") {
++      for (const char* companion : {"uxr-webgpu-vendor", "uxr-webgpu-architecture",
++                                    "uxr-webgpu-description"}) {
++        input[companion] = "";
++        Check(!observe(input).accepted, "original identity rejects explicit custom companion");
++        input.erase(companion);
++      }
++    }
++    if (std::string_view(key) == "uxr-webgpu-features-mode") {
++      input["uxr-webgpu-features"] = "";
++      Check(!observe(input).accepted, "original features rejects explicit custom allowlist");
++      input.erase("uxr-webgpu-features");
++    }
++    input["uxr-hardware-resolved-index"] = "99";
++    Check(!observe(input).accepted, "original WebGPU rejects nonexistent profile");
++    input["uxr-hardware-resolved-index"] = "5";
++    input["uxr-surface-modes-version"] = "1";
++    Check(!observe(input).accepted, "original WebGPU rejects v1");
++    input.erase("uxr-surface-modes-version");
++    Check(!observe(input).accepted, "original WebGPU rejects unspecified version");
++  }
++  {
++    auto input = Input({{"uxr-surface-modes-version", "2"},
++                        {"uxr-memory-mode", "cloak-original"},
++                        {"uxr-device-memory", "8"}});
++    Check(observe(input).accepted, "original memory accepts explicit v2 bucket input");
++    Check(observe(input).snapshot == input, "original memory preserves exact sparse input");
++    for (const char* value : {"0.25", "0.5", "1", "2", "4", "8", "16", "32"}) {
++      input["uxr-device-memory"] = value;
++      Check(observe(input).accepted, "original memory accepts supported bucket");
++    }
++    for (const char* value : {"", "0", "-1", "0.24", "32.01", "NaN", "Infinity", "junk"}) {
++      input["uxr-device-memory"] = value;
++      Check(!observe(input).accepted, "original memory rejects invalid range or syntax");
++    }
++    input.erase("uxr-device-memory");
++    Check(!observe(input).accepted, "original memory requires explicit resolved memory");
++    input["uxr-device-memory"] = "8";
++    input["uxr-surface-modes-version"] = "1";
++    Check(!observe(input).accepted, "original memory rejects v1");
++    input.erase("uxr-surface-modes-version");
++    Check(!observe(input).accepted, "original memory rejects unspecified version");
++    input["uxr-memory-mode"] = "custom";
++    Check(observe(input).accepted, "existing coherent custom memory does not require v2");
++    input["uxr-memory-mode"] = "native";
++    input.erase("uxr-device-memory");
++    Check(observe(input).accepted, "existing native memory remains sparse");
++  }
++  for (const char* key : {"uxr-gpu-mode", "uxr-webgl-identity-mode", "uxr-offset-mode", "uxr-rects-mode", "uxr-media-mode", "uxr-sensors-mode", "uxr-identity-mode", "uxr-cpu-mode", "uxr-screen-mode"}) {
++    auto input = Input({{"uxr-surface-modes-version", "2"}});
++    input[key] = "cloak-original";
++    Check(!observe(input).accepted, "unimplemented original policy fails closed");
++  }
++}
++
+ }  // namespace
+ 
+ int main(int argc, char** argv) {
+   base::AtExitManager at_exit;
+   base::CommandLine::Init(argc, argv);
+   if (argc == 2 && std::string(argv[1]) == "--config-legacy") {
+     LegacyChecks();
+   } else if (argc == 3 && std::string(argv[1]) == "--config-original") {
+     Check(RunOriginalCloakPixelGoldenTests(argv[2]) == 0, "original captured pixel goldens");
+     OriginalPixelPolicyChecks();
++    Check(RunCloakReferenceGoldenTests() == 0, "original captured reference selectors");
++    Check(RunOriginalCloakAudioGoldenTests() == 0, "original captured audio selectors");
++    OriginalExtendedPolicyChecks();
+   } else if (argc == 2 && std::string(argv[1]) == "--config-chromix") {
+     ExistingAlgorithmChecks();
+   } else {
+     if (argc != 2) {
+       std::fprintf(stderr, "Supply the fixture directory or --config-legacy\n");
+diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
+--- a/chrome/app/chrome_main.cc
++++ b/chrome/app/chrome_main.cc
+@@ -351,11 +351,14 @@
+         command_line->AppendSwitchASCII(
+             internal_key, command_line->GetSwitchValueASCII(public_key));
+       }
+       if (command_line->HasSwitch(internal_key)) {
+         const std::string mode = command_line->GetSwitchValueASCII(internal_key);
+-        if (mode != "native" && mode != "custom") {
++        const bool original_memory = std::string_view(field) == "memory" &&
++            mode == "cloak-original" &&
++            command_line->GetSwitchValueASCII("uxr-surface-modes-version") == "2";
++        if (mode != "native" && mode != "custom" && !original_memory) {
+           std::cerr << "Invalid field mode: " << public_key << std::endl;
+           return 1;
+         }
+       }
+     }
+diff --git a/third_party/blink/renderer/core/frame/navigator_device_memory.cc b/third_party/blink/renderer/core/frame/navigator_device_memory.cc
+--- a/third_party/blink/renderer/core/frame/navigator_device_memory.cc
++++ b/third_party/blink/renderer/core/frame/navigator_device_memory.cc
+@@ -18,10 +18,13 @@
+ namespace blink {
+ 
+ float NavigatorDeviceMemory::deviceMemory() const {
+   const std::string mode =
+       base::UxrConfig::GetInstance().Get("uxr-memory-mode");
++  if (mode == "cloak-original" &&
++      base::UxrConfig::GetInstance().Get("uxr-fingerprint-off") == "true")
++    return ApproximatedDeviceMemory::GetApproximatedDeviceMemory();
+   if (mode == "native" || mode == "custom")
+     return ApproximatedDeviceMemory::GetApproximatedDeviceMemory();
+   // Public overrides report a memory bucket, not an allocator/heap limit.
+   double v = 0.0;
+   // Snap to Chromium's supported web-exposed memory buckets.

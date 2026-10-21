@@ -141,10 +141,13 @@ def write_fingerprint_evidence(root, bundle):
     # These are explicit test fixtures, not claims that a browser was executed.
     payload = {'browser_sha256': candidate.sha256(bundle / 'chrome.exe'),
                'chrome_dll_sha256': candidate.sha256(bundle / 'chrome.dll')}
+    original_scope = original_runtime_scope_fixture()
     groups = {
         'legacy': [{'status': 'passed', 'configuration_checks': 6, 'failures': 0}],
         'chromix': [{'status': 'passed', 'configuration_checks': 4, 'failures': 0}],
-        'original': [{'original_pixel_checks': 77, 'failures': 0},
+        'original': [{'original_pixel_checks': 78, 'failures': 0},
+                     {'original_reference_checks': 2660, 'failures': 0},
+                     {'original_audio_checks': 337, 'failures': 0},
                      {'status': 'passed', 'configuration_checks': 11, 'failures': 0}],
         'production': [
             {'graphics_cases': 2, 'failures': 0, 'groups': {'fixture_pixels': 2}},
@@ -247,7 +250,7 @@ def write_fingerprint_evidence(root, bundle):
     cap = (ROOT / 'build/fingerprint-modes-capabilities.json').read_bytes()
     (root / 'fingerprint-modes-capabilities.json').write_bytes(cap)
     (bundle / 'fingerprint-modes-capabilities.json').write_bytes(cap)
-    runtime = {'schema_version': 1, 'status': 'passed', **payload, 'baseline_only': False,
+    runtime = {'schema_version': 1, 'status': 'passed', **payload, **original_scope, 'baseline_only': False,
                'capabilities_sha256': hashlib.sha256(cap).hexdigest(),
                'expected_scenarios': len(cases), 'scenarios': scenarios, 'checks': checks, 'failed': [],
                'not_tested': missing, 'positive_acceptance': coverage,
@@ -257,11 +260,24 @@ def write_fingerprint_evidence(root, bundle):
         (root / name).write_text(json.dumps(value))
     files = {name: candidate.sha256(root / name) for name in candidate.FINGERPRINT_REPORTS}
     report = root / 'fingerprint-modes-validation.json'
-    report.write_text(json.dumps({'status': 'passed', 'files': files, **payload,
+    report.write_text(json.dumps({'status': 'passed', 'files': files, **payload, **original_scope,
                                  'required_runtime_checks': len(checks), 'not_tested': runtime['not_tested'],
                                  'coverage_limits': runtime['coverage_limits'], 'positive_acceptance': coverage,
                                  'full_strategy_acceptance': False, 'partial': True}))
     return report
+
+
+def original_runtime_scope_fixture():
+    return {
+        'full_strategy_acceptance_scope': 'compatible-v1-covered-groups',
+        'full_original_cloak_acceptance': False,
+        'original_runtime_acceptance': {
+            'status': 'not_tested', 'source_goldens_are_runtime_acceptance': False,
+            'surfaces': {name: {'status': 'not_tested', 'evidence': [],
+                                'reason': 'Fixture: no original-mode browser scenario executed'}
+                         for name in candidate.ORIGINAL_RUNTIME_SURFACES},
+        },
+    }
 
 
 def rebind_fingerprint_fixture(root):
@@ -275,11 +291,27 @@ def rebind_fingerprint_fixture(root):
                  required_runtime_checks=len(runtime.get('checks', [])),
                  not_tested=runtime.get('not_tested'), coverage_limits=runtime.get('coverage_limits'),
                  positive_acceptance=runtime.get('positive_acceptance'),
+                 full_strategy_acceptance_scope=runtime.get('full_strategy_acceptance_scope'),
+                 full_original_cloak_acceptance=runtime.get('full_original_cloak_acceptance'),
+                 original_runtime_acceptance=runtime.get('original_runtime_acceptance'),
                  full_strategy_acceptance=runtime.get('full_strategy_acceptance'), partial=runtime.get('partial'))
     path.write_text(json.dumps(value))
 
 
 class FingerprintEvidenceTest(unittest.TestCase):
+    def test_actual_powershell_native_original_parser_rejects_incomplete_groups(self):
+        pwsh = shutil.which('pwsh')
+        if not pwsh:
+            self.skipTest('PowerShell is not installed on this source-only test host')
+        run = subprocess.run([pwsh, '-NoProfile', '-NonInteractive', '-File',
+                              str(ROOT / 'tools/tests/native_original_group_validation.ps1')],
+                             cwd=ROOT, capture_output=True, text=True, timeout=30)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        result = json.loads(run.stdout)
+        self.assertEqual(result['checks'], 25)
+        self.assertEqual(result['original_runtime_scope_checks'], 16)
+        self.assertEqual(result['failures'], 0)
+
     def test_runtime_acceptance_modules_and_matrix_contract(self):
         node = os.environ.get('FINGERPRINT_TEST_NODE') or shutil.which('node')
         if not node:
@@ -291,14 +323,16 @@ class FingerprintEvidenceTest(unittest.TestCase):
                                 cwd=ROOT, capture_output=True, text=True, timeout=45)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         contract = subprocess.run([node, '--input-type=module', '-e',
-                                  "import {scenarios,BASIC_SCENARIOS,POSITIVE_GROUPS} from './tools/verify_fingerprint_modes_runtime.mjs';"
-                                  "console.log(JSON.stringify({scenarios:scenarios().map(s=>s.id),basic:[...BASIC_SCENARIOS],groups:POSITIVE_GROUPS}));"],
+                                  "import {scenarios,BASIC_SCENARIOS,POSITIVE_GROUPS,ORIGINAL_RUNTIME_SURFACES,originalRuntimeScope} from './tools/verify_fingerprint_modes_runtime.mjs';"
+                                  "console.log(JSON.stringify({scenarios:scenarios().map(s=>s.id),basic:[...BASIC_SCENARIOS],groups:POSITIVE_GROUPS,originalSurfaces:ORIGINAL_RUNTIME_SURFACES,originalScope:originalRuntimeScope()}));"],
                                  cwd=ROOT, capture_output=True, text=True, timeout=20)
         self.assertEqual(contract.returncode, 0, contract.stderr)
         value = json.loads(contract.stdout)
         self.assertEqual(set(value['scenarios']), candidate.FINGERPRINT_RUNTIME_SCENARIOS)
         self.assertEqual(set(value['basic']), candidate.FINGERPRINT_BASIC_SCENARIOS)
         self.assertEqual(set(value['groups']), set(candidate.FINGERPRINT_POSITIVE_SCENARIOS))
+        self.assertEqual(set(value['originalSurfaces']), candidate.ORIGINAL_RUNTIME_SURFACES)
+        candidate.validate_original_runtime_scope(value['originalScope'])
 
     def test_self_consistent_hashes_do_not_hide_missing_or_failed_inner_evidence(self):
         mutations = [
@@ -312,6 +346,21 @@ class FingerprintEvidenceTest(unittest.TestCase):
             ('native_empty_group', lambda n, r, c: n['groups'].update(chromix=[])),
             ('native_original_missing', lambda n, r, c: n['groups'].update(original=[])),
             ('native_original_zero', lambda n, r, c: n['groups']['original'][0].update(original_pixel_checks=0)),
+            ('native_original_old_count', lambda n, r, c: n['groups']['original'][0].update(original_pixel_checks=77)),
+            ('native_reference_missing', lambda n, r, c: n['groups']['original'].pop(1)),
+            ('native_reference_zero', lambda n, r, c: n['groups']['original'][1].update(original_reference_checks=0)),
+            ('native_reference_partial', lambda n, r, c: n['groups']['original'][1].update(original_reference_checks=1)),
+            ('native_reference_boolean', lambda n, r, c: n['groups']['original'][1].update(original_reference_checks=True)),
+            ('native_reference_string', lambda n, r, c: n['groups']['original'][1].update(original_reference_checks='2660')),
+            ('native_reference_duplicate', lambda n, r, c: n['groups']['original'].append(copy.deepcopy(n['groups']['original'][1]))),
+            ('native_reference_failed', lambda n, r, c: n['groups']['original'][1].update(failures=1)),
+            ('native_original_audio_missing', lambda n, r, c: n['groups']['original'].pop(2)),
+            ('native_original_audio_zero', lambda n, r, c: n['groups']['original'][2].update(original_audio_checks=0)),
+            ('native_original_audio_partial', lambda n, r, c: n['groups']['original'][2].update(original_audio_checks=1)),
+            ('native_original_audio_boolean', lambda n, r, c: n['groups']['original'][2].update(original_audio_checks=True)),
+            ('native_original_audio_string', lambda n, r, c: n['groups']['original'][2].update(original_audio_checks='337')),
+            ('native_original_audio_duplicate', lambda n, r, c: n['groups']['original'].append(copy.deepcopy(n['groups']['original'][2]))),
+            ('native_original_audio_failed', lambda n, r, c: n['groups']['original'][2].update(failures=1)),
             ('native_original_config_missing', lambda n, r, c: n['groups']['original'].pop()),
             ('native_original_wrong_arguments', lambda n, r, c: n['processes'][2].update(arguments=['--config-original'])),
             ('native_zero_count', lambda n, r, c: n['groups']['production'][0].update(graphics_cases=0)),
@@ -341,6 +390,19 @@ class FingerprintEvidenceTest(unittest.TestCase):
             ('positive_orphan_evidence', lambda n, r, c: r['positive_acceptance']['cloak_audio']['evidence'].clear()),
             ('positive_unsupported_as_pass', lambda n, r, c: r['positive_acceptance']['masked_webgl'].update(status='observed_pass')),
             ('positive_claim_full', lambda n, r, c: r.update(full_strategy_acceptance=True, partial=False)),
+            ('original_scope_missing', lambda n, r, c: r.pop('full_strategy_acceptance_scope')),
+            ('original_scope_overclaim', lambda n, r, c: r.update(full_strategy_acceptance_scope='all-strategies')),
+            ('original_full_missing', lambda n, r, c: r.pop('full_original_cloak_acceptance')),
+            ('original_full_claim', lambda n, r, c: r.update(full_original_cloak_acceptance=True)),
+            ('original_full_numeric_false', lambda n, r, c: r.update(full_original_cloak_acceptance=0)),
+            ('original_runtime_missing', lambda n, r, c: r.pop('original_runtime_acceptance')),
+            ('original_runtime_status', lambda n, r, c: r['original_runtime_acceptance'].update(status='passed')),
+            ('original_native_is_runtime', lambda n, r, c: r['original_runtime_acceptance'].update(source_goldens_are_runtime_acceptance=True)),
+            ('original_surface_missing', lambda n, r, c: r['original_runtime_acceptance']['surfaces'].pop('canvas_references')),
+            ('original_surface_pass', lambda n, r, c: r['original_runtime_acceptance']['surfaces']['canvas_references'].update(status='observed_pass')),
+            ('original_golden_as_browser_evidence', lambda n, r, c: r['original_runtime_acceptance']['surfaces']['canvas_references'].update(evidence=[{'original_reference_checks': 2660, 'failures': 0}])),
+            ('original_native_count_smuggled', lambda n, r, c: r['original_runtime_acceptance']['surfaces']['audio'].update(original_audio_checks=337)),
+            ('original_no_reason', lambda n, r, c: r['original_runtime_acceptance']['surfaces']['fonts'].update(reason='')),
             ('positive_partial_string', lambda n, r, c: r.update(partial='true')),
             ('positive_skip_without_reason', lambda n, r, c: r['not_tested'][0].update(reason='')),
             ('positive_skip_wrong_strategy', lambda n, r, c: r['not_tested'][0].update(acceptance_group='cloak_audio')),
@@ -390,10 +452,52 @@ class FingerprintEvidenceTest(unittest.TestCase):
             self.assertEqual(result['status'], 'passed')
             self.assertTrue(result['partial'])
             self.assertFalse(result['full_strategy_acceptance'])
+            self.assertEqual(result['full_strategy_acceptance_scope'], candidate.COMPATIBLE_RUNTIME_SCOPE)
+            self.assertIs(result['full_original_cloak_acceptance'], False)
+            self.assertEqual(result['original_runtime_acceptance']['status'], 'not_tested')
+            self.assertTrue(all(row['status'] == 'not_tested' and row['evidence'] == []
+                                for row in result['original_runtime_acceptance']['surfaces'].values()))
             self.assertEqual(result['positive_acceptance']['masked_webgl']['status'], 'not_tested')
             self.assertEqual(result['positive_acceptance']['cloak_audio']['status'], 'observed_pass')
             self.assertGreater(result['native_executed_counts']['production.font_allowlist_checks'], 0)
             self.assertGreater(result['native_executed_counts']['production.audio_default_checks'], 0)
+            self.assertEqual(result['native_executed_counts']['original.original_reference_checks'], 2660)
+            self.assertEqual(result['native_executed_counts']['original.original_audio_checks'], 337)
+
+    def test_all_compatible_groups_cannot_certify_original_runtime(self):
+        checks = [{'scenario': sorted(scenarios)[0], 'name': 'fixture_positive',
+                   'passed': True, 'acceptance_group': group}
+                  for group, scenarios in candidate.FINGERPRINT_POSITIVE_SCENARIOS.items()]
+        coverage = {row['acceptance_group']: {
+            'status': 'observed_pass', 'eligible_count': 1, 'passed_count': 1,
+            'reason': 'Explicit fixture; all compatible groups observed',
+            'evidence': [{'scenario': row['scenario'], 'name': row['name']}], 'missing': [],
+        } for row in checks}
+        report = {**original_runtime_scope_fixture(), 'positive_acceptance': coverage,
+                  'not_tested': [], 'full_strategy_acceptance': True, 'partial': False}
+        candidate.validate_positive_coverage(report, checks)
+        self.assertIs(report['full_original_cloak_acceptance'], False)
+        report['full_original_cloak_acceptance'] = True
+        with self.assertRaisesRegex(ValueError, 'Original runtime'):
+            candidate.validate_positive_coverage(report, checks)
+
+    def test_summary_cannot_promote_original_runtime_or_hide_its_scope(self):
+        for mutate in (
+                lambda r: r.update(full_original_cloak_acceptance=True),
+                lambda r: r.update(full_strategy_acceptance_scope='all-strategies'),
+                lambda r: r['original_runtime_acceptance']['surfaces']['audio'].update(status='observed_pass')):
+            with self.subTest(mutation=mutate), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                bundle = root / 'bundle'
+                bundle.mkdir()
+                (bundle / 'chrome.exe').write_bytes(b'exe')
+                (bundle / 'chrome.dll').write_bytes(b'dll')
+                report = write_fingerprint_evidence(root, bundle)
+                value = json.loads(report.read_text())
+                mutate(value)
+                report.write_text(json.dumps(value))
+                with self.assertRaisesRegex(ValueError, 'summary'):
+                    candidate.validate_fingerprint_tests(report, bundle)
 
     def test_caps_bundle_and_source_receipt_are_independently_bound(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -1,0 +1,711 @@
+diff --git a/base/uxr_gpu_modes.h b/base/uxr_gpu_modes.h
+--- a/base/uxr_gpu_modes.h
++++ b/base/uxr_gpu_modes.h
+@@ -235,7 +235,173 @@
+   return minimum ? requested >= exposed : requested <= exposed;
+ }
+ inline int UxrClampContextCapabilityV1(int actual, int requested) {
+   return requested > 0 ? std::min(actual, requested) : actual;
+ }
++
++// Original Windows CloakBrowser 155 public WebGPU policy, independent of the
++// compatible-v1 intersection/ceiling policy above. This never creates backend
++// features or physical resource capacity. Config admission is separately pinned.
++inline bool UxrIsOriginalGpuModeV1(std::string_view selected,
++                                 bool fingerprint_off = false) {
++  return !fingerprint_off && selected == "cloak-original";
++}
++struct UxrOriginalGpuFeatureV1 { std::string_view name; uint32_t native; };
++inline constexpr UxrOriginalGpuFeatureV1 kUxrOriginalGpuFeaturesV1[] = {
++  {"core-features-and-limits", 1u},
++  {"depth-clip-control", 2u},
++  {"depth32float-stencil8", 3u},
++  {"texture-compression-bc", 4u},
++  {"texture-compression-bc-sliced-3d", 5u},
++  {"texture-compression-etc2", 6u},
++  {"texture-compression-astc", 7u},
++  {"texture-compression-astc-sliced-3d", 8u},
++  {"timestamp-query", 9u},
++  {"indirect-first-instance", 10u},
++  {"shader-f16", 11u},
++  {"rg11b10ufloat-renderable", 12u},
++  {"bgra8unorm-storage", 13u},
++  {"float32-filterable", 14u},
++  {"float32-blendable", 15u},
++  {"clip-distances", 16u},
++  {"dual-source-blending", 17u},
++  {"subgroups", 18u},
++  {"texture-component-swizzle", 22u},
++  {"texture-formats-tier1", 19u},
++  {"texture-formats-tier2", 20u},
++  {"primitive-index", 21u},
++  {"subgroup-size-control", 23u},
++  {"atomic-vec2u-min-max", 327739u},
++  {"chromium-experimental-sampling-resource-table", 327738u},
++  {"chromium-experimental-timestamp-query-inside-passes", 327683u},
++  {"chromium-experimental-multi-draw-indirect", 327729u},
++  {"chromium-experimental-subgroup-matrix", 327732u},
++  {"texture-compression-unaligned", 327745u},
++};
++inline bool UxrOriginalGpuFeatureAllowedV1(
++    const UxrGpuProfileV1& profile, uint32_t feature,
++    bool windows_modern = true) {
++  if (!profile.macos()) {
++    if ((feature == 18 || feature == 23) && profile.family == "intel" &&
++        profile.index < 18 && ((0x10e60u >> profile.index) & 1u))
++      return false;
++    if (feature == 23) {
++      const auto a = profile.architecture;
++      return !windows_modern || a == "gen-12lp" || a == "xe-lpg" ||
++          a == "pascal" || a == "turing" || a == "ampere" ||
++          a == "lovelace" || a == "blackwell";
++    }
++  }
++  if (feature >= 1 && feature < 16 && ((0x7b0fu >> (feature - 1)) & 1u))
++    return true;
++  if (profile.macos())
++    return feature >= 5 && feature < 24 && ((0x7f84fu >> (feature - 5)) & 1u);
++  return feature < 23 && ((0x7f0820u >> feature) & 1u);
++}
++template <class Add>
++inline void UxrAddOriginalGpuFeaturesV1(const UxrGpuProfileV1& profile,
++                                      bool windows_modern, Add add) {
++  for (uint32_t feature : {11u, 17u, 21u, 19u, 20u})
++    add(feature);
++  if (UxrOriginalGpuFeatureAllowedV1(profile, 18, windows_modern))
++    add(18);
++  if ((profile.macos() || windows_modern) &&
++      UxrOriginalGpuFeatureAllowedV1(profile, 23, windows_modern))
++    add(23);
++}
++template <class Has, class Add>
++inline void UxrAddOriginalDeviceImpliedFeaturesV1(Has has, Add add) {
++  // REA 0x18eff9790: Tier2 -> Tier1 -> RG11B10; size control -> subgroups.
++  if (has(20)) add(19);
++  if (has(19)) add(12);
++  if (has(23)) add(18);
++}
++struct UxrOriginalSubgroupRangeV1 { uint32_t minimum, maximum; };
++inline UxrOriginalSubgroupRangeV1 UxrOriginalSubgroupsV1(
++    const UxrGpuProfileV1& profile) {
++  if (profile.family != "intel") return {32, 32};
++  if (profile.architecture == "gen-9") return {16, 16};
++  if (profile.architecture == "xe-lpg") return {8, 32};
++  return {8, 16};
++}
++enum class UxrOriginalLimitOperationV1 { kSet, kMinInput, kMaxInput };
++struct UxrOriginalGpuLimitRuleV1 {
++  std::string_view name;
++  uint64_t windows_value, macos_value;
++  UxrOriginalLimitOperationV1 windows_operation;
++  bool minimum;
++};
++inline constexpr UxrOriginalGpuLimitRuleV1 kUxrOriginalGpuLimitsV1[] = {
++  {"maxTextureDimension1D", 16384ull, 16384ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxTextureDimension2D", 16384ull, 16384ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxTextureDimension3D", 2048ull, 2048ull, UxrOriginalLimitOperationV1::kMinInput, false},
++  {"maxTextureArrayLayers", 2048ull, 2048ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxBindGroups", 4ull, 4ull, UxrOriginalLimitOperationV1::kMinInput, false},
++  {"maxBindGroupsPlusVertexBuffers", 24ull, 24ull, UxrOriginalLimitOperationV1::kMinInput, false},
++  {"maxBindingsPerBindGroup", 1000ull, 1000ull, UxrOriginalLimitOperationV1::kMinInput, false},
++  {"maxDynamicUniformBuffersPerPipelineLayout", 10ull, 10ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxDynamicStorageBuffersPerPipelineLayout", 8ull, 8ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxSampledTexturesPerShaderStage", 48ull, 48ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxSamplersPerShaderStage", 16ull, 16ull, UxrOriginalLimitOperationV1::kMinInput, false},
++  {"maxStorageBuffersPerShaderStage", 16ull, 10ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxStorageTexturesPerShaderStage", 8ull, 8ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxUniformBuffersPerShaderStage", 12ull, 12ull, UxrOriginalLimitOperationV1::kMinInput, false},
++  {"maxUniformBufferBindingSize", 65536ull, 65536ull, UxrOriginalLimitOperationV1::kMinInput, false},
++  {"maxStorageBufferBindingSize", 2147483644ull, 4294967292ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"minUniformBufferOffsetAlignment", 256ull, 256ull, UxrOriginalLimitOperationV1::kMaxInput, true},
++  {"minStorageBufferOffsetAlignment", 256ull, 256ull, UxrOriginalLimitOperationV1::kMaxInput, true},
++  {"maxVertexBuffers", 8ull, 8ull, UxrOriginalLimitOperationV1::kMinInput, false},
++  {"maxBufferSize", 2147483648ull, 4294967292ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxVertexAttributes", 30ull, 30ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxVertexBufferArrayStride", 2048ull, 2048ull, UxrOriginalLimitOperationV1::kMinInput, false},
++  {"maxInterStageShaderVariables", 28ull, 28ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxColorAttachments", 8ull, 8ull, UxrOriginalLimitOperationV1::kMinInput, false},
++  {"maxColorAttachmentBytesPerSample", 128ull, 128ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxComputeWorkgroupStorageSize", 32768ull, 32768ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxComputeInvocationsPerWorkgroup", 1024ull, 1024ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxComputeWorkgroupSizeX", 1024ull, 1024ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxComputeWorkgroupSizeY", 1024ull, 1024ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxComputeWorkgroupSizeZ", 64ull, 64ull, UxrOriginalLimitOperationV1::kMinInput, false},
++  {"maxComputeWorkgroupsPerDimension", 65535ull, 65535ull, UxrOriginalLimitOperationV1::kMinInput, false},
++  {"maxImmediateSize", 64ull, 64ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxStorageBuffersInVertexStage", 16ull, 10ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxStorageTexturesInVertexStage", 8ull, 8ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxStorageBuffersInFragmentStage", 16ull, 10ull, UxrOriginalLimitOperationV1::kSet, false},
++  {"maxStorageTexturesInFragmentStage", 8ull, 8ull, UxrOriginalLimitOperationV1::kSet, false},
++};
++inline const UxrOriginalGpuLimitRuleV1* UxrFindOriginalGpuLimitV1(
++    std::string_view name) {
++  for (const auto& row : kUxrOriginalGpuLimitsV1)
++    if (row.name == name) return &row;
++  return nullptr;
++}
++inline uint64_t UxrOriginalGpuPublicLimitV1(
++    uint64_t actual, const UxrOriginalGpuLimitRuleV1& rule, bool macos) {
++  if (macos) return rule.macos_value;
++  switch (rule.windows_operation) {
++    case UxrOriginalLimitOperationV1::kSet: return rule.windows_value;
++    case UxrOriginalLimitOperationV1::kMinInput:
++      return std::min(actual, rule.windows_value);
++    case UxrOriginalLimitOperationV1::kMaxInput:
++      return std::max(actual, rule.windows_value);
++  }
++  return actual;
++}
++enum class UxrOriginalLimitErrorV1 { kNone, kOutsidePublicLimit, kNotPowerOfTwo };
++inline UxrOriginalLimitErrorV1 UxrOriginalGpuLimitErrorV1(
++    uint64_t requested, uint64_t exposed, bool minimum) {
++  if (minimum ? requested < exposed : requested > exposed)
++    return UxrOriginalLimitErrorV1::kOutsidePublicLimit;
++  if (minimum && (requested == 0 || (requested & (requested - 1)) != 0))
++    return UxrOriginalLimitErrorV1::kNotPowerOfTwo;
++  return UxrOriginalLimitErrorV1::kNone;
++}
++inline uint64_t UxrOriginalGpuForwardLimitV1(
++    uint64_t requested, uint64_t actual, bool minimum) {
++  return minimum ? std::max(requested, actual) : std::min(requested, actual);
++}
++inline uint64_t UxrOriginalGpuRestoreLimitV1(
++    uint64_t actual, uint64_t requested, bool minimum) {
++  return minimum ? std::min(actual, requested) : std::max(actual, requested);
++}
+ }  // namespace base
+ #endif  // BASE_UXR_GPU_MODES_H_
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_adapter.h b/third_party/blink/renderer/modules/webgpu/gpu_adapter.h
+--- a/third_party/blink/renderer/modules/webgpu/gpu_adapter.h
++++ b/third_party/blink/renderer/modules/webgpu/gpu_adapter.h
+@@ -9,10 +9,11 @@
+ #include "gpu/command_buffer/client/webgpu_interface.h"
+ #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+ #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+ #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+ #include "third_party/blink/renderer/modules/webgpu/dawn_object.h"
++#include "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h"
+ #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+ #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+ 
+ namespace blink {
+ 
+@@ -73,10 +74,13 @@
+   Member<GPU> gpu_;
+   wgpu::BackendType backend_type_;
+   wgpu::AdapterType adapter_type_;
+   bool is_xr_compatible_ = false;
+   Member<GPUSupportedLimits> limits_;
++  GPUSupportedLimits::ComboLimits original_cloak_actual_limits_;
++  bool original_cloak_features_ = false;
++  bool original_cloak_limits_ = false;
+   Member<GPUSupportedFeatures> features_;
+   Member<GPUAdapterInfo> info_;
+ 
+   String vendor_;
+   String architecture_;
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc b/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
+--- a/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
++++ b/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
+@@ -43,10 +43,16 @@
+   const auto& config = base::UxrConfig::GetInstance();
+   return base::UxrResolveGpuModeV1(
+       config.Get(key), {}, config.Get("uxr-fingerprint-off") == "true");
+ }
+ 
++bool WebGPUOriginalMode(const char* key) {
++  const auto& config = base::UxrConfig::GetInstance();
++  return base::UxrIsOriginalGpuModeV1(
++      config.Get(key), config.Get("uxr-fingerprint-off") == "true");
++}
++
+ std::optional<base::UxrGpuProfileV1> WebGPUConfiguredProfile() {
+   const auto& config = base::UxrConfig::GetInstance();
+   int index = -1;
+   config.GetInt("uxr-hardware-resolved-index", &index);
+   return base::UxrFindGpuProfileV1(
+@@ -71,10 +77,31 @@
+                                  : std::nullopt;
+   const std::string platform_version =
+       config.Get("uxr-hardware-platform-version");
+   const bool windows_modern =
+       platform_version.empty() || platform_version == "19.0.0";
++  if (WebGPUOriginalMode("uxr-webgpu-features-mode")) {
++    if (const auto profile = WebGPUConfiguredProfile()) {
++      const auto add = [&](uint32_t native) {
++        const auto converted = GPUSupportedFeatures::ToV8FeatureNameEnum(
++            static_cast<wgpu::FeatureName>(native));
++        if (converted)
++          features->AddFeatureName(V8GPUFeatureName(*converted));
++      };
++      wgpu::SupportedFeatures actual;
++      adapter.GetFeatures(&actual);
++      const auto actual_span = UNSAFE_BUFFERS(base::span<const wgpu::FeatureName>(
++          actual.features, actual.featureCount));
++      for (const auto feature : actual_span) {
++        if (base::UxrOriginalGpuFeatureAllowedV1(
++                *profile, static_cast<uint32_t>(feature), windows_modern))
++          add(static_cast<uint32_t>(feature));
++      }
++      base::UxrAddOriginalGpuFeaturesV1(*profile, windows_modern, add);
++      return features;
++    }
++  }
+   std::set<std::string> ph_allowed;
+   if (ph_filter) {
+     const std::string ph_allow_raw = config.Get("uxr-webgpu-features");
+     for (const auto& ph_token : base::SplitString(
+              ph_allow_raw, ",", base::TRIM_WHITESPACE,
+@@ -179,21 +206,41 @@
+   }
+   subgroup_min_size_ = info.subgroupMinSize;
+   subgroup_max_size_ = info.subgroupMaxSize;
+   power_preference_ = powerProperties.powerPreference;
+ 
++  const auto original_profile = WebGPUConfiguredProfile();
++  original_cloak_features_ = original_profile.has_value() &&
++      WebGPUOriginalMode("uxr-webgpu-features-mode");
++  original_cloak_limits_ = original_profile.has_value() &&
++      WebGPUOriginalMode("uxr-webgpu-limits-mode");
++  if (original_profile && WebGPUOriginalMode("uxr-webgpu-identity-mode")) {
++    vendor_ = String::FromUtf8(original_profile->family);
++    architecture_ = String::FromUtf8(original_profile->architecture);
++    const auto subgroup = base::UxrOriginalSubgroupsV1(*original_profile);
++    subgroup_min_size_ = subgroup.minimum;
++    subgroup_max_size_ = subgroup.maximum;
++    // Backend type/fallback remain properties of the actual adapter. Default
++    // public info already omits detailed device/driver strings. Developer-only
++    // details are not covered by this original metadata contract.
++  }
++
+   features_ = MakeFeatureNameSet(GetHandle());
+ 
+   GPUSupportedLimits::ComboLimits limits;
+   GetHandle().GetLimits(limits.GetLinked());
++  if (original_cloak_limits_)
++    limits.UnlinkedCopyTo(&original_cloak_actual_limits_);
+   const auto cloak_profile =
+       WebGPUCapabilityMode("uxr-webgpu-limits-mode") == base::UxrGpuMode::kCloak
+           ? WebGPUConfiguredProfile()
+           : std::nullopt;
+   limits_ = MakeGarbageCollected<GPUSupportedLimits>(
+       limits, cloak_profile.has_value(),
+-      cloak_profile && cloak_profile->macos());
++      original_cloak_limits_ ? original_profile->macos()
++                             : cloak_profile && cloak_profile->macos(),
++      original_cloak_limits_);
+ 
+   info_ = CreateAdapterInfoForAdapter();
+ }
+ 
+ GPUAdapterInfo* GPUAdapter::CreateAdapterInfoForAdapter() {
+@@ -325,24 +372,29 @@
+   wgpu::DawnConsumeAdapterDescriptor consume_adapter_desc;
+   consume_adapter_desc.consumeAdapter = true;
+   dawn_desc.nextInChain = &consume_adapter_desc;
+ 
+   GPUSupportedLimits::ComboLimits required_limits;
++  GPUSupportedLimits::ComboLimits original_required_limits;
+   if (descriptor->hasRequiredLimits()) {
+     dawn_desc.requiredLimits = required_limits.GetLinked();
+     if (!GPUSupportedLimits::Populate(&required_limits,
+-                                      descriptor->requiredLimits(), resolver)) {
++                                      descriptor->requiredLimits(), resolver,
++                                      original_cloak_limits_)) {
+       return promise;
++    }
++    if (original_cloak_limits_) {
++      required_limits.UnlinkedCopyTo(&original_required_limits);
+     }
+     if (WebGPUCapabilityMode("uxr-webgpu-limits-mode") ==
+             base::UxrGpuMode::kCloak &&
+         !limits_->ValidateCompatibleRequest(required_limits, resolver)) {
+       return promise;
+     }
+   }
+-  // The descriptor proceeds unchanged to Dawn. Never drop an unsupported
+-  // requested feature or clamp a required limit then claim it was granted.
++  // Native/custom/compatible retain the original Dawn descriptor. The
++  // explicit original branch keeps public requests separate from real caps.
+ 
+   // Use a set to prevent duplicate features.
+   HashSet<wgpu::FeatureName> required_features_set;
+   // The ShaderModuleCompilationOptions feature is required only if the adapter
+   // has the ShaderModuleCompilationOptions feature and the user has enabled the
+@@ -360,13 +412,21 @@
+       if (!features_->Has(f.AsEnum())) {
+         resolver->RejectWithTypeError(
+             StrCat({"Unsupported feature: ", f.AsStringView()}));
+         return promise;
+       }
+-      required_features_set.insert(AsDawnEnum(f));
+-    }
+-  }
++      if (!original_cloak_features_ || GetHandle().HasFeature(AsDawnEnum(f)))
++        required_features_set.insert(AsDawnEnum(f));
++    }
++  }
++
++  // The original path validates public feature membership before numerical
++  // limits. Keep that error precedence while retaining compatible-v1 ordering.
++  if (original_cloak_limits_ && descriptor->hasRequiredLimits() &&
++      !limits_->ValidateAndClampOriginalRequest(
++          &required_limits, original_cloak_actual_limits_, resolver))
++    return promise;
+ 
+   Vector<wgpu::FeatureName> required_features(required_features_set);
+   dawn_desc.requiredFeatures = required_features.data();
+   dawn_desc.requiredFeatureCount = required_features.size();
+ 
+@@ -383,10 +443,14 @@
+   // Create a GPUDevice without the handle, so that we can set up its callbacks
+   // in the wgpu::DeviceDescriptor.
+   ExecutionContext* execution_context = ExecutionContext::From(script_state);
+   auto* device = MakeGarbageCollected<GPUDevice>(
+       execution_context, GetDawnControlClient(), this, descriptor->label());
++  device->SetOriginalCloakRequest(
++      original_cloak_features_,
++      original_cloak_limits_ && descriptor->hasRequiredLimits()
++          ? &original_required_limits : nullptr);
+   device->SetDescriptorCallbacks(dawn_desc);
+ 
+   auto* callback = MakeWGPUOnceCallback(resolver->WrapCallbackInScriptScope(
+       BindOnce(&GPUAdapter::OnRequestDeviceCallback, WrapPersistent(this),
+                WrapPersistent(device), WrapPersistent(descriptor))));
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_device.h b/third_party/blink/renderer/modules/webgpu/gpu_device.h
+--- a/third_party/blink/renderer/modules/webgpu/gpu_device.h
++++ b/third_party/blink/renderer/modules/webgpu/gpu_device.h
+@@ -13,10 +13,11 @@
+ #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_blend_factor.h"
+ #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_format.h"
+ #include "third_party/blink/renderer/core/dom/events/event_target.h"
+ #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+ #include "third_party/blink/renderer/modules/webgpu/dawn_object.h"
++#include "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h"
+ #include "third_party/blink/renderer/platform/graphics/gpu/webgpu_callback.h"
+ #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
+ #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+ 
+ namespace blink {
+@@ -93,10 +94,15 @@
+   // resolve the lost property.
+   void Initialize(wgpu::Device handle,
+                   const GPUDeviceDescriptor* descriptor,
+                   GPUDeviceLostInfo* lost_info);
+ 
++  // Snapshot only validated public requests before the asynchronous Dawn call.
++  void SetOriginalCloakRequest(
++      bool original_features,
++      const GPUSupportedLimits::ComboLimits* original_required_limits);
++
+   GPUDevice(const GPUDevice&) = delete;
+   GPUDevice& operator=(const GPUDevice&) = delete;
+ 
+   ~GPUDevice() override;
+ 
+@@ -251,10 +257,13 @@
+   }
+ 
+   Member<GPUAdapter> adapter_;
+   Member<GPUSupportedFeatures> features_;
+   Member<GPUSupportedLimits> limits_;
++  GPUSupportedLimits::ComboLimits original_cloak_requested_limits_;
++  bool original_cloak_features_ = false;
++  bool original_cloak_requested_limits_present_ = false;
+   Member<GPUAdapterInfo> adapter_info_;
+   Member<GPUQueue> queue_;
+   Member<LostProperty> lost_property_;
+   std::unique_ptr<WGPURepeatingCallback<wgpu::LoggingCallback<void>>>
+       logging_callback_;
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_device.cc b/third_party/blink/renderer/modules/webgpu/gpu_device.cc
+--- a/third_party/blink/renderer/modules/webgpu/gpu_device.cc
++++ b/third_party/blink/renderer/modules/webgpu/gpu_device.cc
+@@ -1,10 +1,12 @@
+ // Copyright 2018 The Chromium Authors
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
+ #include "third_party/blink/renderer/modules/webgpu/gpu_device.h"
++
++#include "base/uxr_gpu_modes.h"
+ 
+ #include <cmath>
+ 
+ #include "base/task/bind_post_task.h"
+ #include "gpu/command_buffer/client/webgpu_interface.h"
+@@ -175,25 +177,58 @@
+           },
+           execution_context->GetTaskRunner(TaskType::kWebGPU),
+           BindRepeating(&GPUDevice::OnLogging, WrapWeakPersistent(this))))));
+ }
+ 
++void GPUDevice::SetOriginalCloakRequest(
++    bool original_features,
++    const GPUSupportedLimits::ComboLimits* original_required_limits) {
++  original_cloak_features_ = original_features;
++  original_cloak_requested_limits_present_ = original_required_limits != nullptr;
++  if (original_required_limits)
++    original_required_limits->UnlinkedCopyTo(&original_cloak_requested_limits_);
++}
++
+ void GPUDevice::Initialize(wgpu::Device handle,
+                            const GPUDeviceDescriptor* descriptor,
+                            GPUDeviceLostInfo* lost_info) {
+   SetHandle(std::move(handle));
+ 
+   wgpu::SupportedFeatures features;
+   GetHandle().GetFeatures(&features);
+   features_ = MakeGarbageCollected<GPUSupportedFeatures>(features);
++  if (original_cloak_features_) {
++    if (descriptor->hasRequiredFeatures()) {
++      for (const auto& feature : descriptor->requiredFeatures())
++        features_->AddFeatureName(feature);
++    }
++    const auto converted = [](uint32_t native) {
++      return GPUSupportedFeatures::ToV8FeatureNameEnum(
++          static_cast<wgpu::FeatureName>(native));
++    };
++    base::UxrAddOriginalDeviceImpliedFeaturesV1(
++        [&](uint32_t native) {
++          const auto name = converted(native);
++          return name && features_->Has(*name);
++        },
++        [&](uint32_t native) {
++          const auto name = converted(native);
++          if (name) features_->AddFeatureName(V8GPUFeatureName(*name));
++        });
++  }
+ 
+   queue_ = MakeGarbageCollected<GPUQueue>(this, GetHandle().GetQueue(),
+                                           descriptor->defaultQueue()->label());
+ 
+   GPUSupportedLimits::ComboLimits limits;
+   GetHandle().GetLimits(limits.GetLinked());
+   limits_ = MakeGarbageCollected<GPUSupportedLimits>(limits);
++  if (original_cloak_requested_limits_present_) {
++    limits_->RestoreOriginalRequest(
++        original_cloak_requested_limits_,
++        GetHandle().HasFeature(wgpu::FeatureName::CoreFeaturesAndLimits));
++  }
+ 
+   adapter_info_ = adapter_->CreateAdapterInfoForAdapter();
+ 
+   GetHandle().SetLoggingCallback(logging_callback_->UnboundCallback(),
+                                  logging_callback_->AsUserdata());
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h b/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h
+--- a/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h
++++ b/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h
+@@ -39,23 +39,30 @@
+     wgpu::Limits* GetLinked();
+   };
+ 
+   explicit GPUSupportedLimits(const ComboLimits& limits,
+                               bool cloak_compatible = false,
+-                              bool macos_profile = false);
++                              bool macos_profile = false,
++                              bool cloak_original = false);
+   bool ValidateCompatibleRequest(const ComboLimits& requested,
+                                  ScriptPromiseResolverBase*) const;
++
++  bool ValidateAndClampOriginalRequest(
++      ComboLimits* requested, const ComboLimits& actual,
++      ScriptPromiseResolverBase*) const;
++  void RestoreOriginalRequest(const ComboLimits& requested,
++                              bool actual_core_features);
+ 
+   // Returns true if populated, false if not and the ScriptPromiseResolverBase
+   // has been rejected.
+   static bool Populate(
+       ComboLimits* out,
+       const HeapVector<
+           std::pair<String,
+                     Member<V8UnionUndefinedOrUnsignedLongLongEnforceRange>>>&
+           in,
+-      ScriptPromiseResolverBase*);
++      ScriptPromiseResolverBase*, bool defer_alignment_validation = false);
+ 
+   GPUSupportedLimits(const GPUSupportedLimits&) = delete;
+   GPUSupportedLimits& operator=(const GPUSupportedLimits&) = delete;
+ 
+   unsigned maxTextureDimension1D() const;
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc b/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc
+--- a/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc
++++ b/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc
+@@ -51,10 +51,48 @@
+   X(maxStorageTexturesInFragmentStage)         \
+   X(maxStorageBuffersInVertexStage)            \
+   X(maxStorageTexturesInVertexStage)           \
+   X(maxImmediateSize)
+ 
++#define UXR_ORIGINAL_REQUEST_LIMITS(X) \
++  X(maxComputeWorkgroupStorageSize) \
++  X(maxComputeInvocationsPerWorkgroup) \
++  X(maxComputeWorkgroupSizeX) \
++  X(maxComputeWorkgroupSizeY) \
++  X(maxComputeWorkgroupSizeZ) \
++  X(maxComputeWorkgroupsPerDimension) \
++  X(maxStorageBufferBindingSize) \
++  X(maxBufferSize) \
++  X(maxDynamicUniformBuffersPerPipelineLayout) \
++  X(maxDynamicStorageBuffersPerPipelineLayout) \
++  X(maxSampledTexturesPerShaderStage) \
++  X(maxSamplersPerShaderStage) \
++  X(maxStorageTexturesPerShaderStage) \
++  X(maxStorageTexturesInFragmentStage) \
++  X(maxStorageTexturesInVertexStage) \
++  X(maxUniformBuffersPerShaderStage) \
++  X(maxStorageBuffersPerShaderStage) \
++  X(maxStorageBuffersInFragmentStage) \
++  X(maxStorageBuffersInVertexStage) \
++  X(maxColorAttachmentBytesPerSample) \
++  X(maxInterStageShaderVariables) \
++  X(maxTextureDimension1D) \
++  X(maxTextureDimension2D) \
++  X(maxTextureDimension3D) \
++  X(maxTextureArrayLayers) \
++  X(maxImmediateSize) \
++  X(maxBindGroups) \
++  X(maxBindGroupsPlusVertexBuffers) \
++  X(maxBindingsPerBindGroup) \
++  X(maxUniformBufferBindingSize) \
++  X(minUniformBufferOffsetAlignment) \
++  X(minStorageBufferOffsetAlignment) \
++  X(maxVertexBuffers) \
++  X(maxVertexAttributes) \
++  X(maxVertexBufferArrayStride) \
++  X(maxColorAttachments)
++
+ namespace blink {
+ 
+ namespace {
+ template <typename T>
+ constexpr T UndefinedLimitValue();
+@@ -72,14 +110,25 @@
+ 
+ // GPUSupportedLimits
+ 
+ GPUSupportedLimits::GPUSupportedLimits(const ComboLimits& limits,
+                                        bool cloak_compatible,
+-                                       bool macos_profile) {
++                                       bool macos_profile,
++                                       bool cloak_original) {
+   // Device callers use the default and expose Dawn's actual validated limits.
+   // Only an explicitly configured adapter applies compatible privacy ceilings.
+   limits.UnlinkedCopyTo(&limits_);
++  if (cloak_original) {
++#define X(name)                                                               \
++    limits_.name = static_cast<decltype(ComboLimits::name)>(                   \
++        base::UxrOriginalGpuPublicLimitV1(                                   \
++            limits_.name, *base::UxrFindOriginalGpuLimitV1(#name),             \
++            macos_profile));
++    SUPPORTED_LIMITS(X)
++#undef X
++    return;
++  }
+   if (!cloak_compatible)
+     return;
+ #define X(name)                                                           \
+   {                                                                       \
+     using T = decltype(ComboLimits::name);                                 \
+@@ -114,17 +163,86 @@
+   SUPPORTED_LIMITS(X)
+ #undef X
+   return true;
+ }
+ 
++
++bool GPUSupportedLimits::ValidateAndClampOriginalRequest(
++    ComboLimits* requested, const ComboLimits& actual,
++    ScriptPromiseResolverBase* resolver) const {
++  // Keep the original validation order when multiple fields are invalid.
++#define X(name)                                                               \
++  {                                                                         \
++    using T = decltype(ComboLimits::name);                                    \
++    if (requested->name != UndefinedLimitValue<T>()) {                        \
++      const auto* rule = base::UxrFindOriginalGpuLimitV1(#name);               \
++      const auto error = base::UxrOriginalGpuLimitErrorV1(                    \
++          requested->name, limits_.name, rule->minimum);                      \
++      if (error != base::UxrOriginalLimitErrorV1::kNone) {                     \
++        const String detail = error ==                                      \
++                base::UxrOriginalLimitErrorV1::kNotPowerOfTwo                 \
++            ? StrCat({"Required limit (", String::Number(requested->name),    \
++                      ") is not a power of two."})                          \
++            : StrCat({"Required limit (", String::Number(requested->name),    \
++                      rule->minimum                                         \
++                          ? ") is lower than the supported limit ("          \
++                          : ") is greater than the supported limit (",       \
++                      String::Number(limits_.name), ")."});                   \
++        resolver->RejectWithDOMException(                                   \
++            DOMExceptionCode::kOperationError,                              \
++            StrCat({detail, "\n - While validating " #name                  \
++                            "\n - While validating required limits\n"}));    \
++        return false;                                                       \
++      }                                                                      \
++      requested->name = static_cast<T>(base::UxrOriginalGpuForwardLimitV1(    \
++          requested->name, actual.name, rule->minimum));                     \
++    }                                                                        \
++  }
++  UXR_ORIGINAL_REQUEST_LIMITS(X)
++#undef X
++  return true;
++}
++
++void GPUSupportedLimits::RestoreOriginalRequest(
++    const ComboLimits& requested, bool actual_core_features) {
++#define X(name)                                                               \
++  {                                                                         \
++    using T = decltype(ComboLimits::name);                                    \
++    if (requested.name != UndefinedLimitValue<T>()) {                         \
++      const auto* rule = base::UxrFindOriginalGpuLimitV1(#name);               \
++      limits_.name = static_cast<T>(base::UxrOriginalGpuRestoreLimitV1(       \
++          limits_.name, requested.name, rule->minimum));                      \
++    }                                                                        \
++  }
++  SUPPORTED_LIMITS(X)
++#undef X
++  // Original 0x190038252 tail, after all 36 per-field writes.
++  limits_.maxStorageBuffersPerShaderStage = std::max({
++      limits_.maxStorageBuffersPerShaderStage,
++      limits_.maxStorageBuffersInVertexStage,
++      limits_.maxStorageBuffersInFragmentStage});
++  limits_.maxStorageTexturesPerShaderStage = std::max({
++      limits_.maxStorageTexturesPerShaderStage,
++      limits_.maxStorageTexturesInVertexStage,
++      limits_.maxStorageTexturesInFragmentStage});
++  if (actual_core_features) {
++    limits_.maxStorageBuffersInVertexStage =
++        limits_.maxStorageBuffersInFragmentStage =
++            limits_.maxStorageBuffersPerShaderStage;
++    limits_.maxStorageTexturesInVertexStage =
++        limits_.maxStorageTexturesInFragmentStage =
++            limits_.maxStorageTexturesPerShaderStage;
++  }
++}
++
+ // static
+ bool GPUSupportedLimits::Populate(
+     ComboLimits* out,
+     const HeapVector<
+         std::pair<String,
+                   Member<V8UnionUndefinedOrUnsignedLongLongEnforceRange>>>& in,
+-    ScriptPromiseResolverBase* resolver) {
++    ScriptPromiseResolverBase* resolver, bool defer_alignment_validation) {
+   auto* context = resolver->GetExecutionContext();
+   // TODO(crbug.com/dawn/685): This loop is O(n^2) if the developer
+   // passes all of the limits. It could be O(n) with a mapping of
+   // String -> wgpu::Limits::*member.
+   for (const auto& [limitName, limitRawValue] : in) {
+@@ -144,11 +262,12 @@
+               {"Required " #name " limit (",                                  \
+                String::Number(limitRawIntegerValue),                          \
+                ") exceeds the maximum representable value for its type."}));  \
+       return false;                                                           \
+     }                                                                         \
+-    if ((limitName == "minUniformBufferOffsetAlignment" ||                    \
++    if (!defer_alignment_validation &&                                      \
++        (limitName == "minUniformBufferOffsetAlignment" ||                    \
+          limitName == "minStorageBufferOffsetAlignment") &&                   \
+         !std::has_single_bit(static_cast<T>(value.ValueOrDie()))) {           \
+       resolver->RejectWithDOMException(                                       \
+           DOMExceptionCode::kOperationError,                                  \
+           "Required " #name " limit must be a power of two.");                \
