@@ -1,0 +1,23 @@
+diff --git a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc b/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
+--- a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
++++ b/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
+@@ -212,9 +212,18 @@
+     bool original_pixel_conversion_failed = false;
+     // It is more efficient to do alpha un-multiplication inside the decoder.
+     // https://crbug.com/557350372
++    // Original disabled WebGL exports keep the opaque tag so Skia selects
++    // RGB PNG. The observed 2D, noisy and reference-hit routes stay unchanged.
++    const bool preserve_original_opaque_png =
++        fingerprint_export_context_.source == UxrCanvasExportSource::kWebGL &&
++        fingerprint_export_context_.policy.mode ==
++            base::UxrSurfaceMode::kCloakOriginal &&
++        fingerprint_export_context_.noise_disabled &&
++        !fingerprint_export_context_.reference;
+     // Normalize opaque PNGs to match the synchronous export's wire format.
+     if ((mime_type_ == kMimeTypePng &&
+-         skia_image_->imageInfo().alphaType() == kOpaque_SkAlphaType) ||
++         skia_image_->imageInfo().alphaType() == kOpaque_SkAlphaType &&
++         !preserve_original_opaque_png) ||
+         prepare_original_pixels ||
+         target_color_info.makeAlphaType(skia_image_->imageInfo().alphaType()) !=
+             skia_image_->imageInfo().colorInfo()) {

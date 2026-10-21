@@ -84,6 +84,11 @@
       "path": "patches/fingerprint-modes/0016-original-cloak-string-api.patch",
       "sha256": "15a15f97484b9e2043daf69adbd2db30aab680bbfc01183243468e5946190999",
       "files": 1
+    },
+    {
+      "path": "patches/fingerprint-modes/0017-original-cloak-opaque-webgl-png.patch",
+      "sha256": "6e77977e18f075d8e7f6a5df74cec6270b2200cee1caa632da5105fe4e6ab41d",
+      "files": 1
     }
   ],
   "sequential_incremental_files": {
@@ -150,7 +155,8 @@
     "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc": [
       "0002-graphics.patch",
       "0009-original-cloak-reference-bank.patch",
-      "0015-original-cloak-async-export.patch"
+      "0015-original-cloak-async-export.patch",
+      "0017-original-cloak-opaque-webgl-png.patch"
     ],
     "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc": [
       "0002-graphics.patch",
@@ -211,7 +217,7 @@
       "0011-original-cloak-webgpu.patch"
     ]
   },
-  "combined_patch_sha256": "ff3a21bab6b7086a58fd4be2ff55e8789e9a2c52e52f145b9f51009498b3fc97",
+  "combined_patch_sha256": "f2b358314bbc9c934a873ca91a5abdf30c4519095e372c6f43b378a34199af39",
   "combined_patch_changed_files": 229,
   "source_upgrade": {
     "from_run": 39498745053,
@@ -705,6 +711,87 @@
       "path": "owned/research/cloak-parity-20261021/kernel/complete-ci-watch-1955/all-compiler-errors-audit.json",
       "sha256": "e396e5bfa803fb3a3348526d9c57e24361fdc4256da60ce7d17501bf3f01c0d0",
       "bytes": 3700
+    },
+    "realObjectCheckpointDownloaded": false,
+    "fullChromiumCompiled": false
+  },
+  "original_opaque_webgl_png_fix": {
+    "sourceBaseCommit": "263fbfa171a8fd33792280c8a3fefb590715b6c5",
+    "sourceBasePatchSHA256": "ff3a21bab6b7086a58fd4be2ff55e8789e9a2c52e52f145b9f51009498b3fc97",
+    "changedExistingFiles": [
+      "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc"
+    ],
+    "addedSourceFiles": [],
+    "unchangedCompositeSourceOutputs": 228,
+    "sourcePreparationChecks": {
+      "source_preparation_checks": 27754,
+      "flow_cases": 6912,
+      "opaque_tag_changes": 16,
+      "noisy_premul_regressions": 48,
+      "failures": 0
+    },
+    "corePixelAlgorithmChanged": false,
+    "nativeBrowserAccepted": false,
+    "qualification": "Only explicit original disabled-noise WebGL opaque PNG preparation keeps native alpha metadata. 2D, references, other modes, required color conversion and 0015 noisy preparation are unchanged. Source tests are not real PNG encoder or browser acceptance.",
+    "checkpointUpgradeEvidence": {
+      "path": "owned/research/cloak-parity-20261021/kernel/opaque-png-source-upgrade-v1/result.json",
+      "sha256": "5cf81cf2ec937416db674fe7732892506d3b60de04a38c7e657f4fca2f367fb5",
+      "bytes": 2918
+    },
+    "checkpointUpgrade": {
+      "actual-ci-211607": {
+        "status": "passed_selected_source_upgrade",
+        "fromPatchSHA256": "8d2c1ab2fc0f39c18f8b9dd8f8d036180b3c8c52f186749975c45462a3cbe17a",
+        "fromReceiptSHA256": "d9eacc6189b2712acc09977788a49ec3bd21c35db4e9f629c1fa1df150dab213",
+        "fromReceiptPath": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\complete-ci-watch-1955\\logs-artifact\\c\\chromix\\google-services-source.json",
+        "receiptProvenance": "completed_diagnostic_artifact_from_actual_CI_39650249224",
+        "toPatchSHA256": "f2b358314bbc9c934a873ca91a5abdf30c4519095e372c6f43b378a34199af39",
+        "changedExistingSources": [
+          "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc",
+          "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc"
+        ],
+        "addedSourceFiles": [],
+        "removedSourceFiles": [],
+        "unchangedSourceBytesAndMtimesPreserved": 266,
+        "allCompositeOutputsMatch": 229,
+        "idempotentSecondPrepare": true,
+        "syntheticObjectSentinelUnchanged": true,
+        "dependencyInputs": 33
+      },
+      "compile-fix-263fbfa-fixture": {
+        "status": "passed_selected_source_upgrade",
+        "fromPatchSHA256": "ff3a21bab6b7086a58fd4be2ff55e8789e9a2c52e52f145b9f51009498b3fc97",
+        "fromReceiptSHA256": "acbbfcb46afc0ac3e22f4d5947b598af697f7d1c42e3e7b4eff48166b920b700",
+        "fromReceiptPath": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\string-api-source-upgrade-v1\\actual-ci-211607\\chromix\\google-services-source.json",
+        "receiptProvenance": "locally_generated_263fbfa_source_fixture_not_CI",
+        "toPatchSHA256": "f2b358314bbc9c934a873ca91a5abdf30c4519095e372c6f43b378a34199af39",
+        "changedExistingSources": [
+          "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc"
+        ],
+        "addedSourceFiles": [],
+        "removedSourceFiles": [],
+        "unchangedSourceBytesAndMtimesPreserved": 267,
+        "allCompositeOutputsMatch": 229,
+        "idempotentSecondPrepare": true,
+        "syntheticObjectSentinelUnchanged": true,
+        "dependencyInputs": 33
+      }
+    },
+    "sourcePipelineTests": 59,
+    "originalRuntimeEvidence": {
+      "path": "owned/research/cloak-parity-20261021/kernel/opaque-png-fix-v1/original-runtime-evidence.json",
+      "sha256": "a2784c29d0f9ecb3bea8763b9e13844f451cb4776ed3f1518ee24caf4e00b351",
+      "bytes": 2741
+    },
+    "originalPngPayloadValidation": {
+      "path": "owned/research/cloak-parity-20261021/kernel/opaque-png-fix-v1/original-png-header-validation.json",
+      "sha256": "3c3845dd5dd671d56ee13353d1a8cc41d6c123074071de501ca048dcafb99a03",
+      "bytes": 11497
+    },
+    "recoveryCheckpointMetadata": {
+      "path": "owned/research/cloak-parity-20261021/kernel/complete-ci-watch-1955/checkpoint-ready-metadata.json",
+      "sha256": "f154b37de5b86c45c68e937292301cf59f6e0388ee82d887d4690eb998f2d84b",
+      "bytes": 2496
     },
     "realObjectCheckpointDownloaded": false,
     "fullChromiumCompiled": false

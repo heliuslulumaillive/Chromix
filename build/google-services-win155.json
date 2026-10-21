@@ -117,7 +117,8 @@
     "patches/fingerprint-modes/0013-original-cloak-contract.patch",
     "patches/fingerprint-modes/0014-original-cloak-fonts.patch",
     "patches/fingerprint-modes/0015-original-cloak-async-export.patch",
-    "patches/fingerprint-modes/0016-original-cloak-string-api.patch"
+    "patches/fingerprint-modes/0016-original-cloak-string-api.patch",
+    "patches/fingerprint-modes/0017-original-cloak-opaque-webgl-png.patch"
   ],
   "extra_sources": [
     "chrome/browser/BUILD.gn",
