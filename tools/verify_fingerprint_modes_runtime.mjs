@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { audioAcceptanceProbe, validateAudioAcceptance } from "./fingerprint_audio_acceptance.mjs";
 import { fontAcceptanceProbe, validateFontAcceptance, FONT_ACCEPTANCE_ORACLE } from "./fingerprint_font_acceptance.mjs";
 import { referenceAcceptanceProbe, validateReferenceAcceptance } from "./fingerprint_reference_acceptance.mjs";
+import { renderbufferAcceptanceProbe, validateRenderbufferAcceptance } from "./fingerprint_renderbuffer_acceptance.mjs";
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function deadline(promise, ms, message) {
@@ -726,7 +727,8 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
     // Presence is mandatory even if a native capability legitimately makes an
     // individual positive condition ineligible. Missing probes are not skips.
     const extraScopes = {
-      all_native: ["fonts", "reference", "audio"],
+      all_native: ["fonts", "reference", "audio", "renderbuffer"],
+      gpu_custom: ["renderbuffer"],
       ...Object.fromEntries(["fonts_shard42", "fonts_shard43", "fonts_cloak10026", "fonts_allowlists", "fonts_empty"].map(id => [id, ["fonts"]])),
       ...Object.fromEntries(["cloak_voices", "cloak_voices_no_local", "cloak_offset", "cloak_text_positive"].map(id => [id, ["reference"]])),
       ...Object.fromEntries(["cloak_audio_positive", "audio_defaults_44100", "audio_defaults_32000", "audio_default_mono", "audio_default_stereo", "audio_default_32"].map(id => [id, ["audio"]])),
@@ -735,7 +737,7 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
       const value = byId[id]?.extra?.[scope];
       check(id, `${scope}_acceptance_probe_present`, !!value && value.version === 1 && typeof value === "object");
     }
-    for (const validator of [validateAudioAcceptance, validateReferenceAcceptance]) {
+    for (const validator of [validateAudioAcceptance, validateReferenceAcceptance, validateRenderbufferAcceptance]) {
       const result = validator(byId, oracle);
       checks.push(...result.checks); notTested.push(...result.not_tested);
     }
@@ -855,7 +857,7 @@ async function main() {
     if (route === workerPath) { res.setHeader("Content-Type", "text/javascript"); res.end("postMessage({cpu:navigator.hardwareConcurrency,memory:navigator.deviceMemory});"); }
     else if (route === fontPath) { res.setHeader("Content-Type", "font/ttf"); res.end(ownedFont); }
     else if (route === workletPath) { res.setHeader("Content-Type", "text/javascript"); res.end(
-      "class P extends AudioWorkletProcessor {constructor(){super();this.n=0;}process(inputs,outputs){for(const output of outputs)for(const channel of output)channel.fill(0);if(this.n++<3)this.port.postMessage({sampleRate,currentFrame,currentTime,frames:outputs[0]?.[0]?.length||0,inputChannels:inputs[0]?.length||0,outputChannels:outputs[0]?.length||0});return true;}}registerProcessor('fingerprint-audio-acceptance',P);"); }
+      "class P extends AudioWorkletProcessor {constructor(){super();this.records=[];this.sent=false;}process(inputs,outputs){for(const output of outputs)for(const channel of output)channel.fill(0);if(!this.sent){this.records.push({sequence:this.records.length,sampleRate,currentFrame,currentTime,frames:outputs[0]?.[0]?.length||0,inputChannels:inputs[0]?.length||0,outputChannels:outputs[0]?.length||0});if(this.records.length===384){this.sent=true;this.port.postMessage({kind:'clock-records',messages:this.records});}}return true;}}registerProcessor('fingerprint-audio-acceptance',P);"); }
     else if (route === echoPath) { res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify(req.headers)); }
     else if (route === `/${token}/`) { res.setHeader("Content-Type", "text/html"); res.end("<!doctype html><meta charset=utf-8><title>Owned kernel acceptance</title><body>"); }
     else { res.statusCode = 404; res.end(); }
@@ -867,7 +869,7 @@ async function main() {
     started_at: new Date().toISOString(), node: process.version, transport: "Raw CDP; sensor emulation only, no API replacement or automatic UA/font/media/viewport emulation",
     synthetic_media_only: true, credentials_environment_removed: true, external_pages: false, baseline_only: !!args["baseline-only"], scenarios: [],
     oracle_sha256: await sha256(oraclePath),
-    collector_modules_sha256: Object.fromEntries(await Promise.all(["fingerprint_audio_acceptance.mjs", "fingerprint_font_acceptance.mjs", "fingerprint_reference_acceptance.mjs"]
+    collector_modules_sha256: Object.fromEntries(await Promise.all(["fingerprint_audio_acceptance.mjs", "fingerprint_font_acceptance.mjs", "fingerprint_reference_acceptance.mjs", "fingerprint_renderbuffer_acceptance.mjs"]
       .map(async name => [name, await sha256(path.join(toolRoot, name))]))),
     coverage_limits: ["Headless Windows acceptance; not all physical GPUs or driver versions.",
       "Cloak text/audio positive acceptance requires the pinned native input to meet the unchanged strict guard; ineligible rows remain not_tested.",
@@ -943,6 +945,9 @@ async function main() {
           basicOnly: BASIC_SCENARIOS.has(scenario.id),
         })})`);
         record.extra = {};
+        if (["all_native", "gpu_custom"].includes(scenario.id)) {
+          record.extra.renderbuffer = await evaluate(cdp, sessionId, `(${renderbufferAcceptanceProbe.toString()})({})`, true);
+        }
         if (scenario.id === "all_native" || scenario.id.startsWith("fonts_")) {
           try {
             await cdp.send("Browser.grantPermissions", { origin, permissions: ["localFonts"] });

@@ -1,4 +1,5 @@
 diff --git a/base/uxr_gpu_modes.h b/base/uxr_gpu_modes.h
+new file mode 100644
 --- /dev/null
 +++ b/base/uxr_gpu_modes.h
 @@ -0,0 +1,241 @@
@@ -404,7 +405,22 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl2_rendering_context_b
            !ungoogled::CurrentPersona().webgl_native_capabilities) {
          const GLint max_samples = ClampPersonaLimit(
              ContextGL(), GL_MAX_SAMPLES,
-@@ -4886,7 +4888,15 @@
+@@ -1149,6 +1151,14 @@
+     SynthesizeGLError(GL_INVALID_VALUE, function_name, "samples < 0");
+     return;
+   }
++  // Custom limits constrain allocation as well as getParameter(). Preserve
++  // native and legacy validation paths when no custom capability mode is used.
++  if (GetWebGLCapabilitiesMode() == base::UxrGpuMode::kCustom &&
++      (width > max_renderbuffer_size_ || height > max_renderbuffer_size_)) {
++    SynthesizeGLError(GL_INVALID_VALUE, function_name,
++                      "dimensions exceed MAX_RENDERBUFFER_SIZE");
++    return;
++  }
+   RenderbufferStorageImpl(target, samples, internalformat, width, height,
+                           function_name);
+   ApplyDepthAndStencilTest();
+@@ -4886,7 +4896,15 @@
                                                       GLenum pname) {
    if (isContextLost())
      return ScriptValue::CreateNull(script_state->GetIsolate());
@@ -684,3 +700,21 @@ diff --git a/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h b/
  
    // Returns true if populated, false if not and the ScriptPromiseResolverBase
    // has been rejected.
+diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
+--- a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
++++ b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
+@@ -6064,6 +6064,14 @@
+   }
+   if (!ValidateSize(function_name, width, height))
+     return;
++  // Custom limits constrain allocation as well as getParameter(). Preserve
++  // native and legacy validation paths when no custom capability mode is used.
++  if (GetWebGLCapabilitiesMode() == base::UxrGpuMode::kCustom &&
++      (width > max_renderbuffer_size_ || height > max_renderbuffer_size_)) {
++    SynthesizeGLError(GL_INVALID_VALUE, function_name,
++                      "dimensions exceed MAX_RENDERBUFFER_SIZE");
++    return;
++  }
+   RenderbufferStorageImpl(target, 0, internalformat, width, height,
+                           function_name);
+   ApplyDepthAndStencilTest();

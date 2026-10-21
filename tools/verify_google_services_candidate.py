@@ -35,7 +35,7 @@ FINGERPRINT_POSITIVE_SCENARIOS = {
     'shard_webgl': {'webgl_shardx'}, 'cloak_webgl': {'webgl_cloak'}, 'shard_audio': {'shard_surfaces'},
     'shard_rects': {'shard_surfaces'}, 'shard_text': {'shard_surfaces'}, 'shard_sensors': {'shard_surfaces'},
     'shard_media': {'shard_surfaces'}, 'memory_custom': {'memory_custom'}, 'hardware_profile': {'hardware_cloak'},
-    'webgl_resource_limits': {'gpu_custom'}, 'webgpu_capabilities': {'gpu_custom', 'hardware_cloak'},
+    'webgl_resource_limits': {'all_native', 'gpu_custom'}, 'webgpu_capabilities': {'gpu_custom', 'hardware_cloak'},
     'hardware_gpu_identity': {'hardware_cloak'}, 'masked_webgl': {'gpu_masked_custom'},
     'shard_fonts': {'fonts_shard42', 'fonts_shard43'}, 'cloak_fonts': {'fonts_cloak10026'},
     'font_allowlists': {'fonts_allowlists', 'fonts_empty'},
@@ -46,13 +46,14 @@ FINGERPRINT_POSITIVE_SCENARIOS = {
                        'audio_default_stereo', 'audio_default_32'},
 }
 FINGERPRINT_EXTRA_SCOPES = {
-    'all_native': ('fonts', 'reference', 'audio'),
+    'all_native': ('fonts', 'reference', 'audio', 'renderbuffer'),
+    'gpu_custom': ('renderbuffer',),
     **{name: ('fonts',) for name in ('fonts_shard42', 'fonts_shard43', 'fonts_cloak10026', 'fonts_allowlists', 'fonts_empty')},
     **{name: ('reference',) for name in ('cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive')},
     **{name: ('audio',) for name in ('cloak_audio_positive', 'audio_defaults_44100', 'audio_defaults_32000',
                                    'audio_default_mono', 'audio_default_stereo', 'audio_default_32')},
 }
-FINGERPRINT_BASIC_SCENARIOS = set(FINGERPRINT_EXTRA_SCOPES) - {'all_native'}
+FINGERPRINT_BASIC_SCENARIOS = set(FINGERPRINT_EXTRA_SCOPES) - {'all_native', 'gpu_custom'}
 REQUIRED_CHECKS = {
     'secure_context', 'ordinary_registration', 'ordinary_authentication',
     'foreign_rp_rejected', 'google_registration', 'google_appid_exclude',

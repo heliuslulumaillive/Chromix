@@ -281,7 +281,10 @@ class FingerprintEvidenceTest(unittest.TestCase):
         node = os.environ.get('FINGERPRINT_TEST_NODE') or shutil.which('node')
         if not node:
             self.skipTest('Node is not installed on this source-only test host')
-        result = subprocess.run([node, '--test', str(ROOT / 'tools/tests/test_fingerprint_runtime_acceptance.mjs')],
+        result = subprocess.run([node, '--test', *[str(ROOT / 'tools/tests' / name) for name in (
+                                    'test_fingerprint_runtime_acceptance.mjs',
+                                    'test_audio_clock_acceptance.mjs',
+                                    'test_renderbuffer_acceptance.mjs')]],
                                 cwd=ROOT, capture_output=True, text=True, timeout=45)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         contract = subprocess.run([node, '--input-type=module', '-e',

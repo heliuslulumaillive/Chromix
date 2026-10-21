@@ -22,8 +22,8 @@
     },
     {
       "path": "patches/fingerprint-modes/0004-gpu-compatible-modes-v1.patch",
-      "sha256": "a0e72b3cdc3a8ffb6a82b93363185e2e00f21c8159e740b910f491e5a01cbe2a",
-      "files": 8
+      "sha256": "929049be2fb50bbf022cdc4579bccd3b404da8588b7e997e16ef55b2df2908b2",
+      "files": 9
     },
     {
       "path": "patches/fingerprint-modes/0005-installed-font-allowlists.patch",
@@ -40,15 +40,25 @@
     "third_party/blink/renderer/platform/fonts/font_cache.cc": [
       "0003-surfaces.patch",
       "0005-installed-font-allowlists.patch"
+    ],
+    "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc": [
+      "0002-graphics.patch",
+      "0004-gpu-compatible-modes-v1.patch"
     ]
   },
-  "combined_patch_sha256": "cb77d7c9fb5f07cfb68e16208108a7ec33fd76bb262b58f2426a4f49df89040b",
+  "combined_patch_sha256": "91240908cc0b26881a34ff9f74a99c3bfb602fbce0e49df3ba8686018a8006e7",
   "combined_patch_changed_files": 209,
   "source_upgrade": {
-    "from_run": 39487719761,
-    "from_patch_sha256": "2c0959ef20bff4c70e2e2966f235ed1467c2ab1063004516c91f579d5f38c75d",
+    "from_run": 39498745053,
+    "from_commit": "4c5f53ca8efef6acca5c8037aaf18ab609550651",
+    "from_patch_sha256": "cb77d7c9fb5f07cfb68e16208108a7ec33fd76bb262b58f2426a4f49df89040b",
     "unchanged_file_timestamps_preserved": 256,
-    "idempotent": true
+    "changed_existing_files": [
+      "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
+      "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc"
+    ],
+    "idempotent": true,
+    "qualification": "Selected-source replay with the exact donor receipt; object preservation checked using a synthetic sentinel."
   },
   "qualification": "Pinned source replay and donor-upgrade identity only; compiled and runtime evidence is separate."
 }

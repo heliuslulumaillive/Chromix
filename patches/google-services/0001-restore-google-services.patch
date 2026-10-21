@@ -56075,7 +56075,22 @@
            !ungoogled::CurrentPersona().webgl_native_capabilities) {
          const GLint max_samples = ClampPersonaLimit(
              ContextGL(), GL_MAX_SAMPLES,
-@@ -4886,7 +4888,15 @@
+@@ -1149,6 +1151,14 @@
+     SynthesizeGLError(GL_INVALID_VALUE, function_name, "samples < 0");
+     return;
+   }
++  // Custom limits constrain allocation as well as getParameter(). Preserve
++  // native and legacy validation paths when no custom capability mode is used.
++  if (GetWebGLCapabilitiesMode() == base::UxrGpuMode::kCustom &&
++      (width > max_renderbuffer_size_ || height > max_renderbuffer_size_)) {
++    SynthesizeGLError(GL_INVALID_VALUE, function_name,
++                      "dimensions exceed MAX_RENDERBUFFER_SIZE");
++    return;
++  }
+   RenderbufferStorageImpl(target, samples, internalformat, width, height,
+                           function_name);
+   ApplyDepthAndStencilTest();
+@@ -4886,7 +4896,15 @@
                                                       GLenum pname) {
    if (isContextLost())
      return ScriptValue::CreateNull(script_state->GetIsolate());
@@ -56320,6 +56335,21 @@
      // PBO overloads never enter this helper. FBO, FLOAT, shared storage,
      // transparent buffers and clipped reads retain the native path.
      if (policy.seeded_pixel_noise && policy.canvas_pixel_noise && !framebuffer &&
+@@ -5957,6 +6064,14 @@
+   }
+   if (!ValidateSize(function_name, width, height))
+     return;
++  // Custom limits constrain allocation as well as getParameter(). Preserve
++  // native and legacy validation paths when no custom capability mode is used.
++  if (GetWebGLCapabilitiesMode() == base::UxrGpuMode::kCustom &&
++      (width > max_renderbuffer_size_ || height > max_renderbuffer_size_)) {
++    SynthesizeGLError(GL_INVALID_VALUE, function_name,
++                      "dimensions exceed MAX_RENDERBUFFER_SIZE");
++    return;
++  }
+   RenderbufferStorageImpl(target, 0, internalformat, width, height,
+                           function_name);
+   ApplyDepthAndStencilTest();
 --- a/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
 +++ b/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
 @@ -4,6 +4,7 @@

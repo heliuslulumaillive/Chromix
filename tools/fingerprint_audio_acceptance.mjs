@@ -3,6 +3,7 @@
 export async function audioAcceptanceProbe(input = {}) {
   const result = {
     version: 1,
+    clockProtocolVersion: 2,
     scenario: input.scenario || "unspecified",
     scope: "Zero-signal realtime clock and synthetic offline PCM; no capture or speech",
     contexts: [],
@@ -118,15 +119,21 @@ export async function audioAcceptanceProbe(input = {}) {
 
   const moduleSource = `
     class FingerprintAudioAcceptance extends AudioWorkletProcessor {
-      constructor() { super(); this.sent = 0; }
+      constructor() { super(); this.records = []; this.sent = false; }
       process(inputs, outputs) {
         for (const output of outputs) for (const channel of output) channel.fill(0);
-        if (this.sent++ < 3) this.port.postMessage({
-          sampleRate, currentFrame, currentTime,
-          frames: outputs[0]?.[0]?.length || 0,
-          inputChannels: inputs[0]?.length || 0,
-          outputChannels: outputs[0]?.length || 0
-        });
+        if (!this.sent) {
+          this.records.push({
+            sequence: this.records.length, sampleRate, currentFrame, currentTime,
+            frames: outputs[0]?.[0]?.length || 0,
+            inputChannels: inputs[0]?.length || 0,
+            outputChannels: outputs[0]?.length || 0
+          });
+          if (this.records.length === 384) {
+            this.sent = true;
+            this.port.postMessage({ kind: "clock-records", messages: this.records });
+          }
+        }
         return true;
       }
     }
@@ -143,21 +150,28 @@ export async function audioAcceptanceProbe(input = {}) {
         maxChannelCount: context.destination.maxChannelCount,
         baseLatency: context.baseLatency,
       });
-      row.worklet = { messages: [] };
+      row.worklet = {
+        messages: [], protocolVersion: 2, expectedCallbacks: 384,
+        initialization: "suspend-build-resume", constructionState: context.state,
+      };
       try {
+        // Build the real graph while suspended so module loading and graph
+        // construction are not interleaved with the first realtime callbacks.
+        // This keeps the strict quantum check; it does not repair clock values.
+        await bounded(context.suspend(), 3000, "suspend before worklet graph");
+        row.worklet.suspendedBeforeGraph = context.state === "suspended";
         const sourceURL = input.workletURL || (objectURL = URL.createObjectURL(
           new Blob([moduleSource], { type: "application/javascript" })));
         await bounded(context.audioWorklet.addModule(sourceURL), 5000, "worklet module");
         node = new AudioWorkletNode(
           context, input.workletName || "fingerprint-audio-acceptance",
           { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1] });
-        const threeFrames = new Promise((resolve, reject) => {
+        const clockFrames = new Promise((resolve, reject) => {
           node.port.onmessage = event => {
             const value = event.data;
-            if (value && Number.isFinite(value.sampleRate) &&
-                Number.isFinite(value.currentFrame) && Number.isFinite(value.currentTime)) {
-              row.worklet.messages.push(value);
-              if (row.worklet.messages.length >= 3) resolve();
+            if (value?.kind === "clock-records" && Array.isArray(value.messages)) {
+              row.worklet.messages = value.messages;
+              resolve();
             }
           };
           node.onprocessorerror = () => reject(new Error("AudioWorklet processor error"));
@@ -166,7 +180,7 @@ export async function audioAcceptanceProbe(input = {}) {
         mute.gain.value = 0;
         node.connect(mute);
         mute.connect(context.destination);
-        await bounded(Promise.all([context.resume(), threeFrames]), 6000, "worklet clock");
+        await bounded(Promise.all([context.resume(), clockFrames]), 6000, "worklet clock");
         row.worklet.actualContextRate = context.sampleRate;
         row.worklet.state = context.state;
       } catch (error) { row.worklet.error = errorValue(error); }
@@ -293,29 +307,36 @@ export function validateAudioAcceptance(recordsById, oracle = {}) {
       ...(group ? { acceptance_group: group } : {}) });
     if (group) groups[group].skipped++;
   };
-  const clockOK = (row, rate) => {
+  const rateClockOK = (row, rate) => {
     const messages = row?.worklet?.messages;
     if (!row || row.error || row.worklet?.error || !Array.isArray(messages) ||
-        messages.length < 3 || row.sampleRate !== rate ||
+        messages.length !== 384 || row.worklet.protocolVersion !== 2 ||
+        row.worklet.expectedCallbacks !== 384 ||
+        row.worklet.initialization !== "suspend-build-resume" ||
+        row.worklet.suspendedBeforeGraph !== true || row.sampleRate !== rate ||
         row.worklet.actualContextRate !== rate) return false;
     return messages.every((m, index) => {
-      if (m.sampleRate !== rate || !Number.isInteger(m.currentFrame) ||
+      if (m.sequence !== index || m.sampleRate !== rate || !Number.isInteger(m.currentFrame) ||
           !Number.isFinite(m.currentTime) || !Number.isInteger(m.frames) || m.frames <= 0 ||
           Math.abs(m.currentTime - m.currentFrame / rate) > 1e-9) return false;
       if (index === 0) return true;
       const previous = messages[index - 1];
       const frames = m.currentFrame - previous.currentFrame;
       const seconds = m.currentTime - previous.currentTime;
-      return frames === previous.frames && seconds > 0 &&
+      return frames > 0 && seconds > 0 &&
         Math.abs(seconds - frames / rate) <= 1e-9;
     });
   };
+  const clockOK = (row, rate) => rateClockOK(row, rate) &&
+    row.worklet.messages.every((message, index, messages) => index === 0 ||
+      message.currentFrame - messages[index - 1].currentFrame === messages[index - 1].frames);
   const explicitOK = row =>
     row?.offline?.sampleRate === 44100 && row.offline.numberOfChannels === 6 &&
     row.offline.length === 256 && row.offline.state === "closed" &&
     row?.buffer?.sampleRate === 32000 && row.buffer.numberOfChannels === 6 &&
     row.buffer.length === 16 && !row.offline.error && !row.buffer.error;
   const baselineClock = clockOK(baseline, baseline?.sampleRate);
+  const baselineRateClock = rateClockOK(baseline, baseline?.sampleRate);
   const baselineBackend = baseline && !baseline.error &&
     Number.isFinite(baseline.sampleRate) && baseline.sampleRate >= 3000 &&
     baseline.sampleRate <= 768000;
@@ -343,16 +364,27 @@ export function validateAudioAcceptance(recordsById, oracle = {}) {
     add(scenario, "default_sample_rate", actual.sampleRate === rate && !actual.error,
         `expected=${rate}; actual=${actual.sampleRate}; error=${actual.error?.name || "none"}`,
         "audio_defaults");
+    if (baselineRateClock) {
+      add(scenario, "worklet_rate_time_consistent", rateClockOK(actual, rate),
+          "384 numbered callbacks require context/global rate agreement and positive frame/time ratios", "audio_defaults");
+    } else {
+      skip(scenario, "worklet_rate_time_consistent", "Native baseline did not establish a complete rate/time clock sequence",
+          "audio_defaults");
+    }
     if (!baselineClock) {
       skip(scenario, "worklet_clock", "Native baseline did not establish a working realtime Worklet clock",
           "audio_defaults");
     } else {
       add(scenario, "worklet_clock", clockOK(actual, rate),
-          "Requires context/global rate agreement and positive frame/time progression", "audio_defaults");
+          "Strict contiguous output quanta for all 384 callbacks after suspended graph construction", "audio_defaults");
     }
     const explicit = context(scenario, "explicit48000");
     add(scenario, "explicit_context_rate_kept", explicit?.sampleRate === 48000 && !explicit?.error,
         "AudioContext({sampleRate:48000}) must keep its explicit value", "audio_defaults");
+    if (baselineRateClock) {
+      add(scenario, "explicit_worklet_rate_time_consistent", rateClockOK(explicit, 48000),
+          "Explicit graph rate and frame/time ratios must agree for the complete sequence", "audio_defaults");
+    }
     if (baselineClock) {
       add(scenario, "explicit_worklet_clock_kept", clockOK(explicit, 48000),
           "Explicit graph rate must propagate to Worklet", "audio_defaults");
