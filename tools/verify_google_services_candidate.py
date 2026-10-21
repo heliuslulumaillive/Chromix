@@ -114,6 +114,7 @@ def validate_mode_native(report, payload):
     expected = {
         'config-legacy': ('legacy', {'configuration_checks'}, '--config-legacy'),
         'config-chromix': ('chromix', {'configuration_checks'}, '--config-chromix'),
+        'config-original': ('original', {'original_pixel_checks', 'configuration_checks'}, '--config-original'),
         'production-helpers-and-config': ('production', {
             'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks', 'font_allowlist_checks',
             'audio_default_checks', 'configuration_checks'}, None),
@@ -123,7 +124,7 @@ def validate_mode_native(report, payload):
             or report.get('browser_sha256') != payload['chrome.exe']
             or report.get('chrome_dll_sha256') != payload['chrome.dll']
             or not isinstance(processes, list) or len(processes) != len(expected)
-            or not isinstance(groups, dict) or set(groups) != {'legacy', 'chromix', 'production'}):
+            or not isinstance(groups, dict) or set(groups) != {'legacy', 'chromix', 'original', 'production'}):
         raise ValueError('Native mode evidence is incomplete or bound to another payload')
     seen, binaries, counts = set(), set(), {}
     for process in processes:
@@ -138,10 +139,17 @@ def validate_mode_native(report, payload):
         seen.add(label)
         binaries.add(process['executable_sha256'])
         arguments = process.get('arguments')
-        if (not isinstance(arguments, list) or len(arguments) != 1
+        if label == 'config-original':
+            valid_arguments = (isinstance(arguments, list) and len(arguments) == 2
+                               and arguments[0] == '--config-original'
+                               and isinstance(arguments[1], str)
+                               and arguments[1].replace('\\', '/').endswith('/tools/tests/fixtures'))
+        else:
+            valid_arguments = not (not isinstance(arguments, list) or len(arguments) != 1
                 or not isinstance(arguments[0], str) or not arguments[0]
                 or (argument is not None and arguments != [argument])
-                or (argument is None and not arguments[0].replace('\\', '/').endswith('/tools/tests/fixtures'))):
+                or (argument is None and not arguments[0].replace('\\', '/').endswith('/tools/tests/fixtures')))
+        if not valid_arguments:
             raise ValueError('Native mode process has the wrong test arguments')
         output = process.get('stdout')
         if (not isinstance(output, str) or not output

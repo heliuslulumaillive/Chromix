@@ -170,6 +170,9 @@ try {
   $chromix = Invoke-OwnedCheck $executable @('--config-chromix') $outPath 'config-chromix' 120
   $native.processes += $chromix
   $native.groups['chromix'] = @(Read-NativeGroups $chromix @('configuration_checks'))
+  $original = Invoke-OwnedCheck $executable @('--config-original', $fixtureRoot) $outPath 'config-original' 180
+  $native.processes += $original
+  $native.groups['original'] = @(Read-NativeGroups $original @('original_pixel_checks', 'configuration_checks'))
   $helpers = Invoke-OwnedCheck $executable @($fixtureRoot) $outPath 'production-helpers-and-config' 180
   $native.processes += $helpers
   $native.groups['production'] = @(Read-NativeGroups $helpers @(

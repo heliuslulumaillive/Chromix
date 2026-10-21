@@ -144,6 +144,8 @@ def write_fingerprint_evidence(root, bundle):
     groups = {
         'legacy': [{'status': 'passed', 'configuration_checks': 6, 'failures': 0}],
         'chromix': [{'status': 'passed', 'configuration_checks': 4, 'failures': 0}],
+        'original': [{'original_pixel_checks': 77, 'failures': 0},
+                     {'status': 'passed', 'configuration_checks': 11, 'failures': 0}],
         'production': [
             {'graphics_cases': 2, 'failures': 0, 'groups': {'fixture_pixels': 2}},
             {'checks': 3, 'failures': 0}, {'gpu_checks': 4, 'failures': 0},
@@ -156,6 +158,7 @@ def write_fingerprint_evidence(root, bundle):
     for label, group, arguments in (
             ('config-legacy', 'legacy', ['--config-legacy']),
             ('config-chromix', 'chromix', ['--config-chromix']),
+            ('config-original', 'original', ['--config-original', 'D:/a/Chromix/Chromix/tools/tests/fixtures']),
             ('production-helpers-and-config', 'production', ['D:/a/Chromix/Chromix/tools/tests/fixtures'])):
         stdout = '\n'.join(json.dumps(value) for value in groups[group]) + '\n'
         processes.append({'label': label, 'executable_sha256': 'a' * 64, 'arguments': arguments,
@@ -307,6 +310,10 @@ class FingerprintEvidenceTest(unittest.TestCase):
             ('native_wrong_binary', lambda n, r, c: n['processes'][0].update(executable_sha256='b' * 64)),
             ('native_wrong_arguments', lambda n, r, c: n['processes'][1].update(arguments=['--config-legacy'])),
             ('native_empty_group', lambda n, r, c: n['groups'].update(chromix=[])),
+            ('native_original_missing', lambda n, r, c: n['groups'].update(original=[])),
+            ('native_original_zero', lambda n, r, c: n['groups']['original'][0].update(original_pixel_checks=0)),
+            ('native_original_config_missing', lambda n, r, c: n['groups']['original'].pop()),
+            ('native_original_wrong_arguments', lambda n, r, c: n['processes'][2].update(arguments=['--config-original'])),
             ('native_zero_count', lambda n, r, c: n['groups']['production'][0].update(graphics_cases=0)),
             ('native_boolean_count', lambda n, r, c: n['groups']['production'][2].update(gpu_checks=True)),
             ('native_string_count', lambda n, r, c: n['groups']['production'][3].update(hardware_checks='99')),
@@ -356,7 +363,7 @@ class FingerprintEvidenceTest(unittest.TestCase):
                 capabilities = json.loads((root / 'fingerprint-modes-capabilities.json').read_text())
                 mutate(native, runtime, capabilities)
                 for process in native['processes']:
-                    group = {'config-legacy': 'legacy', 'config-chromix': 'chromix',
+                    group = {'config-legacy': 'legacy', 'config-chromix': 'chromix', 'config-original': 'original',
                              'production-helpers-and-config': 'production'}[process['label']]
                     output = '\n'.join(json.dumps(value) for value in native['groups'][group]) + '\n'
                     process.update(stdout=output, stdout_sha256=hashlib.sha256(output.encode()).hexdigest())

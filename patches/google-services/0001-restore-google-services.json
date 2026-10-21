@@ -996,6 +996,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "0658fb3c34f1211123725fbbb71b3f70d2cc800e79e72af5987f6a6ff477f28c",
+  "patch_sha256": "cc42b57c5cf5a147e07647c02f0d78de48a09525c7265e36893eb43450b29481",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

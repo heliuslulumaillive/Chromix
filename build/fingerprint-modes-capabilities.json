@@ -2,7 +2,7 @@
   "schema_version": 1,
   "build_variant": "fingerprint-modes-win155",
   "chromium_version": "155.0.8059.39",
-  "strategy_version": 1,
+  "strategy_version": 2,
   "new_strategy_flavor": "compatible-v1",
   "kind": "source_contract",
   "acceptance": "Build/native/runtime results are separate hash-bound reports; this contract alone is not acceptance.",
@@ -32,10 +32,14 @@
         "native",
         "chromix",
         "shardx",
-        "cloak"
+        "cloak",
+        "cloak-original"
       ],
       "seed_flag": "fingerprint-canvas-mode-seed",
-      "version": 1
+      "version": 1,
+      "mode_versions": {
+        "cloak-original": 2
+      }
     },
     "fonts": {
       "flag": "fingerprint-fonts-mode",
@@ -123,10 +127,14 @@
         "native",
         "chromix",
         "shardx",
-        "cloak"
+        "cloak",
+        "cloak-original"
       ],
       "seed_flag": "fingerprint-webgl-mode-seed",
-      "version": 1
+      "version": 1,
+      "mode_versions": {
+        "cloak-original": 2
+      }
     }
   },
   "amounts": {
@@ -263,7 +271,8 @@
         "native",
         "chromix",
         "shardx",
-        "cloak"
+        "cloak",
+        "cloak-original"
       ],
       "independent_from": [
         "webgl",
@@ -279,7 +288,7 @@
         "Offscreen convertToBlob"
       ],
       "storage": "Owned completed RGBA8/BGRA8 output; original drawing pixels are not mutated",
-      "other_formats": "Native fallback; float16/HDR algorithms are not implemented",
+      "other_formats": "Compatible-v1 remains native for float16/HDR. The explicit cloak-original branch admits only its separately listed typed formats; unhandled formats stay native.",
       "chromix": "Existing uint64 seed fold and absolute-coordinate RGB +/-1 algorithm",
       "shardx": "Byte-verified xoshiro128** 32 assignments over the complete canvas, projected into crops, with the recovered partial-alpha round-trip guard",
       "cloak": {
@@ -300,14 +309,16 @@
       "native_fallback_conditions": [
         "Unavailable snapshot or unsuccessful actual read",
         "Unsupported storage format"
-      ]
+      ],
+      "existing_policy_scope": "Existing mode values retain the compatible-v1 rules below; cloak-original uses graphics.original_pixels."
     },
     "webgl": {
       "modes": [
         "native",
         "chromix",
         "shardx",
-        "cloak"
+        "cloak",
+        "cloak-original"
       ],
       "variant": "completion-safe-pack-safe-compatible-v1",
       "production_seed_sequence": "ShardX uses zero on every read; no process counter is consumed",
@@ -326,7 +337,8 @@
       "errors": "Never consume the page GL error queue; failed/incomplete staging does not alter the caller buffer",
       "shardx_export": "Native; the original CPU readPixels algorithm did not affect PNG export",
       "cloak_export": "Logical RGB and top-left full-canvas coordinates agree with the corresponding supported GL readback",
-      "legacy_scope_expanded": false
+      "legacy_scope_expanded": false,
+      "existing_policy_scope": "Existing mode values retain the compatible-v1 rules below; cloak-original uses graphics.original_pixels."
     },
     "export_routing": {
       "source": "Actual canvas rendering context, classified as Canvas2D/WebGL/Other at the HTML or Offscreen call site",
@@ -339,6 +351,50 @@
       "chromix": "Nonzero uint64, old fold unchanged",
       "cloak": "Nonzero uint64 serialized as canonical decimal ASCII",
       "shardx": "Effective uint32; explicit values outside 1..UINT32_MAX rejected by the common parser; environment-seed folding is a separately documented launcher v1 rule"
+    },
+    "original_pixels": {
+      "mode": "cloak-original",
+      "algorithm_version": 1,
+      "required_surface_modes_version": 2,
+      "legacy_modes_unchanged": [
+        "native",
+        "chromix",
+        "shardx",
+        "cloak"
+      ],
+      "selection": "Original current-read width/height; both must be at least8. No full-canvas crop projection or GL Y-flip.",
+      "channels": "Physical storage order, preserving original RGBA/BGRA export discrepancy.",
+      "byte_alpha": "Canvas byte candidates write only when candidate<=alpha; not blanket partial-alpha bypass.",
+      "typed_pixels": "Finite half16/float32 lowest component byte; skip NaN/Infinity exponent patterns without changing alpha.",
+      "canvas_formats": [
+        "RGBA8",
+        "BGRA8",
+        "unpremultiplied RGBA float16"
+      ],
+      "canvas_half_guard": "Premultiplied float16 stays native, matching the observed original Skia adapter.",
+      "webgl_formats": [
+        "RGBA/UNSIGNED_BYTE",
+        "RGBA/FLOAT",
+        "RGBA/HALF_FLOAT when the real context permits it"
+      ],
+      "webgl_framebuffers": "Native validated default and user FBO, including transparent reads; complete double-sentinel staging before processing.",
+      "webgl_staging_budget_bytes": 16777216,
+      "webgl_per_buffer_budget_bytes": 8388608,
+      "webgl_errors": "Never read/clear the page GL error queue; mismatched/incomplete stages fall back to native, lost context returns without writes.",
+      "pbo": "Numeric-offset PBO overload remains native, matching the captured original control.",
+      "unsupported_fallbacks": [
+        "Shared destinations",
+        "Other packed/integer/color formats",
+        "Over-budget staging",
+        "Unsuccessful Canvas snapshot/read"
+      ],
+      "reference_bank": {
+        "supported": false,
+        "reason": "This is the separately named general original-pixel algorithm only; the68-row operation reference bank remains a distinct unimplemented feature."
+      },
+      "noise_controls": "false/raw bypass only this ordinary pixel operation, independently of other surface strategies.",
+      "evidence": "tools/tests/fixtures/cloak-original-pixels-v1/provenance.json",
+      "acceptance": "Source/goldens are not native browser acceptance. Requires exact compiled DLL paired runtime before launcher enrollment."
     }
   },
   "gpu": {
@@ -445,7 +501,7 @@
     "General Cloak DSP emulation, unconfirmed double-destination state, arbitrary graph/reference matching.",
     "Gyroscope/orientation/refresh scheduling mechanisms without established source/runtime evidence.",
     "Virtual capture backends, synthetic device identities and a complete cross-platform codec/DRM policy.",
-    "All unhandled WebGL enums and transparent/FBO/PBO/FLOAT/HDR noise paths; explicit native fallback remains."
+    "Original Canvas operation-reference bank and unverified packed/integer/HDR formats. Original PBO remains native by observed design; compatible-v1 retains its prior transparent/FBO/FLOAT fallbacks."
   ],
   "surface_differences": [
     {
@@ -511,5 +567,10 @@
     "media/cloak": "Original empty-list fake input has no capture backend; deliberately omitted rather than add a no-op mode.",
     "voices/shardx": "No separately established strategy in the audited target."
   },
-  "data_policy": "Four header-only resources/algorithms contain decoded numeric/string metadata. No opaque ciphertext, licensing material, keys or remote runtime loads. Dataset build validates counts, uniqueness and captured hashes."
+  "data_policy": "Four header-only resources/algorithms contain decoded numeric/string metadata. No opaque ciphertext, licensing material, keys or remote runtime loads. Dataset build validates counts, uniqueness and captured hashes.",
+  "original_pixel_mode": "cloak-original",
+  "configuration_versions": {
+    "1": "Existing native/Chromix/ShardX/compatible Cloak only; unchanged.",
+    "2": "Required explicit opt-in for cloak-original pixels; accepts all existing modes without semantic changes."
+  }
 }

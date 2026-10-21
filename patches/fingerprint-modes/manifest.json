@@ -39,6 +39,11 @@
       "path": "patches/fingerprint-modes/0007-custom-ua-client-hints.patch",
       "sha256": "795389a9615f383dc8025e445e94a4eff55e06d5584bee88b0a74ac1cb6ab554",
       "files": 1
+    },
+    {
+      "path": "patches/fingerprint-modes/0008-original-cloak-pixels.patch",
+      "sha256": "cc72317e522a5faa8bffeb604b82b145b697faa95d8eb2d1d47525a4aaf5c765",
+      "files": 9
     }
   ],
   "sequential_incremental_files": {
@@ -48,14 +53,47 @@
     ],
     "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc": [
       "0002-graphics.patch",
-      "0004-gpu-compatible-modes-v1.patch"
+      "0004-gpu-compatible-modes-v1.patch",
+      "0008-original-cloak-pixels.patch"
     ],
     "components/embedder_support/user_agent_utils.cc": [
       "0001-independent-mode-contract.patch",
       "0007-custom-ua-client-hints.patch"
+    ],
+    "base/uxr_config.cc": [
+      "0001-independent-mode-contract.patch",
+      "0008-original-cloak-pixels.patch"
+    ],
+    "base/uxr_graphics_mode_goldens.cc": [
+      "0001-independent-mode-contract.patch",
+      "0008-original-cloak-pixels.patch"
+    ],
+    "base/uxr_graphics_noise.cc": [
+      "0002-graphics.patch",
+      "0008-original-cloak-pixels.patch"
+    ],
+    "base/uxr_graphics_noise.h": [
+      "0002-graphics.patch",
+      "0008-original-cloak-pixels.patch"
+    ],
+    "base/uxr_surface_modes.h": [
+      "0001-independent-mode-contract.patch",
+      "0008-original-cloak-pixels.patch"
+    ],
+    "base/uxr_surface_modes_test_main.cc": [
+      "0001-independent-mode-contract.patch",
+      "0008-original-cloak-pixels.patch"
+    ],
+    "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc": [
+      "0002-graphics.patch",
+      "0008-original-cloak-pixels.patch"
+    ],
+    "third_party/blink/renderer/platform/graphics/image_data_buffer.cc": [
+      "0002-graphics.patch",
+      "0008-original-cloak-pixels.patch"
     ]
   },
-  "combined_patch_sha256": "0658fb3c34f1211123725fbbb71b3f70d2cc800e79e72af5987f6a6ff477f28c",
+  "combined_patch_sha256": "cc42b57c5cf5a147e07647c02f0d78de48a09525c7265e36893eb43450b29481",
   "combined_patch_changed_files": 209,
   "source_upgrade": {
     "from_run": 39498745053,
@@ -79,5 +117,58 @@
     },
     "qualification": "Selected-source replay with both exact receipts; object preservation checked using synthetic sentinels."
   },
-  "qualification": "Pinned source replay and donor-upgrade identity only; compiled and runtime evidence is separate."
+  "qualification": "Pinned source replay and donor-upgrade identity only; compiled and runtime evidence is separate.",
+  "original_pixel_upgrade": {
+    "from_run": 39576170403,
+    "from_commit": "fe2ad63f26b327b7d874e42cbd78ec7c14a3452d",
+    "from_patch_sha256": "0658fb3c34f1211123725fbbb71b3f70d2cc800e79e72af5987f6a6ff477f28c",
+    "changed_existing_files": [
+      "base/uxr_config.cc",
+      "base/uxr_graphics_mode_goldens.cc",
+      "base/uxr_graphics_noise.cc",
+      "base/uxr_graphics_noise.h",
+      "base/uxr_surface_modes.h",
+      "base/uxr_surface_modes_test_main.cc",
+      "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+      "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
+      "third_party/blink/renderer/platform/graphics/image_data_buffer.cc"
+    ],
+    "qualification": "Offline selected-source replay; completed checkpoint upgrade and native build remain separate checks.",
+    "checkpoint_upgrade": {
+      "donor-39498745053": {
+        "changed_source_files": [
+          "base/uxr_config.cc",
+          "base/uxr_graphics_mode_goldens.cc",
+          "base/uxr_graphics_noise.cc",
+          "base/uxr_graphics_noise.h",
+          "base/uxr_surface_modes.h",
+          "base/uxr_surface_modes_test_main.cc",
+          "components/embedder_support/user_agent_utils.cc",
+          "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+          "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
+          "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
+          "third_party/blink/renderer/platform/graphics/image_data_buffer.cc"
+        ],
+        "unchanged_source_files_preserved": 247,
+        "second_prepare_source_and_receipt_unchanged": true,
+        "object_sentinel_unchanged": true
+      },
+      "accepted-r42": {
+        "changed_source_files": [
+          "base/uxr_config.cc",
+          "base/uxr_graphics_mode_goldens.cc",
+          "base/uxr_graphics_noise.cc",
+          "base/uxr_graphics_noise.h",
+          "base/uxr_surface_modes.h",
+          "base/uxr_surface_modes_test_main.cc",
+          "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+          "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
+          "third_party/blink/renderer/platform/graphics/image_data_buffer.cc"
+        ],
+        "unchanged_source_files_preserved": 249,
+        "second_prepare_source_and_receipt_unchanged": true,
+        "object_sentinel_unchanged": true
+      }
+    }
+  }
 }

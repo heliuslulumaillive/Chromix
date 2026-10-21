@@ -1,0 +1,509 @@
+diff --git a/base/uxr_surface_modes.h b/base/uxr_surface_modes.h
+--- a/base/uxr_surface_modes.h
++++ b/base/uxr_surface_modes.h
+@@ -15,6 +15,8 @@
+   kChromix,
+   kShardX,
+   kCloak,
++  // Explicit v2 opt-in; existing Cloak remains the compatible-v1 strategy.
++  kCloakOriginal,
+ };
+ 
+ struct UxrSurfacePolicy {
+@@ -29,7 +31,7 @@
+ };
+ 
+ struct UxrSurfaceModes {
+-  static constexpr uint32_t kVersion = 1;
++  static constexpr uint32_t kVersion = 2;
+   UxrSurfacePolicy canvas;
+   UxrSurfacePolicy webgl;
+   UxrSurfacePolicy audio;
+diff --git a/base/uxr_config.cc b/base/uxr_config.cc
+--- a/base/uxr_config.cc
++++ b/base/uxr_config.cc
+@@ -96,7 +96,7 @@
+ bool ParseSurfaceModes(const flat_map<std::string, std::string>& cfg,
+                        UxrSurfaceModes* modes) {
+   if (auto version = cfg.find("uxr-surface-modes-version");
+-      version != cfg.end() && version->second != "1") {
++      version != cfg.end() && version->second != "1" && version->second != "2") {
+     return false;
+   }
+   const auto value = [&](const std::string& key) -> std::string {
+@@ -158,6 +158,9 @@
+       policy->mode = UxrSurfaceMode::kShardX;
+     else if (mode->second == "cloak")
+       policy->mode = UxrSurfaceMode::kCloak;
++    else if (mode->second == "cloak-original" &&
++             value("uxr-surface-modes-version") == "2")
++      policy->mode = UxrSurfaceMode::kCloakOriginal;
+     else
+       return false;
+     bool allowed = false;
+@@ -207,9 +210,9 @@
+   };
+   using M = UxrSurfaceMode;
+   return read("canvas", &modes->canvas, 0, 0,
+-              {M::kNative, M::kChromix, M::kShardX, M::kCloak}) &&
++              {M::kNative, M::kChromix, M::kShardX, M::kCloak, M::kCloakOriginal}) &&
+          read("webgl", &modes->webgl, 0, 0,
+-              {M::kNative, M::kChromix, M::kShardX, M::kCloak}) &&
++              {M::kNative, M::kChromix, M::kShardX, M::kCloak, M::kCloakOriginal}) &&
+          read("audio", &modes->audio, 0, 1,
+               {M::kNative, M::kChromix, M::kShardX, M::kCloak}) &&
+          read("fonts", &modes->fonts, 0, 0,
+diff --git a/base/uxr_graphics_noise.h b/base/uxr_graphics_noise.h
+--- a/base/uxr_graphics_noise.h
++++ b/base/uxr_graphics_noise.h
+@@ -57,6 +57,27 @@
+                         uint32_t shard_webgl_sequence = 0,
+                         UxrPixelFlavor flavor = UxrPixelFlavor::kCompatibleV1);
+ 
++
++// Original shipped typed-pixel branch. Deliberately separate from compatible-v1.
++// Width/height describe this read, and channel positions are physical storage
++// slots. No full-canvas projection or logical RGB remapping is performed.
++struct UxrOriginalPixelLayout {
++  uint32_t width = 0;
++  uint32_t height = 0;
++  size_t row_stride = 0;
++  size_t skip = 0;
++  uint32_t component_bytes = 1;
++  uint32_t components = 3;
++  uint32_t pixel_bytes = 4;
++  uint8_t bit = 0;
++  bool floating = false;
++  bool has_alpha = false;
++  uint32_t alpha_component = 3;
++};
++
++BASE_EXPORT UxrPixelResult UxrApplyOriginalCloakPixelsV1(
++    span<uint8_t> bytes, uint64_t seed, const UxrOriginalPixelLayout& layout);
++
+ BASE_EXPORT const char* UxrPixelResultName(UxrPixelResult result);
+ 
+ }  // namespace base
+diff --git a/base/uxr_graphics_noise.cc b/base/uxr_graphics_noise.cc
+--- a/base/uxr_graphics_noise.cc
++++ b/base/uxr_graphics_noise.cc
+@@ -305,6 +305,11 @@
+                                    flavor == UxrPixelFlavor::kCompatibleV1
+                                        ? 0
+                                        : shard_webgl_sequence);
++    case UxrSurfaceMode::kCloakOriginal:
++      return UxrApplyOriginalCloakPixelsV1(
++          region.bytes, policy.seed,
++          {region.width, region.height, region.row_stride, 0, 1, 3, 4,
++           0, false, surface != UxrPixelSurface::kWebGLReadback, 3});
+     case UxrSurfaceMode::kCloak:
+       return ApplyCloak(policy, surface, region, flavor);
+     case UxrSurfaceMode::kLegacy:
+@@ -313,6 +318,64 @@
+       return UxrPixelResult::kNative;
+   }
+   return UxrPixelResult::kInvalidLayout;
++}
++
++
++UxrPixelResult UxrApplyOriginalCloakPixelsV1(
++    span<uint8_t> bytes, uint64_t seed, const UxrOriginalPixelLayout& p) {
++  if (seed == 0)
++    return UxrPixelResult::kUnsupportedSeed;
++  if (p.bit > 7 || (p.component_bytes != 1 && p.component_bytes != 2 &&
++                    p.component_bytes != 4) ||
++      p.components == 0 || p.components > 4 || p.pixel_bytes == 0 ||
++      p.components * p.component_bytes > p.pixel_bytes ||
++      (p.floating && p.component_bytes == 1) ||
++      (p.has_alpha && p.alpha_component * uint64_t{p.component_bytes} >=
++                          p.pixel_bytes)) {
++    return UxrPixelResult::kInvalidLayout;
++  }
++  if (p.width < 8 || p.height < 8)
++    return UxrPixelResult::kUnchanged;
++  const uint64_t row_bytes = uint64_t{p.width} * p.pixel_bytes;
++  if (row_bytes > p.row_stride || p.skip > bytes.size() ||
++      row_bytes > bytes.size() - p.skip ||
++      p.height - 1 > (bytes.size() - p.skip - row_bytes) / p.row_stride) {
++    return UxrPixelResult::kInvalidLayout;
++  }
++  const uint64_t count = uint64_t{p.width} * p.height;
++  const std::string seed_text = std::to_string(seed);
++  const uint32_t position_hash = UxrCloakHashV1(seed_text + "_pos");
++  const uint8_t bit_mask = static_cast<uint8_t>(1u << p.bit);
++  const bool byte_alpha = p.has_alpha && p.component_bytes == 1;
++  bool changed = false;
++  for (uint32_t i = 0; i < 10; ++i) {
++    const uint32_t mixed = (position_hash ^ i) * 0x17385ca9u + 0x47502932u;
++    const uint64_t position = mixed % count;
++    const uint32_t x = static_cast<uint32_t>(position % p.width);
++    const uint32_t y = static_cast<uint32_t>(position / p.width);
++    const size_t offset = p.skip + size_t{y} * p.row_stride +
++                          size_t{x} * p.pixel_bytes;
++    const uint32_t bits = UxrCloakHashV1(seed_text + "_" + std::to_string(x) +
++                                       "_" + std::to_string(y));
++    for (uint32_t channel = 0; channel < p.components; ++channel) {
++      const size_t at = offset + channel * p.component_bytes;
++      if (p.floating) {
++        uint32_t word = 0;
++        for (uint32_t j = 0; j < p.component_bytes; ++j)
++          word |= uint32_t{bytes[at + j]} << (j * 8);
++        const uint32_t exponent = p.component_bytes == 2 ? 0x7c00u : 0x7f800000u;
++        if ((word & exponent) == exponent)
++          continue;  // Preserve every NaN/Infinity bit, including payloads.
++      }
++      const uint8_t value = static_cast<uint8_t>(
++          (bytes[at] & ~bit_mask) | (((bits >> channel) & 1u) << p.bit));
++      if (byte_alpha && value > bytes[offset + p.alpha_component])
++        continue;
++      changed |= value != bytes[at];
++      bytes[at] = value;
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
+ }
+ 
+ const char* UxrPixelResultName(UxrPixelResult result) {
+diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
+--- a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
++++ b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
+@@ -61,6 +61,43 @@
+     return false;
+   }
+   const auto& config = base::UxrConfig::GetInstance();
++
++  if (export_context.policy.mode == base::UxrSurfaceMode::kCloakOriginal) {
++    if (export_context.noise_disabled)
++      return true;
++    const SkColorType color_type = pm.colorType();
++    const bool byte_pixels = color_type == kRGBA_8888_SkColorType ||
++                             color_type == kBGRA_8888_SkColorType;
++    const bool half_pixels = color_type == kRGBA_F16_SkColorType ||
++                             color_type == kRGBA_F16Norm_SkColorType;
++    if ((!byte_pixels && !half_pixels) ||
++        (half_pixels && pm.alphaType() == kPremul_SkAlphaType)) {
++      return true;  // Matches the original Skia premultiplied-half guard.
++    }
++    auto data = gfx::MakeSkDataFromSpanWithCopy(gfx::SkPixmapToSpan(pm));
++    if (!data)
++      return false;
++    SkPixmap copy(pm.info(), data->writable_data(), pm.rowBytes());
++    const uint32_t component_bytes = half_pixels ? 2u : 1u;
++    const auto applied = base::UxrApplyOriginalCloakPixelsV1(
++        gfx::SkPixmapToWritableSpan(copy), export_context.policy.seed,
++        {static_cast<uint32_t>(copy.width()),
++         static_cast<uint32_t>(copy.height()), copy.rowBytes(), 0,
++         component_bytes, 3, component_bytes * 4, 0, half_pixels,
++         byte_pixels, 3});
++    if (applied != base::UxrPixelResult::kApplied)
++      return true;
++    // Preserve the physical channel order and alpha type of the native encoder
++    // input; the compatible branch below intentionally normalizes those.
++    auto image = SkImages::RasterFromData(copy.info(), std::move(data),
++                                          copy.rowBytes());
++    if (!image)
++      return false;
++    retained_image = std::move(image);
++    pm = copy;
++    return true;
++  }
++
+   if (export_context.policy.IsConfigured()) {
+     const SkColorType color_type = pm.colorType();
+     if (export_context.policy.IsNative() || export_context.noise_disabled ||
+diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+--- a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
++++ b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+@@ -776,6 +776,28 @@
+     }
+   }
+ 
++
++  if (surface_modes.canvas.mode == base::UxrSurfaceMode::kCloakOriginal) {
++    const SkPixmap pixmap = image_data->GetSkPixmap();
++    const SkColorType color_type = pixmap.colorType();
++    const bool byte_pixels = color_type == kRGBA_8888_SkColorType ||
++                             color_type == kBGRA_8888_SkColorType;
++    const bool half_pixels = color_type == kRGBA_F16_SkColorType ||
++                             color_type == kRGBA_F16Norm_SkColorType;
++    if (surface_read_complete && !surface_modes.noise_disabled &&
++        !surface_modes.raw && pixmap.addr() && (byte_pixels || half_pixels) &&
++        !(half_pixels && pixmap.alphaType() == kPremul_SkAlphaType)) {
++      const uint32_t component_bytes = half_pixels ? 2u : 1u;
++      base::UxrApplyOriginalCloakPixelsV1(
++          gfx::SkPixmapToWritableSpan(pixmap), surface_modes.canvas.seed,
++          {static_cast<uint32_t>(pixmap.width()),
++           static_cast<uint32_t>(pixmap.height()), pixmap.rowBytes(), 0,
++           component_bytes, 3, component_bytes * 4, 0, half_pixels,
++           byte_pixels, 3});
++    }
++    return image_data;
++  }
++
+   if (surface_modes.canvas.IsConfigured()) {
+     const SkPixmap pixmap = image_data->GetSkPixmap();
+     if (surface_read_complete && !surface_modes.noise_disabled &&
+diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
+--- a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
++++ b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
+@@ -268,6 +268,39 @@
+                                static_cast<size_t>(skip),
+                                static_cast<size_t>(row_bytes),
+                                static_cast<size_t>(total)};
++}
++
++
++// An explicit original-pixel opt-in needs typed, transparent and user-FBO
++// readback. Two independent sentinels prove actual output without inspecting or
++// consuming the page's GL error queue. Existing compatible/legacy paths stay
++// unchanged. Each staging buffer is capped at half the existing total budget.
++std::optional<UxrWebGLReadbackLayout> UxrOriginalWebGLLayoutFor(
++    int width, int height, int alignment, int row_length, int skip_pixels,
++    int skip_rows, size_t available, uint32_t pixel_bytes) {
++  constexpr uint64_t limit = kUxrWebGLReadbackLimit / 2;
++  if (width <= 0 || height <= 0 || row_length < 0 || skip_pixels < 0 ||
++      skip_rows < 0 || pixel_bytes == 0 ||
++      (alignment != 1 && alignment != 2 && alignment != 4 && alignment != 8))
++    return std::nullopt;
++  const uint64_t row_pixels = row_length ? row_length : width;
++  if (static_cast<uint64_t>(skip_pixels) + width > row_pixels ||
++      row_pixels > limit / pixel_bytes)
++    return std::nullopt;
++  const uint64_t stride =
++      (row_pixels * pixel_bytes + alignment - 1) / alignment * alignment;
++  if (static_cast<uint64_t>(height) > limit / stride ||
++      static_cast<uint64_t>(skip_rows) > limit / stride)
++    return std::nullopt;
++  const uint64_t skip = stride * skip_rows + uint64_t{pixel_bytes} * skip_pixels;
++  const uint64_t row_bytes = uint64_t{pixel_bytes} * width;
++  const uint64_t total = skip + stride * (height - 1) + row_bytes;
++  if (total > limit || total > available)
++    return std::nullopt;
++  return UxrWebGLReadbackLayout{static_cast<size_t>(stride),
++                              static_cast<size_t>(skip),
++                              static_cast<size_t>(row_bytes),
++                              static_cast<size_t>(total)};
+ }
+ 
+ bool UxrWebGLReadbackComplete(base::span<const uint8_t> staging,
+@@ -5906,6 +5939,64 @@
+     const auto policy = base::UxrConfig::GetInstance().GpuBackendPolicy();
+     const gfx::Size drawing_size = GetDrawingBuffer()->Size();
+     const auto surface_modes = base::UxrConfig::GetInstance().SurfaceModes();
++
++    if (surface_modes.webgl.mode == base::UxrSurfaceMode::kCloakOriginal) {
++      const uint32_t component_bytes =
++          type == GL_UNSIGNED_BYTE ? 1u :
++          type == GL_FLOAT ? 4u :
++          (type == GL_HALF_FLOAT || type == GL_HALF_FLOAT_OES) ? 2u : 0u;
++      if (!surface_modes.noise_disabled && !surface_modes.raw &&
++          !pixels->IsShared() && format == GL_RGBA && component_bytes &&
++          width >= 8 && height >= 8) {
++        const auto pack = GetPackPixelStoreParams();
++        const auto layout = UxrOriginalWebGLLayoutFor(
++            width, height, pack.alignment, pack.row_length, pack.skip_pixels,
++            pack.skip_rows, buffer_size.ValueOrDie(), component_bytes * 4);
++        if (layout) {
++          std::vector<uint8_t> first(layout->total, 0);
++          std::vector<uint8_t> second(layout->total, 255);
++          ContextGL()->ReadPixels(x, y, width, height, format, type, first.data());
++          if (isContextLost())
++            return;
++          ContextGL()->ReadPixels(x, y, width, height, format, type, second.data());
++          if (isContextLost())
++            return;
++          bool complete = true;
++          for (int row = 0; complete && row < height; ++row) {
++            const size_t start = layout->skip + row * layout->stride;
++            for (size_t i = 0; i < layout->row_bytes; ++i) {
++              if (first[start + i] != second[start + i]) {
++                complete = false;
++                break;
++              }
++            }
++          }
++          if (complete) {
++            const auto applied = base::UxrApplyOriginalCloakPixelsV1(
++                first, surface_modes.webgl.seed,
++                {static_cast<uint32_t>(width), static_cast<uint32_t>(height),
++                 layout->stride, layout->skip, component_bytes, 3,
++                 component_bytes * 4, 0, component_bytes != 1, false, 3});
++            if (applied == base::UxrPixelResult::kApplied ||
++                applied == base::UxrPixelResult::kUnchanged) {
++              auto target = pixels->ByteSpanMaybeShared().subspan(
++                  offset_in_bytes.ValueOrDie());
++              for (int row = 0; row < height; ++row) {
++                const size_t start = layout->skip + row * layout->stride;
++                target.subspan(start, layout->row_bytes).copy_from(
++                    base::span<const uint8_t>(first).subspan(start, layout->row_bytes));
++              }
++              return;
++            }
++          }
++        }
++      }
++      // Unsupported or incomplete paths retain actual native behavior.
++      // Numeric-offset/PBO overloads never enter this typed-array helper.
++      ContextGL()->ReadPixels(x, y, width, height, format, type, data);
++      return;
++    }
++
+     if (surface_modes.webgl.IsConfigured()) {
+       const auto& selected = surface_modes.webgl;
+       const bool enabled = !selected.IsNative() &&
+diff --git a/base/uxr_surface_modes_test_main.cc b/base/uxr_surface_modes_test_main.cc
+--- a/base/uxr_surface_modes_test_main.cc
++++ b/base/uxr_surface_modes_test_main.cc
+@@ -10,6 +10,7 @@
+ #include "base/uxr_config.h"
+ 
+ int RunGraphicsGoldenTests(const std::string& fixture_root);
++int RunOriginalCloakPixelGoldenTests(const std::string& fixture_root);
+ int RunSurfaceGoldenTests();
+ int RunGpuModeGoldenTests();
+ int RunHardwareGoldenTests();
+@@ -65,7 +66,10 @@
+ void NewPolicyChecks() {
+   auto& config = base::UxrConfig::GetInstance();
+   const Config invalid[] = {
+-      Input({{"uxr-surface-modes-version", "2"}}),
++      Input({{"uxr-surface-modes-version", "3"}}),
++      Input({{"uxr-canvas-mode", "cloak-original"}}),
++      Input({{"uxr-surface-modes-version", "1"}, {"uxr-canvas-mode", "cloak-original"}}),
++      Input({{"uxr-surface-modes-version", "2"}, {"uxr-text-mode", "cloak-original"}}),
+       Input({{"uxr-canvas-mode-seed", "garbage"}}),
+       Input({{"uxr-text-amount", "nan"}}),
+       Input({{"uxr-canvas-mode", "invented"}}),
+@@ -176,6 +180,38 @@
+         "existing graph per-surface seed precedence retained");
+   Check(config.Snapshot() == input, "original seed values not rewritten");
+ }
++
++void OriginalPixelPolicyChecks() {
++  auto& config = base::UxrConfig::GetInstance();
++  for (const auto& invalid : {
++           Input({{"uxr-canvas-mode", "cloak-original"}}),
++           Input({{"uxr-surface-modes-version", "1"},
++                  {"uxr-canvas-mode", "cloak-original"}}),
++           Input({{"uxr-surface-modes-version", "2"},
++                  {"uxr-audio-mode", "cloak-original"}})}) {
++    Check(!config.SetAll(invalid), "original pixels require explicit v2 and valid surface");
++    Check(!config.IsInitialized(), "rejected original mode publishes no snapshot");
++  }
++  const auto input = Input({
++      {"uxr-surface-modes-version", "2"},
++      {"uxr-canvas-mode", "cloak-original"},
++      {"uxr-canvas-mode-seed", "18446744073709551615"},
++      {"uxr-webgl-mode", "cloak-original"},
++      {"uxr-webgl-mode-seed", "12345"},
++      {"uxr-fonts-mode", "native"},
++  });
++  Check(config.SetAll(input), "explicit original pixel input accepted");
++  const auto modes = config.SurfaceModes();
++  Check(modes.canvas.mode == Mode::kCloakOriginal &&
++            modes.canvas.seed == 18446744073709551615ULL &&
++            modes.webgl.mode == Mode::kCloakOriginal &&
++            modes.webgl.seed == 12345 && modes.fonts.IsNative() &&
++            modes.audio.IsLegacy(),
++        "original pixel policies remain independent from all other surfaces");
++  Check(config.Snapshot() == input, "original mode preserves exact saved values");
++  Check(config.SetAll(input), "repeated original input is idempotent");
++}
++
+ }  // namespace
+ 
+ int main(int argc, char** argv) {
+@@ -183,6 +219,9 @@
+   base::CommandLine::Init(argc, argv);
+   if (argc == 2 && std::string(argv[1]) == "--config-legacy") {
+     LegacyChecks();
++  } else if (argc == 3 && std::string(argv[1]) == "--config-original") {
++    Check(RunOriginalCloakPixelGoldenTests(argv[2]) == 0, "original captured pixel goldens");
++    OriginalPixelPolicyChecks();
+   } else if (argc == 2 && std::string(argv[1]) == "--config-chromix") {
+     ExistingAlgorithmChecks();
+   } else {
+diff --git a/base/uxr_graphics_mode_goldens.cc b/base/uxr_graphics_mode_goldens.cc
+--- a/base/uxr_graphics_mode_goldens.cc
++++ b/base/uxr_graphics_mode_goldens.cc
+@@ -163,3 +163,80 @@
+   return argc == 2 ? RunGraphicsGoldenTests(argv[1]) : 2;
+ }
+ #endif
++
++int RunOriginalCloakPixelGoldenTests(const std::string& fixture_root) {
++  const std::string directory = fixture_root + "/cloak-original-pixels-v1";
++  std::ifstream stream(directory + "/pixels.bin", std::ios::binary);
++  std::ifstream table(directory + "/cases.tsv");
++  if (!stream || !table)
++    return 3;
++  const std::vector<uint8_t> pool{std::istreambuf_iterator<char>(stream),
++                                 std::istreambuf_iterator<char>()};
++  size_t checks = 0, failures = 0;
++  std::string line;
++  std::getline(table, line);
++  while (std::getline(table, line)) {
++    if (!line.empty() && line.back() == '\r')
++      line.pop_back();
++    std::istringstream fields(line);
++    std::vector<std::string> values;
++    for (std::string value; std::getline(fields, value, '\t');)
++      values.push_back(value);
++    if (values.size() != 13)
++      return 4;
++    const size_t input_at = Number(values[9]), input_bytes = Number(values[10]);
++    const size_t expected_at = Number(values[11]), expected_bytes = Number(values[12]);
++    if (input_at > pool.size() || input_bytes > pool.size() - input_at ||
++        expected_at > pool.size() || expected_bytes > pool.size() - expected_at ||
++        input_bytes != expected_bytes)
++      return 5;
++    std::vector<uint8_t> output(pool.begin() + input_at, pool.begin() + input_at + input_bytes);
++    const std::vector<uint8_t> expected(pool.begin() + expected_at, pool.begin() + expected_at + expected_bytes);
++    const uint32_t component_bytes = static_cast<uint32_t>(Number(values[6]));
++    const base::UxrOriginalPixelLayout layout{
++        static_cast<uint32_t>(Number(values[2])),
++        static_cast<uint32_t>(Number(values[3])),
++        static_cast<size_t>(Number(values[4])),
++        static_cast<size_t>(Number(values[5])),
++        component_bytes, 3, component_bytes * 4, 0, Number(values[8]) != 0,
++        Number(values[7]) != 0, 3};
++    const auto result = base::UxrApplyOriginalCloakPixelsV1(output, Number(values[1]), layout);
++    ++checks;
++    if (output != expected ||
++        (result != base::UxrPixelResult::kApplied && result != base::UxrPixelResult::kUnchanged)) {
++      ++failures;
++      std::cerr << values[0] << ": output mismatch or rejected layout\n";
++    }
++  }
++  const auto check = [&](bool condition) {
++    ++checks;
++    failures += !condition;
++  };
++  const size_t captured_cases = checks;
++  check(captured_cases == 71);
++  std::vector<uint8_t> bytes(8 * 8 * 4, 127);
++  const auto original = bytes;
++  check(base::UxrApplyOriginalCloakPixelsV1(bytes, 0, {8,8,32,0,1,3,4,0,false,true,3}) ==
++        base::UxrPixelResult::kUnsupportedSeed && bytes == original);
++  check(base::UxrApplyOriginalCloakPixelsV1(bytes, 12345, {8,8,31,0,1,3,4,0,false,true,3}) ==
++        base::UxrPixelResult::kInvalidLayout && bytes == original);
++  check(base::UxrApplyOriginalCloakPixelsV1(bytes, 12345, {8,8,32,1,1,3,4,0,false,true,3}) ==
++        base::UxrPixelResult::kInvalidLayout && bytes == original);
++  check(base::UxrApplyOriginalCloakPixelsV1(bytes, 12345, {7,8,32,0,1,3,4,0,false,true,3}) ==
++        base::UxrPixelResult::kUnchanged && bytes == original);
++  for (uint32_t component_bytes : {2u, 4u}) {
++    std::vector<uint8_t> nonfinite(8 * 8 * 4 * component_bytes, 0);
++    for (size_t i = 0; i < nonfinite.size(); i += component_bytes) {
++      const uint32_t word = component_bytes == 2 ? 0x7e01u : 0x7fc00001u;
++      for (uint32_t byte = 0; byte < component_bytes; ++byte)
++        nonfinite[i + byte] = static_cast<uint8_t>(word >> (byte * 8));
++    }
++    const auto before = nonfinite;
++    check(base::UxrApplyOriginalCloakPixelsV1(nonfinite, 12345,
++          {8,8,8 * component_bytes * 4,0,component_bytes,3,component_bytes * 4,0,true,false,3}) ==
++          base::UxrPixelResult::kUnchanged && nonfinite == before);
++  }
++  std::cout << "{\"original_pixel_checks\":" << checks << ",\"captured_cases\":" << captured_cases << ","
++            << "\"failures\":" << failures << "}\n";
++  return failures ? 1 : 0;
++}
