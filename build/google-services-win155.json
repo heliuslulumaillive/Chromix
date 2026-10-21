@@ -107,7 +107,8 @@
     "patches/fingerprint-modes/0003-surfaces.patch",
     "patches/fingerprint-modes/0004-gpu-compatible-modes-v1.patch",
     "patches/fingerprint-modes/0005-installed-font-allowlists.patch",
-    "patches/fingerprint-modes/0006-audio-defaults.patch"
+    "patches/fingerprint-modes/0006-audio-defaults.patch",
+    "patches/fingerprint-modes/0007-custom-ua-client-hints.patch"
   ],
   "extra_sources": [
     "chrome/browser/BUILD.gn",

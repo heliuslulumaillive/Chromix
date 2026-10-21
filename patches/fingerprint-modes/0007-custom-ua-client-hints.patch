@@ -1,0 +1,48 @@
+diff --git a/components/embedder_support/user_agent_utils.cc b/components/embedder_support/user_agent_utils.cc
+--- a/components/embedder_support/user_agent_utils.cc
++++ b/components/embedder_support/user_agent_utils.cc
+@@ -801,14 +801,28 @@
+   metadata.mobile = GetMobileBitForUAMetadata();
+   metadata.platform = GetPlatformForUAMetadata();
+ 
+-  // For users providing a valid user-agent override via the command line:
+-  // If kUACHOverrideBlank is enabled, set user-agent metadata with the
+-  // default blank values, otherwise return the default UserAgentMetadata values
+-  // to populate and send only the low entropy client hints.
+-  // Notes: Sending low entropy hints with empty values may cause requests being
+-  // blocked by web application firewall software, etc.
++  const base::CommandLine* command_line =
++      base::CommandLine::ForCurrentProcess();
++  // Structured metadata is an explicit opt-in alongside a complete UA. Do not
++  // parse the UA string or infer metadata from a noise seed. A native-platform
++  // selection can omit normalized uxr-ua-* defaults, so retain that public key.
++  const bool has_custom_metadata =
++      command_line->HasSwitch("fingerprint-platform") ||
++      command_line->HasSwitch("uxr-ua-brand") ||
++      command_line->HasSwitch("uxr-ua-brand-version") ||
++      command_line->HasSwitch("uxr-ua-full-version") ||
++      command_line->HasSwitch("uxr-ua-platform") ||
++      command_line->HasSwitch("uxr-ua-platform-version") ||
++      command_line->HasSwitch("uxr-ua-arch") ||
++      command_line->HasSwitch("uxr-ua-bitness") ||
++      command_line->HasSwitch("uxr-ua-model") ||
++      command_line->HasSwitch("uxr-ua-wow64");
++
++  // Preserve Chromium's blank/low-entropy behavior for a raw UA on its own.
++  // Explicit metadata uses the same path as a generated UA; the low-entropy
++  // request and ReducedSystemInfo checks still apply below.
+   std::optional<std::string> custom_ua = GetUserAgentFromCommandLine();
+-  if (custom_ua.has_value()) {
++  if (custom_ua.has_value() && !has_custom_metadata) {
+     return base::FeatureList::IsEnabled(blink::features::kUACHOverrideBlank)
+                ? blink::UserAgentMetadata()
+                : metadata;
+@@ -822,8 +836,6 @@
+   metadata.brand_full_version_list =
+       GetUserAgentBrandFullVersionListInternal(std::nullopt);
+   metadata.full_version = GetEffectiveBrowserBrandFullVersion();
+-  const base::CommandLine* command_line =
+-      base::CommandLine::ForCurrentProcess();
+   metadata.architecture = command_line->HasSwitch("uxr-ua-arch")
+                               ? command_line->GetSwitchValueASCII("uxr-ua-arch")
+                               : GetCpuArchitecture();

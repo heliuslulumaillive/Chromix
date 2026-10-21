@@ -58,6 +58,25 @@ values before launch. An explicit `--uxr-*` field normally takes precedence over
 its public alias; conflicting geometry aliases are rejected in SDK synthetic
 geometry mode. Use `--key=value`, not two separate arguments.
 
+## Complete UA with explicit Client Hints
+
+The Windows 155 `compatible-v1` overlay `0007-custom-ua-client-hints.patch`
+allows a complete `--user-agent=...` together with explicit structured metadata.
+Brand, brand version, platform and platform version use the existing public
+flags above. The existing internal `uxr-ua-arch`, `uxr-ua-bitness`, `uxr-ua-model`
+and `uxr-ua-wow64` fields use the same metadata path. These fields do not require
+a noise seed. A raw UA alone keeps Chromium's existing blank/low-entropy
+behavior, including `UACHOverrideBlank`; an explicit metadata selection opts
+into the generated-UA metadata path instead. Low-entropy requests and
+`ReducedSystemInfo` still suppress high-entropy fields.
+
+The browser preserves the supplied UA string and does not infer Client Hints
+from it. Callers must choose mutually consistent values. Per-field native
+identity continues to remove both the raw UA and structured overrides.
+Use `tools/verify_custom_ua_metadata.mjs` against the rebuilt executable to
+check five JavaScript realms and Accept-CH request headers. This source fix
+does not change already installed kernels or saved environment bindings.
+
 ## Identity templates are not a measured device pool
 
 Ordinary seeded launches no longer present a generated GPU template. Synthetic

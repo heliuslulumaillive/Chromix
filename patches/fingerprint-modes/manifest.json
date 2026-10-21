@@ -34,6 +34,11 @@
       "path": "patches/fingerprint-modes/0006-audio-defaults.patch",
       "sha256": "fa40bf2183bb46f1b337592f275cce43fd0c4e72d4b8c2c2383d37f8533aeeaf",
       "files": 5
+    },
+    {
+      "path": "patches/fingerprint-modes/0007-custom-ua-client-hints.patch",
+      "sha256": "795389a9615f383dc8025e445e94a4eff55e06d5584bee88b0a74ac1cb6ab554",
+      "files": 1
     }
   ],
   "sequential_incremental_files": {
@@ -44,21 +49,35 @@
     "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc": [
       "0002-graphics.patch",
       "0004-gpu-compatible-modes-v1.patch"
+    ],
+    "components/embedder_support/user_agent_utils.cc": [
+      "0001-independent-mode-contract.patch",
+      "0007-custom-ua-client-hints.patch"
     ]
   },
-  "combined_patch_sha256": "91240908cc0b26881a34ff9f74a99c3bfb602fbce0e49df3ba8686018a8006e7",
+  "combined_patch_sha256": "0658fb3c34f1211123725fbbb71b3f70d2cc800e79e72af5987f6a6ff477f28c",
   "combined_patch_changed_files": 209,
   "source_upgrade": {
     "from_run": 39498745053,
     "from_commit": "4c5f53ca8efef6acca5c8037aaf18ab609550651",
     "from_patch_sha256": "cb77d7c9fb5f07cfb68e16208108a7ec33fd76bb262b58f2426a4f49df89040b",
-    "unchanged_file_timestamps_preserved": 256,
+    "unchanged_file_timestamps_preserved": 255,
     "changed_existing_files": [
+      "components/embedder_support/user_agent_utils.cc",
       "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
       "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc"
     ],
     "idempotent": true,
-    "qualification": "Selected-source replay with the exact donor receipt; object preservation checked using a synthetic sentinel."
+    "current_accepted_source": {
+      "from_run": 39555973258,
+      "from_commit": "6a42263b8898daadfbccf622c8ba86745b88efe4",
+      "from_patch_sha256": "91240908cc0b26881a34ff9f74a99c3bfb602fbce0e49df3ba8686018a8006e7",
+      "changed_existing_files": [
+        "components/embedder_support/user_agent_utils.cc"
+      ],
+      "unchanged_file_timestamps_preserved": 257
+    },
+    "qualification": "Selected-source replay with both exact receipts; object preservation checked using synthetic sentinels."
   },
   "qualification": "Pinned source replay and donor-upgrade identity only; compiled and runtime evidence is separate."
 }
