@@ -125243,7 +125243,59 @@
        function_type_(function_type),
        start_time_(start_time),
        static_bitmap_image_loaded_(false),
-@@ -226,7 +230,8 @@
+@@ -188,11 +192,30 @@
+     const SkColorInfo target_color_info =
+         ImageEncoderUtils::GetColorInfoForEncoder(
+             skia_image_->imageInfo().colorInfo(), image_->GetHdrMetadata());
++    // Original pixel noise consumes the same unpremultiplied representation
++    // as synchronous export. Deferring unpremul until encoding magnifies the
++    // byte LSB changes and makes premultiplied half pixels skip the noise gate.
++    // Keep non-original, disabled, reference-hit, small and unsupported paths
++    // on their existing preparation route.
++    const SkColorType color_type = skia_image_->imageInfo().colorType();
++    const bool prepare_original_pixels =
++        fingerprint_export_context_.policy.mode ==
++            base::UxrSurfaceMode::kCloakOriginal &&
++        !fingerprint_export_context_.noise_disabled &&
++        !fingerprint_export_context_.reference &&
++        skia_image_->imageInfo().alphaType() == kPremul_SkAlphaType &&
++        skia_image_->width() >= 8 && skia_image_->height() >= 8 &&
++        (color_type == kRGBA_8888_SkColorType ||
++         color_type == kBGRA_8888_SkColorType ||
++         color_type == kRGBA_F16_SkColorType ||
++         color_type == kRGBA_F16Norm_SkColorType);
++    bool original_pixel_conversion_failed = false;
+     // It is more efficient to do alpha un-multiplication inside the decoder.
+     // https://crbug.com/557350372
+     // Normalize opaque PNGs to match the synchronous export's wire format.
+     if ((mime_type_ == kMimeTypePng &&
+          skia_image_->imageInfo().alphaType() == kOpaque_SkAlphaType) ||
++        prepare_original_pixels ||
+         target_color_info.makeAlphaType(skia_image_->imageInfo().alphaType()) !=
+             skia_image_->imageInfo().colorInfo()) {
+       SkBitmap bitmap;
+@@ -201,6 +224,10 @@
+           skia_image_->readPixels(bitmap.pixmap(), 0, 0)) {
+         bitmap.setImmutable();
+         skia_image_ = bitmap.asImage();
++      } else if (prepare_original_pixels) {
++        // A failed required conversion must not fall back to mutating the
++        // premultiplied source. Leave the creator unloaded so it returns null.
++        original_pixel_conversion_failed = true;
+       }
+     }
+ 
+@@ -215,7 +242,8 @@
+       skia_image_->readPixels(info, pixel, info.minRowBytes(), 0, 0);
+     }
+ 
+-    if (skia_image_->peekPixels(&src_data_)) {
++    if (!original_pixel_conversion_failed &&
++        skia_image_->peekPixels(&src_data_)) {
+       // Ensure that the size of the to-be-encoded-image does not pass the
+       // maximum size supported by the encoders.
+       int max_dimension = ImageEncoder::MaxDimension(mime_type_);
+@@ -226,7 +254,8 @@
          src_data_.reset(info, src_data_.addr(), src_data_.rowBytes());
        }
        // All scheduling paths consume the same once-prepared pixels.
@@ -125253,7 +125305,7 @@
        if (image_data_buffer_) {
          src_data_ = image_data_buffer_->GetPixmap();
          static_bitmap_image_loaded_ = true;
-@@ -308,6 +313,21 @@
+@@ -308,6 +337,21 @@
                              WrapPersistent(this)));
      return;
    }
