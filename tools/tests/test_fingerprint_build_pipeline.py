@@ -150,6 +150,8 @@ def write_fingerprint_evidence(root, bundle):
                      {'original_audio_checks': 337, 'failures': 0},
                      {'original_webgl_public_checks': 4327, 'failures': 0},
                      {'original_webgl_translated_checks': 32, 'failures': 0},
+                     {'original_glyph_metrics_checks': 94, 'failures': 0},
+                     {'original_glyph_metrics_configuration_checks': 61, 'failures': 0},
                      {'status': 'passed', 'configuration_checks': 11, 'failures': 0}],
         'production': [
             {'graphics_cases': 2, 'failures': 0, 'groups': {'fixture_pixels': 2}},
@@ -310,8 +312,8 @@ class FingerprintEvidenceTest(unittest.TestCase):
                              cwd=ROOT, capture_output=True, text=True, timeout=30)
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
         result = json.loads(run.stdout)
-        self.assertEqual(result['checks'], 41)
-        self.assertEqual(result['original_runtime_scope_checks'], 20)
+        self.assertEqual(result['checks'], 57)
+        self.assertEqual(result['original_runtime_scope_checks'], 23)
         self.assertEqual(result['failures'], 0)
 
     def test_runtime_acceptance_modules_and_matrix_contract(self):
@@ -377,6 +379,20 @@ class FingerprintEvidenceTest(unittest.TestCase):
             ('native_translated_string', lambda n, r, c: n['groups']['original'][4].update(original_webgl_translated_checks='32')),
             ('native_translated_duplicate', lambda n, r, c: n['groups']['original'].append(copy.deepcopy(n['groups']['original'][4]))),
             ('native_translated_failed', lambda n, r, c: n['groups']['original'][4].update(failures=1)),
+            ('native_glyph_missing', lambda n, r, c: n['groups']['original'].pop(5)),
+            ('native_glyph_zero', lambda n, r, c: n['groups']['original'][5].update(original_glyph_metrics_checks=0)),
+            ('native_glyph_partial', lambda n, r, c: n['groups']['original'][5].update(original_glyph_metrics_checks=93)),
+            ('native_glyph_boolean', lambda n, r, c: n['groups']['original'][5].update(original_glyph_metrics_checks=True)),
+            ('native_glyph_string', lambda n, r, c: n['groups']['original'][5].update(original_glyph_metrics_checks='94')),
+            ('native_glyph_duplicate', lambda n, r, c: n['groups']['original'].append(copy.deepcopy(n['groups']['original'][5]))),
+            ('native_glyph_failed', lambda n, r, c: n['groups']['original'][5].update(failures=1)),
+            ('native_glyph_config_missing', lambda n, r, c: n['groups']['original'].pop(6)),
+            ('native_glyph_config_zero', lambda n, r, c: n['groups']['original'][6].update(original_glyph_metrics_configuration_checks=0)),
+            ('native_glyph_config_partial', lambda n, r, c: n['groups']['original'][6].update(original_glyph_metrics_configuration_checks=60)),
+            ('native_glyph_config_boolean', lambda n, r, c: n['groups']['original'][6].update(original_glyph_metrics_configuration_checks=True)),
+            ('native_glyph_config_string', lambda n, r, c: n['groups']['original'][6].update(original_glyph_metrics_configuration_checks='61')),
+            ('native_glyph_config_duplicate', lambda n, r, c: n['groups']['original'].append(copy.deepcopy(n['groups']['original'][6]))),
+            ('native_glyph_config_failed', lambda n, r, c: n['groups']['original'][6].update(failures=1)),
             ('native_original_config_missing', lambda n, r, c: n['groups']['original'].pop()),
             ('native_original_wrong_arguments', lambda n, r, c: n['processes'][2].update(arguments=['--config-original'])),
             ('native_zero_count', lambda n, r, c: n['groups']['production'][0].update(graphics_cases=0)),
@@ -417,6 +433,9 @@ class FingerprintEvidenceTest(unittest.TestCase):
             ('original_surface_missing', lambda n, r, c: r['original_runtime_acceptance']['surfaces'].pop('canvas_references')),
             ('original_surface_pass', lambda n, r, c: r['original_runtime_acceptance']['surfaces']['canvas_references'].update(status='observed_pass')),
             ('original_golden_as_browser_evidence', lambda n, r, c: r['original_runtime_acceptance']['surfaces']['canvas_references'].update(evidence=[{'original_reference_checks': 2660, 'failures': 0}])),
+            ('original_glyph_missing', lambda n, r, c: r['original_runtime_acceptance']['surfaces'].pop('glyph_metrics')),
+            ('original_glyph_pass', lambda n, r, c: r['original_runtime_acceptance']['surfaces']['glyph_metrics'].update(status='observed_pass')),
+            ('original_glyph_source_as_runtime', lambda n, r, c: r['original_runtime_acceptance']['surfaces']['glyph_metrics'].update(evidence=[{'original_glyph_metrics_checks':94,'failures':0}])),
             ('original_native_count_smuggled', lambda n, r, c: r['original_runtime_acceptance']['surfaces']['audio'].update(original_audio_checks=337)),
             ('original_no_reason', lambda n, r, c: r['original_runtime_acceptance']['surfaces']['fonts'].update(reason='')),
             ('positive_partial_string', lambda n, r, c: r.update(partial='true')),
@@ -481,6 +500,8 @@ class FingerprintEvidenceTest(unittest.TestCase):
             self.assertEqual(result['native_executed_counts']['original.original_audio_checks'], 337)
             self.assertEqual(result['native_executed_counts']['original.original_webgl_public_checks'], 4327)
             self.assertEqual(result['native_executed_counts']['original.original_webgl_translated_checks'], 32)
+            self.assertEqual(result['native_executed_counts']['original.original_glyph_metrics_checks'], 94)
+            self.assertEqual(result['native_executed_counts']['original.original_glyph_metrics_configuration_checks'], 61)
 
     def test_all_compatible_groups_cannot_certify_original_runtime(self):
         checks = [{'scenario': sorted(scenarios)[0], 'name': 'fixture_positive',

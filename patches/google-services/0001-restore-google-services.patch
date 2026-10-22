@@ -12,7 +12,7 @@
      }
 --- a/base/BUILD.gn
 +++ b/base/BUILD.gn
-@@ -1030,6 +1030,26 @@
+@@ -1030,6 +1030,27 @@
      "uxr_config.cc",
      "uxr_config.h",
      "uxr_pixel_noise.h",
@@ -34,12 +34,13 @@
 +    "uxr_original_webgl_translated_literals.inc",
 +    "uxr_original_webgl_translated_test_vectors.h",
 +    "uxr_original_webgl.h",
++    "uxr_original_glyph_metrics.h",
 +    "uxr_font_allowlist.h",
 +    "uxr_audio_defaults.h",
      "uuid.cc",
      "uuid.h",
      "value_iterators.cc",
-@@ -6656,6 +6676,26 @@
+@@ -6656,6 +6677,27 @@
    deps = [ "//base/tracing:perfetto_diff_tests" ]
  }
  
@@ -53,6 +54,7 @@
 +      "uxr_original_audio_goldens.cc",
 +      "uxr_original_webgl_goldens.cc",
 +      "uxr_original_webgl_translated_goldens.cc",
++      "uxr_original_glyph_metrics_goldens.cc",
 +      "uxr_surface_golden_tests.cc",
 +      "uxr_gpu_mode_golden_tests.cc",
 +      "uxr_hardware_golden_tests.cc",
@@ -80967,7 +80969,7 @@
  
  namespace base {
  
-@@ -90,6 +95,412 @@
+@@ -90,6 +95,441 @@
    // Color depth is a backend capability, never a getter-only declaration.
    return !cfg.contains("uxr-screen-color-depth");
  }
@@ -81161,6 +81163,35 @@
 +      offset = comma + 1;
 +    }
 +  }
++  // Independent glyph metrics are not a text-reference/noise companion.
++  // Only a browser-resolved platform may accompany the selected original mode.
++  for (const auto& [key, text] : cfg) {
++    if (std::string_view(key).starts_with("uxr-glyph-metrics-") &&
++        key != "uxr-glyph-metrics-mode" &&
++        key != "uxr-glyph-metrics-platform")
++      return false;
++  }
++  if (cfg.contains("uxr-glyph-platform"))
++    return false;
++  if (cfg.contains("uxr-glyph-metrics-mode")) {
++    const auto mode = value("uxr-glyph-metrics-mode");
++    if (value("uxr-surface-modes-version") != "2" ||
++        (mode != "native" && mode != "cloak-original"))
++      return false;
++    const bool has_platform = cfg.contains("uxr-glyph-metrics-platform");
++    const auto platform = value("uxr-glyph-metrics-platform");
++    if (has_platform && platform != "windows" && platform != "macos" &&
++        platform != "linux")
++      return false;
++    if (mode == "native" && has_platform)
++      return false;
++    if (mode == "cloak-original" && value("uxr-fingerprint-off") != "true" &&
++        !has_platform)
++      return false;
++  } else if (cfg.contains("uxr-glyph-metrics-platform")) {
++    return false;
++  }
++
 +  if (!allowed("uxr-gpu-mode", {"native", "custom", "cloak"}) ||
 +      !allowed("uxr-webgl-identity-mode",
 +               {"native", "custom", "cloak", "cloak-original"}) ||
@@ -81380,7 +81411,7 @@
  bool ParseGpuBackend(const flat_map<std::string, std::string>& cfg,
                       UxrGpuBackendPolicy* policy) {
    const auto synthetic = cfg.find("uxr-synthetic-device-tests");
-@@ -138,6 +549,46 @@
+@@ -138,6 +578,46 @@
          return true;
      return false;
    };
@@ -81427,7 +81458,7 @@
    for (const char* key : {"uxr-reduced-motion", "uxr-reduced-transparency",
                            "uxr-inverted-colors"}) {
      if (!allowed(key, {"true", "false", "1", "0"}))
-@@ -313,6 +764,12 @@
+@@ -313,6 +793,12 @@
    }
    int timer_resolution_ms = 0;
    uint64_t audio_isolation_seed = 0;
@@ -81440,7 +81471,7 @@
    if (!ValidateWebPreferences(cfg) ||
        !ValidateFontPolicy(cfg) ||
        !ValidateCodecPolicy(cfg) ||
-@@ -321,6 +778,13 @@
+@@ -321,6 +807,13 @@
      validation_error_ = "invalid input, font, clock, audio or codec policy";
      return false;
    }
@@ -81454,7 +81485,7 @@
    UxrDisplayConfig display;
    if (!ParseDisplay(cfg, &display)) {
      validation_error_ = "invalid or inconsistent display geometry";
-@@ -336,6 +800,7 @@
+@@ -336,6 +829,7 @@
    map_ = cfg;
    display_ = display;
    gpu_backend_policy_ = gpu_backend_policy;
@@ -81462,7 +81493,7 @@
    timer_resolution_ms_.store(timer_resolution_ms, std::memory_order_relaxed);
    audio_isolation_seed_.store(audio_isolation_seed, std::memory_order_relaxed);
    initialized_ = true;
-@@ -361,6 +826,11 @@
+@@ -361,6 +855,11 @@
  UxrGpuBackendPolicy UxrConfig::GpuBackendPolicy() const {
    AutoLock locker(lock_);
    return gpu_backend_policy_;
@@ -88876,6 +88907,272 @@
 +}
 +}  // namespace base::uxr_surface_v1
 +#endif  // BASE_UXR_ORIGINAL_AUDIO_REFERENCE_H_
+--- /dev/null
++++ b/base/uxr_original_glyph_metrics.h
+@@ -0,0 +1,109 @@
++// Copyright 2026. Original glyph policy/math; Skia requests stay in Blink.
++#ifndef BASE_UXR_ORIGINAL_GLYPH_METRICS_H_
++#define BASE_UXR_ORIGINAL_GLYPH_METRICS_H_
++
++#include <cmath>
++#include <cstdint>
++#include <optional>
++#include <string>
++#include <string_view>
++
++namespace base {
++
++enum class UxrOriginalGlyphPolicyV2 {
++  kNative,
++  kWindows,
++  kMacos,
++};
++
++// Browser-only normalization. The renderer receives the resolved private value;
++// it must not infer a platform from its own UA, hardware profile or host.
++inline std::optional<std::string> UxrNormalizeGlyphPlatformV2(
++    std::string_view public_platform,
++    std::string_view host_platform) {
++  std::string platform(public_platform.empty() ? host_platform : public_platform);
++  for (char& c : platform) {
++    if (c >= 'A' && c <= 'Z')
++      c = static_cast<char>(c + ('a' - 'A'));
++  }
++  if (platform == "win32")
++    platform = "windows";
++  else if (platform == "macintel")
++    platform = "macos";
++  else if (platform == "linux x86_64")
++    platform = "linux";
++  if (platform != "windows" && platform != "macos" && platform != "linux")
++    return std::nullopt;
++  return platform;
++}
++
++inline UxrOriginalGlyphPolicyV2 UxrResolveOriginalGlyphPolicyV2(
++    std::string_view mode,
++    std::string_view version,
++    bool fingerprint_off,
++    std::string_view resolved_platform) {
++  // This policy is not pixel/text-reference noise: raw/false are intentionally
++  // not inputs. The product's existing global off still takes precedence.
++  if (fingerprint_off || mode != "cloak-original" || version != "2")
++    return UxrOriginalGlyphPolicyV2::kNative;
++  if (resolved_platform == "windows")
++    return UxrOriginalGlyphPolicyV2::kWindows;
++  if (resolved_platform == "macos")
++    return UxrOriginalGlyphPolicyV2::kMacos;
++  return UxrOriginalGlyphPolicyV2::kNative;
++}
++
++struct UxrGlyphBoundsV2 {
++  float left;
++  float top;
++  float right;
++  float bottom;
++};
++
++inline bool UxrGlyphHasInkV2(const UxrGlyphBoundsV2& bounds) {
++  // Ordered comparisons match the original empty/unordered early return.
++  return bounds.right > bounds.left && bounds.bottom > bounds.top;
++}
++
++inline bool UxrApplyOriginalGlyphVerticalV2(
++    const UxrGlyphBoundsV2& strike_bounds,
++    UxrGlyphBoundsV2& output) {
++  if (!UxrGlyphHasInkV2(strike_bounds))
++    return false;
++  const float top = strike_bounds.top + 0.25f;
++  const float bottom = strike_bounds.bottom - 0.25f;
++  if (!(bottom > top))
++    return false;
++  output.top = std::floor(top);
++  output.bottom = std::ceil(bottom);
++  return true;
++}
++
++inline float UxrOriginalGlyphIntegerCoordinateV2(float value) {
++  // Actual original float constants, not a rounded float(INT32_MAX).
++  constexpr float kLimit = 2147483520.0f;
++  // Original MINSS then MAXSS also selects the finite limit on NaN. Inputs
++  // from a valid nonempty path are ordered, but keep this conversion defined.
++  value = std::fmax(std::fmin(value, kLimit), -kLimit);
++  return static_cast<float>(static_cast<int32_t>(value));
++}
++
++inline bool UxrApplyOriginalGlyphHorizontalV2(
++    const UxrGlyphBoundsV2& path_bounds,
++    UxrGlyphBoundsV2& output) {
++  if (!UxrGlyphHasInkV2(path_bounds))
++    return false;
++  output.right = UxrOriginalGlyphIntegerCoordinateV2(
++      std::ceil(path_bounds.right + 0.25f));
++  output.left = UxrOriginalGlyphIntegerCoordinateV2(
++      std::floor(path_bounds.left - 0.25f));
++  return true;
++}
++
++inline float UxrOriginalGlyphRoundedSizeV2(float size) {
++  return std::floor(size + 0.5f);
++}
++
++}  // namespace base
++
++#endif  // BASE_UXR_ORIGINAL_GLYPH_METRICS_H_
+--- /dev/null
++++ b/base/uxr_original_glyph_metrics_goldens.cc
+@@ -0,0 +1,151 @@
++// Source checks of shared policy/math, not Skia or browser acceptance.
++#include <bit>
++#include <cmath>
++#include <cstdio>
++#include <cstdint>
++#include "base/uxr_original_glyph_metrics.h"
++
++namespace {
++constexpr float F(uint32_t bits) { return std::bit_cast<float>(bits); }
++bool Same(float a, float b) {
++  return (std::isnan(a) && std::isnan(b)) ||
++         std::bit_cast<uint32_t>(a) == std::bit_cast<uint32_t>(b);
++}
++bool Same(const base::UxrGlyphBoundsV2& a, const base::UxrGlyphBoundsV2& b) {
++  return Same(a.left,b.left) && Same(a.top,b.top) &&
++         Same(a.right,b.right) && Same(a.bottom,b.bottom);
++}
++}  // namespace
++
++int RunOriginalGlyphMetricsGoldenTestsV2() {
++  unsigned checks = 0, failures = 0;
++  const auto check = [&](bool ok, const char* label) {
++    ++checks;
++    if (!ok) { ++failures; std::fprintf(stderr,"Glyph source check failed: %s\n",label); }
++  };
++  struct RectangleCase { const char* label; bool vertical; base::UxrGlyphBoundsV2 input; bool changed; base::UxrGlyphBoundsV2 expected; };
++  const RectangleCase rectangles[] = {
++    {"vertical-0", true, {F(0x00000000u), F(0x00000000u), F(0x00000000u), F(0x00000000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"horizontal-0", false, {F(0x00000000u), F(0x00000000u), F(0x00000000u), F(0x00000000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"vertical-1", true, {F(0x3f800000u), F(0x00000000u), F(0x3f800000u), F(0x40000000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"horizontal-1", false, {F(0x3f800000u), F(0x00000000u), F(0x3f800000u), F(0x40000000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"vertical-2", true, {F(0x00000000u), F(0x40000000u), F(0x40400000u), F(0x40000000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"horizontal-2", false, {F(0x00000000u), F(0x40000000u), F(0x40400000u), F(0x40000000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"vertical-3", true, {F(0x00000000u), F(0x00000000u), F(0x3f800000u), F(0x3f000000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"horizontal-3", false, {F(0x00000000u), F(0x00000000u), F(0x3f800000u), F(0x3f000000u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x40000000u), F(0x434a8000u)}},
++    {"vertical-4", true, {F(0x00000000u), F(0x00000000u), F(0x3f800000u), F(0x3f000001u)}, true, {F(0x42ca8000u), F(0x00000000u), F(0x434ac000u), F(0x3f800000u)}},
++    {"horizontal-4", false, {F(0x00000000u), F(0x00000000u), F(0x3f800000u), F(0x3f000001u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x40000000u), F(0x434a8000u)}},
++    {"vertical-5", true, {F(0x00000000u), F(0xc0e50000u), F(0x41000000u), F(0x405d0000u)}, true, {F(0x42ca8000u), F(0xc0e00000u), F(0x434ac000u), F(0x40800000u)}},
++    {"horizontal-5", false, {F(0x00000000u), F(0xc0e50000u), F(0x41000000u), F(0x405d0000u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x41100000u), F(0x434a8000u)}},
++    {"vertical-6", true, {F(0xbe580000u), F(0xc0e50000u), F(0x41b6c000u), F(0x405d0000u)}, true, {F(0x42ca8000u), F(0xc0e00000u), F(0x434ac000u), F(0x40800000u)}},
++    {"horizontal-6", false, {F(0xbe580000u), F(0xc0e50000u), F(0x41b6c000u), F(0x405d0000u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x41c00000u), F(0x434a8000u)}},
++    {"vertical-7", true, {F(0xbdf00000u), F(0xc104c000u), F(0x41bd4000u), F(0x40578000u)}, true, {F(0x42ca8000u), F(0xc1100000u), F(0x434ac000u), F(0x40800000u)}},
++    {"horizontal-7", false, {F(0xbdf00000u), F(0xc104c000u), F(0x41bd4000u), F(0x40578000u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x41c00000u), F(0x434a8000u)}},
++    {"vertical-8", true, {F(0x00000000u), F(0xbe800000u), F(0x3f800000u), F(0x3e800000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"horizontal-8", false, {F(0x00000000u), F(0xbe800000u), F(0x3f800000u), F(0x3e800000u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x40000000u), F(0x434a8000u)}},
++    {"vertical-9", true, {F(0x00000000u), F(0xbe800000u), F(0x3f800000u), F(0x3e800001u)}, true, {F(0x42ca8000u), F(0x00000000u), F(0x434ac000u), F(0x3f800000u)}},
++    {"horizontal-9", false, {F(0x00000000u), F(0xbe800000u), F(0x3f800000u), F(0x3e800001u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x40000000u), F(0x434a8000u)}},
++    {"vertical-10", true, {F(0x00000000u), F(0x3f400000u), F(0x3f800000u), F(0x3fa00000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"horizontal-10", false, {F(0x00000000u), F(0x3f400000u), F(0x3f800000u), F(0x3fa00000u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x40000000u), F(0x434a8000u)}},
++    {"vertical-11", true, {F(0x00000000u), F(0x3f400000u), F(0x3f800000u), F(0x3fa00001u)}, true, {F(0x42ca8000u), F(0x3f800000u), F(0x434ac000u), F(0x40000000u)}},
++    {"horizontal-11", false, {F(0x00000000u), F(0x3f400000u), F(0x3f800000u), F(0x3fa00001u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x40000000u), F(0x434a8000u)}},
++    {"vertical-12", true, {F(0x3e800000u), F(0xc0000000u), F(0x3fe00000u), F(0x40800000u)}, true, {F(0x42ca8000u), F(0xc0000000u), F(0x434ac000u), F(0x40800000u)}},
++    {"horizontal-12", false, {F(0x3e800000u), F(0xc0000000u), F(0x3fe00000u), F(0x40800000u)}, true, {F(0x00000000u), F(0xc2cb0000u), F(0x40000000u), F(0x434a8000u)}},
++    {"vertical-13", true, {F(0x3e7fffffu), F(0xc0000000u), F(0x3fe00001u), F(0x40800000u)}, true, {F(0x42ca8000u), F(0xc0000000u), F(0x434ac000u), F(0x40800000u)}},
++    {"horizontal-13", false, {F(0x3e7fffffu), F(0xc0000000u), F(0x3fe00001u), F(0x40800000u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x40000000u), F(0x434a8000u)}},
++    {"vertical-14", true, {F(0xbe800000u), F(0xc0000000u), F(0x3f400000u), F(0x40800000u)}, true, {F(0x42ca8000u), F(0xc0000000u), F(0x434ac000u), F(0x40800000u)}},
++    {"horizontal-14", false, {F(0xbe800000u), F(0xc0000000u), F(0x3f400000u), F(0x40800000u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x3f800000u), F(0x434a8000u)}},
++    {"vertical-15", true, {F(0xbe800001u), F(0xc0000000u), F(0x3f3fffffu), F(0x40800000u)}, true, {F(0x42ca8000u), F(0xc0000000u), F(0x434ac000u), F(0x40800000u)}},
++    {"horizontal-15", false, {F(0xbe800001u), F(0xc0000000u), F(0x3f3fffffu), F(0x40800000u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x3f800000u), F(0x434a8000u)}},
++    {"vertical-16", true, {F(0xe1821ab1u), F(0xc0000000u), F(0x61821ab1u), F(0x40800000u)}, true, {F(0x42ca8000u), F(0xc0000000u), F(0x434ac000u), F(0x40800000u)}},
++    {"horizontal-16", false, {F(0xe1821ab1u), F(0xc0000000u), F(0x61821ab1u), F(0x40800000u)}, true, {F(0xceffffffu), F(0xc2cb0000u), F(0x4effffffu), F(0x434a8000u)}},
++    {"vertical-17", true, {F(0xff800000u), F(0xc0000000u), F(0x7f800000u), F(0x40800000u)}, true, {F(0x42ca8000u), F(0xc0000000u), F(0x434ac000u), F(0x40800000u)}},
++    {"horizontal-17", false, {F(0xff800000u), F(0xc0000000u), F(0x7f800000u), F(0x40800000u)}, true, {F(0xceffffffu), F(0xc2cb0000u), F(0x4effffffu), F(0x434a8000u)}},
++    {"vertical-18", true, {F(0x7fc00000u), F(0x00000000u), F(0x3f800000u), F(0x40000000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"horizontal-18", false, {F(0x7fc00000u), F(0x00000000u), F(0x3f800000u), F(0x40000000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"vertical-19", true, {F(0x00000000u), F(0x7fc00000u), F(0x3f800000u), F(0x40000000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"horizontal-19", false, {F(0x00000000u), F(0x7fc00000u), F(0x3f800000u), F(0x40000000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"vertical-20", true, {F(0x00000000u), F(0x00000000u), F(0x7fc00000u), F(0x40000000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"horizontal-20", false, {F(0x00000000u), F(0x00000000u), F(0x7fc00000u), F(0x40000000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"vertical-21", true, {F(0x00000000u), F(0x00000000u), F(0x3f800000u), F(0x7fc00000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"horizontal-21", false, {F(0x00000000u), F(0x00000000u), F(0x3f800000u), F(0x7fc00000u)}, false, {F(0x42ca8000u), F(0xc2cb0000u), F(0x434ac000u), F(0x434a8000u)}},
++    {"vertical-22", true, {F(0x00000000u), F(0x00000000u), F(0x3f800000u), F(0x7f800000u)}, true, {F(0x42ca8000u), F(0x00000000u), F(0x434ac000u), F(0x7f800000u)}},
++    {"horizontal-22", false, {F(0x00000000u), F(0x00000000u), F(0x3f800000u), F(0x7f800000u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x40000000u), F(0x434a8000u)}},
++    {"vertical-23", true, {F(0x00000000u), F(0xff800000u), F(0x3f800000u), F(0x40000000u)}, true, {F(0x42ca8000u), F(0xff800000u), F(0x434ac000u), F(0x40000000u)}},
++    {"horizontal-23", false, {F(0x00000000u), F(0xff800000u), F(0x3f800000u), F(0x40000000u)}, true, {F(0xbf800000u), F(0xc2cb0000u), F(0x40000000u), F(0x434a8000u)}},
++  };
++  for (const auto& row : rectangles) {
++    base::UxrGlyphBoundsV2 result{101.25f,-101.5f,202.75f,202.5f};
++    const bool changed = row.vertical
++        ? base::UxrApplyOriginalGlyphVerticalV2(row.input, result)
++        : base::UxrApplyOriginalGlyphHorizontalV2(row.input, result);
++    check(changed == row.changed && Same(result,row.expected),row.label);
++  }
++  struct SizeCase { float input; float expected; };
++  const SizeCase sizes[] = {
++    {F(0xbf800000u), F(0xbf800000u)},
++    {F(0xbf000000u), F(0x00000000u)},
++    {F(0x00000000u), F(0x00000000u)},
++    {F(0x80000000u), F(0x00000000u)},
++    {F(0x3efae148u), F(0x00000000u)},
++    {F(0x3f000000u), F(0x3f800000u)},
++    {F(0x3f028f5cu), F(0x3f800000u)},
++    {F(0x3fbeb852u), F(0x3f800000u)},
++    {F(0x3fc00000u), F(0x40000000u)},
++    {F(0x3fc147aeu), F(0x40000000u)},
++    {F(0x4147d70au), F(0x41400000u)},
++    {F(0x41480000u), F(0x41500000u)},
++    {F(0x414828f6u), F(0x41500000u)},
++    {F(0x41800000u), F(0x41800000u)},
++    {F(0x4b800000u), F(0x4b800000u)},
++    {F(0x7f800000u), F(0x7f800000u)},
++    {F(0x7fc00000u), F(0x7fc00000u)},
++  };
++  for (const auto& row : sizes)
++    check(Same(base::UxrOriginalGlyphRoundedSizeV2(row.input),row.expected), "size-round");
++  struct PlatformCase { const char* input; const char* host; const char* expected; };
++  const PlatformCase platforms[] = {
++    {"", "windows", "windows"},
++    {"", "macos", "macos"},
++    {"", "linux", "linux"},
++    {"WINDOWS", "linux", "windows"},
++    {"Win32", "macos", "windows"},
++    {"MacOS", "windows", "macos"},
++    {"MacIntel", "windows", "macos"},
++    {"Linux x86_64", "windows", "linux"},
++    {"linux", "windows", "linux"},
++    {"windows ", "windows", nullptr},
++    {" windows", "windows", nullptr},
++    {"win", "windows", nullptr},
++    {"darwin", "windows", nullptr},
++    {"", "unknown", nullptr},
++    {"macos", "unknown", "macos"},
++  };
++  for (const auto& row : platforms) {
++    const auto result = base::UxrNormalizeGlyphPlatformV2(row.input,row.host);
++    check(row.expected ? result && *result == row.expected : !result, "browser-platform");
++  }
++  using Policy = base::UxrOriginalGlyphPolicyV2;
++  struct PolicyCase { const char* mode; const char* version; bool off; const char* platform; Policy expected; };
++  const PolicyCase policies[] = {
++    {"", "2", false, "windows", Policy::kNative},
++    {"native", "2", false, "windows", Policy::kNative},
++    {"chromix", "2", false, "windows", Policy::kNative},
++    {"shardx", "2", false, "macos", Policy::kNative},
++    {"cloak", "2", false, "windows", Policy::kNative},
++    {"cloak-original", "1", false, "windows", Policy::kNative},
++    {"cloak-original", "", false, "windows", Policy::kNative},
++    {"cloak-original", "2", false, "windows", Policy::kWindows},
++    {"cloak-original", "2", false, "macos", Policy::kMacos},
++    {"cloak-original", "2", false, "linux", Policy::kNative},
++    {"cloak-original", "2", false, "", Policy::kNative},
++    {"cloak-original", "2", false, "Win32", Policy::kNative},
++    {"cloak-original", "2", true, "windows", Policy::kNative},
++    {"cloak-original", "2", true, "macos", Policy::kNative},
++  };
++  for (const auto& row : policies)
++    check(base::UxrResolveOriginalGlyphPolicyV2(row.mode,row.version,row.off,row.platform) == row.expected,
++          "independent-policy");
++  std::printf("{\"original_glyph_metrics_checks\":%u,\"failures\":%u}\n",checks,failures);
++  return failures ? 1 : 0;
++}
 --- /dev/null
 +++ b/base/uxr_original_webgl.cc
 @@ -0,0 +1,337 @@
@@ -120184,7 +120481,7 @@
 +#endif  // BASE_UXR_SURFACE_MODES_H_
 --- /dev/null
 +++ b/base/uxr_surface_modes_test_main.cc
-@@ -0,0 +1,518 @@
+@@ -0,0 +1,588 @@
 +// Copyright 2026. Native checks use the same production helpers as the browser.
 +#include <cstdio>
 +#include <initializer_list>
@@ -120202,6 +120499,7 @@
 +int RunOriginalCloakAudioGoldenTests();
 +int RunOriginalWebGLPublicGoldenTestsV2();
 +int RunOriginalWebGLTranslatedGoldenTestsV2();
++int RunOriginalGlyphMetricsGoldenTestsV2();
 +int RunSurfaceGoldenTests();
 +int RunGpuModeGoldenTests();
 +int RunHardwareGoldenTests();
@@ -120662,6 +120960,73 @@
 +
 +}
 +
++
++void OriginalGlyphMetricsConfigurationChecks() {
++  unsigned local_checks = 0, local_failures = 0;
++  const auto check = [&](bool ok) { ++local_checks; local_failures += !ok; };
++  const auto observe = [](const Config& input) {
++    return base::UxrConfigTestPeer::Observe(input);
++  };
++  const auto original = Input({{"uxr-surface-modes-version","2"},
++      {"uxr-glyph-metrics-mode","cloak-original"},
++      {"uxr-glyph-metrics-platform","windows"}});
++  const auto native = Input({{"uxr-surface-modes-version","2"},
++      {"uxr-glyph-metrics-mode","native"}});
++  for (const auto& input : {Input({}), native, original}) {
++    const auto result = observe(input);
++    check(result.accepted && result.initialized && result.snapshot == input);
++  }
++  for (const char* platform : {"windows", "macos", "linux"}) {
++    auto input = original;
++    input["uxr-glyph-metrics-platform"] = platform;
++    check(observe(input).accepted);
++    for (const char* noise : {"raw", "false", "true"}) {
++      input["uxr-mode-noise"] = noise;
++      check(observe(input).accepted);
++    }
++  }
++  for (const char* mode : {"", "Native", "CLOAK-ORIGINAL", "cloak", "chromix", "shardx", "false"}) {
++    auto input = native; input["uxr-glyph-metrics-mode"] = mode;
++    check(!observe(input).accepted);
++  }
++  for (const char* version : {"", "1", "3"}) {
++    for (auto input : {native, original}) {
++      input["uxr-surface-modes-version"] = version;
++      check(!observe(input).accepted);
++    }
++  }
++  for (const char* key : {"uxr-glyph-metrics-seed", "uxr-glyph-metrics-mode-seed",
++                           "uxr-glyph-metrics-amount", "uxr-glyph-metrics-mode-amount",
++                           "uxr-glyph-platform", "uxr-glyph-metrics-unknown"}) {
++    for (auto input : {Input({}), native, original}) {
++      input[key] = "1";
++      check(!observe(input).accepted);
++    }
++  }
++  for (const char* platform : {"", "Win32", "MacIntel", "windows ", "unknown"}) {
++    auto input = original; input["uxr-glyph-metrics-platform"] = platform;
++    check(!observe(input).accepted);
++  }
++  auto missing = original; missing.erase("uxr-glyph-metrics-platform");
++  check(!observe(missing).accepted);
++  auto unused = native; unused["uxr-glyph-metrics-platform"] = "windows";
++  check(!observe(unused).accepted);
++  unused.erase("uxr-glyph-metrics-mode");
++  check(!observe(unused).accepted);
++  for (auto input : {original, missing}) {
++    input["uxr-fingerprint-off"] = "true";
++    const auto result = observe(input);
++    check(result.accepted && result.initialized);
++  }
++  for (const char* text_mode : {"native", "chromix", "shardx", "cloak", "cloak-original"}) {
++    auto input = original; input["uxr-text-mode"] = text_mode;
++    check(observe(input).accepted);
++  }
++  std::printf("{\"original_glyph_metrics_configuration_checks\":%u,\"failures\":%u}\n",
++              local_checks,local_failures);
++  failures += local_failures;
++}
++
 +}  // namespace
 +
 +int main(int argc, char** argv) {
@@ -120678,6 +121043,8 @@
 +    Check(RunOriginalWebGLPublicGoldenTestsV2() == 0, "original public WebGL captured selectors");
 +    Check(RunOriginalWebGLTranslatedGoldenTestsV2() == 0, "original translated public diagnostic strings");
 +    OriginalWebGLPublicPolicyChecks();
++    failures += RunOriginalGlyphMetricsGoldenTestsV2() != 0;
++    OriginalGlyphMetricsConfigurationChecks();
 +  } else if (argc == 2 && std::string(argv[1]) == "--config-chromix") {
 +    ExistingAlgorithmChecks();
 +  } else {
@@ -124630,7 +124997,7 @@
 +#endif
 --- a/chrome/app/chrome_main.cc
 +++ b/chrome/app/chrome_main.cc
-@@ -10,8 +10,12 @@
+@@ -10,8 +10,13 @@
  #include <vector>
  #include <memory>
  #include <optional>
@@ -124639,15 +125006,34 @@
  #include "base/command_line.h"
 +#include "base/uxr_cloak_hardware.h"
 +#include "base/uxr_original_webgl.h"
++#include "base/uxr_original_glyph_metrics.h"
 +#include "base/strings/utf_string_conversions.h"
  #include "base/environment.h"
  #include "base/i18n/tag_converters.h"
  #include "base/rand_util.h"
-@@ -218,6 +222,31 @@
+@@ -196,6 +201,16 @@
+       }
+     }
+     for (const auto& [key, value] : seen) {
++      // The glyph policy has no seed/amount or caller-controlled private
++      // platform. Children receive the browser's validated snapshot by IPC.
++      if ((key.starts_with("fingerprint-glyph-metrics-") &&
++           key != "fingerprint-glyph-metrics-mode") ||
++          (key.starts_with("uxr-glyph-metrics-") &&
++           key != "uxr-glyph-metrics-mode") ||
++          key == "fingerprint-glyph-platform" || key == "uxr-glyph-platform") {
++        std::cerr << "Unsupported glyph metrics companion: " << key << std::endl;
++        return 1;
++      }
+       command_line->RemoveSwitch(key);
+       command_line->AppendSwitchNative(key, value);
+     }
+@@ -218,6 +233,32 @@
  
      struct Alias { const char* fp; const char* uxr; };
      static constexpr Alias kAliases[] = {
 +      {"fingerprint-surface-modes-version", "uxr-surface-modes-version"},
++      {"fingerprint-glyph-metrics-mode", "uxr-glyph-metrics-mode"},
 +      {"fingerprint-hardware-profile",   "uxr-hardware-profile"},
 +      {"fingerprint-hardware-vendor",    "uxr-hardware-vendor"},
 +      {"fingerprint-hardware-gpu-index", "uxr-hardware-gpu-index"},
@@ -124675,7 +125061,7 @@
        {"fingerprint-gpu-backend",         "uxr-gpu-backend"},
        {"fingerprint-pixel-noise",         "uxr-pixel-noise"},
        {"fingerprint-font-policy",         "uxr-font-policy"},
-@@ -270,6 +299,75 @@
+@@ -270,6 +311,75 @@
        }
      }
  
@@ -124751,7 +125137,7 @@
      if (command_line->HasSwitch("fingerprint-locale") &&
          !command_line->HasSwitch("uxr-languages")) {
        command_line->AppendSwitchASCII("uxr-languages",
-@@ -439,6 +537,211 @@
+@@ -439,6 +549,252 @@
          append_default("uxr-voices", "true");
      }
  
@@ -124830,6 +125216,47 @@
 +      set_switch("uxr-hardware-resolved-family", choice->family);
 +      set_switch("uxr-hardware-resolved-index",
 +                 base::NumberToString(choice->index));
++    }
++
++    // Resolve only the independent glyph policy's private platform. Do not
++    // insert/overwrite public platform or UA fields merely for a glyph default.
++    if (command_line->HasSwitch("uxr-glyph-metrics-mode")) {
++      const std::string mode =
++          command_line->GetSwitchValueASCII("uxr-glyph-metrics-mode");
++      if ((mode != "native" && mode != "cloak-original") ||
++          command_line->GetSwitchValueASCII("uxr-surface-modes-version") != "2") {
++        std::cerr << "Glyph metrics require version2 and native|cloak-original"
++                  << std::endl;
++        return 1;
++      }
++      if (command_line->HasSwitch("fingerprint-glyph-metrics-mode") &&
++          command_line->GetSwitchValueASCII("fingerprint-glyph-metrics-mode") !=
++              mode) {
++        std::cerr << "Conflicting glyph metrics mode" << std::endl;
++        return 1;
++      }
++      const bool fingerprint_off =
++          command_line->GetSwitchValueASCII("fingerprint") == "off" ||
++          command_line->GetSwitchValueASCII("uxr-fingerprint-off") == "true";
++      if (mode == "cloak-original" && !fingerprint_off) {
++#if BUILDFLAG(IS_WIN)
++        constexpr std::string_view host_platform = "windows";
++#elif BUILDFLAG(IS_MAC)
++        constexpr std::string_view host_platform = "macos";
++#else
++        constexpr std::string_view host_platform = "linux";
++#endif
++        const auto platform = base::UxrNormalizeGlyphPlatformV2(
++            command_line->GetSwitchValueASCII("fingerprint-platform"),
++            host_platform);
++        if (!platform) {
++          std::cerr << "Unsupported original glyph platform" << std::endl;
++          return 1;
++        }
++        set_switch("uxr-glyph-metrics-platform", *platform);
++      } else {
++        command_line->RemoveSwitch("uxr-glyph-metrics-platform");
++      }
 +    }
 +
 +    // Original public WebGL consumers keep their own immutable snapshot.
@@ -135948,7 +136375,104 @@
      return settings.Standard(script);
 --- a/third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc
 +++ b/third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc
-@@ -27,6 +27,9 @@
+@@ -11,6 +11,7 @@
+ 
+ #include "base/strings/string_util.h"
+ #include "base/uxr_config.h"
++#include "base/uxr_original_glyph_metrics.h"
+ #include "base/containers/span.h"
+ #include "build/build_config.h"
+ #include "third_party/blink/renderer/platform/fonts/shaping/harfbuzz_face.h"
+@@ -20,13 +21,98 @@
+ #include "third_party/skia/include/core/SkString.h"
+ #include "third_party/skia/include/core/SkTypeface.h"
+ #include "third_party/skia/include/core/SkPath.h"
++#include "third_party/skia/include/core/SkMatrix.h"
++#include "third_party/skia/include/core/SkPaint.h"
++#include "third_party/skia/include/core/SkSurfaceProps.h"
++#include "third_party/skia/src/core/SkGlyph.h"
++#include "third_party/skia/src/core/SkScalerContext.h"
++#include "third_party/skia/src/core/SkStrikeSpec.h"
+ #include "third_party/skia/include/core/SkStrikeRef.h"
+ 
+ namespace blink {
++
++namespace {
++
++base::UxrOriginalGlyphPolicyV2 UxrOriginalGlyphPolicy() {
++  const auto& config = base::UxrConfig::GetInstance();
++  const std::string mode = config.Get("uxr-glyph-metrics-mode");
++  if (mode != "cloak-original")
++    return base::UxrOriginalGlyphPolicyV2::kNative;
++  return base::UxrResolveOriginalGlyphPolicyV2(
++      mode, config.Get("uxr-surface-modes-version"),
++      config.Get("uxr-fingerprint-off") == "true",
++      config.Get("uxr-glyph-metrics-platform"));
++}
++
++base::UxrGlyphBoundsV2 UxrGlyphRectangle(const SkRect& rect) {
++  return {rect.fLeft, rect.fTop, rect.fRight, rect.fBottom};
++}
++
++// The original vertical request uses a mask-style strike with these explicit
++// inputs. Ordinary SkFont::getPath() canonicalizes differently and is not a
++// replacement for this stage.
++bool UxrOriginalWindowsStrikeBounds(const SkFont& font,
++                                   Glyph glyph,
++                                   SkRect* bounds) {
++  SkPaint paint;
++  paint.setStrokeMiter(4.0f);
++  const SkSurfaceProps props(0, kUnknown_SkPixelGeometry, 1.0f, 0.0f);
++  const SkStrikeSpec spec = SkStrikeSpec::MakeMask(
++      font, paint, props, SkScalerContextFlags::kFakeGammaAndBoostContrast,
++      SkMatrix::I());
++  SkBulkGlyphMetricsAndPaths bulk(spec);
++  const SkGlyph* sk_glyph = bulk.glyph(glyph);
++  const SkPath* path = sk_glyph ? sk_glyph->path() : nullptr;
++  if (!path || path->isEmpty())
++    return false;
++  *bounds = path->getBounds();
++  return true;
++}
++
++void UxrOriginalWindowsGlyphBounds(const SkFont& font,
++                                  Glyph glyph,
++                                  SkRect* bounds) {
++  *bounds = font.getBounds(glyph, nullptr);
++  auto output = UxrGlyphRectangle(*bounds);
++  if (!base::UxrGlyphHasInkV2(output))
++    return;
++
++  SkRect strike_bounds = SkRect::MakeEmpty();
++  if (UxrOriginalWindowsStrikeBounds(font, glyph, &strike_bounds))
++    base::UxrApplyOriginalGlyphVerticalV2(UxrGlyphRectangle(strike_bounds),
++                                        output);
++
++  const float rounded_size = base::UxrOriginalGlyphRoundedSizeV2(font.getSize());
++  SkFont rounded_font;
++  const SkFont* path_font = &font;
++  if (rounded_size > 0.0f && rounded_size != font.getSize()) {
++    rounded_font = font;
++    rounded_font.setSize(rounded_size);
++    path_font = &rounded_font;
++  }
++  if (const auto path = path_font->getPath(glyph))
++    base::UxrApplyOriginalGlyphHorizontalV2(
++        UxrGlyphRectangle(path->getBounds()), output);
++  *bounds = SkRect::MakeLTRB(output.left, output.top, output.right, output.bottom);
++}
++
++void UxrOriginalMacGlyphBounds(const SkFont& font,
++                              Glyph glyph,
++                              SkRect* bounds) {
++  if (const auto path = font.getPath(glyph))
++    *bounds = path->getBounds();
++  else
++    *bounds = font.getBounds(glyph, nullptr);
++}
++
++}  // namespace
+ 
  bool SkFontApplyWindowsMetrics(const SkFont& font, SkFontMetrics* metrics) {
  #if BUILDFLAG(IS_LINUX)
    const auto& config = base::UxrConfig::GetInstance();
@@ -135958,6 +136482,52 @@
    const std::string value = config.Get("uxr-windows-font-metrics");
    if (!metrics || !config.Has("uxr-windows-font-metrics") || value == "false" ||
        value == "0" || config.Get("uxr-fingerprint-off") == "true")
+@@ -248,6 +334,16 @@
+ #endif
+ 
+ void SkFontGetBoundsForGlyph(const SkFont& font, Glyph glyph, SkRect* bounds) {
++  const auto original = UxrOriginalGlyphPolicy();
++  if (original == base::UxrOriginalGlyphPolicyV2::kWindows) {
++    // The original single-glyph route tail-returns before outer roundOut.
++    UxrOriginalWindowsGlyphBounds(font, glyph, bounds);
++    return;
++  }
++  if (original == base::UxrOriginalGlyphPolicyV2::kMacos) {
++    UxrOriginalMacGlyphBounds(font, glyph, bounds);
++    return;
++  }
+ #if BUILDFLAG(IS_APPLE)
+   // TODO(drott): Remove this once we have better metrics bounds
+   // on Mac, https://bugs.chromium.org/p/skia/issues/detail?id=5328
+@@ -285,6 +381,28 @@
+ void SkFontGetBoundsForGlyphs(const SkFont& font,
+                               const Vector<Glyph, 256>& glyphs,
+                               base::span<SkRect> bounds) {
++  const auto original = UxrOriginalGlyphPolicy();
++  if (original != base::UxrOriginalGlyphPolicyV2::kNative) {
++    // Preserve the original bulk request, subsequent per-glyph replacements,
++    // and its Windows-only outer roundOut. It differs from the single route.
++    static_assert(sizeof(Glyph) == 2, "Skia expects 2 bytes glyph id.");
++    font.getBounds(glyphs, {bounds.data(), glyphs.size()}, nullptr);
++    for (unsigned i = 0; i < glyphs.size(); ++i) {
++      if (original == base::UxrOriginalGlyphPolicyV2::kWindows)
++        UxrOriginalWindowsGlyphBounds(font, glyphs[i], &bounds[i]);
++      else
++        UxrOriginalMacGlyphBounds(font, glyphs[i], &bounds[i]);
++    }
++    if (original == base::UxrOriginalGlyphPolicyV2::kWindows &&
++        !font.isSubpixel()) {
++      for (unsigned i = 0; i < glyphs.size(); ++i) {
++        SkIRect ir;
++        bounds[i].roundOut(&ir);
++        bounds[i].set(ir);
++      }
++    }
++    return;
++  }
+ #if BUILDFLAG(IS_APPLE)
+   for (unsigned i = 0; i < glyphs.size(); i++) {
+     SkFontGetBoundsForGlyph(font, glyphs[i], &bounds[i]);
 --- /dev/null
 +++ b/third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h
 @@ -0,0 +1,38 @@

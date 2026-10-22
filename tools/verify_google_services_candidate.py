@@ -116,11 +116,13 @@ ORIGINAL_NATIVE_COUNTS = {
     'original_audio_checks': 337,
     'original_webgl_public_checks': 4327,
     'original_webgl_translated_checks': 32,
+    'original_glyph_metrics_checks': 94,
+    'original_glyph_metrics_configuration_checks': 61,
 }
 COMPATIBLE_RUNTIME_SCOPE = 'compatible-v1-covered-groups'
 ORIGINAL_RUNTIME_SURFACES = {
     'canvas_pixels', 'webgl_pixels', 'canvas_references', 'webgl_references',
-    'text', 'fonts', 'audio', 'voices', 'webgpu_identity', 'webgpu_features', 'webgpu_limits', 'memory', 'webgl_identity', 'webgl_capabilities', 'webgl_precision', 'webgl_extensions', 'webgl_translated_shaders',
+    'text', 'fonts', 'audio', 'voices', 'webgpu_identity', 'webgpu_features', 'webgpu_limits', 'memory', 'webgl_identity', 'webgl_capabilities', 'webgl_precision', 'webgl_extensions', 'webgl_translated_shaders', 'glyph_metrics',
 }
 
 

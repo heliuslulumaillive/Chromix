@@ -11,8 +11,8 @@ $definition = $ast.Find({ param($node)
 }, $true)
 if (-not $definition) { throw 'Actual native receipt parser is missing' }
 . ([ScriptBlock]::Create($definition.Extent.Text))
-$expected = @{ original_pixel_checks = 78; original_reference_checks = 2660; original_audio_checks = 337; original_webgl_public_checks = 4327; original_webgl_translated_checks = 32 }
-$required = @('original_pixel_checks', 'original_reference_checks', 'original_audio_checks', 'original_webgl_public_checks', 'original_webgl_translated_checks', 'configuration_checks')
+$expected = @{ original_pixel_checks = 78; original_reference_checks = 2660; original_audio_checks = 337; original_webgl_public_checks = 4327; original_webgl_translated_checks = 32; original_glyph_metrics_checks = 94; original_glyph_metrics_configuration_checks = 61 }
+$required = @('original_pixel_checks', 'original_reference_checks', 'original_audio_checks', 'original_webgl_public_checks', 'original_webgl_translated_checks', 'original_glyph_metrics_checks', 'original_glyph_metrics_configuration_checks', 'configuration_checks')
 function Baseline {
   return @(
     @{ original_pixel_checks = 78; failures = 0 },
@@ -20,6 +20,8 @@ function Baseline {
     @{ original_audio_checks = 337; failures = 0 },
     @{ original_webgl_public_checks = 4327; failures = 0 },
     @{ original_webgl_translated_checks = 32; failures = 0 },
+    @{ original_glyph_metrics_checks = 94; failures = 0 },
+    @{ original_glyph_metrics_configuration_checks = 61; failures = 0 },
     @{ status = 'passed'; configuration_checks = 11; failures = 0 }
   )
 }
@@ -29,9 +31,9 @@ function Parse-Fixture($Records) {
   return @(Read-NativeGroups $execution $required $expected)
 }
 $count = 0
-if ((Parse-Fixture (Baseline)).Count -ne 6) { throw 'Valid native fixture rejected' }
+if ((Parse-Fixture (Baseline)).Count -ne 8) { throw 'Valid native fixture rejected' }
 $count++
-foreach ($field in @('original_pixel_checks', 'original_reference_checks', 'original_audio_checks', 'original_webgl_public_checks', 'original_webgl_translated_checks')) {
+foreach ($field in @('original_pixel_checks', 'original_reference_checks', 'original_audio_checks', 'original_webgl_public_checks', 'original_webgl_translated_checks', 'original_glyph_metrics_checks', 'original_glyph_metrics_configuration_checks')) {
   foreach ($bad in @(0, 1, -1, $true, '2660', 2.5)) {
     $records = Baseline
     foreach ($row in $records) { if ($row.ContainsKey($field)) { $row[$field] = $bad } }
@@ -61,7 +63,7 @@ if (-not $scopeDefinition) { throw 'Actual original runtime scope validator is m
 function Original-ScopeFixture {
   $surfaces = @{}
   foreach ($name in @('canvas_pixels', 'webgl_pixels', 'canvas_references', 'webgl_references',
-                     'text', 'fonts', 'audio', 'voices', 'webgpu_identity', 'webgpu_features', 'webgpu_limits', 'memory', 'webgl_identity', 'webgl_capabilities', 'webgl_precision', 'webgl_extensions', 'webgl_translated_shaders')) {
+                     'text', 'fonts', 'audio', 'voices', 'webgpu_identity', 'webgpu_features', 'webgpu_limits', 'memory', 'webgl_identity', 'webgl_capabilities', 'webgl_precision', 'webgl_extensions', 'webgl_translated_shaders', 'glyph_metrics')) {
     $surfaces[$name] = @{ status = 'not_tested'; evidence = @(); reason = 'No original browser path executed in fixture' }
   }
   return (@{
@@ -91,7 +93,10 @@ $mutations = @(
   { param($r) $r.original_runtime_acceptance.surfaces.webgl_capabilities.status = 'passed' },
   { param($r) $r.original_runtime_acceptance.surfaces.webgl_capabilities.evidence = @(@{ original_webgl_public_checks = 4327; failures = 0 }) },
   { param($r) $r.original_runtime_acceptance.surfaces.webgl_translated_shaders.status = 'passed' },
-  { param($r) $r.original_runtime_acceptance.surfaces.webgl_translated_shaders.evidence = @(@{ original_webgl_translated_checks = 32; failures = 0 }) }
+  { param($r) $r.original_runtime_acceptance.surfaces.webgl_translated_shaders.evidence = @(@{ original_webgl_translated_checks = 32; failures = 0 }) },
+  { param($r) $r.original_runtime_acceptance.surfaces.PSObject.Properties.Remove('glyph_metrics') },
+  { param($r) $r.original_runtime_acceptance.surfaces.glyph_metrics.status = 'passed' },
+  { param($r) $r.original_runtime_acceptance.surfaces.glyph_metrics.evidence = @(@{ original_glyph_metrics_checks = 94; failures = 0 }) }
 )
 foreach ($mutate in $mutations) {
   $fixture = Original-ScopeFixture

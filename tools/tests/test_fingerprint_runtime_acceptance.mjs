@@ -108,7 +108,7 @@ test("all compatible positives leave every original browser path untested", () =
   assert.equal(report.full_original_cloak_acceptance, false);
   assert.equal(report.original_runtime_acceptance.status, "not_tested");
   assert.equal(report.original_runtime_acceptance.source_goldens_are_runtime_acceptance, false);
-  assert.equal(Object.keys(report.original_runtime_acceptance.surfaces).length, 17);
+  assert.equal(Object.keys(report.original_runtime_acceptance.surfaces).length, 18);
   assert.deepEqual(Object.keys(report.original_runtime_acceptance.surfaces), ORIGINAL_RUNTIME_SURFACES);
   for (const value of Object.values(report.original_runtime_acceptance.surfaces)) {
     assert.equal(value.status, "not_tested");

@@ -3,7 +3,7 @@
   "build_variant": "fingerprint-modes-win155",
   "chromium_version": "155.0.8059.39",
   "strategy_version": 2,
-  "new_strategy_flavor": "independent-original-v2-public-webgl-and-observed-callers",
+  "new_strategy_flavor": "independent-original-v2-public-webgl-and-glyph-metrics",
   "kind": "source_contract",
   "acceptance": "Source capabilities only. Compiled/native/browser parity is carried by separate exact-DLL reports; never infer runtime acceptance from this file.",
   "legacy": {
@@ -841,13 +841,20 @@
       "public_webgl": [
         "per-domain mode-seed",
         "amount"
+      ],
+      "glyph_metrics": [
+        "seed",
+        "mode-seed",
+        "amount",
+        "mode-amount",
+        "user-supplied glyph platform/private platform"
       ]
     },
     "runtime_acceptance_required": true,
     "candidate_runtime_accepted": false,
     "global_off_scope": "Preserved all-native master-off semantics. The original target still returns its voice metadata on master off; that is a declared difference, not a parity pass. Original WebGL GL2 presence gates also differ; product global off stays native.",
     "build_time_runtime_scope": "The existing 25-group compatible runtime matrix does not establish acceptance for these new original consumers.",
-    "source_revision": "Observed public WebGL, diagnostic/alias consumers, original caller/opaque-memory/font fixes; existing version1 algorithms remain unchanged."
+    "source_revision": "Observed public WebGL, diagnostic/alias consumers, original caller/opaque-memory/font fixes; existing version1 algorithms remain unchanged. Independent optional single/batch glyph bounds policy; existing text reference selection stays independent."
   },
   "original_metadata": {
     "text": {
@@ -926,7 +933,9 @@
     "original_audio_checks": 337,
     "qualification": "Pure/source tests only; exact-DLL browser parity remains a separate required report.",
     "original_webgl_public_checks": 4327,
-    "original_webgl_translated_checks": 32
+    "original_webgl_translated_checks": 32,
+    "original_glyph_metrics_checks": 94,
+    "original_glyph_metrics_configuration_checks": 61
   },
   "language_controls": {
     "status": "existing_native_consumer_with_independent_typed_launcher_contract",
@@ -952,5 +961,73 @@
       "handoff_sha256": "21e6099490df347722ef8aacb17f72c000b3f8e89facd9499f85269352ccb378",
       "new_typed_chain_accepted": false
     }
+  },
+  "glyph_metrics": {
+    "status": "source_implemented_runtime_pending",
+    "typed_field": "profile.fingerprint.glyphMetricsMode",
+    "flag": "fingerprint-glyph-metrics-mode",
+    "internal_key": "uxr-glyph-metrics-mode",
+    "private_effective_platform_key": "uxr-glyph-metrics-platform",
+    "version": 2,
+    "modes": [
+      "native",
+      "cloak-original"
+    ],
+    "mode_values": "Exact case-sensitive values; empty and unknown values are rejected.",
+    "default_when_absent": "Existing native single/batch glyph bounds; no implicit selection, configuration or data migration.",
+    "contract_admission": "Both explicit native and original require this new recognized capability contract and version2. Original additionally requires a positive exact-DLL originalCloakGlyphMetrics registry entry.",
+    "exact_dll_gate": "originalCloakGlyphMetrics",
+    "new_exact_dll_gate_initial_value": false,
+    "companions": "No seed, amount or public glyph-platform. Public/internal glyph namespaces other than the mode are rejected on browser argv; the private platform is browser-generated only.",
+    "platform": "Browser privately resolves the existing fingerprint-platform, or its build-host platform when absent. Canonical windows/macos/linux and the existing Win32/MacIntel/Linux x86_64 aliases are accepted via ASCII lowercasing. It does not add/change public platform, UA or other domains. Renderers receive the resolved value in the validated UXR snapshot before Blink initialization.",
+    "policy": {
+      "windows": "Single and batch shared GlyphBounds use native initial bounds, a noncanonical mask strike for vertical quarter-pixel floor/ceil, then an ordinary path at rounded positive font size for horizontal quarter-pixel floor/ceil and int32-range clamp. Windows batch alone retains its outer non-subpixel roundOut.",
+      "macos": "Single and batch shared GlyphBounds use path float bounds, falling back to native getBounds for unavailable outlines; no outer integer rounding.",
+      "linux": "Existing native GlyphBounds path."
+    },
+    "windows_vertical_request": {
+      "kind": "SkStrikeSpec::MakeMask + SkBulkGlyphMetricsAndPaths",
+      "font": "Original, unrounded input font",
+      "paint": "Default black/opaque/fill with explicit miter4",
+      "surface_props": {
+        "flags": 0,
+        "pixel_geometry": "unknown",
+        "text_contrast": 1,
+        "text_gamma": 0
+      },
+      "scaler_context_flags": 3,
+      "matrix": "identity"
+    },
+    "text_reference_independence": "Does not enable or disable text mode/reference lookup. Original combinations select both policies explicitly. Raw continues to bypass text references but does not suppress selected original glyph metrics.",
+    "font_selection_independence": "Does not select, install, hide or remap fonts. The selected native font and loaded font assets remain inputs; fonts policy remains separate.",
+    "noise_and_off": "Noise=false and raw retain the glyph policy; global fingerprint=off preserves the product all-native behavior.",
+    "affected_scope": "Blink SkFontGetBoundsForGlyph and SkFontGetBoundsForGlyphs shared consumers, including Canvas and CSS/ink/overflow/clipping callers. This is not Canvas-only and is not a Skia-wide modification.",
+    "unchanged_scope": [
+      "Glyph advance/width and shaping selection",
+      "HarfBuzz extents helper",
+      "SkFontGetPreciseBoundsForGlyph small-font precise path",
+      "Font-level OS2/hhea metrics and existing Linux-only Windows-metrics option",
+      "Raster and font asset bytes are not intentionally modified"
+    ],
+    "source_evidence": {
+      "bulk_and_policies_handoff_sha256": "112d1adc43377a147f70cb7a6169ce69ea93a39d01576735e79278ad86888f09",
+      "single_handoff_sha256": "818918729cbff8d7a68a1f546cb1294147fcef763ea957ec202b9a688c48a7f4",
+      "original_target_sha256": "336f3af913c2a3cdbc6679ada4550ff04b80e27ade54a6c8d8fbb64c9877ff74"
+    },
+    "observed_original_scope": "Windows host with Windows/Mac/Linux personas, direct and same-byte loaded TNR/Arial files. The newer metrics-only target has960 measured Window HTML/Offscreen slots and480 Worker slots not measured due to FontFaceSet.ready timeout. These are original targets, not this candidate acceptance.",
+    "runtime_required": [
+      "Exact new DLL Window/iframe/Worker single+batch paths and text/glyph independence",
+      "Windows noncanonical strike and Mac path output versus original same-file targets",
+      "Native/legacy/global-off regression and CSS/ink/clipping impact",
+      "Fractional and very small font sizes, empty and bitmap-only glyph fallbacks"
+    ],
+    "limits": [
+      "Real Skia/Blink compile and exact-DLL parity are not established by source math or dependency doubles.",
+      "Original non-Windows host normalization and complete arbitrary-font/glyph/platform equivalence remain unverified.",
+      "Private cached original gate values and intermediate per-glyph strike inputs were not dynamically observed."
+    ],
+    "candidate_runtime_accepted": false,
+    "product_chain_accepted": false,
+    "full_original_cloak_acceptance": false
   }
 }

@@ -128,7 +128,8 @@
     "patches/fingerprint-modes/0024-original-cloak-webgl-renderer-aliases.patch",
     "patches/fingerprint-modes/0025-original-cloak-generic-font-selection.patch",
     "patches/fingerprint-modes/0027-original-final-native-wiring.patch",
-    "patches/fingerprint-modes/0028-original-cloak-mac-font-family-alias.patch"
+    "patches/fingerprint-modes/0028-original-cloak-mac-font-family-alias.patch",
+    "patches/fingerprint-modes/0029-original-glyph-metrics.patch"
   ],
   "extra_sources": [
     "chrome/browser/BUILD.gn",

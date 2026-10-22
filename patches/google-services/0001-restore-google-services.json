@@ -25,6 +25,8 @@
     "base/uxr_original_audio_goldens.cc",
     "base/uxr_original_audio_multiple.inc",
     "base/uxr_original_audio_reference.h",
+    "base/uxr_original_glyph_metrics.h",
+    "base/uxr_original_glyph_metrics_goldens.cc",
     "base/uxr_original_webgl.cc",
     "base/uxr_original_webgl.h",
     "base/uxr_original_webgl_goldens.cc",
@@ -1101,6 +1103,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "11060f9c03f0bccb09084cb1b0e985764fed5592225bed6a42ee3f195b79944b",
+  "patch_sha256": "f1397c1431a2dae842e950338fcc3a27c73e7f0e2bc2bce1464cd2f8f62ffb4c",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

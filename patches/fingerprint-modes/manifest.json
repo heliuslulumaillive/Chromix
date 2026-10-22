@@ -139,6 +139,11 @@
       "path": "patches/fingerprint-modes/0028-original-cloak-mac-font-family-alias.patch",
       "sha256": "fb4334a6c3e9699d82f3a5a786014d697f71b3eb14906a67285b34c47c8b5381",
       "files": 1
+    },
+    {
+      "path": "patches/fingerprint-modes/0029-original-glyph-metrics.patch",
+      "sha256": "ec9d0e33a9c409dd0609708cbf455dd2cdada0ce1ffa924d532c26faa2f40de2",
+      "files": 7
     }
   ],
   "sequential_incremental_files": {
@@ -148,7 +153,8 @@
       "0012-original-cloak-audio.patch",
       "0018-original-cloak-webgl-public.patch",
       "0023-original-webgl-translated-shaders.patch",
-      "0027-original-final-native-wiring.patch"
+      "0027-original-final-native-wiring.patch",
+      "0029-original-glyph-metrics.patch"
     ],
     "base/uxr_config.cc": [
       "0001-independent-mode-contract.patch",
@@ -156,7 +162,8 @@
       "0013-original-cloak-contract.patch",
       "0018-original-cloak-webgl-public.patch",
       "0022-original-cloak-raw-device-memory.patch",
-      "0024-original-cloak-webgl-renderer-aliases.patch"
+      "0024-original-cloak-webgl-renderer-aliases.patch",
+      "0029-original-glyph-metrics.patch"
     ],
     "base/uxr_config.h": [
       "0001-independent-mode-contract.patch",
@@ -177,13 +184,15 @@
       "0018-original-cloak-webgl-public.patch",
       "0022-original-cloak-raw-device-memory.patch",
       "0024-original-cloak-webgl-renderer-aliases.patch",
-      "0027-original-final-native-wiring.patch"
+      "0027-original-final-native-wiring.patch",
+      "0029-original-glyph-metrics.patch"
     ],
     "chrome/app/chrome_main.cc": [
       "0001-independent-mode-contract.patch",
       "0013-original-cloak-contract.patch",
       "0018-original-cloak-webgl-public.patch",
-      "0024-original-cloak-webgl-renderer-aliases.patch"
+      "0024-original-cloak-webgl-renderer-aliases.patch",
+      "0029-original-glyph-metrics.patch"
     ],
     "components/embedder_support/user_agent_utils.cc": [
       "0001-independent-mode-contract.patch",
@@ -333,9 +342,18 @@
     ],
     "third_party/blink/renderer/core/css/resolver/style_builder_converter.cc": [
       "0028-original-cloak-mac-font-family-alias.patch"
+    ],
+    "base/uxr_original_glyph_metrics.h": [
+      "0029-original-glyph-metrics.patch"
+    ],
+    "base/uxr_original_glyph_metrics_goldens.cc": [
+      "0029-original-glyph-metrics.patch"
+    ],
+    "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc": [
+      "0029-original-glyph-metrics.patch"
     ]
   },
-  "combined_patch_sha256": "11060f9c03f0bccb09084cb1b0e985764fed5592225bed6a42ee3f195b79944b",
+  "combined_patch_sha256": "f1397c1431a2dae842e950338fcc3a27c73e7f0e2bc2bce1464cd2f8f62ffb4c",
   "combined_patch_changed_files": 229,
   "source_upgrade": {
     "from_run": 39498745053,
@@ -1151,6 +1169,89 @@
         "bytes": 14087
       },
       "qualification": "4 local symlink-privilege failures and one historical archived fixed-key mismatch in unmodified tests/selector; not counted as passing. Core required workflow49 passed."
+    }
+  },
+  "original_glyph_metrics_increment": {
+    "sourceBaseCommit": "304d2956bf88fec11918e188bbe86e150750f9b7",
+    "sourceBasePatchSHA256": "11060f9c03f0bccb09084cb1b0e985764fed5592225bed6a42ee3f195b79944b",
+    "strategyVersion": 2,
+    "capabilitiesSHA256": "126898978362784808a4155c5f41f67fb34498e6065fc8549cece45e8d690976",
+    "status": "source_overlay_and_offline_replay_only",
+    "orderedIncrement": [
+      "patches/fingerprint-modes/0029-original-glyph-metrics.patch"
+    ],
+    "pristineInputs": 208,
+    "compositeOutputs": 244,
+    "changedExistingCompositePaths": [
+      "base/BUILD.gn",
+      "base/uxr_config.cc",
+      "base/uxr_surface_modes_test_main.cc",
+      "chrome/app/chrome_main.cc",
+      "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc"
+    ],
+    "addedCompositePaths": [
+      "base/uxr_original_glyph_metrics.h",
+      "base/uxr_original_glyph_metrics_goldens.cc"
+    ],
+    "unchangedBaseOutputs": 237,
+    "nativeSourceChecks": {
+      "original_glyph_metrics_checks": 94,
+      "original_glyph_metrics_configuration_checks": 61
+    },
+    "candidateRuntimeAccepted": false,
+    "fullOriginalCloakAcceptance": false,
+    "qualification": "Independent mode with no saved-data migration. Helper/source-body checks do not establish actual Skia/Blink or new exact-DLL parity; all runtime gates remain false.",
+    "sourceUpgrade": {
+      "donorRun": "39706478065",
+      "actualSourceReceipt": {
+        "path": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\final-ci-diagnostics-v1\\extracted\\c\\chromix\\google-services-source.json",
+        "sha256": "9ec64ab581db7c6c5af01c4bf98a2c535df6783552ae3b64b8615382c2fbb5df",
+        "bytes": 7216
+      },
+      "fromPreparationSHA256": "7dd30a0ba30787f1b34f254de7fbe1f8b85e3805972651f4ff5085b33841b6a9",
+      "toPreparationSHA256": "a790e9debc828c649bea1ebf49c27cdaa3a285dc95517e35e0114a128a866508",
+      "preparationInputs": 36,
+      "verification": {
+        "path": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\glyph-metrics-implementation-v1\\upgrade\\result.json",
+        "sha256": "a4d71361d69fba05cedff1cb29198198e7e20496eb03ca01ff14a6eb3a0aebfd",
+        "bytes": 2149
+      },
+      "realCheckpointObjectsDownloaded": false
+    },
+    "sourceChecks": {
+      "mathAndParser": {
+        "path": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\glyph-metrics-implementation-v1\\tests\\source\\result.json",
+        "sha256": "49a191bc325367b5576dc13743773e116d66dd141e9b8dedd3d661ae6a7a253a",
+        "bytes": 3260
+      },
+      "browserNormalization": {
+        "path": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\glyph-metrics-implementation-v1\\tests\\normalization\\result.json",
+        "sha256": "a456776b285bea05aeea63a1d395ad9c8e0f9975e057cf9a2718f481f8b39e05",
+        "bytes": 1223
+      },
+      "singleAndBatchConsumers": {
+        "path": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\glyph-metrics-implementation-v1\\tests\\consumers\\result.json",
+        "sha256": "1eb5def7bfe904900faea6e02467f77c7e2fa986547f1888f082d7bedd8ed23a",
+        "bytes": 1596
+      },
+      "pipeline49": {
+        "path": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\glyph-metrics-implementation-v1\\tests\\pipeline-v2\\receipt.json",
+        "sha256": "c696278229b33929296b08802c5fb4b3b2e8aae436352dca3c6db5dbefca935e",
+        "bytes": 965
+      }
+    },
+    "retainedInitialTestFailure": {
+      "receipt": {
+        "path": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\glyph-metrics-implementation-v1\\tests\\pipeline\\receipt.json",
+        "sha256": "060d42f37fcbaee1e3adfea095cc2278cdff7e6a90156d74eaa26a079e71cdc5",
+        "bytes": 962
+      },
+      "fix": {
+        "path": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\glyph-metrics-implementation-v1\\integration\\scope-test-update.json",
+        "sha256": "9d6d9841ac5212e178547f4cef8711d60da699853257de9d5adb87b7c8817721",
+        "bytes": 905
+      },
+      "scope": "A unit fixture still expected17 not-tested surfaces instead of18. No browser/native-glyph failure or timeout was concealed."
     }
   }
 }
