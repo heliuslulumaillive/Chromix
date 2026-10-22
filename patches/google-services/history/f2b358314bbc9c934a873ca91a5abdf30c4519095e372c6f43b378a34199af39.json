@@ -1,0 +1,1073 @@
+{
+  "version": "155.0.8059.39",
+  "changed_files": [
+    "BUILD.gn",
+    "base/BUILD.gn",
+    "base/uxr_audio_defaults.h",
+    "base/uxr_audio_defaults_tests.cc",
+    "base/uxr_audio_reference_data.h",
+    "base/uxr_cloak_hardware.cc",
+    "base/uxr_cloak_hardware.h",
+    "base/uxr_cloak_reference_bank.cc",
+    "base/uxr_cloak_reference_bank.h",
+    "base/uxr_cloak_reference_data.inc",
+    "base/uxr_cloak_reference_goldens.cc",
+    "base/uxr_config.cc",
+    "base/uxr_config.h",
+    "base/uxr_font_allowlist.h",
+    "base/uxr_font_allowlist_tests.cc",
+    "base/uxr_gpu_mode_golden_tests.cc",
+    "base/uxr_gpu_modes.h",
+    "base/uxr_graphics_mode_goldens.cc",
+    "base/uxr_graphics_noise.cc",
+    "base/uxr_graphics_noise.h",
+    "base/uxr_hardware_golden_tests.cc",
+    "base/uxr_original_audio_goldens.cc",
+    "base/uxr_original_audio_multiple.inc",
+    "base/uxr_original_audio_reference.h",
+    "base/uxr_surface_golden_tests.cc",
+    "base/uxr_surface_math.h",
+    "base/uxr_surface_modes.h",
+    "base/uxr_surface_modes_test_main.cc",
+    "base/uxr_surface_reference_data.h",
+    "base/uxr_voice_reference_data.h",
+    "chrome/app/chrome_main.cc",
+    "chrome/app/settings_chromium_strings.grdp",
+    "chrome/app/settings_strings.grdp",
+    "chrome/browser/BUILD.gn",
+    "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
+    "chrome/browser/download/download_target_determiner.cc",
+    "chrome/browser/enterprise/BUILD.gn",
+    "chrome/browser/enterprise/signin/managed_profile_creation_controller.cc",
+    "chrome/browser/enterprise/signin/oidc_authentication_signin_interceptor.cc",
+    "chrome/browser/enterprise/signin/oidc_managed_profile_creation_delegate.cc",
+    "chrome/browser/enterprise/signin/profile_management_disclaimer_service.cc",
+    "chrome/browser/enterprise/signin/token_managed_profile_creation_delegate.cc",
+    "chrome/browser/extensions/BUILD.gn",
+    "chrome/browser/extensions/api/identity/identity_get_auth_token_function.cc",
+    "chrome/browser/extensions/api/settings_private/prefs_util.cc",
+    "chrome/browser/extensions/chrome_content_browser_client_extensions_part.cc",
+    "chrome/browser/extensions/chrome_content_verifier_delegate.cc",
+    "chrome/browser/extensions/component_extensions_allowlist/allowlist.cc",
+    "chrome/browser/extensions/component_loader.cc",
+    "chrome/browser/extensions/extension_management.cc",
+    "chrome/browser/extensions/extension_migrator.cc",
+    "chrome/browser/extensions/extension_migrator.h",
+    "chrome/browser/extensions/external_component_loader.cc",
+    "chrome/browser/first_run/first_run.h",
+    "chrome/browser/glic/glic_user_status_request.cc",
+    "chrome/browser/policy/browser_signin_policy_handler.cc",
+    "chrome/browser/policy/configuration_policy_handler_list_factory.cc",
+    "chrome/browser/prefs/browser_prefs.cc",
+    "chrome/browser/prefs/chrome_pref_service_factory.cc",
+    "chrome/browser/profiles/profile_attributes_entry.cc",
+    "chrome/browser/profiles/profile_attributes_storage.cc",
+    "chrome/browser/profiles/profile_avatar_downloader.cc",
+    "chrome/browser/profiles/profile_impl.cc",
+    "chrome/browser/profiles/profile_manager.cc",
+    "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+    "chrome/browser/resources/extensions/item_list.html.ts",
+    "chrome/browser/resources/extensions/sidebar.html.ts",
+    "chrome/browser/resources/extensions/sidebar.ts",
+    "chrome/browser/resources/history/side_bar.html.ts",
+    "chrome/browser/resources/history/side_bar.ts",
+    "chrome/browser/resources/settings/privacy_page/personalization_options.html",
+    "chrome/browser/resources/settings/privacy_page/personalization_options.ts",
+    "chrome/browser/signin/account_consistency_mode_manager.cc",
+    "chrome/browser/signin/account_preview_data_service_factory.cc",
+    "chrome/browser/signin/accounts_policy_manager.cc",
+    "chrome/browser/signin/accounts_policy_manager.h",
+    "chrome/browser/signin/bound_session_credentials/bound_session_cookie_refresh_service_factory.cc",
+    "chrome/browser/signin/chrome_device_id_helper.cc",
+    "chrome/browser/signin/dice_web_signin_interceptor.cc",
+    "chrome/browser/signin/header_modification_delegate_impl.cc",
+    "chrome/browser/signin/signin_promo.cc",
+    "chrome/browser/signin/signin_promo_util.cc",
+    "chrome/browser/signin/signin_util.cc",
+    "chrome/browser/signin/signin_util_win.cc",
+    "chrome/browser/sync/sync_service_factory.cc",
+    "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.cc",
+    "chrome/browser/ui/browser_command_controller.cc",
+    "chrome/browser/ui/chrome_pages.cc",
+    "chrome/browser/ui/extensions/extension_post_install_dialog_model.cc",
+    "chrome/browser/ui/hats/trust_safety_sentiment_service.cc",
+    "chrome/browser/ui/profiles/profile_picker.cc",
+    "chrome/browser/ui/signin/dice_migration_service.cc",
+    "chrome/browser/ui/signin/signin_view_controller.cc",
+    "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc",
+    "chrome/browser/ui/toolbar/app_menu_model.cc",
+    "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc",
+    "chrome/browser/ui/views/profiles/profile_menu_view.cc",
+    "chrome/browser/ui/views/toolbar/app_menu.cc",
+    "chrome/browser/ui/views/user_education/browser_ntp_promos.cc",
+    "chrome/browser/ui/webui/cr_components/history/history_util.cc",
+    "chrome/browser/ui/webui/history/browsing_history_handler.cc",
+    "chrome/browser/ui/webui/history/history_ui.cc",
+    "chrome/browser/ui/webui/policy/policy_ui_handler.cc",
+    "chrome/browser/ui/webui/settings/people_handler.cc",
+    "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc",
+    "chrome/browser/ui/webui/settings/settings_ui.cc",
+    "chrome/browser/ui/webui/signin/inline_login_handler.cc",
+    "chrome/browser/ui/webui/signin/managed_user_profile_notice_handler.cc",
+    "chrome/browser/ui/webui/signin/managed_user_profile_notice_ui.cc",
+    "chrome/browser/ui/webui/signin/signin_utils_desktop.cc",
+    "chrome/browser/ui/webui/signin/turn_sync_on_helper.cc",
+    "chrome/browser/ui/webui/signin/turn_sync_on_helper_delegate_impl.cc",
+    "chrome/browser/ui/webui/suggest_internals/suggest_internals_handler.cc",
+    "chrome/browser/webauthn/authenticator_request_dialog_controller.cc",
+    "chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc",
+    "chrome/common/google_url_loader_throttle.cc",
+    "chrome/test/BUILD.gn",
+    "chrome/test/base/BUILD.gn",
+    "chrome/test/base/testing_browser_process.cc",
+    "chrome/test/base/testing_browser_process.h",
+    "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
+    "components/affiliations/core/browser/hash_affiliation_fetcher.h",
+    "components/assist_ranker/ranker_url_fetcher.cc",
+    "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc",
+    "components/browser_sync/BUILD.gn",
+    "components/collaboration/internal/collaboration_service_impl.cc",
+    "components/commerce/core/shopping_service.cc",
+    "components/commerce/core/subscriptions/subscriptions_server_proxy.cc",
+    "components/embedder_support/user_agent_utils.cc",
+    "components/feed/core/v2/feed_stream.cc",
+    "components/feed/core/v2/public/feed_service.cc",
+    "components/gcm_driver/gcm_client_impl.cc",
+    "components/gcm_driver/gcm_driver_desktop.cc",
+    "components/google/core/common/google_util.cc",
+    "components/page_load_metrics/google/browser/google_url_util.cc",
+    "components/password_manager/core/browser/password_feature_manager_impl.cc",
+    "components/password_manager/core/browser/password_manager.cc",
+    "components/password_manager/core/browser/sync_credentials_filter.cc",
+    "components/search_engines/template_url.cc",
+    "components/send_tab_to_self/entry_point_display_reason.cc",
+    "components/signin/core/browser/BUILD.gn",
+    "components/signin/core/browser/account_investigator.cc",
+    "components/signin/core/browser/account_investigator.h",
+    "components/signin/core/browser/account_preview_data_service.cc",
+    "components/signin/core/browser/account_preview_data_service_impl.cc",
+    "components/signin/core/browser/account_preview_metrics_recorder.cc",
+    "components/signin/core/browser/signin_metrics_service.cc",
+    "components/signin/internal/identity_manager/account_tracker_service.cc",
+    "components/signin/internal/identity_manager/gaia_cookie_manager_service.cc",
+    "components/signin/internal/identity_manager/primary_account_manager.cc",
+    "components/signin/internal/identity_manager/primary_account_mutator_impl.cc",
+    "components/signin/internal/identity_manager/profile_oauth2_token_service.cc",
+    "components/signin/public/base/BUILD.gn",
+    "components/signin/public/base/device_id_helper.cc",
+    "components/signin/public/base/signin_pref_names.cc",
+    "components/signin/public/base/signin_pref_names.h",
+    "components/signin/public/base/signin_prefs.cc",
+    "components/signin/public/base/signin_switches.cc",
+    "components/signin/public/identity_manager/identity_utils.cc",
+    "components/supervised_user/core/browser/supervised_user_pref_store.cc",
+    "components/sync/service/sync_prefs.cc",
+    "components/translate/core/browser/translate_language_list.cc",
+    "components/translate/core/browser/translate_manager.cc",
+    "components/translate/core/browser/translate_ranker_impl.cc",
+    "components/translate/core/browser/translate_script.cc",
+    "components/variations/net/variations_http_headers.cc",
+    "content/browser/preloading/prefetch/prefetch_resource_request_utils.cc",
+    "device/fido/win/authenticator.cc",
+    "device/fido/win/authenticator.h",
+    "device/fido/win/authenticator_unittest.cc",
+    "extensions/browser/extension_util.cc",
+    "extensions/browser/extension_util.h",
+    "extensions/browser/updater/extension_downloader.cc",
+    "extensions/browser/webstore_installer.cc",
+    "extensions/common/extension_urls.cc",
+    "google_apis/gaia/gaia_auth_fetcher.cc",
+    "net/base/url_util.cc",
+    "third_party/blink/common/device_memory/approximated_device_memory.cc",
+    "third_party/blink/renderer/core/dom/element.cc",
+    "third_party/blink/renderer/core/dom/range.cc",
+    "third_party/blink/renderer/core/execution_context/navigator_base.cc",
+    "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc",
+    "third_party/blink/renderer/core/frame/navigator_device_memory.cc",
+    "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc",
+    "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h",
+    "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.cc",
+    "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h",
+    "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc",
+    "third_party/blink/renderer/core/html/canvas/text_metrics.cc",
+    "third_party/blink/renderer/core/html/canvas/text_metrics.h",
+    "third_party/blink/renderer/core/html/html_element.cc",
+    "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc",
+    "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+    "third_party/blink/renderer/modules/canvas/canvas2d/canvas_2d_recorder_context.cc",
+    "third_party/blink/renderer/modules/canvas/canvas2d/canvas_2d_recorder_context.h",
+    "third_party/blink/renderer/modules/font_access/font_access.cc",
+    "third_party/blink/renderer/modules/mediastream/media_devices.cc",
+    "third_party/blink/renderer/modules/sensor/accelerometer.cc",
+    "third_party/blink/renderer/modules/speech/speech_synthesis.cc",
+    "third_party/blink/renderer/modules/webaudio/audio_buffer.cc",
+    "third_party/blink/renderer/modules/webaudio/audio_context.cc",
+    "third_party/blink/renderer/modules/webaudio/audio_node.cc",
+    "third_party/blink/renderer/modules/webaudio/base_audio_context.cc",
+    "third_party/blink/renderer/modules/webaudio/base_audio_context.h",
+    "third_party/blink/renderer/modules/webaudio/dynamics_compressor_node.cc",
+    "third_party/blink/renderer/modules/webaudio/offline_audio_context.cc",
+    "third_party/blink/renderer/modules/webaudio/offline_audio_context.h",
+    "third_party/blink/renderer/modules/webaudio/oscillator_node.cc",
+    "third_party/blink/renderer/modules/webaudio/realtime_analyser.cc",
+    "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.cc",
+    "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.h",
+    "third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc",
+    "third_party/blink/renderer/modules/webgl/gpu_fingerprint.h",
+    "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
+    "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
+    "third_party/blink/renderer/modules/webgpu/gpu_adapter.cc",
+    "third_party/blink/renderer/modules/webgpu/gpu_adapter.h",
+    "third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc",
+    "third_party/blink/renderer/modules/webgpu/gpu_device.cc",
+    "third_party/blink/renderer/modules/webgpu/gpu_device.h",
+    "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc",
+    "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h",
+    "third_party/blink/renderer/platform/BUILD.gn",
+    "third_party/blink/renderer/platform/fonts/font_cache.cc",
+    "third_party/blink/renderer/platform/fonts/font_cache.h",
+    "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc",
+    "third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h",
+    "third_party/blink/renderer/platform/graphics/image_data_buffer.cc",
+    "third_party/blink/renderer/platform/graphics/image_data_buffer.h"
+  ],
+  "source_inputs": [
+    {
+      "path": "BUILD.gn",
+      "sha256": "e38b612778a41dd52c073f8633b3f22c6078e227baa892666e92ac29a9738391"
+    },
+    {
+      "path": "base/BUILD.gn",
+      "sha256": "3983f3e3964b9e111bf4759b53168efb34ea533124f655a7288a328b2105343c"
+    },
+    {
+      "path": "chrome/app/chrome_main.cc",
+      "sha256": "9bca15fa0892300b0696f4fab3d4d6559bd62abaab746be00512a674fc2a1d43"
+    },
+    {
+      "path": "chrome/app/settings_chromium_strings.grdp",
+      "sha256": "9fb3a5d1020f25121dbc59df33031554bd9f8498c74aa5c220a26364ee0d2b57"
+    },
+    {
+      "path": "chrome/app/settings_strings.grdp",
+      "sha256": "ff45194a6b8b6f7e9c6c0717065bb90cc4dcf9d1bee08ebf0700790ec9d7e3cb"
+    },
+    {
+      "path": "chrome/browser/BUILD.gn",
+      "sha256": "5c9a66b731954d1d28c7f630071880f0a879bfef924338362004b9ad19f4444b"
+    },
+    {
+      "path": "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
+      "sha256": "c538f6d0c4698f63acd10e7de51e8bfd5c77b393e4aacc070df97674ab3aea01"
+    },
+    {
+      "path": "chrome/browser/download/download_target_determiner.cc",
+      "sha256": "20c460af6833a7c0a2e3ed1f09ae8999681840542ab915dbe75b395de1fdd71c"
+    },
+    {
+      "path": "chrome/browser/enterprise/BUILD.gn",
+      "sha256": "e2eec0337555cd097cc11983d0e8a3805b65bacca0492306d81b79cc47e948c5"
+    },
+    {
+      "path": "chrome/browser/enterprise/signin/managed_profile_creation_controller.cc",
+      "sha256": "08a9433eb520ca862a5ad467a3a085f83f63647e47dc69c8a0bd03237cdb9563"
+    },
+    {
+      "path": "chrome/browser/enterprise/signin/oidc_authentication_signin_interceptor.cc",
+      "sha256": "6ab412ce1bfad679f9083c989b5d93c50df0c086ef1fedc64d344312ec34d313"
+    },
+    {
+      "path": "chrome/browser/enterprise/signin/oidc_managed_profile_creation_delegate.cc",
+      "sha256": "50befaf305761be5bfa7fa37500cb8dce1906603c6ffe9b45b0664ed97fdc741"
+    },
+    {
+      "path": "chrome/browser/enterprise/signin/profile_management_disclaimer_service.cc",
+      "sha256": "c83dfa6c138eaffedeef3a623a5e3390bb233fd8f822eb9060d9948ff7345182"
+    },
+    {
+      "path": "chrome/browser/enterprise/signin/token_managed_profile_creation_delegate.cc",
+      "sha256": "5abdd7cd2aed7e4a1bc90708fa78461e4eadd37da07e74568bf63fddbb761309"
+    },
+    {
+      "path": "chrome/browser/extensions/BUILD.gn",
+      "sha256": "bfbffb90bc6ba28f8e15a7bd6df77a25d265ca055dd637edfc76a83364fa18e2"
+    },
+    {
+      "path": "chrome/browser/extensions/api/identity/identity_get_auth_token_function.cc",
+      "sha256": "e6996b8878f88f8fe52f147139f896f4b2cef1e63c143fcdf63e50b3d117c968"
+    },
+    {
+      "path": "chrome/browser/extensions/api/settings_private/prefs_util.cc",
+      "sha256": "516fd7a9a10aeb47f9fbea4b913536c69925fbab948912f839d98b801c3c0bd4"
+    },
+    {
+      "path": "chrome/browser/extensions/chrome_content_browser_client_extensions_part.cc",
+      "sha256": "d67b05e029a5827051a2ba4620192749973ffb9acb03030b70f8b6dbca9831d7"
+    },
+    {
+      "path": "chrome/browser/extensions/chrome_content_verifier_delegate.cc",
+      "sha256": "4e766e7cfdf77d75d8f63e273128f42f7221ce2f0ab6aee486e8f6ef340b99e7"
+    },
+    {
+      "path": "chrome/browser/extensions/component_extensions_allowlist/allowlist.cc",
+      "sha256": "03d9d5d4cccd3b74ec2b8e4d486945aa3501499f1dbd9e319b1ed1fa3b275ad5"
+    },
+    {
+      "path": "chrome/browser/extensions/component_loader.cc",
+      "sha256": "2f885d17e75792dac3c7deeb8f00850677b0a3bf82c3acebe65f18887edea04b"
+    },
+    {
+      "path": "chrome/browser/extensions/extension_management.cc",
+      "sha256": "067109e89fbbc669263f3bb181335b1b0821f9ce7e6cbc8b52a39f139cb51ad9"
+    },
+    {
+      "path": "chrome/browser/extensions/extension_migrator.cc",
+      "sha256": "f42049a51d54d23ff3288662d4f2dc07e741dd61724745c5f518ffa4781bda55"
+    },
+    {
+      "path": "chrome/browser/extensions/extension_migrator.h",
+      "sha256": "37eacd293909acc7f11cbb9d86383e526ae96c0b766621ff39cf97771a5578a4"
+    },
+    {
+      "path": "chrome/browser/extensions/external_component_loader.cc",
+      "sha256": "29e16523bc04630d27c813269d1503fb2d654dd11d97c1493b922e3b226848db"
+    },
+    {
+      "path": "chrome/browser/first_run/first_run.h",
+      "sha256": "806adb5764081451dba7fc5980d83463787e2d0154c26d9ed554263f8cb9672a"
+    },
+    {
+      "path": "chrome/browser/glic/glic_user_status_request.cc",
+      "sha256": "7e634afea97ec650ee72bc02952078029f089b29845ac883329066a8bfea48cb"
+    },
+    {
+      "path": "chrome/browser/policy/browser_signin_policy_handler.cc",
+      "sha256": "6d49daa792992ac38e13a489ce696a4f43c4b5065823e1b4b10153a650acc0eb"
+    },
+    {
+      "path": "chrome/browser/policy/configuration_policy_handler_list_factory.cc",
+      "sha256": "283fbc88da06cfa22a65b5f9315c07f682f8b880795f60b7e1c1581804130d71"
+    },
+    {
+      "path": "chrome/browser/prefs/browser_prefs.cc",
+      "sha256": "6ca2cc2e690bd8da668bb18ea72dc20945e075a40e92da16f3058808d4e84fbc"
+    },
+    {
+      "path": "chrome/browser/prefs/chrome_pref_service_factory.cc",
+      "sha256": "770ca6183f416ce1561ba7832793233a6f0b48ca99002f75606a7747e1915e12"
+    },
+    {
+      "path": "chrome/browser/profiles/profile_attributes_entry.cc",
+      "sha256": "f7730b23906724ee8021bd3c891804883caec4ed7c9522e6143250fd566403c6"
+    },
+    {
+      "path": "chrome/browser/profiles/profile_attributes_storage.cc",
+      "sha256": "e20b25590c17365cb2fae2cb3a31a19ef29c9ec6031c3d00f498cdbcbcdbc222"
+    },
+    {
+      "path": "chrome/browser/profiles/profile_avatar_downloader.cc",
+      "sha256": "f2b83e8ed3e997f6d02a7daee1099d8ef6207665969b3069cc5652a5ba451290"
+    },
+    {
+      "path": "chrome/browser/profiles/profile_impl.cc",
+      "sha256": "e887443652d48563145855e2c525426aa44ccd1dc1023a7e1068fa4c092f06eb"
+    },
+    {
+      "path": "chrome/browser/profiles/profile_manager.cc",
+      "sha256": "7bbb91ce3f1159b540666686b8cbc2e887a561978f9d7ebb7aa9230e42a7dec3"
+    },
+    {
+      "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+      "sha256": "62fda4dd0463ca3b6c29c58d5f3024ff32c35f046f9c65ab52cb2d54b68a2333"
+    },
+    {
+      "path": "chrome/browser/resources/extensions/item_list.html.ts",
+      "sha256": "811662b4438887015065fd750925ea2757c968e315a27975479777f6d29bd8dd"
+    },
+    {
+      "path": "chrome/browser/resources/extensions/sidebar.html.ts",
+      "sha256": "53d92b997c91ab281f4627c5c3e09cdae91f81198bfc674a5c3d09a019068cea"
+    },
+    {
+      "path": "chrome/browser/resources/extensions/sidebar.ts",
+      "sha256": "6b0f08d6301e00da638ec94c54c382ce7d36ab66ec58069c89f8c51815bab5dc"
+    },
+    {
+      "path": "chrome/browser/resources/history/side_bar.html.ts",
+      "sha256": "ca85968b2f869e90c00a5a9b20b2a98f91cb303801f325377f7309bb3ef5b365"
+    },
+    {
+      "path": "chrome/browser/resources/history/side_bar.ts",
+      "sha256": "194bcc92d1b96a86173afaa3c0e1b1c73fb24b9048496f894fe1b61d5406b6c8"
+    },
+    {
+      "path": "chrome/browser/resources/settings/privacy_page/personalization_options.html",
+      "sha256": "9dc2358ece3243a57e07b98fdeeaf92a946e284ae4a62a5a6ff06761315fe449"
+    },
+    {
+      "path": "chrome/browser/resources/settings/privacy_page/personalization_options.ts",
+      "sha256": "0033ef1056c631b3a7bf53977f2300d19e97309616eb001ee11506a1133aeb82"
+    },
+    {
+      "path": "chrome/browser/security_events/BUILD.gn",
+      "sha256": "710ffc251f9954e90ea2ad8775e9c181f4eb2fb90ba5e8c7d67a44953f03f901"
+    },
+    {
+      "path": "chrome/browser/security_events/security_event_recorder_factory.cc",
+      "sha256": "bea25ec6ee7bd3db37b7a873075b3b3cccedec4d20a6b5d34480094fa63dd2b2"
+    },
+    {
+      "path": "chrome/browser/signin/account_consistency_mode_manager.cc",
+      "sha256": "2b875189414489a9030e7cdbfe056f7cb7b8c6b45afc47ec411bcd6afd620f17"
+    },
+    {
+      "path": "chrome/browser/signin/account_preview_data_service_factory.cc",
+      "sha256": "d1b276f5091274493b74af3b5ff5085ebeec13a47dd7b9e836484b17c76df5ff"
+    },
+    {
+      "path": "chrome/browser/signin/accounts_policy_manager.cc",
+      "sha256": "cc480fe69f45e07bac8df27c0aa3154867b317681c864f61268287e1e4240ae7"
+    },
+    {
+      "path": "chrome/browser/signin/accounts_policy_manager.h",
+      "sha256": "d5362be9c542bf2f02cb564df2e2110b5a35f03cfe3962226512f611ec6e2a03"
+    },
+    {
+      "path": "chrome/browser/signin/bound_session_credentials/bound_session_cookie_refresh_service_factory.cc",
+      "sha256": "bfa8c4af236866a93d1fd38488d76769ef00b6bdd487f1002b03a9ca93acf9d2"
+    },
+    {
+      "path": "chrome/browser/signin/chrome_device_id_helper.cc",
+      "sha256": "345bdeb9f05997232fcfc8a9d1955686e075cf1893941479f45aacc01af25baa"
+    },
+    {
+      "path": "chrome/browser/signin/dice_web_signin_interceptor.cc",
+      "sha256": "f80371ce6d113e806ffb4e55e18665539dc916fe67163082a9249f3b0419c586"
+    },
+    {
+      "path": "chrome/browser/signin/header_modification_delegate_impl.cc",
+      "sha256": "9728e5c9d2ac111fa0404451a0bc264fa3e38f841ef3f063d65ea508be37bff9"
+    },
+    {
+      "path": "chrome/browser/signin/signin_promo.cc",
+      "sha256": "ee1fda089c46d1080de0c6a722d73c22ae395ec18e4093534e19faa1d24b581b"
+    },
+    {
+      "path": "chrome/browser/signin/signin_promo_util.cc",
+      "sha256": "6ded97f8805bef644312463206d56cc05883c28fc9c7ad135369ae9a6721cbc9"
+    },
+    {
+      "path": "chrome/browser/signin/signin_util.cc",
+      "sha256": "d102e70ae1ab238651b65276895b0496c8c3c58ba524353ca168a0bceddab673"
+    },
+    {
+      "path": "chrome/browser/signin/signin_util_win.cc",
+      "sha256": "f0f93974979f653ccd18cdeab6e9faddc51f65311542b222d2b5e7c30437470d"
+    },
+    {
+      "path": "chrome/browser/sync/sync_service_factory.cc",
+      "sha256": "2478720a177cc2ae4ed91656e7484c3e33d712ae7f378b62fdbac964f3eebed7"
+    },
+    {
+      "path": "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.cc",
+      "sha256": "96f3b100c1244992ce38181ca00ec076f963ce63a8aebfdde0f0892c61d43831"
+    },
+    {
+      "path": "chrome/browser/ui/browser_command_controller.cc",
+      "sha256": "cadfe36a3496322103af5aa758475ce7af38fe878b8f158c57f8146d70e93a1f"
+    },
+    {
+      "path": "chrome/browser/ui/chrome_pages.cc",
+      "sha256": "a2b88dc636b91c68adbe46a69095dffa325245b127420be378e3f8cabb64175c"
+    },
+    {
+      "path": "chrome/browser/ui/extensions/extension_post_install_dialog_model.cc",
+      "sha256": "e88c10b7771b78eb9233949f4f6654216502c7c8179685a1e47f35f9f0fbff68"
+    },
+    {
+      "path": "chrome/browser/ui/hats/trust_safety_sentiment_service.cc",
+      "sha256": "beb04f8e4d750f6c7aa268ad7cfb365b1e2eada3d17631ccf6dbbf9266902c85"
+    },
+    {
+      "path": "chrome/browser/ui/profiles/profile_picker.cc",
+      "sha256": "dd9780c3c3f497ae82f5ff840bc99cc37e7c548a46ccbeac3088ef731baedf55"
+    },
+    {
+      "path": "chrome/browser/ui/signin/dice_migration_service.cc",
+      "sha256": "ba0d5024128357faa8c0b117329a052c3292be1137199923ff52e09401446493"
+    },
+    {
+      "path": "chrome/browser/ui/signin/signin_view_controller.cc",
+      "sha256": "c50d5697a392e95b66bf13e5cb9081eb98118ba8e9f57f84b189d523dddeb5a1"
+    },
+    {
+      "path": "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc",
+      "sha256": "e55739dd42b595f71542e0fc3af367b0fa67c4f71d347c28980690b69f0e9687"
+    },
+    {
+      "path": "chrome/browser/ui/toolbar/app_menu_model.cc",
+      "sha256": "5cb254d4614c5e99ad284212f5ce9734398422e8ead43fbdcfe732c99cae9c20"
+    },
+    {
+      "path": "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc",
+      "sha256": "93de47cbb1cbc58608fcdcfc18695987f6606344ad94da0d9973256d66a89518"
+    },
+    {
+      "path": "chrome/browser/ui/views/profiles/profile_menu_view.cc",
+      "sha256": "037911f6cc56c2d50da445e0af5ed962c8e0b1c7e1d065c79af6fab970072746"
+    },
+    {
+      "path": "chrome/browser/ui/views/toolbar/app_menu.cc",
+      "sha256": "4ea469b1d27b4a448e3cc722ef5709efcc7816e17e090930b939f731fae4083b"
+    },
+    {
+      "path": "chrome/browser/ui/views/user_education/browser_ntp_promos.cc",
+      "sha256": "9c76db0ff0d1d03e45ca932fe7a0ad778a80f247314dc8965e0f6f8c9874a970"
+    },
+    {
+      "path": "chrome/browser/ui/webui/cr_components/history/history_util.cc",
+      "sha256": "6137dad95759cc597edc838be0a6ad0c729e5b26e62e54a09924afe84d039246"
+    },
+    {
+      "path": "chrome/browser/ui/webui/history/browsing_history_handler.cc",
+      "sha256": "c7f8008d89207d8ead16bbab1b157c357ef224177beff29bf38cb8a87467be04"
+    },
+    {
+      "path": "chrome/browser/ui/webui/history/history_ui.cc",
+      "sha256": "0b5a5d1c1ba2c517ffb21429f848898d819fcbf36387c80c02696d3a20275847"
+    },
+    {
+      "path": "chrome/browser/ui/webui/policy/policy_ui_handler.cc",
+      "sha256": "f838a5485af2d51038ea886c974244ed4495feb393afdd6719fc8638c37a03d4"
+    },
+    {
+      "path": "chrome/browser/ui/webui/settings/people_handler.cc",
+      "sha256": "1506c17c69c3f315b4c861a5ad69be5d295b785496c3cd5a9c0da1910d8ca69a"
+    },
+    {
+      "path": "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc",
+      "sha256": "1b51f3398d3d74be79db67019bdf0b810f54ad80a47b267a5a707262f1217017"
+    },
+    {
+      "path": "chrome/browser/ui/webui/settings/settings_ui.cc",
+      "sha256": "f3191ed1e1e165c3a1de4d945210a2343e52f149553ecd534b29a5b730930f75"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/inline_login_handler.cc",
+      "sha256": "5edd9a3304fc25d1b8cf2d08045fcc962238a07b580efdbed007bd837b9defeb"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/managed_user_profile_notice_handler.cc",
+      "sha256": "ef1917180a13793727f9411f0b26b1098b6bedda3e3722e91808eb212235dff2"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/managed_user_profile_notice_ui.cc",
+      "sha256": "a1a46a27d1c2bc5a8fee4b79058f5f1c1adf264f88da9fdf9ad6763123aaebaa"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/signin_utils_desktop.cc",
+      "sha256": "633c8235f6484c37ca56b947f2caa382dca87beab9813488bf360d06ff6c7232"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/turn_sync_on_helper.cc",
+      "sha256": "d7fdb37136b9ec84871ccb2eebb9d85e83a7c581bd726e2c2a36faa8a41f9101"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/turn_sync_on_helper_delegate_impl.cc",
+      "sha256": "654e7f2cc0814a3ad4d213818bef8f79a92636b98d842b13304db3b71cb472a4"
+    },
+    {
+      "path": "chrome/browser/ui/webui/suggest_internals/suggest_internals_handler.cc",
+      "sha256": "c34f5545bc263c6b9ecbf4df3774a5daabbc99b7459140d79220298005920a58"
+    },
+    {
+      "path": "chrome/browser/webauthn/authenticator_request_dialog_controller.cc",
+      "sha256": "627b880dd82f67480637fb9b5ac9646038b605a313dcf7711c4a7c084ec9285d"
+    },
+    {
+      "path": "chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc",
+      "sha256": "836c60bc38f960042a9d6ab471577efce359ae899d478e5ed26958dcdaaa24f5"
+    },
+    {
+      "path": "chrome/common/google_url_loader_throttle.cc",
+      "sha256": "6e48bc095f55697a5dd113fcfc36d4842a3c39a77d821c191878f4a98ecf6e01"
+    },
+    {
+      "path": "chrome/test/BUILD.gn",
+      "sha256": "4b1c4e75e9298e44953d57c11d3aeb12dee6b036b6f9071a887d3a7cc213e832"
+    },
+    {
+      "path": "chrome/test/base/BUILD.gn",
+      "sha256": "3f7506fb4c68cd79c88663012cb2e9829a99a7df2513f6d6c8f4c94d0e61943b"
+    },
+    {
+      "path": "chrome/test/base/testing_browser_process.cc",
+      "sha256": "5f1f26ed33c54462130fbce366ef2c5e682cfd33c1daba7b4551d089c891fe04"
+    },
+    {
+      "path": "chrome/test/base/testing_browser_process.h",
+      "sha256": "b11ca05a1bf31f5d3df9a1425f44c6a74bd58c3f1a3114f66cf8cf7b99ee9f27"
+    },
+    {
+      "path": "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
+      "sha256": "41bed191f7abd224330f967c1cd14b3dde19e2939c6d9e3a4f438af7088a37bf"
+    },
+    {
+      "path": "components/affiliations/core/browser/hash_affiliation_fetcher.h",
+      "sha256": "9ffcce1a81b60abf4e8747c565c24e1e1631da425a79a47d2f4b2cd1a8dc7327"
+    },
+    {
+      "path": "components/assist_ranker/ranker_url_fetcher.cc",
+      "sha256": "9e2dc566de20acb69732ca18cb052ca1ed25920c20a8a6c0bfdd9f81d4471828"
+    },
+    {
+      "path": "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc",
+      "sha256": "f3abdb8791a542be8af550f67247445c665aee1cb720eb378b7de1a50df72b4b"
+    },
+    {
+      "path": "components/browser_sync/BUILD.gn",
+      "sha256": "4f1d70e0dd7c3261441c9a99c5639f3c9b8da5d8391751ecae8df107acee0fc5"
+    },
+    {
+      "path": "components/browser_sync/sync_to_signin_migration.cc",
+      "sha256": "fc39e409eb86699568bed5eda29781a87143c0622e29adce9d41ab0de2a291be"
+    },
+    {
+      "path": "components/collaboration/internal/collaboration_service_impl.cc",
+      "sha256": "fa0c5948ccdb1ccec0706bce8d5a15fd0b21eaf96db133b4c0c7a19c5d00e7dc"
+    },
+    {
+      "path": "components/commerce/core/shopping_service.cc",
+      "sha256": "491faa13f6412c7bd3473a7cd2b8cd56cc1759546d9ba2aec5ec29e8e8a1a53f"
+    },
+    {
+      "path": "components/commerce/core/subscriptions/subscriptions_server_proxy.cc",
+      "sha256": "cbdec3221e105768537e61466663508deb2ef0f182e488ac288910126dadea4d"
+    },
+    {
+      "path": "components/embedder_support/user_agent_utils.cc",
+      "sha256": "21d06edd8f0b76a0bfef8c7aab2448e4f046f788e24da5591713c3561ea54708"
+    },
+    {
+      "path": "components/feed/core/v2/feed_stream.cc",
+      "sha256": "01743bb43c0b335c866414d99ae657e9979de9bac9118b5ba3426036ccabfc99"
+    },
+    {
+      "path": "components/feed/core/v2/public/feed_service.cc",
+      "sha256": "cd5501f243d3867aabb56aba271375febe73ed245632492b11a7b3d08b2595e8"
+    },
+    {
+      "path": "components/gcm_driver/gcm_client_impl.cc",
+      "sha256": "694e3d26d492256a6b4af9a9993b3d35d41dbbf47cb731166686616244115163"
+    },
+    {
+      "path": "components/gcm_driver/gcm_driver_desktop.cc",
+      "sha256": "a1c2da223e741ae20329d4a1d2b1594b38029f0c9b991900db7da7451f867e32"
+    },
+    {
+      "path": "components/google/core/common/google_util.cc",
+      "sha256": "8ab18780c9567942b9469ebea5b9f3f1fcc477493e23b50ad7eaaaad7f9ee3a4"
+    },
+    {
+      "path": "components/page_load_metrics/google/browser/google_url_util.cc",
+      "sha256": "11cc44bca601f2a80d538ce826efccaa842b906ddeef96a032ceb5dceaa3b830"
+    },
+    {
+      "path": "components/password_manager/core/browser/password_feature_manager_impl.cc",
+      "sha256": "35d0a50bcb4f5eeb86a56133d80f8500c49b8691c7e955c9236753e98c5037a9"
+    },
+    {
+      "path": "components/password_manager/core/browser/password_manager.cc",
+      "sha256": "c998594a3e9ab58cab8ce460b695b48a75c7139e34594443f0f3c6fe5af898a7"
+    },
+    {
+      "path": "components/password_manager/core/browser/sync_credentials_filter.cc",
+      "sha256": "8a7cc68c5038a243a6a1dc9c38de55fe7681a59adf87c774f49bca71641218f5"
+    },
+    {
+      "path": "components/search_engines/template_url.cc",
+      "sha256": "7c41dd1407cce63af55a6720a93f1651a2ac00ec1d37fe37f40025e83ee72d1c"
+    },
+    {
+      "path": "components/send_tab_to_self/entry_point_display_reason.cc",
+      "sha256": "dbe16eb70d82ca1ced474a0790525b28282a358a7d2ceff64f752b6a3256b41e"
+    },
+    {
+      "path": "components/signin/core/browser/BUILD.gn",
+      "sha256": "7b24d91088b757302d0a9ee751c95861f0d5b9bba819ba335e36392266f81d47"
+    },
+    {
+      "path": "components/signin/core/browser/account_investigator.cc",
+      "sha256": "cb5ee1cbca8c8d99330125db8c41b12146f43e8195bbd65248edfd72bc622dca"
+    },
+    {
+      "path": "components/signin/core/browser/account_investigator.h",
+      "sha256": "2c7a977d263d75eed99de0369628fdde92aba03b6de23bce7c3fe2ee24159b5c"
+    },
+    {
+      "path": "components/signin/core/browser/account_preview_data_service.cc",
+      "sha256": "d7a14a4108387dce018d0e065e74ff451fb30897c6900182c6887da91bf2a399"
+    },
+    {
+      "path": "components/signin/core/browser/account_preview_data_service_impl.cc",
+      "sha256": "f5a39173f77b390f13a689b4f6d248c3f0367c3565be1aef6f67efa51285fbe7"
+    },
+    {
+      "path": "components/signin/core/browser/account_preview_metrics_recorder.cc",
+      "sha256": "936e3f8d4158fd214efa1edd28ae1a2e1bdb0dc3ecab537c037943b2a1b76fd8"
+    },
+    {
+      "path": "components/signin/core/browser/signin_metrics_service.cc",
+      "sha256": "cddbfabb3d22c1df0aedaab64dfaf80acc59edfd287c834d59a5722d2bf85ae3"
+    },
+    {
+      "path": "components/signin/internal/identity_manager/account_tracker_service.cc",
+      "sha256": "05d854fc87b23f3ee78756e232402dbbd128e754b9b63021d5777497091129f0"
+    },
+    {
+      "path": "components/signin/internal/identity_manager/gaia_cookie_manager_service.cc",
+      "sha256": "065fb50c3c08b7577ad3bb5a8bf7065bdec88bdb56cba7294a5f1d317e5bb7e4"
+    },
+    {
+      "path": "components/signin/internal/identity_manager/primary_account_manager.cc",
+      "sha256": "06b6386e4ee5dbeca57443e64d97b0f5b8be3e93e60b1a792e9d9aa7b8a96ac3"
+    },
+    {
+      "path": "components/signin/internal/identity_manager/primary_account_mutator_impl.cc",
+      "sha256": "1a773e65d8c27ec33b18a185c62b6fb09c3eba733be6425909ea0a182de4052c"
+    },
+    {
+      "path": "components/signin/internal/identity_manager/profile_oauth2_token_service.cc",
+      "sha256": "48f2c09ea57bac55417c3497130db4e071737f7f8d84823b39a9c3e5b2273bb9"
+    },
+    {
+      "path": "components/signin/public/base/BUILD.gn",
+      "sha256": "8b957950a7c26261b5d3a57ef22f2952fb83f5a0ddb552ccbd836c2119d5bac0"
+    },
+    {
+      "path": "components/signin/public/base/device_id_helper.cc",
+      "sha256": "f0ea15e53bb100b2efb9ab7367328acdee46a54b4ec88b487e53b24cad8d39df"
+    },
+    {
+      "path": "components/signin/public/base/signin_pref_names.cc",
+      "sha256": "e77940299b11aac74f06f3a75e154754d2b181ac2883e3de95a380eed32ada96"
+    },
+    {
+      "path": "components/signin/public/base/signin_pref_names.h",
+      "sha256": "0a804bc27dd6016198be4408436ef212bf872066107802bac1eff5846d918496"
+    },
+    {
+      "path": "components/signin/public/base/signin_prefs.cc",
+      "sha256": "68795d2e58da7e09647ce65b6f43f657617c0d784c0e816f110856b5d431b549"
+    },
+    {
+      "path": "components/signin/public/base/signin_switches.cc",
+      "sha256": "c0907ac5a84ef8bffff292700c2f323af01389c0d6680190fd44dafaf65d7d0f"
+    },
+    {
+      "path": "components/signin/public/identity_manager/identity_utils.cc",
+      "sha256": "a41921ab549b1b2cb4c00625542e669a4303ff274677288c2975c9fa82148d5e"
+    },
+    {
+      "path": "components/supervised_user/core/browser/supervised_user_pref_store.cc",
+      "sha256": "d2fcf03f159a7cc294bf8cb0aea5ad3291b8aa1c40eaffb3ab304c98a64fb658"
+    },
+    {
+      "path": "components/sync/service/sync_prefs.cc",
+      "sha256": "2d2d975cdf415a641d5471039d9008be1236f870a172649a1774d62c4075939a"
+    },
+    {
+      "path": "components/translate/core/browser/translate_language_list.cc",
+      "sha256": "192caec2c15b5324c9c02b9a61b504612b8d55e8cf00f3a6a02724f7bab1b5b0"
+    },
+    {
+      "path": "components/translate/core/browser/translate_manager.cc",
+      "sha256": "cf970511d67a1c53991f14bc7a7f9aacfeb66f41a78fc2a778bd3649abca2687"
+    },
+    {
+      "path": "components/translate/core/browser/translate_ranker_impl.cc",
+      "sha256": "c42e990048bcb28822ece1f3992c2228591b6a3fb8b5cb35b62c63ed26e40093"
+    },
+    {
+      "path": "components/translate/core/browser/translate_script.cc",
+      "sha256": "c864de384cf3a144f255db892be582239fbebcb393dc3e08c7c5a43dc328145d"
+    },
+    {
+      "path": "components/variations/net/variations_http_headers.cc",
+      "sha256": "f1b8c95333f33b3b4c8ed96f863e10570be9fa59ccf9b8a194259a182d19b98c"
+    },
+    {
+      "path": "content/browser/preloading/prefetch/prefetch_resource_request_utils.cc",
+      "sha256": "f435761e367522629912e59ffa0b7e3d4608fb25e873c9831934ea4536899ac8"
+    },
+    {
+      "path": "content/browser/webauth/webauth_request_security_checker_impl.cc",
+      "sha256": "3c4859e53d9198feb51f5cdba399b76b9c706cc408604ad2c20da7da2d24bcd5"
+    },
+    {
+      "path": "content/browser/webauth/webauth_request_security_checker_impl.h",
+      "sha256": "0bf4aad26027195bdf2a3f9b0c93ebed79569730384eb50ba150ed30676ee1ee"
+    },
+    {
+      "path": "device/fido/win/authenticator.cc",
+      "sha256": "ccb4284d04778c4bd815cc5d8942a900f59984fbfea26de5b95ecd7c9be54739"
+    },
+    {
+      "path": "device/fido/win/authenticator.h",
+      "sha256": "ef8cb08fbae919fcae0bf41f8da62e07ad2221d7cdafc7701d92fc9c305fbd6b"
+    },
+    {
+      "path": "device/fido/win/authenticator_unittest.cc",
+      "sha256": "fb39a8825da6633ebaf2a830a9fefcf5138667ce3622a4a0340c871d5071f1c0"
+    },
+    {
+      "path": "extensions/browser/extension_util.cc",
+      "sha256": "596e1f6491cfd8eb309a34d7ba778371d880577b4032a3c71ddedc5e2e377796"
+    },
+    {
+      "path": "extensions/browser/extension_util.h",
+      "sha256": "38ea3286b22889f79387b8c5b35e092da7361187f3a6e2db66ed6be27ecc42eb"
+    },
+    {
+      "path": "extensions/browser/updater/extension_downloader.cc",
+      "sha256": "2a7a698df07ff1c4236d4d89e173db6a347949493ce1538e0c84f06555c2209f"
+    },
+    {
+      "path": "extensions/browser/webstore_installer.cc",
+      "sha256": "a68dd374a2e5141f37e904b781720f6b03ac4124f7576379bb3761c72f504cb8"
+    },
+    {
+      "path": "extensions/common/extension_urls.cc",
+      "sha256": "23267c51724e35d4e665ede0dc0e4ed3df87bba075dfd1994263c2785fd65137"
+    },
+    {
+      "path": "google_apis/gaia/gaia_auth_fetcher.cc",
+      "sha256": "8dec1909a6040d488ae7fd40f6be3cd698b6555cf300cb68c7a292222d791ab7"
+    },
+    {
+      "path": "net/base/url_util.cc",
+      "sha256": "dc31de78a9a9b03fe24ea42e8876aa95bba86a3a30da17429397bae403db6e3f"
+    },
+    {
+      "path": "third_party/blink/common/device_memory/approximated_device_memory.cc",
+      "sha256": "2a3bd1c5250808355b6eea60fb13f15db565b8eba0a78f7fd0ea3ad718da4d8a"
+    },
+    {
+      "path": "third_party/blink/renderer/core/dom/element.cc",
+      "sha256": "25e710bcfe7d5e12c60a9865df51f2639a3432562f8902dfa6b8d002bbf7e6c5"
+    },
+    {
+      "path": "third_party/blink/renderer/core/dom/range.cc",
+      "sha256": "30e5d1dabf98c2f401e6d738cc675bb8639a9bc01b86e14bc2e2c786a650d856"
+    },
+    {
+      "path": "third_party/blink/renderer/core/execution_context/navigator_base.cc",
+      "sha256": "64b29bb294db26511bd68cb304837bca69fd13b16daf318eae6efbe0565d944b"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc",
+      "sha256": "7b689c17f7007b7e342412cb27165111fe6b5db8672ac27b8b9fc1ea0f432928"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/navigator_device_memory.cc",
+      "sha256": "69c4a6d2796ecefbb8ebeab82f866da33b5eda285612f9125d7242ed4a6bc993"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc",
+      "sha256": "78f9d35b6a5258374137b42d5da43879865949adf5a5f2a8c9c0e4da1ec400bb"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h",
+      "sha256": "05e25b00c82e88d54c8c43a6eb4bd7fa6e8d9ec8de68535e75e4d5aa7cb60a93"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.cc",
+      "sha256": "61b5037c3338e7357d3da59106287193dff69f8e4786c33ef3c62d136f710016"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h",
+      "sha256": "367d2dee24900243a071a6a405ff26565185a467a77e17dc6dfcd390107fbba5"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc",
+      "sha256": "1139828ae23f13795abc6834147e0d09a1877a76ab02abefc85397d373eac532"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/canvas/text_metrics.cc",
+      "sha256": "79b5d44135a15dcbdf3ef0ee21f935bf9d7bdad56e850f02fc7c37f87a5956f1"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/canvas/text_metrics.h",
+      "sha256": "b07e9b85adcc39efaeb06cc16cd350c6c03e5cffb024caab7dc37c31c8b2a311"
+    },
+    {
+      "path": "third_party/blink/renderer/core/html/html_element.cc",
+      "sha256": "6f5fe46e88811afcafca42a50921ed727479a37318fea331cd3027a265dddfb0"
+    },
+    {
+      "path": "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc",
+      "sha256": "f9ca66537fd6fd801cf42bcd44e6d792d7be9925aa5dde56cab883eaa649ce78"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+      "sha256": "b1a585af7d42fd00bce4c88b3f1740357b1403347533c0781818035a9dac44e8"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/canvas/canvas2d/canvas_2d_recorder_context.cc",
+      "sha256": "a0f5a65e3ef1635cc0c77e668d204e27f25fee7f1a819f8f3b7c782a5f7c769a"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/canvas/canvas2d/canvas_2d_recorder_context.h",
+      "sha256": "d5ee01c74e25386445ae02d778c3d5395fd3ece9a763476c9efbc33388b10040"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/font_access/font_access.cc",
+      "sha256": "203279ea03fcdbed64d51e221c101dc423d640fbb92b3eb7f767b80117b16bb8"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/mediastream/media_devices.cc",
+      "sha256": "97924ee855f139c8910f6bca97336fd8b94a948c9cc80763ba5783ce64b581af"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/sensor/accelerometer.cc",
+      "sha256": "34b5005ef0222a8b8a47c49e8119765d22b26a8e4298f50db68580c536aee645"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/speech/speech_synthesis.cc",
+      "sha256": "45010311b4a0f2cd53b58196deff36410ff58d22b2eeda7270ad13c1b0cd8aeb"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/audio_buffer.cc",
+      "sha256": "0bcbb8f5b03f4a82130e11d25f2086e0a7ad69ef6e80536ed209029422179e25"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/audio_context.cc",
+      "sha256": "75a05b4e37281c254a07c4ed5df19ec3fc244db895127250bba494570c9f2317"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/audio_node.cc",
+      "sha256": "c158acb7bb03920f2fc24e156de13ef36e8bc3b298b36fd8579b5cdecbfe9e53"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/base_audio_context.cc",
+      "sha256": "3b17df25a70b2ecd45e88210a99ec1ce8b51e33d6177806de6700a4f94629eeb"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/base_audio_context.h",
+      "sha256": "07985a53804b5b88174c63fb7b02013408fb8436ec4a415c0af67fbc7cd8f55f"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/dynamics_compressor_node.cc",
+      "sha256": "eedd53f7271b2b3eae9e049394e9f64a373ca60246a2220d2aa97633b34dbbec"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/offline_audio_context.cc",
+      "sha256": "9a3f187234fa65e608e6ef607a66d264b9e0348a1677dca7cad94f8ba2e1180e"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/offline_audio_context.h",
+      "sha256": "31deaa6969314d5b972ec969c3badc2a806a452dda75412b0fc9e0a53057ed6b"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/oscillator_node.cc",
+      "sha256": "197b557d0bff171dc92e019afb7328e98ac4a93dbf07b86376a6224f1d82f5f5"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/realtime_analyser.cc",
+      "sha256": "2ee5a2c615607a56fbbfe07459f5c006ca7adc22d9c50f4a3af3a09b93c8a39f"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.cc",
+      "sha256": "8b2a30ca6eee49295983b831e023cc30f3f20d0e68a892d1000bc8e2b3b72c15"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.h",
+      "sha256": "5ea0211359c95ce980e90907db74013f06764ffb0b0284a1b32818b5428a0320"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
+      "sha256": "9a8353bb01de09cd3ebc4f77ca5c370eca50116d7e41fb4f14580aac78ccfb0c"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
+      "sha256": "14563edf0e6c7afb72c65aa4ec2e2e29b02efce92ac117c574de6c2184b7bb01"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgpu/gpu_adapter.cc",
+      "sha256": "adce5605571613435cfe5c3ebe7f27271f0f8feb443138b72a934d13b687b6bf"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgpu/gpu_adapter.h",
+      "sha256": "ce1b70c8402ad5069a85e7e2112e2926d4474b7a31fe32b7dbe58e47ef760ab3"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc",
+      "sha256": "b1407eaf37534105c6aec343297aba15cb8b97f28913ed3af58384f509a46969"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgpu/gpu_device.cc",
+      "sha256": "439cbf1309668f21deaf9e2724999173a655f07ac994e20f320924242a25b245"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgpu/gpu_device.h",
+      "sha256": "2496505aea7f5b250590384dff3962c173dc993c2d3770c38904d79241b53fd2"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc",
+      "sha256": "bc66f4a361900cc08a88538c8e72b53506cee15635e719a80d308c4336aab1ec"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h",
+      "sha256": "bfa7914336fe95cfc4c717d4022eceb62fce8aba4339c269bcb0f8733cca4dad"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/BUILD.gn",
+      "sha256": "5efc0784d4167a251ba5c206c9b6492ca4a6f9aa3f5f01d7cc19256eaa62118b"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/fonts/font_cache.cc",
+      "sha256": "2abe24f0e33a953222bc5dea8c2d43015124a2b87353216aa2cfd4092c4f7410"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/fonts/font_cache.h",
+      "sha256": "ce23838b223e37fc2a1e3933b3da5ed9478e07f0c9c2fef956ff28c95fa0248e"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc",
+      "sha256": "dc50ccb8cf8351d32d83cb50099b2e2cfd24a0f94b5109875b406c5cce03de12"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.cc",
+      "sha256": "dddd84bead7cf84b5806a05be5c8d34de97194c1fdded10735888c50fe1ace3f"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.h",
+      "sha256": "ed326c9490b60d86715f932f7a74c0bf7572fec674e9b8fa33957a16a6c1df91"
+    }
+  ],
+  "pruning_list_sha256": "13d91cb1bc89f8aae1d7b54b519accbcbf7a5fa087562977f265b4d641568a01",
+  "baseline_pruned_sources": [
+    "components/signin/public/base/signin_pref_names.cc",
+    "components/signin/public/base/signin_pref_names.h"
+  ],
+  "restored_pruned_sources": [
+    "components/signin/public/base/signin_pref_names.cc",
+    "components/signin/public/base/signin_pref_names.h"
+  ],
+  "removed_pruned_includes": {
+    "chrome/browser/extensions/api/settings_private/prefs_util.cc": [
+      "components/safe_browsing/core/common/safe_browsing_prefs.h"
+    ],
+    "chrome/browser/policy/configuration_policy_handler_list_factory.cc": [
+      "components/safe_browsing/core/common/safe_browsing_prefs.h"
+    ],
+    "chrome/browser/prefs/chrome_pref_service_factory.cc": [
+      "components/safe_browsing/core/common/safe_browsing_prefs.h"
+    ],
+    "chrome/browser/ui/hats/trust_safety_sentiment_service.cc": [
+      "components/safe_browsing/core/common/safe_browsing_prefs.h"
+    ]
+  },
+  "patch_sha256": "f2b358314bbc9c934a873ca91a5abdf30c4519095e372c6f43b378a34199af39",
+  "qualification": "Source replay only; requires native build and actual account tests"
+}

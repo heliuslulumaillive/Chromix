@@ -1,0 +1,90 @@
+diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+--- a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
++++ b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+@@ -1264,6 +1264,16 @@
+ 
+ void BaseRenderingContext2D::fillText(const String& text, double x, double y) {
+   RecordBridgeOp(20u, text.Utf8(), {x, y});
++  if (auto* host = GetCanvasRenderingContextHost()) {
++    if (auto* context = host->RenderingContext();
++        context && context->UxrShouldRecordReference()) {
++      const double coords[]{x, y};
++      context->UxrRecordReference(base::UxrCloakOpStream::kMain,
++          {"fillText",
++           this->font().Utf8(), text.Utf8(),
++           base::UxrCloakFormatNumbers(base::span<const double>(coords)), "", "", ""});
++    }
++  }
+   CanvasRenderingContext2DState& state = GetState();
+   DrawTextInternal(text, x, y, CanvasRenderingContext2DState::kFillPaintType,
+                    state.GetTextAlign(), state.GetTextBaseline(), 0,
+@@ -1275,6 +1285,16 @@
+                                       double y,
+                                       double max_width) {
+   RecordBridgeOp(20u, text.Utf8(), {x, y, max_width});
++  if (auto* host = GetCanvasRenderingContextHost()) {
++    if (auto* context = host->RenderingContext();
++        context && context->UxrShouldRecordReference()) {
++      const double coords[]{x, y, max_width};
++      context->UxrRecordReference(base::UxrCloakOpStream::kMain,
++          {"fillText",
++           this->font().Utf8(), text.Utf8(),
++           base::UxrCloakFormatNumbers(base::span<const double>(coords)), "", "", ""});
++    }
++  }
+   CanvasRenderingContext2DState& state = GetState();
+   DrawTextInternal(text, x, y, CanvasRenderingContext2DState::kFillPaintType,
+                    state.GetTextAlign(), state.GetTextBaseline(), 0,
+@@ -1322,6 +1342,16 @@
+                                         double x,
+                                         double y) {
+   RecordBridgeOp(21u, text.Utf8(), {x, y});
++  if (auto* host = GetCanvasRenderingContextHost()) {
++    if (auto* context = host->RenderingContext();
++        context && context->UxrShouldRecordReference()) {
++      const double coords[]{x, y};
++      context->UxrRecordReference(base::UxrCloakOpStream::kMain,
++          {"strokeText",
++           this->font().Utf8(), text.Utf8(),
++           base::UxrCloakFormatNumbers(base::span<const double>(coords)), "", "", ""});
++    }
++  }
+   CanvasRenderingContext2DState& state = GetState();
+   DrawTextInternal(text, x, y, CanvasRenderingContext2DState::kStrokePaintType,
+                    state.GetTextAlign(), state.GetTextBaseline(), 0,
+@@ -1333,6 +1363,16 @@
+                                         double y,
+                                         double max_width) {
+   RecordBridgeOp(21u, text.Utf8(), {x, y, max_width});
++  if (auto* host = GetCanvasRenderingContextHost()) {
++    if (auto* context = host->RenderingContext();
++        context && context->UxrShouldRecordReference()) {
++      const double coords[]{x, y, max_width};
++      context->UxrRecordReference(base::UxrCloakOpStream::kMain,
++          {"strokeText",
++           this->font().Utf8(), text.Utf8(),
++           base::UxrCloakFormatNumbers(base::span<const double>(coords)), "", "", ""});
++    }
++  }
+   CanvasRenderingContext2DState& state = GetState();
+   DrawTextInternal(text, x, y, CanvasRenderingContext2DState::kStrokePaintType,
+                    state.GetTextAlign(), state.GetTextBaseline(), 0,
+@@ -1424,18 +1464,6 @@
+     return;
+   }
+ 
+-  if (auto* host = GetCanvasRenderingContextHost()) {
+-    if (auto* context = host->RenderingContext();
+-        context && context->UxrShouldRecordReference()) {
+-      const double coords[]{x, y, max_width ? *max_width : 0};
+-      context->UxrRecordReference(base::UxrCloakOpStream::kMain,
+-          {paint_type == CanvasRenderingContext2DState::kFillPaintType
+-               ? "fillText" : "strokeText",
+-           this->font().Utf8(), text.Utf8(),
+-           base::UxrCloakFormatNumbers(base::span<const double>(
+-               coords, max_width ? 3u : 2u)), "", "", ""});
+-    }
+-  }
+   // FIXME: Need to turn off font smoothing.
+ 
+   const CanvasRenderingContext2DState& state = GetState();

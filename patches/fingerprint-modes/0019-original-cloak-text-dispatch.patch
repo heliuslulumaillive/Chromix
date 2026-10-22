@@ -1,0 +1,17 @@
+diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+--- a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
++++ b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+@@ -1628,11 +1628,12 @@
+       }
+     } else if (canvas) {
+       text_metrics->Shuffle(canvas->GetDocument().GetNoiseFactorX());
+     }
+   }
+-  if (text_policy.mode == base::UxrSurfaceMode::kCloak)
++  if (text_policy.mode == base::UxrSurfaceMode::kCloak ||
++      text_policy.mode == base::UxrSurfaceMode::kCloakOriginal)
+     text_metrics->ApplyUxrSurfaceMode(this->font());
+   else if (text_policy.mode == base::UxrSurfaceMode::kShardX)
+     text_metrics->ApplyUxrSurfaceMode(String());
+   return text_metrics;
+ }

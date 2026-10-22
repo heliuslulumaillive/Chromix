@@ -526,6 +526,7 @@ export const BASIC_SCENARIOS = new Set([
 export const ORIGINAL_RUNTIME_SURFACES = [
   "canvas_pixels", "webgl_pixels", "canvas_references", "webgl_references",
   "text", "fonts", "audio", "voices", "webgpu_identity", "webgpu_features", "webgpu_limits", "memory",
+  "webgl_identity", "webgl_capabilities", "webgl_precision", "webgl_extensions", "webgl_translated_shaders",
 ];
 export function originalRuntimeScope() {
   return {

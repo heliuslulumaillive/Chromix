@@ -1,0 +1,30 @@
+diff --git a/third_party/blink/renderer/core/css/resolver/style_builder_converter.cc b/third_party/blink/renderer/core/css/resolver/style_builder_converter.cc
+--- a/third_party/blink/renderer/core/css/resolver/style_builder_converter.cc
++++ b/third_party/blink/renderer/core/css/resolver/style_builder_converter.cc
+@@ -32,6 +32,7 @@
+ 
+ #include "base/containers/adapters.h"
+ #include "base/notreached.h"
++#include "base/uxr_config.h"
+ #include "build/build_config.h"
+ #include "third_party/blink/renderer/core/css/basic_shape_functions.h"
+ #include "third_party/blink/renderer/core/css/css_alpha_color_value.h"
+@@ -549,6 +550,18 @@
+       // If system-ui comes before BlinkMacSystemFont don't use-count.
+       count_blink_mac_system_font = false;
+     }
++#else
++    // Original Cloak155 applies the Mac family-name alias in the complete CSS
++    // conversion path. Keep kFamilyName (including serialization quotes) and
++    // list order; this is independent of TextMetrics reference substitution.
++    if (IsA<CSSFontFamilyValue>(*family) &&
++        family_name == font_family_names::kBlinkMacSystemFont) {
++      const auto original_modes = base::UxrConfig::GetInstance().SurfaceModes();
++      if (original_modes.fonts.mode == base::UxrSurfaceMode::kCloakOriginal &&
++          original_modes.platform == "macos") {
++        family_name = font_family_names::kSystemUi;
++      }
++    }
+ #endif
+ 
+     if (desc.generic_family == FontDescription::GenericFamilyType::kNoFamily) {

@@ -1,0 +1,69 @@
+diff --git a/base/BUILD.gn b/base/BUILD.gn
+--- a/base/BUILD.gn
++++ b/base/BUILD.gn
+@@ -6685,6 +6685,7 @@
+       "uxr_cloak_reference_goldens.cc",
+       "uxr_original_audio_goldens.cc",
+       "uxr_original_webgl_goldens.cc",
++      "uxr_original_webgl_translated_goldens.cc",
+       "uxr_surface_golden_tests.cc",
+       "uxr_gpu_mode_golden_tests.cc",
+       "uxr_hardware_golden_tests.cc",
+diff --git a/base/uxr_original_webgl_translated_goldens.cc b/base/uxr_original_webgl_translated_goldens.cc
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_original_webgl_translated_goldens.cc
+@@ -0,0 +1,34 @@
++// Native source checks of original public diagnostic strings only.
++#include <cstdio>
++#include <initializer_list>
++#include <iterator>
++#include "base/uxr_original_webgl_translated.h"
++#include "base/uxr_original_webgl_translated_test_vectors.h"
++
++int RunOriginalWebGLTranslatedGoldenTestsV2() {
++  unsigned checks = 0;
++  unsigned failures = 0;
++  static_assert(std::size(base::kUxrOriginalWebGLTranslatedVectorsV2) == 26);
++  for (const auto& row : base::kUxrOriginalWebGLTranslatedVectorsV2) {
++    ++checks;
++    const auto actual = base::UxrOriginalWebGLTranslatedShaderV2(
++        row.platform, row.vertex, row.source);
++    if (!actual || *actual != row.expected) {
++      ++failures;
++      std::fprintf(stderr, "Original translated diagnostic mismatch: %s\n", row.name);
++    }
++  }
++  for (const char* platform : {"linux", "unknown", ""}) {
++    for (bool vertex : {false, true}) {
++      ++checks;
++      if (base::UxrOriginalWebGLTranslatedShaderV2(
++              platform, vertex, "void main(){}").has_value()) {
++        ++failures;
++        std::fprintf(stderr, "Original translated native fallback mismatch\n");
++      }
++    }
++  }
++  std::printf("{\"original_webgl_translated_checks\":%u,\"failures\":%u}\n",
++              checks, failures);
++  return failures ? 1 : 0;
++}
+diff --git a/base/uxr_surface_modes_test_main.cc b/base/uxr_surface_modes_test_main.cc
+--- a/base/uxr_surface_modes_test_main.cc
++++ b/base/uxr_surface_modes_test_main.cc
+@@ -14,6 +14,7 @@
+ int RunCloakReferenceGoldenTests();
+ int RunOriginalCloakAudioGoldenTests();
+ int RunOriginalWebGLPublicGoldenTestsV2();
++int RunOriginalWebGLTranslatedGoldenTestsV2();
+ int RunSurfaceGoldenTests();
+ int RunGpuModeGoldenTests();
+ int RunHardwareGoldenTests();
+@@ -488,6 +489,7 @@
+     Check(RunOriginalCloakAudioGoldenTests() == 0, "original captured audio selectors");
+     OriginalExtendedPolicyChecks();
+     Check(RunOriginalWebGLPublicGoldenTestsV2() == 0, "original public WebGL captured selectors");
++    Check(RunOriginalWebGLTranslatedGoldenTestsV2() == 0, "original translated public diagnostic strings");
+     OriginalWebGLPublicPolicyChecks();
+   } else if (argc == 2 && std::string(argv[1]) == "--config-chromix") {
+     ExistingAlgorithmChecks();

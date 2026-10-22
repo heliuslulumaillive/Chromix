@@ -3,7 +3,7 @@
   "build_variant": "fingerprint-modes-win155",
   "chromium_version": "155.0.8059.39",
   "strategy_version": 2,
-  "new_strategy_flavor": "compatible-v1",
+  "new_strategy_flavor": "independent-original-v2-public-webgl-and-observed-callers",
   "kind": "source_contract",
   "acceptance": "Source capabilities only. Compiled/native/browser parity is carried by separate exact-DLL reports; never infer runtime acceptance from this file.",
   "legacy": {
@@ -260,20 +260,10 @@
         "cloak-original": 2
       },
       "original": {
-        "requires": "Explicit v2 and a finite memory value in [0.25,32] GiB; the existing nearest-bucket getter is reused.",
-        "buckets_gib": [
-          0.25,
-          0.5,
-          1,
-          2,
-          4,
-          8,
-          16,
-          32
-        ],
+        "requires": "Explicit v2 and an explicit finite positive memory value whose conversion to binary32 stays finite and strictly positive. No nearest-bucket conversion.",
         "off": "Master off clears persona fields before renderer snapshot; this original getter also explicitly falls back to native when the off marker is set.",
         "scope": "Window/iframe and WorkerNavigator share the JS mixin; browser/client-hint memory remains the native approximation. Does not change allocator or V8 heap.",
-        "source_checks": "32 exact getter/normalizer checks with synthetic dependency stores; not browser acceptance.",
+        "source_checks": "187 exact getter/admission/source checks with explicit dependency doubles; 25 captured valid realm values checked. This is not new candidate browser acceptance.",
         "candidate_runtime_accepted": false,
         "runtime_required": [
           "Window",
@@ -284,7 +274,23 @@
           "Device-Memory header",
           "Sec-CH-Device-Memory header",
           "master off control"
-        ]
+        ],
+        "typed_input_constraints": {
+          "finite": true,
+          "positive": true,
+          "maximum_input": 3.4028234663852886e+38,
+          "float32_result_finite": true,
+          "float32_result_positive": true
+        },
+        "raw_invalid_difference": "Original raw 0/-1/NaN/Infinity returned the seed-selected value8 in this observed seed12345 setup. Product typed configuration rejects these and float overflow/underflow-to-zero; rejection is not an original-output parity pass.",
+        "value_semantics": "The JS getter returns static_cast<float>(value), including nonbucket values. Custom/native/legacy paths and browser Client-Hints approximation remain unchanged.",
+        "original_valid_runtime_examples": {
+          "0.125": 0.125,
+          "3": 3,
+          "3.5": 3.5,
+          "64": 64,
+          "1.23456789": 1.2345678806304932
+        }
       }
     },
     "screen": {
@@ -487,7 +493,9 @@
       },
       "noise_controls": "false/raw bypass ordinary LSB; reference bank survives false and bypasses raw.",
       "evidence": "tools/tests/fixtures/cloak-original-pixels-v1/provenance.json",
-      "acceptance": "Source/goldens are not native browser acceptance. Requires exact compiled DLL paired runtime before launcher enrollment."
+      "acceptance": "Source/goldens are not native browser acceptance. Requires exact compiled DLL paired runtime before launcher enrollment.",
+      "opaque_put_image_data": "Only canvas cloak-original with master off excluded bypasses the product opaque-alpha sanitation copy and follows existing native PutByteArray for every format. Input crop/destination and other modes retain their existing behavior. Source change requires new-DLL RGBA8/F16 and exported sample acceptance.",
+      "text_operation_recorder": "Original reference logging occurs in the four public fillText/strokeText wrappers before native paint/font/maxWidth/finite-value drawing checks. Drawing validations still run; internal text-cluster calls do not invent those public operations. Matcher/data are unchanged."
     }
   },
   "gpu": {
@@ -506,7 +514,8 @@
     "webgl_capabilities_flag": "fingerprint-webgl-capabilities-mode",
     "webgl_capabilities_modes": [
       "native",
-      "custom"
+      "custom",
+      "cloak-original"
     ],
     "webgl_custom_limits": [
       "uxr-webgl-max-texture-size",
@@ -542,7 +551,8 @@
       "fingerprint-webgl-identity-mode": [
         "native",
         "custom",
-        "cloak"
+        "cloak",
+        "cloak-original"
       ],
       "fingerprint-webgpu-identity-mode": [
         "native",
@@ -569,6 +579,95 @@
         "Driver-specific shader/resource/error parity"
       ],
       "candidate_runtime_accepted": false
+    },
+    "webgl_precision_flag": "fingerprint-webgl-precision-mode",
+    "webgl_precision_modes": [
+      "native",
+      "cloak-original"
+    ],
+    "webgl_extensions_flag": "fingerprint-webgl-extensions-mode",
+    "webgl_extensions_modes": [
+      "native",
+      "custom",
+      "cloak-original"
+    ],
+    "webgl_extensions_independent": {
+      "configuration_version": 2,
+      "custom": "Requires an explicit allowlist field; empty CSV denies all. Nonempty comma-separated ASCII extension identifiers, optional surrounding ASCII whitespace. Intersection with actual registered support/draft/developer/disabled conditions. Independent of capabilities mode.",
+      "native": "Keeps real support; rejects simultaneous explicit allowlist.",
+      "original": "Independent original shared support selector; rejects simultaneous allowlist.",
+      "legacy": "With extensions-mode omitted, old capabilities-custom/list semantics and version1 argv remain unchanged. Original caps may also use this legacy list route.",
+      "combinations": "Capabilities native/custom/original with explicit extensions custom are all supported. Numeric custom limits conflict only with original capabilities, not with original extensions.",
+      "custom_exact_dll_gate": "independentWebglExtensionFilter",
+      "candidate_runtime_accepted": false
+    },
+    "original_webgl": {
+      "required_configuration_version": 2,
+      "independent_flags": [
+        "fingerprint-webgl-identity-mode",
+        "fingerprint-webgl-capabilities-mode",
+        "fingerprint-webgl-precision-mode",
+        "fingerprint-webgl-extensions-mode"
+      ],
+      "mode": "cloak-original",
+      "mode_version_notes": "New precision/extensions fields require version2 for every explicit value. Existing identity/capabilities native/custom version1 inputs remain valid.",
+      "seed": "Identity/capabilities require a canonical nonzero uint64 global seed. Precision/extensions do not consume seed. No new per-domain seed or amount fields.",
+      "profile": "Separate original public WebGL snapshot; CPU/RAM/WebGPU selectors are untouched. Default NVIDIA display index does not redirect0/2. Explicit Windows aliases use ordered matching and only unknown recognized-family fallback uses an empty seed for display. WindowsIntel sample architecture independently uses raw input and the global seed. A display index of-1 represents unknown raw passthrough, not a fabricated GPU model.",
+      "platforms": [
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "identity": "Explicit original public vendor/renderer presentation also applies to software contexts; this differs from the old hardware-only identity guard and never attests actual GPU hardware.",
+      "renderer_input": "Optional bounded nonempty UTF8 renderer text. Exact ANGLE ( prefix passes through. Windows uses Intel-first family recognition, complete ASCII-insensitive device-ID pass then model pass; direct matches includingNVIDIA0/2 are kept. Linux matches case-sensitive NVIDIA device IDs then models and wraps the original raw string. Mac and unknown nonempty neutral names pass through. Product typed empty renderer is rejected; original raw empty renderer uses the native getter, so rejection is not an output parity pass.",
+      "capabilities": "Recovered GL1/GL2 scalar queries, cached 2D texture/renderbuffer/viewport limits, typed arrays, and original method-specific driver dimension clamps. Real cube-map, vertex-attrib, dynamic framebuffer/state, invalid-enum, lost-context and unhandled query paths retained.",
+      "dimensions": [
+        "TexImageBase 2D/sub/3D/array width/height submission",
+        "compressedTexImage2D and compressedTexSubImage2D width/height submission",
+        "copyTexImage2D",
+        "texStorage2D including mip levels",
+        "texStorage3D TEXTURE_2D_ARRAY width/height and levels only; true3D/depth native",
+        "renderbuffer storage and stored width/height presentation"
+      ],
+      "samples": "Case-sensitive M5 / Windows Intel gen9 public MAX_SAMPLES and validated internalformat sample lists. Requested samples are clamped only when positive, within advertised max, and above positive native max; the requested count is then retained for the public RBO getter. Requests above advertisement still reach the real backend. Does not prove physical sample count.",
+      "precision": "LOW/MED FLOAT and INT tuples after native shader/type/lost validation. HIGH remains the actual driver query.",
+      "extensions": "One selector is consumed by enumeration and getExtension object lookup. Windows allowlist and Apple extra compression objects follow original early decisions. Registered native extension constructors and native driver errors remain; observed Apple compressed upload INVALID_ENUM is not converted to decoder support.",
+      "noise": "These public policies are independent of noise true/false/raw.",
+      "master_off": "Product global off remains native. Original binary base/GL2 switch-presence/off behavior differs and is not claimed equivalent.",
+      "exact_dll_gates": [
+        "originalCloakWebglIdentity",
+        "originalCloakWebglCapabilities",
+        "originalCloakWebglPrecision",
+        "originalCloakWebglExtensions"
+      ],
+      "pixel_reference_independence": "No dependence on WebGL pixel or reference-bank gates. Public policy does not certify pixel/reference parity.",
+      "pending": [
+        "Exact combined Chromium/Blink compilation",
+        "Exact-DLL Window/Worker public metadata, alias, resource/error and translated diagnostic acceptance",
+        "Unobserved extension method/resource/driver behavior"
+      ],
+      "candidate_runtime_accepted": false,
+      "source_original_alias_evidence": {
+        "originalCases": 38,
+        "nonemptyExactContexts": 148,
+        "emptyRawNativeFallbackContexts": 4,
+        "independentSampleCases": 4,
+        "sampleRealms": 8,
+        "sampleMetadataOnly": true,
+        "newCandidateRuntimeAccepted": false
+      },
+      "translated_shader_diagnostics": {
+        "mode": "fingerprint-webgl-extensions-mode=cloak-original",
+        "platforms": [
+          "windows",
+          "macos"
+        ],
+        "scope": "Recovered public diagnostic HLSL/Metal string generation from GLSL text. Existing explicit disable-translated-shaders, context loss and shader-object validation retain priority. Linux and other modes use real native GLStringQuery. This does not compile/execute HLSL/Metal or add backend capabilities.",
+        "source_checks": 32,
+        "original_unique_output_vectors": 26,
+        "native_fallback_checks": 6,
+        "candidate_runtime_accepted": false
+      }
     }
   },
   "media_counts": {
@@ -669,7 +768,7 @@
     {
       "surface": "sensors/shardx",
       "policy": "acceleration-bias-compatible-v1",
-      "change": "Only Accelerometer/LinearAccelerationSensor/GravitySensor; shared parser defaults new Auto amount to0.1m/s\u00b2. Explicit0 remains no bias; legacy defaults unchanged.",
+      "change": "Only Accelerometer/LinearAccelerationSensor/GravitySensor; shared parser defaults new Auto amount to0.1m/s². Explicit0 remains no bias; legacy defaults unchanged.",
       "limits": "No sensor fabrication, gyro/orientation/event rewriting, or Android hardware claim."
     },
     {
@@ -706,7 +805,7 @@
   "original_pixel_mode": "cloak-original",
   "configuration_versions": {
     "1": "Existing native/Chromix/ShardX/compatible Cloak only; unchanged.",
-    "2": "Explicit cloak-original opt-in for the listed original surfaces and separate WebGPU fields. Existing modes retain their v1 behavior."
+    "2": "Explicit original surfaces, separate WebGPU/public-WebGL policies and independent WebGL extension filtering. Existing version1 values retain their previous behavior."
   },
   "original_strategy_contract": {
     "mode": "cloak-original",
@@ -721,7 +820,7 @@
     ],
     "configuration_migration": false,
     "automatic_activation": false,
-    "seed_input_scope": "Used canvas/webgl/fonts effective seeds must be canonical nonzero uint64 decimal; leading-zero spellings are rejected, never rewritten. Existing v1/compatible seed admission is unchanged.",
+    "seed_input_scope": "Used canvas/webgl/fonts effective seeds must be canonical nonzero uint64 decimal; leading-zero spellings are rejected, never rewritten. Existing v1/compatible seed admission is unchanged. Original public WebGL identity/capabilities global seed is likewise canonical; no silent rewriting.",
     "global_hardware_seed_scope": "The pre-existing hardware-profile API is unchanged; noncanonical raw seed spelling parity is not claimed.",
     "unused_companions_rejected": {
       "text": [
@@ -738,12 +837,17 @@
       ],
       "fonts": [
         "amount"
+      ],
+      "public_webgl": [
+        "per-domain mode-seed",
+        "amount"
       ]
     },
     "runtime_acceptance_required": true,
     "candidate_runtime_accepted": false,
-    "global_off_scope": "Preserved all-native master-off semantics. The original target still returns its voice metadata on master off; that is a declared difference, not a parity pass.",
-    "build_time_runtime_scope": "The existing 25-group compatible runtime matrix does not establish acceptance for these new original consumers."
+    "global_off_scope": "Preserved all-native master-off semantics. The original target still returns its voice metadata on master off; that is a declared difference, not a parity pass. Original WebGL GL2 presence gates also differ; product global off stays native.",
+    "build_time_runtime_scope": "The existing 25-group compatible runtime matrix does not establish acceptance for these new original consumers.",
+    "source_revision": "Observed public WebGL, diagnostic/alias consumers, original caller/opaque-memory/font fixes; existing version1 algorithms remain unchanged."
   },
   "original_metadata": {
     "text": {
@@ -751,7 +855,8 @@
       "selection": "Exact serialized font/text key, positive native width for nonempty text; Mac normalization follows the captured original key rule.",
       "effect": "Nine stored metrics with corresponding em height and baselines; no glyph rendering or font installation.",
       "noise_controls": "false retains; raw bypasses",
-      "candidate_runtime_accepted": false
+      "candidate_runtime_accepted": false,
+      "source_call_path": "The original branch is dispatched from measureText with the serialized font getter; native/compatible/shard call paths retain their previous selection."
     },
     "voices": {
       "selection": "Full captured reference metadata pool by persona/locale/SAPI option at the native voices notification boundary.",
@@ -811,12 +916,41 @@
       "Exact 54/72 thresholds lack distinct positive real-font samples",
       "Missing assets and shared fallback do not count as successful parity"
     ],
-    "candidate_runtime_accepted": false
+    "candidate_runtime_accepted": false,
+    "generic_selection": "Original-only FontSelector availability checks prefer Windows monospace Consolas and math Cambria Math; Mac standard/body/serif/sans/cursive/fantasy use recovered preferred families only when actually available. Quoted/generic guards, script settings and native fallback remain.",
+    "mac_family_alias": "On non-native-Mac builds, fonts-original Mac persona converts exact CSSFontFamilyValue BlinkMacSystemFont to system-ui while preserving family-name kind, serialization quotes and list order. Native Mac compilation keeps its original platform branch; TextMetrics-only selection does not enable this."
   },
   "native_source_checks": {
     "original_pixel_checks": 78,
     "original_reference_checks": 2660,
     "original_audio_checks": 337,
-    "qualification": "Pure/source tests only; exact-DLL browser parity remains a separate required report."
+    "qualification": "Pure/source tests only; exact-DLL browser parity remains a separate required report.",
+    "original_webgl_public_checks": 4327,
+    "original_webgl_translated_checks": 32
+  },
+  "language_controls": {
+    "status": "existing_native_consumer_with_independent_typed_launcher_contract",
+    "typed_field": "languages",
+    "flag": "uxr-languages",
+    "shape": "1..32 ordered ASCII BCP47 tag strings, each at most255 bytes. Typed empty/invalid tags, und primary, canonical duplicates and conflicting raw uxr-languages/accept-lang inputs are rejected at save and launch. Existing raw normalization is unchanged.",
+    "existing_consumer": "CSV canonicalization/dedup, accept-lang propagation and renderer ICU first language already exist; no new C++ flag/consumer is introduced.",
+    "scalar_locale": "An explicit scalar locale retains the existing app lang/public fingerprint-locale relationship. Without a scalar locale the new list does not add --lang or public fingerprint-locale.",
+    "automation": "New typed languages path omits Playwright locale override so CDP does not collapse the list; the absent-field legacy path is unchanged.",
+    "exact_dll_gate": "independentLanguages",
+    "candidate_runtime_accepted": false,
+    "product_chain_accepted": false,
+    "original_strategy_dependency": false,
+    "pending": "Exact-DLL acceptance of the new typed save/compile/automation path remains required. The existing native consumer observations do not certify that new product chain.",
+    "header_semantics": "Chromium builds Accept-Language from the list, including base-language expansion and q weights; the header is not a verbatim CSV copy. Observed fr-FR,en-US produces fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7.",
+    "native_consumer_observations": "Existing387: two controlled lists across Window,iframe,dedicated/shared/service Worker (10realms), keeping scalar app/public localeen-US. JS language and Intl follow the first list tag, navigator.languages retains the list, and actual HTTP follows Chromium expansion. This does not certify the new typed save/compile/Playwright path.",
+    "voice_locale": "The list adds no voice-locale derivation. An explicit scalar keeps the existing voice locale; without a scalar the compatible/original Cloak voice policies retain their existing en-US default. Native voices keep their existing path. No voiceOptions.locale capability is introduced.",
+    "existing_native_evidence": {
+      "source_commit": "387a30633ad0dbbbaf6c7732060b951f80b03403",
+      "scenarios": 2,
+      "realms": 10,
+      "source_and_behavior_checks": 103,
+      "handoff_sha256": "21e6099490df347722ef8aacb17f72c000b3f8e89facd9499f85269352ccb378",
+      "new_typed_chain_accepted": false
+    }
   }
 }

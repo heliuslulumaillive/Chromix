@@ -1,0 +1,76 @@
+diff --git a/base/uxr_config.cc b/base/uxr_config.cc
+--- a/base/uxr_config.cc
++++ b/base/uxr_config.cc
+@@ -564,7 +564,15 @@
+     auto memory = cfg.find("uxr-device-memory");
+     double amount = 0;
+     if (memory == cfg.end() || !StringToDouble(memory->second, &amount) ||
+-        !std::isfinite(amount) || amount < 0.25 || amount > 32) {
++        !std::isfinite(amount))
++      return false;
++    if (mode->second == "cloak-original") {
++      // The original getter exposes a positive binary32 value, not the
++      // compatible nearest bucket. Reject values whose cast loses that domain.
++      if (amount <= 0 || amount > std::numeric_limits<float>::max() ||
++          static_cast<float>(amount) <= 0)
++        return false;
++    } else if (amount < 0.25 || amount > 32) {
+       return false;
+     }
+   }
+diff --git a/base/uxr_surface_modes_test_main.cc b/base/uxr_surface_modes_test_main.cc
+--- a/base/uxr_surface_modes_test_main.cc
++++ b/base/uxr_surface_modes_test_main.cc
+@@ -321,13 +321,13 @@
+     auto input = Input({{"uxr-surface-modes-version", "2"},
+                         {"uxr-memory-mode", "cloak-original"},
+                         {"uxr-device-memory", "8"}});
+-    Check(observe(input).accepted, "original memory accepts explicit v2 bucket input");
++    Check(observe(input).accepted, "original memory accepts explicit v2 raw numeric input");
+     Check(observe(input).snapshot == input, "original memory preserves exact sparse input");
+-    for (const char* value : {"0.25", "0.5", "1", "2", "4", "8", "16", "32"}) {
++    for (const char* value : {"0.125", "0.25", "0.5", "1", "2", "3", "3.5", "4", "8", "16", "32", "64", "1.23456789", "1e-45", "3.4028234663852886e38"}) {
+       input["uxr-device-memory"] = value;
+-      Check(observe(input).accepted, "original memory accepts supported bucket");
+-    }
+-    for (const char* value : {"", "0", "-1", "0.24", "32.01", "NaN", "Infinity", "junk"}) {
++      Check(observe(input).accepted, "original memory accepts positive representable binary32 conversion");
++    }
++    for (const char* value : {"", "0", "-1", "NaN", "Infinity", "junk", "1e-46", "3.4028236e38", "1e309", "-Infinity"}) {
+       input["uxr-device-memory"] = value;
+       Check(!observe(input).accepted, "original memory rejects invalid range or syntax");
+     }
+diff --git a/third_party/blink/renderer/core/frame/navigator_device_memory.cc b/third_party/blink/renderer/core/frame/navigator_device_memory.cc
+--- a/third_party/blink/renderer/core/frame/navigator_device_memory.cc
++++ b/third_party/blink/renderer/core/frame/navigator_device_memory.cc
+@@ -10,6 +10,7 @@
+ #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+ 
+ #include <cmath>  // UXR
++#include <limits>
+ #include <cstdlib>  // UXR
+ #include "base/command_line.h"  // UXR
+ #include "base/strings/string_number_conversions.h"  // UXR
+@@ -25,6 +26,22 @@
+     return ApproximatedDeviceMemory::GetApproximatedDeviceMemory();
+   if (mode == "native" || mode == "custom")
+     return ApproximatedDeviceMemory::GetApproximatedDeviceMemory();
++  if (mode == "cloak-original") {
++    double amount = 0;
++    if (base::StringToDouble(
++            base::UxrConfig::GetInstance().Get("uxr-device-memory"), &amount) &&
++        std::isfinite(amount) && amount > 0 &&
++        amount <= std::numeric_limits<float>::max()) {
++      const float value = static_cast<float>(amount);
++      if (value > 0)
++        return value;
++    }
++    // Admission rejects invalid explicit values. Keep a bounded defensive
++    // fallback here without changing any legacy or coherent-custom path.
++    const float seeded = base::UxrConfig::GetInstance().GetSeededDeviceMemory();
++    return seeded > 0 ? seeded :
++        ApproximatedDeviceMemory::GetApproximatedDeviceMemory();
++  }
+   // Public overrides report a memory bucket, not an allocator/heap limit.
+   double v = 0.0;
+   // Snap to Chromium's supported web-exposed memory buckets.

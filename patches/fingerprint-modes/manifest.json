@@ -89,18 +89,74 @@
       "path": "patches/fingerprint-modes/0017-original-cloak-opaque-webgl-png.patch",
       "sha256": "6e77977e18f075d8e7f6a5df74cec6270b2200cee1caa632da5105fe4e6ab41d",
       "files": 1
+    },
+    {
+      "path": "patches/fingerprint-modes/0018-original-cloak-webgl-public.patch",
+      "sha256": "3a9106121df4aa92510a8a5ea6adc222385a9c897dbcc5209f002c0560209e78",
+      "files": 14
+    },
+    {
+      "path": "patches/fingerprint-modes/0019-original-cloak-text-dispatch.patch",
+      "sha256": "12c6373182ce7edc34ff7adfabd47040e6d0c8bb731ceda83a05c9542f15490a",
+      "files": 1
+    },
+    {
+      "path": "patches/fingerprint-modes/0020-original-cloak-text-recorder-wrappers.patch",
+      "sha256": "701fafb885ab195b0afaffe35f21674de276ff8648fb4d56284bc779c9cdf076",
+      "files": 1
+    },
+    {
+      "path": "patches/fingerprint-modes/0021-original-opaque-upload.patch",
+      "sha256": "14f6cc3e8d45cbcbb817e9e321cc1106a0eb85509ffab41a20ed018953a91c72",
+      "files": 1
+    },
+    {
+      "path": "patches/fingerprint-modes/0022-original-cloak-raw-device-memory.patch",
+      "sha256": "4454084937691869b2280e878dc944f980fc80695a5296e1c0cd8a4a385f1b72",
+      "files": 3
+    },
+    {
+      "path": "patches/fingerprint-modes/0023-original-webgl-translated-shaders.patch",
+      "sha256": "0eef0e0d27d1398a32fbd254e55c3f38116a9c799031c1bda92d3db5ac6361f7",
+      "files": 6
+    },
+    {
+      "path": "patches/fingerprint-modes/0024-original-cloak-webgl-renderer-aliases.patch",
+      "sha256": "b9e550cce3fed777e0834a6815b77579df792be95704d4e9d74cb8b565307a0d",
+      "files": 5
+    },
+    {
+      "path": "patches/fingerprint-modes/0025-original-cloak-generic-font-selection.patch",
+      "sha256": "ca18f1c12e5650cd50a6c5b1e52fee947987bf1a34008807b8397ac51674fc6f",
+      "files": 1
+    },
+    {
+      "path": "patches/fingerprint-modes/0027-original-final-native-wiring.patch",
+      "sha256": "ee89a62dc022a07b552a18cf3e074a6c959f47a0ff4da6082a17650e8e1760da",
+      "files": 3
+    },
+    {
+      "path": "patches/fingerprint-modes/0028-original-cloak-mac-font-family-alias.patch",
+      "sha256": "fb4334a6c3e9699d82f3a5a786014d697f71b3eb14906a67285b34c47c8b5381",
+      "files": 1
     }
   ],
   "sequential_incremental_files": {
     "base/BUILD.gn": [
       "0001-independent-mode-contract.patch",
       "0009-original-cloak-reference-bank.patch",
-      "0012-original-cloak-audio.patch"
+      "0012-original-cloak-audio.patch",
+      "0018-original-cloak-webgl-public.patch",
+      "0023-original-webgl-translated-shaders.patch",
+      "0027-original-final-native-wiring.patch"
     ],
     "base/uxr_config.cc": [
       "0001-independent-mode-contract.patch",
       "0008-original-cloak-pixels.patch",
-      "0013-original-cloak-contract.patch"
+      "0013-original-cloak-contract.patch",
+      "0018-original-cloak-webgl-public.patch",
+      "0022-original-cloak-raw-device-memory.patch",
+      "0024-original-cloak-webgl-renderer-aliases.patch"
     ],
     "base/uxr_config.h": [
       "0001-independent-mode-contract.patch",
@@ -117,11 +173,17 @@
     "base/uxr_surface_modes_test_main.cc": [
       "0001-independent-mode-contract.patch",
       "0008-original-cloak-pixels.patch",
-      "0013-original-cloak-contract.patch"
+      "0013-original-cloak-contract.patch",
+      "0018-original-cloak-webgl-public.patch",
+      "0022-original-cloak-raw-device-memory.patch",
+      "0024-original-cloak-webgl-renderer-aliases.patch",
+      "0027-original-final-native-wiring.patch"
     ],
     "chrome/app/chrome_main.cc": [
       "0001-independent-mode-contract.patch",
-      "0013-original-cloak-contract.patch"
+      "0013-original-cloak-contract.patch",
+      "0018-original-cloak-webgl-public.patch",
+      "0024-original-cloak-webgl-renderer-aliases.patch"
     ],
     "components/embedder_support/user_agent_utils.cc": [
       "0001-independent-mode-contract.patch",
@@ -129,7 +191,8 @@
     ],
     "third_party/blink/renderer/core/frame/navigator_device_memory.cc": [
       "0001-independent-mode-contract.patch",
-      "0013-original-cloak-contract.patch"
+      "0013-original-cloak-contract.patch",
+      "0022-original-cloak-raw-device-memory.patch"
     ],
     "base/uxr_graphics_noise.h": [
       "0002-graphics.patch",
@@ -170,13 +233,17 @@
     "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc": [
       "0002-graphics.patch",
       "0008-original-cloak-pixels.patch",
-      "0009-original-cloak-reference-bank.patch"
+      "0009-original-cloak-reference-bank.patch",
+      "0019-original-cloak-text-dispatch.patch",
+      "0020-original-cloak-text-recorder-wrappers.patch",
+      "0021-original-opaque-upload.patch"
     ],
     "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc": [
       "0002-graphics.patch",
       "0004-gpu-compatible-modes-v1.patch",
       "0008-original-cloak-pixels.patch",
-      "0009-original-cloak-reference-bank.patch"
+      "0009-original-cloak-reference-bank.patch",
+      "0018-original-cloak-webgl-public.patch"
     ],
     "base/uxr_surface_reference_data.h": [
       "0003-surfaces.patch",
@@ -202,7 +269,8 @@
     ],
     "base/uxr_gpu_modes.h": [
       "0004-gpu-compatible-modes-v1.patch",
-      "0011-original-cloak-webgpu.patch"
+      "0011-original-cloak-webgpu.patch",
+      "0018-original-cloak-webgl-public.patch"
     ],
     "third_party/blink/renderer/modules/webgpu/gpu_adapter.cc": [
       "0004-gpu-compatible-modes-v1.patch",
@@ -215,9 +283,59 @@
     "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h": [
       "0004-gpu-compatible-modes-v1.patch",
       "0011-original-cloak-webgpu.patch"
+    ],
+    "base/uxr_original_webgl.cc": [
+      "0018-original-cloak-webgl-public.patch",
+      "0024-original-cloak-webgl-renderer-aliases.patch"
+    ],
+    "base/uxr_original_webgl.h": [
+      "0018-original-cloak-webgl-public.patch"
+    ],
+    "base/uxr_original_webgl_goldens.cc": [
+      "0018-original-cloak-webgl-public.patch",
+      "0024-original-cloak-webgl-renderer-aliases.patch"
+    ],
+    "third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc": [
+      "0018-original-cloak-webgl-public.patch"
+    ],
+    "third_party/blink/renderer/modules/webgl/gpu_fingerprint.h": [
+      "0018-original-cloak-webgl-public.patch"
+    ],
+    "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc": [
+      "0018-original-cloak-webgl-public.patch"
+    ],
+    "third_party/blink/renderer/modules/webgl/webgl_renderbuffer.h": [
+      "0018-original-cloak-webgl-public.patch"
+    ],
+    "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h": [
+      "0018-original-cloak-webgl-public.patch"
+    ],
+    "base/uxr_original_webgl_translated.cc": [
+      "0023-original-webgl-translated-shaders.patch"
+    ],
+    "base/uxr_original_webgl_translated.h": [
+      "0023-original-webgl-translated-shaders.patch"
+    ],
+    "base/uxr_original_webgl_translated_literals.inc": [
+      "0023-original-webgl-translated-shaders.patch"
+    ],
+    "base/uxr_original_webgl_translated_test_vectors.h": [
+      "0023-original-webgl-translated-shaders.patch"
+    ],
+    "third_party/blink/renderer/modules/webgl/webgl_debug_shaders.cc": [
+      "0023-original-webgl-translated-shaders.patch"
+    ],
+    "third_party/blink/renderer/platform/fonts/font_selector.cc": [
+      "0025-original-cloak-generic-font-selection.patch"
+    ],
+    "base/uxr_original_webgl_translated_goldens.cc": [
+      "0027-original-final-native-wiring.patch"
+    ],
+    "third_party/blink/renderer/core/css/resolver/style_builder_converter.cc": [
+      "0028-original-cloak-mac-font-family-alias.patch"
     ]
   },
-  "combined_patch_sha256": "f2b358314bbc9c934a873ca91a5abdf30c4519095e372c6f43b378a34199af39",
+  "combined_patch_sha256": "11060f9c03f0bccb09084cb1b0e985764fed5592225bed6a42ee3f195b79944b",
   "combined_patch_changed_files": 229,
   "source_upgrade": {
     "from_run": 39498745053,
@@ -795,5 +913,244 @@
     },
     "realObjectCheckpointDownloaded": false,
     "fullChromiumCompiled": false
+  },
+  "original_webgl_public": {
+    "status": "integrated_source_runtime_pending",
+    "sourceBaseCommit": "387a30633ad0dbbbaf6c7732060b951f80b03403",
+    "sourceBasePatchSHA256": "f2b358314bbc9c934a873ca91a5abdf30c4519095e372c6f43b378a34199af39",
+    "changedExistingFiles": [
+      "base/BUILD.gn",
+      "base/uxr_config.cc",
+      "base/uxr_gpu_modes.h",
+      "base/uxr_surface_modes_test_main.cc",
+      "chrome/app/chrome_main.cc",
+      "third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc",
+      "third_party/blink/renderer/modules/webgl/gpu_fingerprint.h",
+      "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
+      "third_party/blink/renderer/modules/webgl/webgl_renderbuffer.h",
+      "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
+      "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h"
+    ],
+    "addedSourceFiles": [
+      "base/uxr_original_webgl.cc",
+      "base/uxr_original_webgl.h",
+      "base/uxr_original_webgl_goldens.cc"
+    ],
+    "additionalPristineFiles": [
+      "third_party/blink/renderer/modules/webgl/webgl_renderbuffer.h",
+      "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h"
+    ],
+    "unchangedCompositeSourceOutputs": 220,
+    "productionHelperChecks": {
+      "checks": 4184,
+      "failures": 0,
+      "identity_cases": 79,
+      "scalar_captured_matches": 1092,
+      "precision_captured_matches": 480,
+      "native_high_precision_routes": 240,
+      "extension_captured_decisions": 1884,
+      "cache_captured_matches": 60
+    },
+    "parserBodyChecks": {
+      "checks": 453,
+      "new_configuration_checks": 93,
+      "legacy_comparisons": 360,
+      "failures": 0
+    },
+    "blinkDispatchBodyChecks": {
+      "checks": 427,
+      "legacy_exact_dispatch": 263,
+      "extension_dispatch": 44,
+      "storage_dispatch": 76,
+      "failures": 0
+    },
+    "normalizationBlockChecks": {
+      "checks": 32,
+      "failures": 0
+    },
+    "candidateRuntimeAccepted": false,
+    "qualification": "Original public WebGL policy, independent of pixel/reference and compatible modes. Pure helper and exact source-body tests with bounded dependency doubles are not full Chromium/Blink/driver acceptance."
+  },
+  "original_final_increment": {
+    "sourceBaseCommit": "387a30633ad0dbbbaf6c7732060b951f80b03403",
+    "sourceBasePatchSHA256": "f2b358314bbc9c934a873ca91a5abdf30c4519095e372c6f43b378a34199af39",
+    "strategyVersion": 2,
+    "capabilitiesSHA256": "acb5ac832bb8b9b2264c7da32a495098cf143a00c9f94dc70d001f7f3d55214b",
+    "orderedIncrement": [
+      "patches/fingerprint-modes/0018-original-cloak-webgl-public.patch",
+      "patches/fingerprint-modes/0019-original-cloak-text-dispatch.patch",
+      "patches/fingerprint-modes/0020-original-cloak-text-recorder-wrappers.patch",
+      "patches/fingerprint-modes/0021-original-opaque-upload.patch",
+      "patches/fingerprint-modes/0022-original-cloak-raw-device-memory.patch",
+      "patches/fingerprint-modes/0023-original-webgl-translated-shaders.patch",
+      "patches/fingerprint-modes/0024-original-cloak-webgl-renderer-aliases.patch",
+      "patches/fingerprint-modes/0025-original-cloak-generic-font-selection.patch",
+      "patches/fingerprint-modes/0027-original-final-native-wiring.patch",
+      "patches/fingerprint-modes/0028-original-cloak-mac-font-family-alias.patch"
+    ],
+    "intentionallyUnusedOverlayNumber": 26,
+    "pristineInputs": 208,
+    "compositeOutputs": 242,
+    "changedExistingCompositePaths": [
+      "base/BUILD.gn",
+      "base/uxr_config.cc",
+      "base/uxr_gpu_modes.h",
+      "base/uxr_surface_modes_test_main.cc",
+      "chrome/app/chrome_main.cc",
+      "third_party/blink/renderer/core/frame/navigator_device_memory.cc",
+      "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+      "third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc",
+      "third_party/blink/renderer/modules/webgl/gpu_fingerprint.h",
+      "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
+      "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc"
+    ],
+    "addedCompositePaths": [
+      "base/uxr_original_webgl.cc",
+      "base/uxr_original_webgl.h",
+      "base/uxr_original_webgl_goldens.cc",
+      "base/uxr_original_webgl_translated.cc",
+      "base/uxr_original_webgl_translated.h",
+      "base/uxr_original_webgl_translated_goldens.cc",
+      "base/uxr_original_webgl_translated_literals.inc",
+      "base/uxr_original_webgl_translated_test_vectors.h",
+      "third_party/blink/renderer/core/css/resolver/style_builder_converter.cc",
+      "third_party/blink/renderer/modules/webgl/webgl_debug_shaders.cc",
+      "third_party/blink/renderer/modules/webgl/webgl_renderbuffer.h",
+      "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h",
+      "third_party/blink/renderer/platform/fonts/font_selector.cc"
+    ],
+    "unchanged387Outputs": 218,
+    "nativeSourceChecks": {
+      "original_pixel_checks": 78,
+      "original_reference_checks": 2660,
+      "original_audio_checks": 337,
+      "original_webgl_public_checks": 4327,
+      "original_webgl_translated_checks": 32
+    },
+    "corePipelineTests": 49,
+    "candidateRuntimeAccepted": false,
+    "fullOriginalCloakAcceptance": false,
+    "qualification": "Frozen source overlays and offline exact replay. Native helper/source-body tests are distinct from changed Blink APIs and exact-DLL runtime acceptance. Language consumer is unchanged; new typed launcher chain remains separately gated.",
+    "checkpointUpgradeEvidence": {
+      "path": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\final-original-source-upgrade-v1\\result.json",
+      "sha256": "f8429352d6d37baffb94f23a5f435943d876b779ff7225f02bd4cbdaadb88022",
+      "bytes": 5697
+    },
+    "checkpointUpgrade": {
+      "actual-ci-211607": {
+        "status": "passed_selected_source_upgrade",
+        "fromPatchSHA256": "8d2c1ab2fc0f39c18f8b9dd8f8d036180b3c8c52f186749975c45462a3cbe17a",
+        "fromReceiptSHA256": "d9eacc6189b2712acc09977788a49ec3bd21c35db4e9f629c1fa1df150dab213",
+        "fromReceiptPath": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\complete-ci-watch-1955\\logs-artifact\\c\\chromix\\google-services-source.json",
+        "receiptProvenance": "completed_diagnostic_artifact_from_actual_CI_39650249224",
+        "toPatchSHA256": "11060f9c03f0bccb09084cb1b0e985764fed5592225bed6a42ee3f195b79944b",
+        "changedExistingSources": [
+          "base/BUILD.gn",
+          "base/uxr_config.cc",
+          "base/uxr_gpu_modes.h",
+          "base/uxr_surface_modes_test_main.cc",
+          "chrome/app/chrome_main.cc",
+          "third_party/blink/renderer/core/css/resolver/style_builder_converter.cc",
+          "third_party/blink/renderer/core/frame/navigator_device_memory.cc",
+          "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc",
+          "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc",
+          "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+          "third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc",
+          "third_party/blink/renderer/modules/webgl/gpu_fingerprint.h",
+          "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
+          "third_party/blink/renderer/modules/webgl/webgl_debug_shaders.cc",
+          "third_party/blink/renderer/modules/webgl/webgl_renderbuffer.h",
+          "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
+          "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h",
+          "third_party/blink/renderer/platform/fonts/font_selector.cc"
+        ],
+        "addedSourceFiles": [
+          "base/uxr_original_webgl.cc",
+          "base/uxr_original_webgl.h",
+          "base/uxr_original_webgl_goldens.cc",
+          "base/uxr_original_webgl_translated.cc",
+          "base/uxr_original_webgl_translated.h",
+          "base/uxr_original_webgl_translated_goldens.cc",
+          "base/uxr_original_webgl_translated_literals.inc",
+          "base/uxr_original_webgl_translated_test_vectors.h"
+        ],
+        "removedSourceFiles": [],
+        "unchangedSourceBytesAndMtimesPreserved": 254,
+        "allCompositeOutputsMatch": 242,
+        "idempotentSecondPrepare": true,
+        "syntheticObjectSentinelUnchanged": true,
+        "dependencyInputs": 32
+      },
+      "actual-ci-387a306": {
+        "status": "passed_selected_source_upgrade",
+        "fromPatchSHA256": "f2b358314bbc9c934a873ca91a5abdf30c4519095e372c6f43b378a34199af39",
+        "fromReceiptSHA256": "0865dcff7a1cf03f0972ff8c7d67989b076269acbbfca8caa012c77bb8a0553b",
+        "fromReceiptPath": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\fixed-ci-watch-2245\\logs-artifact\\c\\chromix\\google-services-source.json",
+        "receiptProvenance": "completed_diagnostic_artifact_from_actual_CI_39671118662",
+        "toPatchSHA256": "11060f9c03f0bccb09084cb1b0e985764fed5592225bed6a42ee3f195b79944b",
+        "changedExistingSources": [
+          "base/BUILD.gn",
+          "base/uxr_config.cc",
+          "base/uxr_gpu_modes.h",
+          "base/uxr_surface_modes_test_main.cc",
+          "chrome/app/chrome_main.cc",
+          "third_party/blink/renderer/core/css/resolver/style_builder_converter.cc",
+          "third_party/blink/renderer/core/frame/navigator_device_memory.cc",
+          "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+          "third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc",
+          "third_party/blink/renderer/modules/webgl/gpu_fingerprint.h",
+          "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
+          "third_party/blink/renderer/modules/webgl/webgl_debug_shaders.cc",
+          "third_party/blink/renderer/modules/webgl/webgl_renderbuffer.h",
+          "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
+          "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h",
+          "third_party/blink/renderer/platform/fonts/font_selector.cc"
+        ],
+        "addedSourceFiles": [
+          "base/uxr_original_webgl.cc",
+          "base/uxr_original_webgl.h",
+          "base/uxr_original_webgl_goldens.cc",
+          "base/uxr_original_webgl_translated.cc",
+          "base/uxr_original_webgl_translated.h",
+          "base/uxr_original_webgl_translated_goldens.cc",
+          "base/uxr_original_webgl_translated_literals.inc",
+          "base/uxr_original_webgl_translated_test_vectors.h"
+        ],
+        "removedSourceFiles": [],
+        "unchangedSourceBytesAndMtimesPreserved": 256,
+        "allCompositeOutputsMatch": 242,
+        "idempotentSecondPrepare": true,
+        "syntheticObjectSentinelUnchanged": true,
+        "dependencyInputs": 32
+      }
+    },
+    "realObjectCheckpointDownloaded": false,
+    "fullChromiumCompiled": false,
+    "exactOldCoreFilesEvidence": {
+      "path": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\final-original-integration-v1\\unchanged-core-hashes.json",
+      "sha256": "485683e3d44576aa6a6b83aabbb525c67f9f6318567a76d37d394c3f131e68e2",
+      "bytes": 2664
+    },
+    "nativeGroup32Evidence": {
+      "path": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\final-original-integration-v1\\0027-native-wiring\\test\\receipt.json",
+      "sha256": "98b7229ae59180a2f8708a73e2c62cb0720963b0d68e70fd6e44083007b13887",
+      "bytes": 1536
+    },
+    "finalPipelineEvidence": {
+      "path": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\final-original-integration-v1\\tests\\pipeline-final.json",
+      "sha256": "779af80ca4c19148cfcbe047b77969df93a1bba3d83405d0be2178b89bf8aa3b",
+      "bytes": 715
+    },
+    "additionalHistoricalSelectorTests": {
+      "passed": 44,
+      "failed": 5,
+      "skipped": 4,
+      "evidence": {
+        "path": "C:\\Users\\50490\\Desktop\\Chromix-Lite\\owned\\research\\cloak-parity-20261021\\kernel\\webgl-public-source-v1\\tests\\pipeline\\patch-selection-pytest.log",
+        "sha256": "cd648d2657c7eaf40221b28fb05eb6cbc0b7d533cf7bea8a3e6e3bfb6d6970cb",
+        "bytes": 14087
+      },
+      "qualification": "4 local symlink-privilege failures and one historical archived fixed-key mismatch in unmodified tests/selector; not counted as passing. Core required workflow49 passed."
+    }
   }
 }

@@ -25,6 +25,14 @@
     "base/uxr_original_audio_goldens.cc",
     "base/uxr_original_audio_multiple.inc",
     "base/uxr_original_audio_reference.h",
+    "base/uxr_original_webgl.cc",
+    "base/uxr_original_webgl.h",
+    "base/uxr_original_webgl_goldens.cc",
+    "base/uxr_original_webgl_translated.cc",
+    "base/uxr_original_webgl_translated.h",
+    "base/uxr_original_webgl_translated_goldens.cc",
+    "base/uxr_original_webgl_translated_literals.inc",
+    "base/uxr_original_webgl_translated_test_vectors.h",
     "base/uxr_surface_golden_tests.cc",
     "base/uxr_surface_math.h",
     "base/uxr_surface_modes.h",
@@ -179,6 +187,7 @@
     "google_apis/gaia/gaia_auth_fetcher.cc",
     "net/base/url_util.cc",
     "third_party/blink/common/device_memory/approximated_device_memory.cc",
+    "third_party/blink/renderer/core/css/resolver/style_builder_converter.cc",
     "third_party/blink/renderer/core/dom/element.cc",
     "third_party/blink/renderer/core/dom/range.cc",
     "third_party/blink/renderer/core/execution_context/navigator_base.cc",
@@ -215,7 +224,10 @@
     "third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc",
     "third_party/blink/renderer/modules/webgl/gpu_fingerprint.h",
     "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
+    "third_party/blink/renderer/modules/webgl/webgl_debug_shaders.cc",
+    "third_party/blink/renderer/modules/webgl/webgl_renderbuffer.h",
     "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
+    "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h",
     "third_party/blink/renderer/modules/webgpu/gpu_adapter.cc",
     "third_party/blink/renderer/modules/webgpu/gpu_adapter.h",
     "third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc",
@@ -226,6 +238,7 @@
     "third_party/blink/renderer/platform/BUILD.gn",
     "third_party/blink/renderer/platform/fonts/font_cache.cc",
     "third_party/blink/renderer/platform/fonts/font_cache.h",
+    "third_party/blink/renderer/platform/fonts/font_selector.cc",
     "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc",
     "third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h",
     "third_party/blink/renderer/platform/graphics/image_data_buffer.cc",
@@ -853,6 +866,10 @@
       "sha256": "2a3bd1c5250808355b6eea60fb13f15db565b8eba0a78f7fd0ea3ad718da4d8a"
     },
     {
+      "path": "third_party/blink/renderer/core/css/resolver/style_builder_converter.cc",
+      "sha256": "eae4433977ff2cfa13c781b843e2431c87291a4c122257fb16453ef2e0a4171f"
+    },
+    {
       "path": "third_party/blink/renderer/core/dom/element.cc",
       "sha256": "25e710bcfe7d5e12c60a9865df51f2639a3432562f8902dfa6b8d002bbf7e6c5"
     },
@@ -989,8 +1006,20 @@
       "sha256": "9a8353bb01de09cd3ebc4f77ca5c370eca50116d7e41fb4f14580aac78ccfb0c"
     },
     {
+      "path": "third_party/blink/renderer/modules/webgl/webgl_debug_shaders.cc",
+      "sha256": "10088aafbdbf48563484368a82fef6aa41309c6100af1118ee800268e4ef2031"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgl/webgl_renderbuffer.h",
+      "sha256": "9a437e9c2ae1a7bc30f4fb0a7ef03af78be24200e492fc9b7a84d0147a177ec7"
+    },
+    {
       "path": "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
       "sha256": "14563edf0e6c7afb72c65aa4ec2e2e29b02efce92ac117c574de6c2184b7bb01"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h",
+      "sha256": "f16314b3aa39a1f4d190c1c47b8b6edef5c29b7c2b23d4d4320b62e06f30b628"
     },
     {
       "path": "third_party/blink/renderer/modules/webgpu/gpu_adapter.cc",
@@ -1033,6 +1062,10 @@
       "sha256": "ce23838b223e37fc2a1e3933b3da5ed9478e07f0c9c2fef956ff28c95fa0248e"
     },
     {
+      "path": "third_party/blink/renderer/platform/fonts/font_selector.cc",
+      "sha256": "70c1471525684366c12bcbb14380030966d68842a8fa3fb85f5ef8c59f3356e3"
+    },
+    {
       "path": "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc",
       "sha256": "dc50ccb8cf8351d32d83cb50099b2e2cfd24a0f94b5109875b406c5cce03de12"
     },
@@ -1068,6 +1101,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "f2b358314bbc9c934a873ca91a5abdf30c4519095e372c6f43b378a34199af39",
+  "patch_sha256": "11060f9c03f0bccb09084cb1b0e985764fed5592225bed6a42ee3f195b79944b",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

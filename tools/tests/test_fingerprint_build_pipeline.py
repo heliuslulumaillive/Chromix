@@ -148,6 +148,8 @@ def write_fingerprint_evidence(root, bundle):
         'original': [{'original_pixel_checks': 78, 'failures': 0},
                      {'original_reference_checks': 2660, 'failures': 0},
                      {'original_audio_checks': 337, 'failures': 0},
+                     {'original_webgl_public_checks': 4327, 'failures': 0},
+                     {'original_webgl_translated_checks': 32, 'failures': 0},
                      {'status': 'passed', 'configuration_checks': 11, 'failures': 0}],
         'production': [
             {'graphics_cases': 2, 'failures': 0, 'groups': {'fixture_pixels': 2}},
@@ -308,8 +310,8 @@ class FingerprintEvidenceTest(unittest.TestCase):
                              cwd=ROOT, capture_output=True, text=True, timeout=30)
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
         result = json.loads(run.stdout)
-        self.assertEqual(result['checks'], 25)
-        self.assertEqual(result['original_runtime_scope_checks'], 16)
+        self.assertEqual(result['checks'], 41)
+        self.assertEqual(result['original_runtime_scope_checks'], 20)
         self.assertEqual(result['failures'], 0)
 
     def test_runtime_acceptance_modules_and_matrix_contract(self):
@@ -361,6 +363,20 @@ class FingerprintEvidenceTest(unittest.TestCase):
             ('native_original_audio_string', lambda n, r, c: n['groups']['original'][2].update(original_audio_checks='337')),
             ('native_original_audio_duplicate', lambda n, r, c: n['groups']['original'].append(copy.deepcopy(n['groups']['original'][2]))),
             ('native_original_audio_failed', lambda n, r, c: n['groups']['original'][2].update(failures=1)),
+            ('native_webgl_public_missing', lambda n, r, c: n['groups']['original'].pop(3)),
+            ('native_webgl_public_zero', lambda n, r, c: n['groups']['original'][3].update(original_webgl_public_checks=0)),
+            ('native_webgl_public_partial', lambda n, r, c: n['groups']['original'][3].update(original_webgl_public_checks=4183)),
+            ('native_webgl_public_boolean', lambda n, r, c: n['groups']['original'][3].update(original_webgl_public_checks=True)),
+            ('native_webgl_public_string', lambda n, r, c: n['groups']['original'][3].update(original_webgl_public_checks='4184')),
+            ('native_webgl_public_duplicate', lambda n, r, c: n['groups']['original'].append(copy.deepcopy(n['groups']['original'][3]))),
+            ('native_webgl_public_failed', lambda n, r, c: n['groups']['original'][3].update(failures=1)),
+            ('native_translated_missing', lambda n, r, c: n['groups']['original'].pop(4)),
+            ('native_translated_zero', lambda n, r, c: n['groups']['original'][4].update(original_webgl_translated_checks=0)),
+            ('native_translated_partial', lambda n, r, c: n['groups']['original'][4].update(original_webgl_translated_checks=31)),
+            ('native_translated_boolean', lambda n, r, c: n['groups']['original'][4].update(original_webgl_translated_checks=True)),
+            ('native_translated_string', lambda n, r, c: n['groups']['original'][4].update(original_webgl_translated_checks='32')),
+            ('native_translated_duplicate', lambda n, r, c: n['groups']['original'].append(copy.deepcopy(n['groups']['original'][4]))),
+            ('native_translated_failed', lambda n, r, c: n['groups']['original'][4].update(failures=1)),
             ('native_original_config_missing', lambda n, r, c: n['groups']['original'].pop()),
             ('native_original_wrong_arguments', lambda n, r, c: n['processes'][2].update(arguments=['--config-original'])),
             ('native_zero_count', lambda n, r, c: n['groups']['production'][0].update(graphics_cases=0)),
@@ -463,6 +479,8 @@ class FingerprintEvidenceTest(unittest.TestCase):
             self.assertGreater(result['native_executed_counts']['production.audio_default_checks'], 0)
             self.assertEqual(result['native_executed_counts']['original.original_reference_checks'], 2660)
             self.assertEqual(result['native_executed_counts']['original.original_audio_checks'], 337)
+            self.assertEqual(result['native_executed_counts']['original.original_webgl_public_checks'], 4327)
+            self.assertEqual(result['native_executed_counts']['original.original_webgl_translated_checks'], 32)
 
     def test_all_compatible_groups_cannot_certify_original_runtime(self):
         checks = [{'scenario': sorted(scenarios)[0], 'name': 'fixture_positive',

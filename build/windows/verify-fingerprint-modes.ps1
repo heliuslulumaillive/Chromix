@@ -121,7 +121,7 @@ function Read-NativeGroups($Execution, [string[]]$RequiredFields,
 
 function Assert-OriginalRuntimeScope($Result) {
   $names = @('canvas_pixels', 'webgl_pixels', 'canvas_references', 'webgl_references',
-             'text', 'fonts', 'audio', 'voices', 'webgpu_identity', 'webgpu_features', 'webgpu_limits', 'memory')
+             'text', 'fonts', 'audio', 'voices', 'webgpu_identity', 'webgpu_features', 'webgpu_limits', 'memory', 'webgl_identity', 'webgl_capabilities', 'webgl_precision', 'webgl_extensions', 'webgl_translated_shaders')
   $original = $Result.original_runtime_acceptance
   if ($Result.full_strategy_acceptance_scope -cne 'compatible-v1-covered-groups' -or
       $Result.full_original_cloak_acceptance -isnot [bool] -or $Result.full_original_cloak_acceptance -or
@@ -204,10 +204,13 @@ try {
   $native.processes += $original
   $native.groups['original'] = @(Read-NativeGroups $original @(
       'original_pixel_checks', 'original_reference_checks', 'original_audio_checks',
+      'original_webgl_public_checks', 'original_webgl_translated_checks',
       'configuration_checks') @{
         original_pixel_checks = 78
         original_reference_checks = 2660
         original_audio_checks = 337
+        original_webgl_public_checks = 4327
+        original_webgl_translated_checks = 32
       })
   $helpers = Invoke-OwnedCheck $executable @($fixtureRoot) $outPath 'production-helpers-and-config' 180
   $native.processes += $helpers

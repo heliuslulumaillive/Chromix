@@ -1,0 +1,342 @@
+diff --git a/base/uxr_config.cc b/base/uxr_config.cc
+--- a/base/uxr_config.cc
++++ b/base/uxr_config.cc
+@@ -336,17 +336,30 @@
+           text.find('\0') != std::string_view::npos)
+         return false;
+     }
+-    if (!value("uxr-original-webgl-renderer").starts_with("ANGLE ("))
++    if (value("uxr-original-webgl-renderer").empty())
+       return false;
+     if (value("uxr-webgl-capabilities-mode") == "cloak-original") {
+       int index = -1;
+-      if (!StringToInt(value("uxr-original-webgl-index"), &index))
+-        return false;
+-      const auto profile = UxrFindGpuProfileV1(
+-          value("uxr-original-webgl-family"), index);
+-      if (!profile || profile->architecture !=
+-                          value("uxr-original-webgl-architecture"))
+-        return false;
++      const auto family = value("uxr-original-webgl-family");
++      const auto platform = value("uxr-original-webgl-platform");
++      const int count = family == "intel" ? 18 : family == "nvidia" ? 41 :
++                        family == "apple" ? 20 : 0;
++      if (!StringToInt(value("uxr-original-webgl-index"), &index) ||
++          !count || index < -1 || index >= count ||
++          (platform == "macos" && family != "apple") ||
++          (platform == "windows" && family == "apple") ||
++          (platform == "linux" && family != "nvidia"))
++        return false;
++      // Display index may be unknown for raw passthrough. Samples architecture
++      // is an independent original Windows/Intel consumer of the GLOBAL seed.
++      const auto architecture = value("uxr-original-webgl-architecture");
++      if (platform == "windows" && family == "intel") {
++        if (architecture != "gen-9" && architecture != "gen-12lp" &&
++            architecture != "xe-lpg")
++          return false;
++      } else if (!architecture.empty()) {
++        return false;
++      }
+     }
+   }
+   if (cfg.contains("uxr-webgl-extensions-mode")) {
+diff --git a/base/uxr_original_webgl.cc b/base/uxr_original_webgl.cc
+--- a/base/uxr_original_webgl.cc
++++ b/base/uxr_original_webgl.cc
+@@ -84,6 +84,68 @@
+     "WEBGL_provoking_vertex",
+     "WEBGL_stencil_texturing",
+ };
++// Original explicit renderer aliases. Data remains in the preserved catalog;
++// this code only reconstructs the different consumer selection rules.
++bool OriginalAsciiContains(std::string_view haystack, std::string_view needle,
++                           bool ascii_fold) {
++  if (needle.empty() || needle.size() > haystack.size())
++    return false;
++  if (!ascii_fold)
++    return haystack.find(needle) != std::string_view::npos;
++  const auto lower = [](unsigned char c) {
++    return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
++  };
++  for (size_t start = 0; start + needle.size() <= haystack.size(); ++start) {
++    bool equal = true;
++    for (size_t i = 0; i < needle.size(); ++i)
++      equal &= lower(haystack[start + i]) == lower(needle[i]);
++    if (equal)
++      return true;
++  }
++  return false;
++}
++
++int OriginalAliasIndex(std::string_view family, std::string_view renderer,
++                       std::string_view seed_text, bool ascii_fold,
++                       bool use_fallback) {
++  const int count = family == "intel" ? 18 : 41;
++  // Complete device-ID pass precedes the complete model-name pass. Never
++  // interleave these fields or choose by the first textual occurrence.
++  for (bool device_id : {true, false}) {
++    for (int index = 0; index < count; ++index) {
++      const auto row = UxrSelectCloakHardwareV1(1, "windows", family, index);
++      if (OriginalAsciiContains(renderer,
++              device_id ? row->device_id : row->model, ascii_fold))
++        return index;  // Direct NVIDIA 0/2 aliases are not redirected.
++    }
++  }
++  if (!use_fallback)
++    return -1;
++  unsigned index = UxrCloakHashV1(std::string(seed_text) + "gpu_renderer") % count;
++  if (family == "nvidia" && (index == 0 || index == 2)) {
++    constexpr unsigned redirect[] = {1,3,4,5,6,7,8,9,10,11,12,13,14,15,16,
++        17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40};
++    index = redirect[UxrCloakHashV1(std::string(seed_text) +
++                                   "gpu_renderer_redirect") % std::size(redirect)];
++  }
++  return static_cast<int>(index);
++}
++
++std::string_view OriginalRendererFamily(std::string_view renderer) {
++  for (std::string_view family : {"intel", "nvidia"}) {
++    if (OriginalAsciiContains(renderer, family, true))
++      return family;
++    const int count = family == "intel" ? 18 : 41;
++    for (int index = 0; index < count; ++index) {
++      const auto row = UxrSelectCloakHardwareV1(1, "windows", family, index);
++      if (OriginalAsciiContains(renderer, row->device_id, true) ||
++          OriginalAsciiContains(renderer, row->model, true))
++        return family;
++    }
++  }
++  return {};
++}
++
+ }  // namespace
+ 
+ std::optional<bool> UxrOriginalWebGLExtensionDecisionV2(
+@@ -121,9 +183,10 @@
+   if (!seed || requested_index < -1 ||
+       (platform != "windows" && platform != "macos" && platform != "linux"))
+     return std::nullopt;
+-  // The observed full ANGLE prefix returns the original caller string. The
+-  // short-name rewriting parser is deliberately outside this contract.
+-  if (explicit_renderer && !explicit_renderer->starts_with("ANGLE ("))
++  // An empty original raw input makes the outer JS getter use native GL.
++  // The typed public policy rejects it explicitly instead of inventing an
++  // identity or claiming the rejection matches that original raw fallback.
++  if (explicit_renderer && explicit_renderer->empty())
+     return std::nullopt;
+   const std::string seed_text = std::to_string(seed);
+   const uint32_t vendor_hash = UxrCloakHashV1(seed_text + "gpu_vendor");
+@@ -154,38 +217,65 @@
+       platform == "linux" ? "ANGLE (NVIDIA Corporation, NVIDIA " +
+           choice->model + "/PCIe/SSE2, OpenGL ES 3.2)" : choice->webgl_renderer;
+   if (explicit_renderer) {
+-    // Only a recognized catalog ANGLE string supplies a profile architecture.
+-    // Identity may still pass through another full ANGLE string; admission of
+-    // original capabilities separately requires a recognized architecture.
+     out.index = -1;
+-    const int count = out.family == "apple" ? 20 :
+-                      out.family == "intel" ? 18 : 41;
+-    for (int candidate = 0; candidate < count; ++candidate) {
+-      const auto known = UxrSelectCloakHardwareV1(
+-          seed, platform == "macos" ? "macos" : "windows",
+-          out.family, candidate);
+-      const std::string name = platform == "linux"
+-          ? "ANGLE (NVIDIA Corporation, NVIDIA " + known->model +
+-                "/PCIe/SSE2, OpenGL ES 3.2)"
+-          : known->webgl_renderer;
+-      // Model recognition is ASCII-insensitive, while the presented renderer
+-      // is retained exactly. Public M5/NVIDIA substring consumers below are
+-      // deliberately case-sensitive and may therefore select different values.
+-      const auto ascii_equal = [](unsigned char a, unsigned char b) {
+-        const auto lower = [](unsigned char c) {
+-          return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
++    if (!explicit_renderer->starts_with("ANGLE (") && platform == "windows") {
++      const auto recognized = OriginalRendererFamily(*explicit_renderer);
++      if (!recognized.empty()) {
++        // Display rewriting passes an EMPTY seed to this helper, unlike the
++        // independent sample-architecture consumer below.
++        out.index = OriginalAliasIndex(recognized, *explicit_renderer, "", true, true);
++        const auto alias = UxrSelectCloakHardwareV1(seed, "windows", recognized, out.index);
++        out.family = recognized;
++        out.renderer = alias->webgl_renderer;
++      }
++    } else if (!explicit_renderer->starts_with("ANGLE (") && platform == "linux") {
++      out.index = OriginalAliasIndex("nvidia", *explicit_renderer, "", false, false);
++      if (out.index >= 0)
++        out.renderer = "ANGLE (NVIDIA Corporation, " + std::string(*explicit_renderer) +
++                       "/PCIe/SSE2, OpenGL ES 3.2)";
++    } else {
++      // Mac raw input and every exact ANGLE prefix retain their original
++      // bytes. A recognized full catalog string supplies only a display index.
++      const int count = out.family == "apple" ? 20 :
++                        out.family == "intel" ? 18 : 41;
++      for (int candidate = 0; candidate < count; ++candidate) {
++        const auto known = UxrSelectCloakHardwareV1(
++            seed, platform == "macos" ? "macos" : "windows",
++            out.family, candidate);
++        const std::string name = platform == "linux"
++            ? "ANGLE (NVIDIA Corporation, NVIDIA " + known->model +
++                  "/PCIe/SSE2, OpenGL ES 3.2)"
++            : known->webgl_renderer;
++        // Model recognition is ASCII-insensitive, while the presented renderer
++        // is retained exactly. Public M5/NVIDIA substring consumers below are
++        // deliberately case-sensitive and may therefore select different values.
++        const auto ascii_equal = [](unsigned char a, unsigned char b) {
++          const auto lower = [](unsigned char c) {
++            return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
++          };
++          return lower(a) == lower(b);
+         };
+-        return lower(a) == lower(b);
+-      };
+-      if (std::equal(name.begin(), name.end(), explicit_renderer->begin(),
+-                     explicit_renderer->end(), ascii_equal)) {
+-        out.index = candidate;
+-        break;
++        if (std::equal(name.begin(), name.end(), explicit_renderer->begin(),
++                       explicit_renderer->end(), ascii_equal)) {
++          out.index = candidate;
++          break;
++        }
+       }
+     }
+   }
+-  if (const auto profile = UxrFindGpuProfileV1(out.family, out.index))
+-    out.architecture = profile->architecture;
++  if (platform == "windows") {
++    std::string_view architecture_input = explicit_renderer.value_or("");
++    if (!explicit_renderer && requested_index >= 0)
++      architecture_input = choice->webgl_renderer;  // Explicit product index convenience.
++    const auto architecture_family = UxrCloakReferenceFamilyFor(
++        false, vendor_hash, architecture_input, explicit_vendor.value_or(family_hint));
++    if (architecture_family == UxrCloakReferenceFamily::kIntel) {
++      const int architecture_index = OriginalAliasIndex(
++          "intel", architecture_input, seed_text, true, true);
++      if (const auto profile = UxrFindGpuProfileV1("intel", architecture_index))
++        out.architecture = profile->architecture;
++    }
++  }
+   return out;
+ }
+ 
+diff --git a/base/uxr_original_webgl_goldens.cc b/base/uxr_original_webgl_goldens.cc
+--- a/base/uxr_original_webgl_goldens.cc
++++ b/base/uxr_original_webgl_goldens.cc
+@@ -5443,7 +5443,7 @@
+  Check(hardware&&hardware->index==1,"existing hardware redirect retained");
+  Check(original&&original->index==0,"original GL display index is not redirected");
+  Check(!base::UxrSelectOriginalWebGLProfileV2(0,"windows","",-1,std::nullopt,std::nullopt),"zero seed rejected");
+- Check(!base::UxrSelectOriginalWebGLProfileV2(1,"windows","",-1,std::nullopt,std::string_view("RTX unknown short name")),"unrecovered short alias rejected");
++ Check(base::UxrSelectOriginalWebGLProfileV2(1,"windows","",-1,std::nullopt,std::string_view("RTX unknown short name"))->renderer=="RTX unknown short name","unrecognized neutral short renderer passes through");
+  Check(!base::UxrIsOriginalGpuModeV1("cloak-original",true),"master off blocks original policy");
+  Check(base::UxrResolveGpuModeV1("cloak-original")==base::UxrGpuMode::kNative,"old V1 resolver not repurposed");
+  SamplePlan(16,16,0,16,0); SamplePlan(-1,16,8,-1,0); SamplePlan(8,4,8,8,0);
+@@ -5455,5 +5455,52 @@
+    Check(base::UxrOriginalWebGLReportRequestedDimensionV2(requested,16384,32768)==(requested==16385||requested==32768),"RBO public stored request range");
+    Check(base::UxrOriginalWebGLUploadDimensionV2(requested,16384,16384)==requested,"no clamp when native equals advertisement");
+  }
++ // Original alias captures: Window/Worker output equality was separately verified.
++Identity("alias/win-nv0-model-name",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("GeForce GTX 750 Ti"),"nvidia","ANGLE (NVIDIA, NVIDIA GeForce GTX 750 Ti (0x00001380) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-nv0-device-id",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("0x00001380"),"nvidia","ANGLE (NVIDIA, NVIDIA GeForce GTX 750 Ti (0x00001380) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-nv0-lower-model",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("geforce gtx 750 ti"),"nvidia","ANGLE (NVIDIA, NVIDIA GeForce GTX 750 Ti (0x00001380) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-nv2-model-name",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("GeForce GTX 1060 6GB"),"nvidia","ANGLE (NVIDIA, NVIDIA GeForce GTX 1060 6GB (0x00001C03) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-nv2-device-id",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("0x00001C03"),"nvidia","ANGLE (NVIDIA, NVIDIA GeForce GTX 1060 6GB (0x00001C03) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-nv2-lower-model",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("geforce gtx 1060 6gb"),"nvidia","ANGLE (NVIDIA, NVIDIA GeForce GTX 1060 6GB (0x00001C03) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-device-before-model",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("GeForce GTX 750 Ti 0x00001C03"),"nvidia","ANGLE (NVIDIA, NVIDIA GeForce GTX 1060 6GB (0x00001C03) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-two-device-order",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("0x00001C03 0x00001380"),"nvidia","ANGLE (NVIDIA, NVIDIA GeForce GTX 750 Ti (0x00001380) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-intel5-model-name",9ULL,"windows","",std::make_optional<std::string_view>("intel"),std::make_optional<std::string_view>("Intel(R) UHD Graphics 620"),"intel","ANGLE (Intel, Intel(R) UHD Graphics (0x0000A7A8) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-intel5-device-id",9ULL,"windows","",std::make_optional<std::string_view>("intel"),std::make_optional<std::string_view>("0x00005917"),"intel","ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-intel5-lower",9ULL,"windows","",std::make_optional<std::string_view>("intel"),std::make_optional<std::string_view>("intel(r) uhd graphics 620"),"intel","ANGLE (Intel, Intel(R) UHD Graphics (0x0000A7A8) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-intel-priority",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("GeForce GTX 1060 6GB 0x00005917"),"nvidia","ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-unknown-nvidia-9",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("NVIDIA mystery renderer"),"nvidia","ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x0000220A) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-unknown-intel-9",9ULL,"windows","",std::make_optional<std::string_view>("intel"),std::make_optional<std::string_view>("Intel mystery renderer"),"intel","ANGLE (Intel, Intel(R) Arc(TM) 130T GPU (16GB) (0x00007D51) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-unknown-nvidia-12345",12345ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("NVIDIA mystery renderer"),"nvidia","ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x0000220A) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-unknown-intel-12345",12345ULL,"windows","",std::make_optional<std::string_view>("intel"),std::make_optional<std::string_view>("Intel mystery renderer"),"intel","ANGLE (Intel, Intel(R) Arc(TM) 130T GPU (16GB) (0x00007D51) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-unknown-neutral-none",9ULL,"windows","",std::nullopt,std::make_optional<std::string_view>("mystery renderer"),"Google Inc. (NVIDIA)","mystery renderer");
++Identity("alias/win-unknown-neutral-intel",9ULL,"windows","",std::make_optional<std::string_view>("intel"),std::make_optional<std::string_view>("mystery renderer"),"intel","mystery renderer");
++Identity("alias/win-unknown-neutral-nvidia",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("mystery renderer"),"nvidia","mystery renderer");
++Identity("alias/win-full-angle-priority",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)"),"nvidia","ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-lower-angle-prefix",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("angle (GeForce GTX 750 Ti)"),"nvidia","ANGLE (NVIDIA, NVIDIA GeForce GTX 750 Ti (0x00001380) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/win-unknown-full-angle",9ULL,"windows","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("ANGLE (Synthetic observed input, marker)"),"nvidia","ANGLE (Synthetic observed input, marker)");
++Identity("alias/linux-nv0-model-name",9ULL,"linux","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("GeForce GTX 750 Ti"),"nvidia","ANGLE (NVIDIA Corporation, GeForce GTX 750 Ti/PCIe/SSE2, OpenGL ES 3.2)");
++Identity("alias/linux-nv0-device-id",9ULL,"linux","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("0x00001380"),"nvidia","ANGLE (NVIDIA Corporation, 0x00001380/PCIe/SSE2, OpenGL ES 3.2)");
++Identity("alias/linux-nv2-model-name",9ULL,"linux","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("GeForce GTX 1060 6GB"),"nvidia","ANGLE (NVIDIA Corporation, GeForce GTX 1060 6GB/PCIe/SSE2, OpenGL ES 3.2)");
++Identity("alias/linux-nv2-device-id",9ULL,"linux","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("0x00001C03"),"nvidia","ANGLE (NVIDIA Corporation, 0x00001C03/PCIe/SSE2, OpenGL ES 3.2)");
++Identity("alias/linux-lower-model",9ULL,"linux","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("geforce gtx 750 ti"),"nvidia","geforce gtx 750 ti");
++Identity("alias/linux-lower-device",9ULL,"linux","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("0x00001c03"),"nvidia","0x00001c03");
++Identity("alias/linux-id-over-model",9ULL,"linux","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("GeForce GTX 750 Ti 0x00001C03"),"nvidia","ANGLE (NVIDIA Corporation, GeForce GTX 750 Ti 0x00001C03/PCIe/SSE2, OpenGL ES 3.2)");
++Identity("alias/linux-intel-short",9ULL,"linux","",std::make_optional<std::string_view>("intel"),std::make_optional<std::string_view>("Intel(R) UHD Graphics 620"),"intel","Intel(R) UHD Graphics 620");
++Identity("alias/linux-unknown",9ULL,"linux","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("NVIDIA mystery renderer"),"nvidia","NVIDIA mystery renderer");
++Identity("alias/linux-full-angle",9ULL,"linux","",std::make_optional<std::string_view>("nvidia"),std::make_optional<std::string_view>("ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)"),"nvidia","ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++Identity("alias/mac-m5",9ULL,"macos","",std::nullopt,std::make_optional<std::string_view>("Apple M5 Pro"),"Google Inc. (Apple)","Apple M5 Pro");
++Identity("alias/mac-m5-lower",9ULL,"macos","",std::nullopt,std::make_optional<std::string_view>("apple m5 pro"),"Google Inc. (Apple)","apple m5 pro");
++Identity("alias/mac-nvidia-short",9ULL,"macos","",std::nullopt,std::make_optional<std::string_view>("GeForce GTX 750 Ti"),"Google Inc. (Apple)","GeForce GTX 750 Ti");
++Identity("alias/mac-unknown",9ULL,"macos","",std::nullopt,std::make_optional<std::string_view>("mystery renderer"),"Google Inc. (Apple)","mystery renderer");
++Identity("alias/mac-full-angle",9ULL,"macos","",std::nullopt,std::make_optional<std::string_view>("ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)"),"Google Inc. (Apple)","ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)");
++ // Independent raw-renderer display and global-seed sample policy captures.
++{ const auto p=base::UxrSelectOriginalWebGLProfileV2(9ULL,"windows","",-1,std::string_view("intel"),std::string_view("Intel mystery renderer"));Check(p.has_value(),"captured unknown Intel profile");if(p){Check(p->renderer=="ANGLE (Intel, Intel(R) Arc(TM) 130T GPU (16GB) (0x00007D51) Direct3D11 vs_5_0 ps_5_0, D3D11)","same displayed empty-seed fallback");Scalar(*p,0x8d57u,true,8,"captured independent global-seed MAX_SAMPLES");Check((p->architecture=="gen-9")==false,"global seed samples architecture is independent of display index");}}
++{ const auto p=base::UxrSelectOriginalWebGLProfileV2(9ULL,"windows","",-1,std::string_view("intel"),std::string_view("Intel mystery renderer"));Check(p.has_value(),"captured unknown Intel profile");if(p){Check(p->renderer=="ANGLE (Intel, Intel(R) Arc(TM) 130T GPU (16GB) (0x00007D51) Direct3D11 vs_5_0 ps_5_0, D3D11)","same displayed empty-seed fallback");Scalar(*p,0x8d57u,true,8,"captured independent global-seed MAX_SAMPLES");Check((p->architecture=="gen-9")==false,"global seed samples architecture is independent of display index");}}
++{ const auto p=base::UxrSelectOriginalWebGLProfileV2(12345ULL,"windows","",-1,std::string_view("intel"),std::string_view("Intel mystery renderer"));Check(p.has_value(),"captured unknown Intel profile");if(p){Check(p->renderer=="ANGLE (Intel, Intel(R) Arc(TM) 130T GPU (16GB) (0x00007D51) Direct3D11 vs_5_0 ps_5_0, D3D11)","same displayed empty-seed fallback");Scalar(*p,0x8d57u,true,16,"captured independent global-seed MAX_SAMPLES");Check((p->architecture=="gen-9")==true,"global seed samples architecture is independent of display index");}}
++{ const auto p=base::UxrSelectOriginalWebGLProfileV2(12345ULL,"windows","",-1,std::string_view("intel"),std::string_view("Intel mystery renderer"));Check(p.has_value(),"captured unknown Intel profile");if(p){Check(p->renderer=="ANGLE (Intel, Intel(R) Arc(TM) 130T GPU (16GB) (0x00007D51) Direct3D11 vs_5_0 ps_5_0, D3D11)","same displayed empty-seed fallback");Scalar(*p,0x8d57u,true,16,"captured independent global-seed MAX_SAMPLES");Check((p->architecture=="gen-9")==true,"global seed samples architecture is independent of display index");}}
++{ const auto p=base::UxrSelectOriginalWebGLProfileV2(1ULL,"windows","",-1,std::string_view("intel"),std::string_view("Intel mystery renderer"));Check(p.has_value(),"captured unknown Intel profile");if(p){Check(p->renderer=="ANGLE (Intel, Intel(R) Arc(TM) 130T GPU (16GB) (0x00007D51) Direct3D11 vs_5_0 ps_5_0, D3D11)","same displayed empty-seed fallback");Scalar(*p,0x8d57u,true,16,"captured independent global-seed MAX_SAMPLES");Check((p->architecture=="gen-9")==true,"global seed samples architecture is independent of display index");}}
++{ const auto p=base::UxrSelectOriginalWebGLProfileV2(1ULL,"windows","",-1,std::string_view("intel"),std::string_view("Intel mystery renderer"));Check(p.has_value(),"captured unknown Intel profile");if(p){Check(p->renderer=="ANGLE (Intel, Intel(R) Arc(TM) 130T GPU (16GB) (0x00007D51) Direct3D11 vs_5_0 ps_5_0, D3D11)","same displayed empty-seed fallback");Scalar(*p,0x8d57u,true,16,"captured independent global-seed MAX_SAMPLES");Check((p->architecture=="gen-9")==true,"global seed samples architecture is independent of display index");}}
++{ const auto p=base::UxrSelectOriginalWebGLProfileV2(38ULL,"windows","",-1,std::string_view("intel"),std::string_view("Intel mystery renderer"));Check(p.has_value(),"captured unknown Intel profile");if(p){Check(p->renderer=="ANGLE (Intel, Intel(R) Arc(TM) 130T GPU (16GB) (0x00007D51) Direct3D11 vs_5_0 ps_5_0, D3D11)","same displayed empty-seed fallback");Scalar(*p,0x8d57u,true,8,"captured independent global-seed MAX_SAMPLES");Check((p->architecture=="gen-9")==false,"global seed samples architecture is independent of display index");}}
++{ const auto p=base::UxrSelectOriginalWebGLProfileV2(38ULL,"windows","",-1,std::string_view("intel"),std::string_view("Intel mystery renderer"));Check(p.has_value(),"captured unknown Intel profile");if(p){Check(p->renderer=="ANGLE (Intel, Intel(R) Arc(TM) 130T GPU (16GB) (0x00007D51) Direct3D11 vs_5_0 ps_5_0, D3D11)","same displayed empty-seed fallback");Scalar(*p,0x8d57u,true,8,"captured independent global-seed MAX_SAMPLES");Check((p->architecture=="gen-9")==false,"global seed samples architecture is independent of display index");}}
+  std::printf("{\"original_webgl_public_checks\":%u,\"failures\":%u,\"identity_cases\":%u,\"scalar_captured_matches\":%u,\"precision_captured_matches\":%u,\"native_high_precision_routes\":%u,\"extension_captured_decisions\":%u,\"cache_captured_matches\":%u}\n",checks,failures,identities,scalar_matches,precision_matches,native_precision,extension_decisions,caches);return failures?1:0;
+ }
+diff --git a/base/uxr_surface_modes_test_main.cc b/base/uxr_surface_modes_test_main.cc
+--- a/base/uxr_surface_modes_test_main.cc
++++ b/base/uxr_surface_modes_test_main.cc
+@@ -399,7 +399,7 @@
+     input["uxr-original-webgl-seed"] = "18446744073709551615";
+     Check(observe(input).accepted, "original GL accepts canonical uint64 maximum");
+     input["uxr-original-webgl-renderer"] = "RTX short alias";
+-    Check(!observe(input).accepted, "unrecovered short renderer rejected explicitly");
++    Check(observe(input).accepted, "bounded nonempty raw renderer admitted for original normalization");
+   }
+   for (const char* mode : {"native", "custom", "cloak-original"}) {
+     auto input = snapshot();
+@@ -449,6 +449,29 @@
+     input["uxr-webgl-max-texture-size"] = "4096";
+     Check(observe(input).accepted, "existing v1 raw caps/list admission unchanged");
+   }
++  struct PublicProfileCase { const char* platform; const char* family; const char* architecture; };
++  for (const auto& row : {PublicProfileCase{"windows", "intel", "gen-9"},
++                          PublicProfileCase{"windows", "nvidia", ""},
++                          PublicProfileCase{"macos", "apple", ""},
++                          PublicProfileCase{"linux", "nvidia", ""}}) {
++    auto input = snapshot();
++    input["uxr-webgl-capabilities-mode"] = "cloak-original";
++    input["uxr-original-webgl-platform"] = row.platform;
++    input["uxr-original-webgl-family"] = row.family;
++    input["uxr-original-webgl-architecture"] = row.architecture;
++    input["uxr-original-webgl-index"] = "-1";
++    input["uxr-original-webgl-renderer"] = "nonempty raw presentation";
++    Check(observe(input).accepted, "raw display index is independent of sample architecture");
++    input["uxr-original-webgl-architecture"] = "invented-architecture";
++    Check(!observe(input).accepted, "invalid independent sample architecture rejected");
++    input["uxr-original-webgl-architecture"] = row.architecture;
++    input["uxr-original-webgl-index"] = "99";
++    Check(!observe(input).accepted, "out-of-catalog display index rejected");
++    input["uxr-original-webgl-index"] = "-1";
++    input["uxr-original-webgl-family"] = "invented-family";
++    Check(!observe(input).accepted, "unknown private profile family rejected");
++  }
++
+ }
+ 
+ }  // namespace
+diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
+--- a/chrome/app/chrome_main.cc
++++ b/chrome/app/chrome_main.cc
+@@ -679,9 +679,7 @@
+             requested_index,
+             explicit_vendor ? std::make_optional<std::string_view>(vendor) : std::nullopt,
+             explicit_renderer ? std::make_optional<std::string_view>(renderer) : std::nullopt);
+-        if (!profile ||
+-            (original_gl_mode("uxr-webgl-capabilities-mode") &&
+-             profile->architecture.empty())) {
++        if (!profile) {
+           std::cerr << "Unsupported original WebGL profile/renderer" << std::endl;
+           return 1;
+         }

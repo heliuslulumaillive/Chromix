@@ -1,0 +1,716 @@
+diff --git a/base/BUILD.gn b/base/BUILD.gn
+--- a/base/BUILD.gn
++++ b/base/BUILD.gn
+@@ -1040,12 +1040,16 @@
+     "uxr_surface_math.h",
+     "uxr_surface_reference_data.h",
+     "uxr_voice_reference_data.h",
+     "uxr_audio_reference_data.h",
+     "uxr_gpu_modes.h",
+     "uxr_original_webgl.cc",
++    "uxr_original_webgl_translated.cc",
++    "uxr_original_webgl_translated.h",
++    "uxr_original_webgl_translated_literals.inc",
++    "uxr_original_webgl_translated_test_vectors.h",
+     "uxr_original_webgl.h",
+     "uxr_font_allowlist.h",
+     "uxr_audio_defaults.h",
+     "uuid.cc",
+     "uuid.h",
+     "value_iterators.cc",
+diff --git a/base/uxr_original_webgl_translated.cc b/base/uxr_original_webgl_translated.cc
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_original_webgl_translated.cc
+@@ -0,0 +1,222 @@
++// Copyright 2026. Independently reconstructed from original public behavior.
++#include "base/uxr_original_webgl_translated.h"
++
++#include <cstdint>
++#include <initializer_list>
++#include <vector>
++
++namespace base {
++namespace {
++
++// Exact literal fragments are bound to the original PE and recovered callers.
++#include "base/uxr_original_webgl_translated_literals.inc"
++
++void Append(std::string& out, std::initializer_list<uint64_t> addresses) {
++  for (uint64_t address : addresses)
++    out.append(OriginalShaderLiteral(address));
++}
++
++std::string_view LeftTrim(std::string_view value) {
++  const auto first = value.find_first_not_of(" \t");
++  return first == std::string_view::npos ? std::string_view() : value.substr(first);
++}
++
++bool WordPrefix(std::string_view text, std::string_view word) {
++  return text.size() > word.size() && text.starts_with(word) &&
++         (text[word.size()] == ' ' || text[word.size()] == '\t');
++}
++
++struct Declaration {
++  std::string_view qualifier;
++  std::string_view type;
++  std::string_view name;
++};
++
++std::vector<Declaration> Declarations(std::string_view source) {
++  std::vector<Declaration> result;
++  while (!source.empty()) {
++    const auto newline = source.find('\n');
++    std::string_view line = LeftTrim(source.substr(0, newline));
++    source = newline == std::string_view::npos ? std::string_view()
++                                             : source.substr(newline + 1);
++    if (line.empty() || line.front() == '#' || line.front() == '/' ||
++        line.front() == '*')
++      continue;
++    std::string_view qualifier;
++    for (std::string_view candidate : {"attribute", "uniform", "varying", "in", "out"}) {
++      if (WordPrefix(line, candidate)) {
++        qualifier = candidate;
++        line = LeftTrim(line.substr(candidate.size()));
++        break;
++      }
++    }
++    if (qualifier.empty())
++      continue;
++    for (std::string_view precision : {"highp", "mediump", "lowp"}) {
++      if (WordPrefix(line, precision)) {
++        line = LeftTrim(line.substr(precision.size()));
++        break;
++      }
++    }
++    const auto type_end = line.find_first_of(" \t");
++    if (type_end == std::string_view::npos)
++      continue;
++    const auto type = line.substr(0, type_end);
++    line = LeftTrim(line.substr(type_end));
++    const auto name = line.substr(0, line.find_first_of(" ,;[\t"));
++    if (!type.empty() && !name.empty())
++      result.push_back({qualifier, type, name});
++  }
++  return result;
++}
++
++struct TypePair { std::string_view glsl; std::string_view hlsl; };
++constexpr TypePair kTypes[] = {
++    {"vec2", "float2"}, {"vec3", "float3"}, {"vec4", "float4"},
++    {"mat2", "float2x2"}, {"mat3", "float3x3"}, {"mat4", "float4x4"},
++    {"ivec2", "int2"}, {"ivec3", "int3"}, {"ivec4", "int4"},
++    {"sampler2D", "Texture2D"}, {"samplerCube", "TextureCube"},
++    {"float", "float"}, {"int", "int"}, {"bool", "bool"},
++};
++
++std::string_view HlslType(std::string_view type) {
++  for (const auto& entry : kTypes)
++    if (entry.glsl == type)
++      return entry.hlsl;
++  return "float4";
++}
++
++std::string MetalType(std::string_view type) {
++  if (type == "float" || type == "int")
++    return std::string(type);
++  for (const auto& entry : kTypes) {
++    if (entry.glsl == type && (type.starts_with("vec") ||
++                              type.starts_with("mat") ||
++                              type.starts_with("ivec")))
++      return "metal::" + std::string(entry.hlsl);
++  }
++  return "metal::float4";
++}
++
++std::string_view InitialValue(std::string_view type) {
++  if (type == "float") return "0.0";
++  if (type == "int") return "0";
++  if (type == "bool") return "false";
++  if (type == "float2" || type == "int2") return "{0, 0}";
++  if (type == "float3" || type == "int3") return "{0, 0, 0}";
++  if (type == "float3x3") return "{0, 0, 0, 0, 0, 0, 0, 0, 0}";
++  if (type == "float4x4") return "{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}";
++  return "{0, 0, 0, 0}";
++}
++
++bool Attribute(const Declaration& d, bool vertex) {
++  return d.qualifier == "attribute" || (vertex && d.qualifier == "in");
++}
++bool Varying(const Declaration& d, bool vertex) {
++  return d.qualifier == "varying" || d.qualifier == "out" ||
++         (!vertex && d.qualifier == "in");
++}
++bool Sampler(const Declaration& d) {
++  return d.type == "sampler2D" || d.type == "samplerCube";
++}
++void StaticDeclaration(std::string& out, const Declaration& d) {
++  const auto type = HlslType(d.type);
++  out += "static "; out += type; out += " _"; out += d.name;
++  out += " = "; out += InitialValue(type); out += ";\n";
++}
++
++std::string Hlsl(bool vertex, const std::vector<Declaration>& declarations) {
++  std::string out;
++  Append(out, {0x1923a7bd0, 0x193beadc0, 0x193beade8, 0x193beae10,
++               0x193beae28, 0x1921f3720, 0x193beae48, 0x193beae58,
++               0x1921f3728, 0x1937db738});
++  for (const auto& d : declarations)
++    if (Attribute(d, vertex)) StaticDeclaration(out, d);
++  Append(out, {vertex ? 0x193beae70ULL : 0x193beaea8ULL});
++  bool has_varying = false;
++  for (const auto& d : declarations) {
++    if (!Varying(d, vertex)) continue;
++    if (!has_varying) Append(out, {0x1937db808});
++    has_varying = true; StaticDeclaration(out, d);
++  }
++  out += '\n'; Append(out, {0x1937db4d8});
++  if (vertex)
++    Append(out, {0x193beaee0, 0x193beaf10, 0x193beaf40, 0x193beaf70, 0x193beafa8});
++  else
++    Append(out, {0x1923a5c70, 0x1937db570, 0x193beaf40});
++  Append(out, {0x1921ff5ec});
++  bool has_uniform = false;
++  uint64_t register_index = 0;
++  for (const auto& d : declarations) {
++    if (d.qualifier != "uniform" || Sampler(d)) continue;
++    if (!has_uniform) Append(out, {0x193beafe0});
++    has_uniform = true;
++    out += "    "; out += HlslType(d.type); out += " _"; out += d.name;
++    out += " : packoffset(c"; out += std::to_string(register_index); out += ");\n";
++    register_index += d.type == "mat4" ? 4 : d.type == "mat3" ? 3 : d.type == "mat2" ? 2 : 1;
++  }
++  if (has_uniform) Append(out, {0x1921ff5ec});
++  for (const auto& d : declarations) {
++    if (d.qualifier != "uniform" || !Sampler(d)) continue;
++    out += "uniform "; out += HlslType(d.type); out += " _"; out += d.name; out += ";\n";
++    out += "uniform SamplerState sampler_"; out += d.name; out += ";\n";
++  }
++  if (vertex)
++    Append(out, {0x193beb038, 0x1937dbe28, 0x193beb058, 0x1937dbdf0, 0x193beb080});
++  else
++    Append(out, {0x193beb0e8, 0x1937dbe60, 0x193beb100, 0x1937dbdf0, 0x193beb128});
++  for (const auto& d : declarations) {
++    if (vertex ? Attribute(d, true) : (d.qualifier == "varying" || d.qualifier == "in")) {
++      out += vertex ? "(gl_Position = _" : "(gl_Color[0] = _";
++      out += d.name; out += ");\n";
++    }
++  }
++  Append(out, {0x193beb0c8}); out += "}\n";
++  Append(out, {0x193beb170});
++  return out;
++}
++
++std::string Metal(bool vertex, const std::vector<Declaration>& declarations) {
++  std::string out;
++  Append(out, {0x193beb208, 0x193beb228, 0x193beb270, 0x193beb2d0,
++               0x193beb330, 0x193beb3a8, 0x193beb3e0, 0x193beb418,
++               0x193beb450, 0x193beb488, 0x193beb4c0, 0x193beb4f8,
++               0x193beb530, 0x193beb5a0, 0x193beb610, 0x193beb680,
++               0x193beb6f0, 0x193beb760, 0x193beb7d0, 0x193beb7f0,
++               0x193beb850, 0x193beb870, 0x193beb8e0, 0x193beb950});
++  Append(out, {vertex ? 0x193beb9c0ULL : 0x193bec280ULL,
++               vertex ? 0x193beba30ULL : 0x193bec2d0ULL});
++  for (const auto& d : declarations) {
++    if (!(vertex ? Attribute(d, true) : (d.qualifier == "varying" || d.qualifier == "in")))
++      continue;
++    out += "  "; out += MetalType(d.type); out += " _u"; out += d.name;
++    out += vertex ? " __unassigned_attribute__;\n" : ";\n";
++  }
++  Append(out, {0x1921ff5ec});
++  if (vertex) {
++    Append(out, {0x193beba70, 0x193bebae0, 0x193bebb60, 0x193bebbd0});
++    for (const auto& d : declarations) {
++      if (!Attribute(d, true)) continue;
++      out += "  ANGLE_vertexOut.gl_Position = metal::float4(ANGLE_vertexIn._u";
++      out += d.name; out += ");\n"; break;
++    }
++    Append(out, {0x192491418, 0x193bebc60, 0x193bebd98, 0x193bebdc0,
++                 0x193bebdf0, 0x193bebe28, 0x193bebe40, 0x193bebe60,
++                 0x193bebf10, 0x193bebf70, 0x193bec010, 0x193bec0d0,
++                 0x193bec190, 0x193bec220});
++  } else {
++    Append(out, {0x193bec2f0, 0x193bec360, 0x193bec3b0, 0x193bec450});
++  }
++  return out;
++}
++
++}  // namespace
++
++std::optional<std::string> UxrOriginalWebGLTranslatedShaderV2(
++    std::string_view platform, bool vertex, std::string_view source) {
++  if (platform == "windows") return Hlsl(vertex, Declarations(source));
++  if (platform == "macos") return Metal(vertex, Declarations(source));
++  return std::nullopt;
++}
++
++}  // namespace base
+diff --git a/base/uxr_original_webgl_translated.h b/base/uxr_original_webgl_translated.h
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_original_webgl_translated.h
+@@ -0,0 +1,19 @@
++// Copyright 2026. Reconstructed public shader-diagnostic presentation policy.
++#ifndef BASE_UXR_ORIGINAL_WEBGL_TRANSLATED_H_
++#define BASE_UXR_ORIGINAL_WEBGL_TRANSLATED_H_
++
++#include <optional>
++#include <string>
++#include <string_view>
++
++#include "base/base_export.h"
++
++namespace base {
++
++// This describes the diagnostic string only. It does not translate or execute
++// a shader, and callers must retain normal WebGL object/context validation.
++BASE_EXPORT std::optional<std::string> UxrOriginalWebGLTranslatedShaderV2(
++    std::string_view platform, bool vertex, std::string_view source);
++
++}  // namespace base
++#endif  // BASE_UXR_ORIGINAL_WEBGL_TRANSLATED_H_
+diff --git a/base/uxr_original_webgl_translated_literals.inc b/base/uxr_original_webgl_translated_literals.inc
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_original_webgl_translated_literals.inc
+@@ -0,0 +1,357 @@
++// Literal fragments recovered from original DLL SHA256 336f3af913c2a3cdbc6679ada4550ff04b80e27ade54a6c8d8fbb64c9877ff74
++std::string_view OriginalShaderLiteral(uint64_t address) {
++  switch (address) {
++    case 0x192182988ULL: return R"CLGL(basic_string)CLGL";
++    case 0x1921832a4ULL: return R"CLGL(false)CLGL";
++    case 0x1921832a5ULL: return R"CLGL(alse)CLGL";
++    case 0x192183a8cULL: return R"CLGL(
++)CLGL";
++    case 0x192183c04ULL: return R"CLGL(bool)CLGL";
++    case 0x192183c44ULL: return R"CLGL(int)CLGL";
++    case 0x192183c45ULL: return R"CLGL(nt)CLGL";
++    case 0x192183ca0ULL: return R"CLGL(float)CLGL";
++    case 0x192183ca1ULL: return R"CLGL(loat)CLGL";
++    case 0x192183e1cULL: return R"CLGL()CLGL";
++    case 0x192187e10ULL: return R"CLGL(0)CLGL";
++    case 0x192187e11ULL: return R"CLGL()CLGL";
++    case 0x19218a768ULL: return R"CLGL(    )CLGL";
++    case 0x1921b062cULL: return R"CLGL(  )CLGL";
++    case 0x1921d0204ULL: return R"CLGL(in)CLGL";
++    case 0x1921d0208ULL: return R"CLGL(out)CLGL";
++    case 0x1921ee45cULL: return R"CLGL(float2)CLGL";
++    case 0x1921ee45dULL: return R"CLGL(loat2)CLGL";
++    case 0x1921ee464ULL: return R"CLGL(float3)CLGL";
++    case 0x1921ee465ULL: return R"CLGL(loat3)CLGL";
++    case 0x1921ee46cULL: return R"CLGL(float4)CLGL";
++    case 0x1921ee46dULL: return R"CLGL(loat4)CLGL";
++    case 0x1921f0818ULL: return R"CLGL(float2x2)CLGL";
++    case 0x1921f0819ULL: return R"CLGL(loat2x2)CLGL";
++    case 0x1921f0828ULL: return R"CLGL(float3x3)CLGL";
++    case 0x1921f0829ULL: return R"CLGL(loat3x3)CLGL";
++    case 0x1921f0838ULL: return R"CLGL(float4x4)CLGL";
++    case 0x1921f0839ULL: return R"CLGL(loat4x4)CLGL";
++    case 0x1921f0860ULL: return R"CLGL(int2)CLGL";
++    case 0x1921f0861ULL: return R"CLGL(nt2)CLGL";
++    case 0x1921f0868ULL: return R"CLGL(int3)CLGL";
++    case 0x1921f0869ULL: return R"CLGL(nt3)CLGL";
++    case 0x1921f0870ULL: return R"CLGL(int4)CLGL";
++    case 0x1921f0871ULL: return R"CLGL(nt4)CLGL";
++    case 0x1921f3720ULL: return R"CLGL(#else
++)CLGL";
++    case 0x1921f3728ULL: return R"CLGL(#endif
++)CLGL";
++    case 0x1921f51a0ULL: return R"CLGL(}
++)CLGL";
++    case 0x1921f51a4ULL: return R"CLGL();
++)CLGL";
++    case 0x1921f9b8cULL: return R"CLGL(;
++)CLGL";
++    case 0x1921ff5ecULL: return R"CLGL(};
++
++)CLGL";
++    case 0x1922fe5c0ULL: return R"CLGL(attribute)CLGL";
++    case 0x1922fe78cULL: return R"CLGL(highp)CLGL";
++    case 0x1922fe7e4ULL: return R"CLGL(lowp)CLGL";
++    case 0x1922fe810ULL: return R"CLGL(mediump)CLGL";
++    case 0x1922feaa0ULL: return R"CLGL(varying)CLGL";
++    case 0x1922fefd0ULL: return R"CLGL(uniform)CLGL";
++    case 0x192346d3cULL: return R"CLGL( = )CLGL";
++    case 0x1923a5c70ULL: return R"CLGL(    float4 dx_ViewCoords : packoffset(c1);
++)CLGL";
++    case 0x1923a65c8ULL: return R"CLGL(uniform )CLGL";
++    case 0x1923a7bd0ULL: return R"CLGL(// INITIAL HLSL BEGIN
++
++)CLGL";
++    case 0x192427b88ULL: return R"CLGL(Texture2D)CLGL";
++    case 0x192427b89ULL: return R"CLGL(exture2D)CLGL";
++    case 0x192427be0ULL: return R"CLGL(TextureCube)CLGL";
++    case 0x192428f20ULL: return R"CLGL(static )CLGL";
++    case 0x192491418ULL: return R"CLGL(}
++
++)CLGL";
++    case 0x1928a39a0ULL: return R"CLGL(0.0)CLGL";
++    case 0x1928a39a1ULL: return R"CLGL(.0)CLGL";
++    case 0x1937db4d8ULL: return R"CLGL(cbuffer DriverConstants : register(b1)
++{
++)CLGL";
++    case 0x1937db570ULL: return R"CLGL(    float3 dx_DepthFront : packoffset(c2);
++)CLGL";
++    case 0x1937db738ULL: return R"CLGL(// Attributes
++)CLGL";
++    case 0x1937db808ULL: return R"CLGL(
++// Varyings
++)CLGL";
++    case 0x1937dbdf0ULL: return R"CLGL(@@ MAIN PROLOGUE @@
++)CLGL";
++    case 0x1937dbe28ULL: return R"CLGL(@@ VERTEX OUTPUT @@
++
++)CLGL";
++    case 0x1937dbe60ULL: return R"CLGL(@@ PIXEL OUTPUT @@
++
++)CLGL";
++    case 0x193944780ULL: return R"CLGL(object does not belong to this context)CLGL";
++    case 0x1939448a8ULL: return R"CLGL(attempt to use a deleted object)CLGL";
++    case 0x193beadc0ULL: return R"CLGL(#pragma warning( disable: 3556 3571 )
++)CLGL";
++    case 0x193beade8ULL: return R"CLGL(#ifdef ANGLE_ENABLE_LOOP_FLATTEN
++)CLGL";
++    case 0x193beae10ULL: return R"CLGL(#define LOOP [loop]
++)CLGL";
++    case 0x193beae28ULL: return R"CLGL(#define FLATTEN [flatten]
++)CLGL";
++    case 0x193beae48ULL: return R"CLGL(#define LOOP
++)CLGL";
++    case 0x193beae58ULL: return R"CLGL(#define FLATTEN
++)CLGL";
++    case 0x193beae6cULL: return R"CLGL( _)CLGL";
++    case 0x193beae70ULL: return R"CLGL(static float4 gl_Position = float4(0, 0, 0, 0);
++)CLGL";
++    case 0x193beaea8ULL: return R"CLGL(static float4 gl_Color[1] = { float4(0, 0, 0, 0) };
++)CLGL";
++    case 0x193beaee0ULL: return R"CLGL(    float4 dx_ViewAdjust : packoffset(c1);
++)CLGL";
++    case 0x193beaf10ULL: return R"CLGL(    float2 dx_ViewCoords : packoffset(c2);
++)CLGL";
++    case 0x193beaf40ULL: return R"CLGL(    float2 dx_ViewScale  : packoffset(c3);
++)CLGL";
++    case 0x193beaf70ULL: return R"CLGL(    float clipControlOrigin : packoffset(c3.z);
++)CLGL";
++    case 0x193beafa8ULL: return R"CLGL(    float clipControlZeroToOne : packoffset(c3.w);
++)CLGL";
++    case 0x193beafe0ULL: return R"CLGL(cbuffer _Globals : register(b0)
++{
++)CLGL";
++    case 0x193beb008ULL: return R"CLGL( : packoffset(c)CLGL";
++    case 0x193beb018ULL: return R"CLGL(uniform SamplerState sampler_)CLGL";
++    case 0x193beb038ULL: return R"CLGL(@@ VERTEX ATTRIBUTES @@
++)CLGL";
++    case 0x193beb058ULL: return R"CLGL(VS_OUTPUT main(VS_INPUT input){
++)CLGL";
++    case 0x193beb080ULL: return R"CLGL((gl_Position = float4(0.0, 0.0, 0.0, 0.0));
++)CLGL";
++    case 0x193beb0b0ULL: return R"CLGL((gl_Position = _)CLGL";
++    case 0x193beb0c8ULL: return R"CLGL(return generateOutput(input);
++)CLGL";
++    case 0x193beb0e8ULL: return R"CLGL(@@ PIXEL ATTRIBUTES @@
++)CLGL";
++    case 0x193beb100ULL: return R"CLGL(PS_OUTPUT main(PS_INPUT input){
++)CLGL";
++    case 0x193beb128ULL: return R"CLGL((gl_Color[0] = float4(0.0, 0.0, 0.0, 0.0));
++)CLGL";
++    case 0x193beb158ULL: return R"CLGL((gl_Color[0] = _)CLGL";
++    case 0x193beb170ULL: return R"CLGL(
++// INITIAL HLSL END
++)CLGL";
++    case 0x193beb188ULL: return R"CLGL({0, 0})CLGL";
++    case 0x193beb189ULL: return R"CLGL(0, 0})CLGL";
++    case 0x193beb190ULL: return R"CLGL({0, 0, 0})CLGL";
++    case 0x193beb191ULL: return R"CLGL(0, 0, 0})CLGL";
++    case 0x193beb1a0ULL: return R"CLGL({0, 0, 0, 0})CLGL";
++    case 0x193beb1a1ULL: return R"CLGL(0, 0, 0, 0})CLGL";
++    case 0x193beb1b0ULL: return R"CLGL({0, 0, 0, 0, 0, 0, 0, 0, 0})CLGL";
++    case 0x193beb1d0ULL: return R"CLGL({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})CLGL";
++    case 0x193beb208ULL: return R"CLGL(
++
++#include <metal_stdlib>
++
++)CLGL";
++    case 0x193beb228ULL: return R"CLGL(#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))
++
++)CLGL";
++    case 0x193beb270ULL: return R"CLGL(ANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)
++{
++)CLGL";
++    case 0x193beb2d0ULL: return R"CLGL(    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));
++};
++
++)CLGL";
++    case 0x193beb330ULL: return R"CLGL(#if TRANSFORM_FEEDBACK_ENABLED
++    #define __VERTEX_OUT(args) void
++#else
++    #define __VERTEX_OUT(args) args
++#endif
++
++)CLGL";
++    case 0x193beb3a8ULL: return R"CLGL(#pragma clang diagnostic ignored "-Wunused-value"
++)CLGL";
++    case 0x193beb3e0ULL: return R"CLGL(#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0
++)CLGL";
++    case 0x193beb418ULL: return R"CLGL(#define ANGLE_RASTERIZATION_DISCARD_INDEX     1
++)CLGL";
++    case 0x193beb450ULL: return R"CLGL(#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2
++)CLGL";
++    case 0x193beb488ULL: return R"CLGL(#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3
++)CLGL";
++    case 0x193beb4c0ULL: return R"CLGL(#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4
++)CLGL";
++    case 0x193beb4f8ULL: return R"CLGL(#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5
++
++)CLGL";
++    case 0x193beb530ULL: return R"CLGL(constant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];
++)CLGL";
++    case 0x193beb5a0ULL: return R"CLGL(constant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];
++)CLGL";
++    case 0x193beb610ULL: return R"CLGL(constant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];
++)CLGL";
++    case 0x193beb680ULL: return R"CLGL(constant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];
++)CLGL";
++    case 0x193beb6f0ULL: return R"CLGL(constant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];
++)CLGL";
++    case 0x193beb760ULL: return R"CLGL(constant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];
++
++)CLGL";
++    case 0x193beb7d0ULL: return R"CLGL(#define ANGLE_ALPHA0
++
++)CLGL";
++    case 0x193beb7f0ULL: return R"CLGL(struct ANGLEDepthRangeParams
++{
++  float ANGLE_near;
++  float ANGLE_far;
++  float ANGLE_diff;
++};
++
++)CLGL";
++    case 0x193beb850ULL: return R"CLGL(struct ANGLEUniformBlock
++{
++)CLGL";
++    case 0x193beb870ULL: return R"CLGL(  metal::float2 ANGLE_depthRange;
++  uint32_t ANGLE_renderArea;
++  uint32_t ANGLE_flipXY;
++  uint32_t ANGLE_misc;
++)CLGL";
++    case 0x193beb8e0ULL: return R"CLGL(  int ANGLE_baseInstance;
++  metal::uint2 ANGLE_acbBufferOffsets;
++  metal::int4 ANGLE_xfbBufferOffsets;
++)CLGL";
++    case 0x193beb950ULL: return R"CLGL(  int ANGLE_xfbVerticesPerInstance;
++  uint32_t ANGLE_coverageMask;
++  metal::uint2 ANGLE_unused;
++};
++
++)CLGL";
++    case 0x193beb9c0ULL: return R"CLGL(struct ANGLE_VertexOut
++{
++  metal::float4 gl_Position [[position]];
++  float gl_PointSize [[point_size]];
++};
++
++)CLGL";
++    case 0x193beba30ULL: return R"CLGL(struct ANGLE_VertexIn
++{
++)CLGL";
++    case 0x193beba50ULL: return R"CLGL( __unassigned_attribute__;
++)CLGL";
++    case 0x193beba6cULL: return R"CLGL( _u)CLGL";
++    case 0x193beba70ULL: return R"CLGL(metal::float4 ANGLE_sbc7(float ANGLE_sbc8, float ANGLE_sbc9, float ANGLE_sbca, float ANGLE_sbcb)
++{
++)CLGL";
++    case 0x193bebae0ULL: return R"CLGL(  metal::float4 ANGLE_sbcc = metal::float4(ANGLE_sbc8, ANGLE_sbc9, ANGLE_sbca, ANGLE_sbcb);
++  return ANGLE_sbcc;;
++}
++
++)CLGL";
++    case 0x193bebb60ULL: return R"CLGL(void ANGLE__0_main(thread ANGLE_VertexOut & ANGLE_vertexOut, thread ANGLE_VertexIn & ANGLE_vertexIn)
++{
++)CLGL";
++    case 0x193bebbd0ULL: return R"CLGL(  ANGLE_vertexOut.gl_Position = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);
++)CLGL";
++    case 0x193bebc20ULL: return R"CLGL(  ANGLE_vertexOut.gl_Position = metal::float4(ANGLE_vertexIn._u)CLGL";
++    case 0x193bebc60ULL: return R"CLGL(vertex __VERTEX_OUT(ANGLE_VertexOut)  main0(ANGLE_VertexIn ANGLE_vertexIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]], uint32_t ANGLE_instanceIdMod [[instance_id]], uint32_t ANGLE_baseInstance [[base_instance]], uint32_t ANGLE_vertexIDMetal [[vertex_id]] @@XFB-Bindings@@ )
++{
++)CLGL";
++    case 0x193bebd98ULL: return R"CLGL(  ANGLE_VertexOut ANGLE_vertexOut;
++  {
++)CLGL";
++    case 0x193bebdc0ULL: return R"CLGL(    ANGLE_vertexOut.gl_PointSize = 1.0f;
++)CLGL";
++    case 0x193bebdf0ULL: return R"CLGL(    ANGLE__0_main(ANGLE_vertexOut, ANGLE_vertexIn);
++)CLGL";
++    case 0x193bebe28ULL: return R"CLGL(    ANGLE_@@XFB-OUT@@
++)CLGL";
++    case 0x193bebe40ULL: return R"CLGL(    float ANGLE_sbd0;
++)CLGL";
++    case 0x193bebe60ULL: return R"CLGL(    if (ANGLE_angleUniforms.ANGLE_depthRange.y < ANGLE_angleUniforms.ANGLE_depthRange.x)
++    {
++      ANGLE_sbd0 = -1.0f;
++    }
++    else
++    {
++      ANGLE_sbd0 = 1.0f;
++    }
++)CLGL";
++    case 0x193bebf10ULL: return R"CLGL(    ANGLE_vertexOut.gl_Position.z = (ANGLE_vertexOut.gl_Position.z * ANGLE_sbd0);
++)CLGL";
++    case 0x193bebf70ULL: return R"CLGL(    uint32_t ANGLE_sbd2 = (ANGLE_angleUniforms.ANGLE_misc >> 20u);
++    uint32_t ANGLE_sbd3 = (ANGLE_sbd2 & 1u);
++    bool ANGLE_sbd4 = bool(ANGLE_sbd3);
++)CLGL";
++    case 0x193bec010ULL: return R"CLGL(    if (ANGLE_sbd4)
++    {
++      float ANGLE_sbd5 = (ANGLE_vertexOut.gl_Position.z + ANGLE_vertexOut.gl_Position.w);
++      ANGLE_vertexOut.gl_Position.z = (ANGLE_sbd5 * 0.5f);
++    } else {}
++)CLGL";
++    case 0x193bec0d0ULL: return R"CLGL(    metal::float4 ANGLE_sbd7 = metal::unpack_snorm4x8_to_float(ANGLE_angleUniforms.ANGLE_flipXY);
++    ANGLE_vertexOut.gl_Position.y = (ANGLE_vertexOut.gl_Position.y * ANGLE_sbd7.w);
++)CLGL";
++    case 0x193bec190ULL: return R"CLGL(    if (ANGLERasterizerDisabled)
++    {
++      ANGLE_vertexOut.gl_Position = ANGLE_sbc7(-3.0f, -3.0f, -3.0f, 1.0f);
++    } else {}
++)CLGL";
++    case 0x193bec220ULL: return R"CLGL(  }
++  #if TRANSFORM_FEEDBACK_ENABLED
++  return;
++  #else
++  return ANGLE_vertexOut;
++  #endif
++
++}
++)CLGL";
++    case 0x193bec280ULL: return R"CLGL(struct ANGLE_FragmentOut
++{
++  metal::float4 gl_FragColor [[color(0)]];
++};
++
++)CLGL";
++    case 0x193bec2d0ULL: return R"CLGL(struct ANGLE_FragmentIn
++{
++)CLGL";
++    case 0x193bec2f0ULL: return R"CLGL(void ANGLE__0_main(thread ANGLE_FragmentOut & ANGLE_fragmentOut, thread ANGLE_FragmentIn & ANGLE_fragmentIn)
++{
++)CLGL";
++    case 0x193bec360ULL: return R"CLGL(  ANGLE_fragmentOut.gl_FragColor = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);
++}
++
++)CLGL";
++    case 0x193bec3b0ULL: return R"CLGL(fragment ANGLE_FragmentOut main0(ANGLE_FragmentIn ANGLE_fragmentIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]])
++{
++)CLGL";
++    case 0x193bec450ULL: return R"CLGL(  ANGLE_FragmentOut ANGLE_fragmentOut;
++  {
++    ANGLE__0_main(ANGLE_fragmentOut, ANGLE_fragmentIn);
++  }
++  return ANGLE_fragmentOut;
++}
++)CLGL";
++    case 0x193bec4d8ULL: return R"CLGL(metal::float2)CLGL";
++    case 0x193bec4d9ULL: return R"CLGL(etal::float2)CLGL";
++    case 0x193bec4e8ULL: return R"CLGL(metal::float3)CLGL";
++    case 0x193bec4e9ULL: return R"CLGL(etal::float3)CLGL";
++    case 0x193bec4f8ULL: return R"CLGL(metal::float4)CLGL";
++    case 0x193bec4f9ULL: return R"CLGL(etal::float4)CLGL";
++    case 0x193bec508ULL: return R"CLGL(metal::float2x2)CLGL";
++    case 0x193bec509ULL: return R"CLGL(etal::float2x2)CLGL";
++    case 0x193bec518ULL: return R"CLGL(metal::float3x3)CLGL";
++    case 0x193bec519ULL: return R"CLGL(etal::float3x3)CLGL";
++    case 0x193bec528ULL: return R"CLGL(metal::float4x4)CLGL";
++    case 0x193bec529ULL: return R"CLGL(etal::float4x4)CLGL";
++    case 0x193bec538ULL: return R"CLGL(metal::int2)CLGL";
++    case 0x193bec539ULL: return R"CLGL(etal::int2)CLGL";
++    case 0x193bec548ULL: return R"CLGL(metal::int3)CLGL";
++    case 0x193bec549ULL: return R"CLGL(etal::int3)CLGL";
++    case 0x193bec558ULL: return R"CLGL(metal::int4)CLGL";
++    case 0x193bec568ULL: return R"CLGL(getTranslatedShaderSource)CLGL";
++    default: return {};
++  }
++}
+diff --git a/base/uxr_original_webgl_translated_test_vectors.h b/base/uxr_original_webgl_translated_test_vectors.h
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_original_webgl_translated_test_vectors.h
+@@ -0,0 +1,41 @@
++// Captured original public diagnostic outputs; no shader execution claim.
++#ifndef BASE_UXR_ORIGINAL_WEBGL_TRANSLATED_TEST_VECTORS_H_
++#define BASE_UXR_ORIGINAL_WEBGL_TRANSLATED_TEST_VECTORS_H_
++namespace base {
++struct UxrOriginalWebGLTranslatedTestVectorV2 {
++  const char* name;
++  const char* platform;
++  bool vertex;
++  const char* source;
++  const char* expected;
++};
++inline constexpr UxrOriginalWebGLTranslatedTestVectorV2 kUxrOriginalWebGLTranslatedVectorsV2[] = {
++ {"win/v100-simple/empty","windows",true,"","// INITIAL HLSL BEGIN\n\n#pragma warning( disable: 3556 3571 )\n#ifdef ANGLE_ENABLE_LOOP_FLATTEN\n#define LOOP [loop]\n#define FLATTEN [flatten]\n#else\n#define LOOP\n#define FLATTEN\n#endif\n// Attributes\nstatic float4 gl_Position = float4(0, 0, 0, 0);\n\ncbuffer DriverConstants : register(b1)\n{\n    float4 dx_ViewAdjust : packoffset(c1);\n    float2 dx_ViewCoords : packoffset(c2);\n    float2 dx_ViewScale  : packoffset(c3);\n    float clipControlOrigin : packoffset(c3.z);\n    float clipControlZeroToOne : packoffset(c3.w);\n};\n\n@@ VERTEX ATTRIBUTES @@\n@@ VERTEX OUTPUT @@\n\nVS_OUTPUT main(VS_INPUT input){\n@@ MAIN PROLOGUE @@\n(gl_Position = float4(0.0, 0.0, 0.0, 0.0));\nreturn generateOutput(input);\n}\n\n// INITIAL HLSL END\n"},
++ {"win/v100-simple/beforeCompile","windows",true,"attribute vec4 position;\nvoid main(){gl_Position=position;}","// INITIAL HLSL BEGIN\n\n#pragma warning( disable: 3556 3571 )\n#ifdef ANGLE_ENABLE_LOOP_FLATTEN\n#define LOOP [loop]\n#define FLATTEN [flatten]\n#else\n#define LOOP\n#define FLATTEN\n#endif\n// Attributes\nstatic float4 _position = {0, 0, 0, 0};\nstatic float4 gl_Position = float4(0, 0, 0, 0);\n\ncbuffer DriverConstants : register(b1)\n{\n    float4 dx_ViewAdjust : packoffset(c1);\n    float2 dx_ViewCoords : packoffset(c2);\n    float2 dx_ViewScale  : packoffset(c3);\n    float clipControlOrigin : packoffset(c3.z);\n    float clipControlZeroToOne : packoffset(c3.w);\n};\n\n@@ VERTEX ATTRIBUTES @@\n@@ VERTEX OUTPUT @@\n\nVS_OUTPUT main(VS_INPUT input){\n@@ MAIN PROLOGUE @@\n(gl_Position = float4(0.0, 0.0, 0.0, 0.0));\n(gl_Position = _position);\nreturn generateOutput(input);\n}\n\n// INITIAL HLSL END\n"},
++ {"win/f100-simple/empty","windows",false,"","// INITIAL HLSL BEGIN\n\n#pragma warning( disable: 3556 3571 )\n#ifdef ANGLE_ENABLE_LOOP_FLATTEN\n#define LOOP [loop]\n#define FLATTEN [flatten]\n#else\n#define LOOP\n#define FLATTEN\n#endif\n// Attributes\nstatic float4 gl_Color[1] = { float4(0, 0, 0, 0) };\n\ncbuffer DriverConstants : register(b1)\n{\n    float4 dx_ViewCoords : packoffset(c1);\n    float3 dx_DepthFront : packoffset(c2);\n    float2 dx_ViewScale  : packoffset(c3);\n};\n\n@@ PIXEL ATTRIBUTES @@\n@@ PIXEL OUTPUT @@\n\nPS_OUTPUT main(PS_INPUT input){\n@@ MAIN PROLOGUE @@\n(gl_Color[0] = float4(0.0, 0.0, 0.0, 0.0));\nreturn generateOutput(input);\n}\n\n// INITIAL HLSL END\n"},
++ {"win/f100-simple/beforeCompile","windows",false,"precision mediump float;\nvoid main(){gl_FragColor=vec4(0.25,0.5,0.75,1.);}","// INITIAL HLSL BEGIN\n\n#pragma warning( disable: 3556 3571 )\n#ifdef ANGLE_ENABLE_LOOP_FLATTEN\n#define LOOP [loop]\n#define FLATTEN [flatten]\n#else\n#define LOOP\n#define FLATTEN\n#endif\n// Attributes\nstatic float4 gl_Color[1] = { float4(0, 0, 0, 0) };\n\ncbuffer DriverConstants : register(b1)\n{\n    float4 dx_ViewCoords : packoffset(c1);\n    float3 dx_DepthFront : packoffset(c2);\n    float2 dx_ViewScale  : packoffset(c3);\n};\n\n@@ PIXEL ATTRIBUTES @@\n@@ PIXEL OUTPUT @@\n\nPS_OUTPUT main(PS_INPUT input){\n@@ MAIN PROLOGUE @@\n(gl_Color[0] = float4(0.0, 0.0, 0.0, 0.0));\nreturn generateOutput(input);\n}\n\n// INITIAL HLSL END\n"},
++ {"win/v100-declarations/beforeCompile","windows",true,"attribute vec3 position;\nattribute vec2 texcoord;\nvarying vec2 uv;\nuniform mat4 transform;\nuniform mat3 normalMatrix;\nuniform mat2 smallMatrix;\nuniform vec4 tint;\nuniform vec3 normal;\nuniform vec2 offset;\nuniform float gain;\nuniform int selector;\nuniform bool enabled;\nvoid main(){uv=texcoord;gl_Position=transform*vec4(position,1.);}","// INITIAL HLSL BEGIN\n\n#pragma warning( disable: 3556 3571 )\n#ifdef ANGLE_ENABLE_LOOP_FLATTEN\n#define LOOP [loop]\n#define FLATTEN [flatten]\n#else\n#define LOOP\n#define FLATTEN\n#endif\n// Attributes\nstatic float3 _position = {0, 0, 0};\nstatic float2 _texcoord = {0, 0};\nstatic float4 gl_Position = float4(0, 0, 0, 0);\n\n// Varyings\nstatic float2 _uv = {0, 0};\n\ncbuffer DriverConstants : register(b1)\n{\n    float4 dx_ViewAdjust : packoffset(c1);\n    float2 dx_ViewCoords : packoffset(c2);\n    float2 dx_ViewScale  : packoffset(c3);\n    float clipControlOrigin : packoffset(c3.z);\n    float clipControlZeroToOne : packoffset(c3.w);\n};\n\ncbuffer _Globals : register(b0)\n{\n    float4x4 _transform : packoffset(c0);\n    float3x3 _normalMatrix : packoffset(c4);\n    float2x2 _smallMatrix : packoffset(c7);\n    float4 _tint : packoffset(c9);\n    float3 _normal : packoffset(c10);\n    float2 _offset : packoffset(c11);\n    float _gain : packoffset(c12);\n    int _selector : packoffset(c13);\n    bool _enabled : packoffset(c14);\n};\n\n@@ VERTEX ATTRIBUTES @@\n@@ VERTEX OUTPUT @@\n\nVS_OUTPUT main(VS_INPUT input){\n@@ MAIN PROLOGUE @@\n(gl_Position = float4(0.0, 0.0, 0.0, 0.0));\n(gl_Position = _position);\n(gl_Position = _texcoord);\nreturn generateOutput(input);\n}\n\n// INITIAL HLSL END\n"},
++ {"win/f100-declarations/beforeCompile","windows",false,"precision mediump float;\nvarying vec2 uv;\nuniform sampler2D image;\nuniform samplerCube cube;\nuniform vec4 tint;\nuniform ivec2 a;\nuniform ivec3 b;\nuniform ivec4 c;\nvoid main(){gl_FragColor=texture2D(image,uv)+textureCube(cube,vec3(1.))+tint;}","// INITIAL HLSL BEGIN\n\n#pragma warning( disable: 3556 3571 )\n#ifdef ANGLE_ENABLE_LOOP_FLATTEN\n#define LOOP [loop]\n#define FLATTEN [flatten]\n#else\n#define LOOP\n#define FLATTEN\n#endif\n// Attributes\nstatic float4 gl_Color[1] = { float4(0, 0, 0, 0) };\n\n// Varyings\nstatic float2 _uv = {0, 0};\n\ncbuffer DriverConstants : register(b1)\n{\n    float4 dx_ViewCoords : packoffset(c1);\n    float3 dx_DepthFront : packoffset(c2);\n    float2 dx_ViewScale  : packoffset(c3);\n};\n\ncbuffer _Globals : register(b0)\n{\n    float4 _tint : packoffset(c0);\n    int2 _a : packoffset(c1);\n    int3 _b : packoffset(c2);\n    int4 _c : packoffset(c3);\n};\n\nuniform Texture2D _image;\nuniform SamplerState sampler_image;\nuniform TextureCube _cube;\nuniform SamplerState sampler_cube;\n@@ PIXEL ATTRIBUTES @@\n@@ PIXEL OUTPUT @@\n\nPS_OUTPUT main(PS_INPUT input){\n@@ MAIN PROLOGUE @@\n(gl_Color[0] = float4(0.0, 0.0, 0.0, 0.0));\n(gl_Color[0] = _uv);\nreturn generateOutput(input);\n}\n\n// INITIAL HLSL END\n"},
++ {"win/v100-tabs-precision-arrays/beforeCompile","windows",true,"  attribute\thighp\tvec4 p;\r\n\tuniform lowp vec2 offsets[2];\n// uniform float ignored;\n/* uniform float alsoIgnored; */\n\nvoid main(){gl_Position=p+vec4(offsets[1],0.,0.);}","// INITIAL HLSL BEGIN\n\n#pragma warning( disable: 3556 3571 )\n#ifdef ANGLE_ENABLE_LOOP_FLATTEN\n#define LOOP [loop]\n#define FLATTEN [flatten]\n#else\n#define LOOP\n#define FLATTEN\n#endif\n// Attributes\nstatic float4 _p = {0, 0, 0, 0};\nstatic float4 gl_Position = float4(0, 0, 0, 0);\n\ncbuffer DriverConstants : register(b1)\n{\n    float4 dx_ViewAdjust : packoffset(c1);\n    float2 dx_ViewCoords : packoffset(c2);\n    float2 dx_ViewScale  : packoffset(c3);\n    float clipControlOrigin : packoffset(c3.z);\n    float clipControlZeroToOne : packoffset(c3.w);\n};\n\ncbuffer _Globals : register(b0)\n{\n    float2 _offsets : packoffset(c0);\n};\n\n@@ VERTEX ATTRIBUTES @@\n@@ VERTEX OUTPUT @@\n\nVS_OUTPUT main(VS_INPUT input){\n@@ MAIN PROLOGUE @@\n(gl_Position = float4(0.0, 0.0, 0.0, 0.0));\n(gl_Position = _p);\nreturn generateOutput(input);\n}\n\n// INITIAL HLSL END\n"},
++ {"win/v100-one-line/beforeCompile","windows",true,"attribute vec4 p; uniform vec2 uv; void main(){gl_Position=p+vec4(uv,0.,0.);}","// INITIAL HLSL BEGIN\n\n#pragma warning( disable: 3556 3571 )\n#ifdef ANGLE_ENABLE_LOOP_FLATTEN\n#define LOOP [loop]\n#define FLATTEN [flatten]\n#else\n#define LOOP\n#define FLATTEN\n#endif\n// Attributes\nstatic float4 _p = {0, 0, 0, 0};\nstatic float4 gl_Position = float4(0, 0, 0, 0);\n\ncbuffer DriverConstants : register(b1)\n{\n    float4 dx_ViewAdjust : packoffset(c1);\n    float2 dx_ViewCoords : packoffset(c2);\n    float2 dx_ViewScale  : packoffset(c3);\n    float clipControlOrigin : packoffset(c3.z);\n    float clipControlZeroToOne : packoffset(c3.w);\n};\n\n@@ VERTEX ATTRIBUTES @@\n@@ VERTEX OUTPUT @@\n\nVS_OUTPUT main(VS_INPUT input){\n@@ MAIN PROLOGUE @@\n(gl_Position = float4(0.0, 0.0, 0.0, 0.0));\n(gl_Position = _p);\nreturn generateOutput(input);\n}\n\n// INITIAL HLSL END\n"},
++ {"win/v100-multiple-names/beforeCompile","windows",true,"attribute vec4 p;\nuniform float a,b;\nvoid main(){gl_Position=p+vec4(a+b);}","// INITIAL HLSL BEGIN\n\n#pragma warning( disable: 3556 3571 )\n#ifdef ANGLE_ENABLE_LOOP_FLATTEN\n#define LOOP [loop]\n#define FLATTEN [flatten]\n#else\n#define LOOP\n#define FLATTEN\n#endif\n// Attributes\nstatic float4 _p = {0, 0, 0, 0};\nstatic float4 gl_Position = float4(0, 0, 0, 0);\n\ncbuffer DriverConstants : register(b1)\n{\n    float4 dx_ViewAdjust : packoffset(c1);\n    float2 dx_ViewCoords : packoffset(c2);\n    float2 dx_ViewScale  : packoffset(c3);\n    float clipControlOrigin : packoffset(c3.z);\n    float clipControlZeroToOne : packoffset(c3.w);\n};\n\ncbuffer _Globals : register(b0)\n{\n    float _a : packoffset(c0);\n};\n\n@@ VERTEX ATTRIBUTES @@\n@@ VERTEX OUTPUT @@\n\nVS_OUTPUT main(VS_INPUT input){\n@@ MAIN PROLOGUE @@\n(gl_Position = float4(0.0, 0.0, 0.0, 0.0));\n(gl_Position = _p);\nreturn generateOutput(input);\n}\n\n// INITIAL HLSL END\n"},
++ {"win/v300-in-out/beforeCompile","windows",true,"#version 300 es\nprecision highp float;\nin vec4 p;\nin vec2 uv;\nout vec2 v;\nuniform mat4 transform;\nuniform vec4 colors[3];\nvoid main(){v=uv;gl_Position=transform*p+colors[1];}","// INITIAL HLSL BEGIN\n\n#pragma warning( disable: 3556 3571 )\n#ifdef ANGLE_ENABLE_LOOP_FLATTEN\n#define LOOP [loop]\n#define FLATTEN [flatten]\n#else\n#define LOOP\n#define FLATTEN\n#endif\n// Attributes\nstatic float4 _p = {0, 0, 0, 0};\nstatic float2 _uv = {0, 0};\nstatic float4 gl_Position = float4(0, 0, 0, 0);\n\n// Varyings\nstatic float2 _v = {0, 0};\n\ncbuffer DriverConstants : register(b1)\n{\n    float4 dx_ViewAdjust : packoffset(c1);\n    float2 dx_ViewCoords : packoffset(c2);\n    float2 dx_ViewScale  : packoffset(c3);\n    float clipControlOrigin : packoffset(c3.z);\n    float clipControlZeroToOne : packoffset(c3.w);\n};\n\ncbuffer _Globals : register(b0)\n{\n    float4x4 _transform : packoffset(c0);\n    float4 _colors : packoffset(c4);\n};\n\n@@ VERTEX ATTRIBUTES @@\n@@ VERTEX OUTPUT @@\n\nVS_OUTPUT main(VS_INPUT input){\n@@ MAIN PROLOGUE @@\n(gl_Position = float4(0.0, 0.0, 0.0, 0.0));\n(gl_Position = _p);\n(gl_Position = _uv);\nreturn generateOutput(input);\n}\n\n// INITIAL HLSL END\n"},
++ {"win/f300-in-out/beforeCompile","windows",false,"#version 300 es\nprecision highp float;\nin vec2 v;\nout vec4 result;\nuniform sampler2D image;\nuniform samplerCube cube;\nuniform uint n;\nuniform uvec2 u;\nvoid main(){result=texture(image,v)+texture(cube,vec3(1.));}","// INITIAL HLSL BEGIN\n\n#pragma warning( disable: 3556 3571 )\n#ifdef ANGLE_ENABLE_LOOP_FLATTEN\n#define LOOP [loop]\n#define FLATTEN [flatten]\n#else\n#define LOOP\n#define FLATTEN\n#endif\n// Attributes\nstatic float4 gl_Color[1] = { float4(0, 0, 0, 0) };\n\n// Varyings\nstatic float2 _v = {0, 0};\nstatic float4 _result = {0, 0, 0, 0};\n\ncbuffer DriverConstants : register(b1)\n{\n    float4 dx_ViewCoords : packoffset(c1);\n    float3 dx_DepthFront : packoffset(c2);\n    float2 dx_ViewScale  : packoffset(c3);\n};\n\ncbuffer _Globals : register(b0)\n{\n    float4 _n : packoffset(c0);\n    float4 _u : packoffset(c1);\n};\n\nuniform Texture2D _image;\nuniform SamplerState sampler_image;\nuniform TextureCube _cube;\nuniform SamplerState sampler_cube;\n@@ PIXEL ATTRIBUTES @@\n@@ PIXEL OUTPUT @@\n\nPS_OUTPUT main(PS_INPUT input){\n@@ MAIN PROLOGUE @@\n(gl_Color[0] = float4(0.0, 0.0, 0.0, 0.0));\n(gl_Color[0] = _v);\nreturn generateOutput(input);\n}\n\n// INITIAL HLSL END\n"},
++ {"win/v300-layout-flat/beforeCompile","windows",true,"#version 300 es\nprecision highp float;\nlayout(location=0) in vec4 p;\nflat out int index;\nuniform vec4 array[2];\nvoid main(){index=1;gl_Position=p+array[1];}","// INITIAL HLSL BEGIN\n\n#pragma warning( disable: 3556 3571 )\n#ifdef ANGLE_ENABLE_LOOP_FLATTEN\n#define LOOP [loop]\n#define FLATTEN [flatten]\n#else\n#define LOOP\n#define FLATTEN\n#endif\n// Attributes\nstatic float4 gl_Position = float4(0, 0, 0, 0);\n\ncbuffer DriverConstants : register(b1)\n{\n    float4 dx_ViewAdjust : packoffset(c1);\n    float2 dx_ViewCoords : packoffset(c2);\n    float2 dx_ViewScale  : packoffset(c3);\n    float clipControlOrigin : packoffset(c3.z);\n    float clipControlZeroToOne : packoffset(c3.w);\n};\n\ncbuffer _Globals : register(b0)\n{\n    float4 _array : packoffset(c0);\n};\n\n@@ VERTEX ATTRIBUTES @@\n@@ VERTEX OUTPUT @@\n\nVS_OUTPUT main(VS_INPUT input){\n@@ MAIN PROLOGUE @@\n(gl_Position = float4(0.0, 0.0, 0.0, 0.0));\nreturn generateOutput(input);\n}\n\n// INITIAL HLSL END\n"},
++ {"win/f100-invalid/beforeCompile","windows",false,"uniform float broken;\nthis is not GLSL;","// INITIAL HLSL BEGIN\n\n#pragma warning( disable: 3556 3571 )\n#ifdef ANGLE_ENABLE_LOOP_FLATTEN\n#define LOOP [loop]\n#define FLATTEN [flatten]\n#else\n#define LOOP\n#define FLATTEN\n#endif\n// Attributes\nstatic float4 gl_Color[1] = { float4(0, 0, 0, 0) };\n\ncbuffer DriverConstants : register(b1)\n{\n    float4 dx_ViewCoords : packoffset(c1);\n    float3 dx_DepthFront : packoffset(c2);\n    float2 dx_ViewScale  : packoffset(c3);\n};\n\ncbuffer _Globals : register(b0)\n{\n    float _broken : packoffset(c0);\n};\n\n@@ PIXEL ATTRIBUTES @@\n@@ PIXEL OUTPUT @@\n\nPS_OUTPUT main(PS_INPUT input){\n@@ MAIN PROLOGUE @@\n(gl_Color[0] = float4(0.0, 0.0, 0.0, 0.0));\nreturn generateOutput(input);\n}\n\n// INITIAL HLSL END\n"},
++ {"mac/v100-simple/empty","macos",true,"","\n\n#include <metal_stdlib>\n\n#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))\n\nANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)\n{\n    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));\n};\n\n#if TRANSFORM_FEEDBACK_ENABLED\n    #define __VERTEX_OUT(args) void\n#else\n    #define __VERTEX_OUT(args) args\n#endif\n\n#pragma clang diagnostic ignored \"-Wunused-value\"\n#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0\n#define ANGLE_RASTERIZATION_DISCARD_INDEX     1\n#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2\n#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3\n#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4\n#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5\n\nconstant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];\nconstant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];\nconstant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];\nconstant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];\nconstant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];\nconstant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];\n\n#define ANGLE_ALPHA0\n\nstruct ANGLEDepthRangeParams\n{\n  float ANGLE_near;\n  float ANGLE_far;\n  float ANGLE_diff;\n};\n\nstruct ANGLEUniformBlock\n{\n  metal::float2 ANGLE_depthRange;\n  uint32_t ANGLE_renderArea;\n  uint32_t ANGLE_flipXY;\n  uint32_t ANGLE_misc;\n  int ANGLE_baseInstance;\n  metal::uint2 ANGLE_acbBufferOffsets;\n  metal::int4 ANGLE_xfbBufferOffsets;\n  int ANGLE_xfbVerticesPerInstance;\n  uint32_t ANGLE_coverageMask;\n  metal::uint2 ANGLE_unused;\n};\n\nstruct ANGLE_VertexOut\n{\n  metal::float4 gl_Position [[position]];\n  float gl_PointSize [[point_size]];\n};\n\nstruct ANGLE_VertexIn\n{\n};\n\nmetal::float4 ANGLE_sbc7(float ANGLE_sbc8, float ANGLE_sbc9, float ANGLE_sbca, float ANGLE_sbcb)\n{\n  metal::float4 ANGLE_sbcc = metal::float4(ANGLE_sbc8, ANGLE_sbc9, ANGLE_sbca, ANGLE_sbcb);\n  return ANGLE_sbcc;;\n}\n\nvoid ANGLE__0_main(thread ANGLE_VertexOut & ANGLE_vertexOut, thread ANGLE_VertexIn & ANGLE_vertexIn)\n{\n  ANGLE_vertexOut.gl_Position = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);\n}\n\nvertex __VERTEX_OUT(ANGLE_VertexOut)  main0(ANGLE_VertexIn ANGLE_vertexIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]], uint32_t ANGLE_instanceIdMod [[instance_id]], uint32_t ANGLE_baseInstance [[base_instance]], uint32_t ANGLE_vertexIDMetal [[vertex_id]] @@XFB-Bindings@@ )\n{\n  ANGLE_VertexOut ANGLE_vertexOut;\n  {\n    ANGLE_vertexOut.gl_PointSize = 1.0f;\n    ANGLE__0_main(ANGLE_vertexOut, ANGLE_vertexIn);\n    ANGLE_@@XFB-OUT@@\n    float ANGLE_sbd0;\n    if (ANGLE_angleUniforms.ANGLE_depthRange.y < ANGLE_angleUniforms.ANGLE_depthRange.x)\n    {\n      ANGLE_sbd0 = -1.0f;\n    }\n    else\n    {\n      ANGLE_sbd0 = 1.0f;\n    }\n    ANGLE_vertexOut.gl_Position.z = (ANGLE_vertexOut.gl_Position.z * ANGLE_sbd0);\n    uint32_t ANGLE_sbd2 = (ANGLE_angleUniforms.ANGLE_misc >> 20u);\n    uint32_t ANGLE_sbd3 = (ANGLE_sbd2 & 1u);\n    bool ANGLE_sbd4 = bool(ANGLE_sbd3);\n    if (ANGLE_sbd4)\n    {\n      float ANGLE_sbd5 = (ANGLE_vertexOut.gl_Position.z + ANGLE_vertexOut.gl_Position.w);\n      ANGLE_vertexOut.gl_Position.z = (ANGLE_sbd5 * 0.5f);\n    } else {}\n    metal::float4 ANGLE_sbd7 = metal::unpack_snorm4x8_to_float(ANGLE_angleUniforms.ANGLE_flipXY);\n    ANGLE_vertexOut.gl_Position.y = (ANGLE_vertexOut.gl_Position.y * ANGLE_sbd7.w);\n    if (ANGLERasterizerDisabled)\n    {\n      ANGLE_vertexOut.gl_Position = ANGLE_sbc7(-3.0f, -3.0f, -3.0f, 1.0f);\n    } else {}\n  }\n  #if TRANSFORM_FEEDBACK_ENABLED\n  return;\n  #else\n  return ANGLE_vertexOut;\n  #endif\n\n}\n"},
++ {"mac/v100-simple/beforeCompile","macos",true,"attribute vec4 position;\nvoid main(){gl_Position=position;}","\n\n#include <metal_stdlib>\n\n#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))\n\nANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)\n{\n    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));\n};\n\n#if TRANSFORM_FEEDBACK_ENABLED\n    #define __VERTEX_OUT(args) void\n#else\n    #define __VERTEX_OUT(args) args\n#endif\n\n#pragma clang diagnostic ignored \"-Wunused-value\"\n#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0\n#define ANGLE_RASTERIZATION_DISCARD_INDEX     1\n#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2\n#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3\n#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4\n#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5\n\nconstant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];\nconstant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];\nconstant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];\nconstant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];\nconstant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];\nconstant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];\n\n#define ANGLE_ALPHA0\n\nstruct ANGLEDepthRangeParams\n{\n  float ANGLE_near;\n  float ANGLE_far;\n  float ANGLE_diff;\n};\n\nstruct ANGLEUniformBlock\n{\n  metal::float2 ANGLE_depthRange;\n  uint32_t ANGLE_renderArea;\n  uint32_t ANGLE_flipXY;\n  uint32_t ANGLE_misc;\n  int ANGLE_baseInstance;\n  metal::uint2 ANGLE_acbBufferOffsets;\n  metal::int4 ANGLE_xfbBufferOffsets;\n  int ANGLE_xfbVerticesPerInstance;\n  uint32_t ANGLE_coverageMask;\n  metal::uint2 ANGLE_unused;\n};\n\nstruct ANGLE_VertexOut\n{\n  metal::float4 gl_Position [[position]];\n  float gl_PointSize [[point_size]];\n};\n\nstruct ANGLE_VertexIn\n{\n  metal::float4 _uposition __unassigned_attribute__;\n};\n\nmetal::float4 ANGLE_sbc7(float ANGLE_sbc8, float ANGLE_sbc9, float ANGLE_sbca, float ANGLE_sbcb)\n{\n  metal::float4 ANGLE_sbcc = metal::float4(ANGLE_sbc8, ANGLE_sbc9, ANGLE_sbca, ANGLE_sbcb);\n  return ANGLE_sbcc;;\n}\n\nvoid ANGLE__0_main(thread ANGLE_VertexOut & ANGLE_vertexOut, thread ANGLE_VertexIn & ANGLE_vertexIn)\n{\n  ANGLE_vertexOut.gl_Position = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);\n  ANGLE_vertexOut.gl_Position = metal::float4(ANGLE_vertexIn._uposition);\n}\n\nvertex __VERTEX_OUT(ANGLE_VertexOut)  main0(ANGLE_VertexIn ANGLE_vertexIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]], uint32_t ANGLE_instanceIdMod [[instance_id]], uint32_t ANGLE_baseInstance [[base_instance]], uint32_t ANGLE_vertexIDMetal [[vertex_id]] @@XFB-Bindings@@ )\n{\n  ANGLE_VertexOut ANGLE_vertexOut;\n  {\n    ANGLE_vertexOut.gl_PointSize = 1.0f;\n    ANGLE__0_main(ANGLE_vertexOut, ANGLE_vertexIn);\n    ANGLE_@@XFB-OUT@@\n    float ANGLE_sbd0;\n    if (ANGLE_angleUniforms.ANGLE_depthRange.y < ANGLE_angleUniforms.ANGLE_depthRange.x)\n    {\n      ANGLE_sbd0 = -1.0f;\n    }\n    else\n    {\n      ANGLE_sbd0 = 1.0f;\n    }\n    ANGLE_vertexOut.gl_Position.z = (ANGLE_vertexOut.gl_Position.z * ANGLE_sbd0);\n    uint32_t ANGLE_sbd2 = (ANGLE_angleUniforms.ANGLE_misc >> 20u);\n    uint32_t ANGLE_sbd3 = (ANGLE_sbd2 & 1u);\n    bool ANGLE_sbd4 = bool(ANGLE_sbd3);\n    if (ANGLE_sbd4)\n    {\n      float ANGLE_sbd5 = (ANGLE_vertexOut.gl_Position.z + ANGLE_vertexOut.gl_Position.w);\n      ANGLE_vertexOut.gl_Position.z = (ANGLE_sbd5 * 0.5f);\n    } else {}\n    metal::float4 ANGLE_sbd7 = metal::unpack_snorm4x8_to_float(ANGLE_angleUniforms.ANGLE_flipXY);\n    ANGLE_vertexOut.gl_Position.y = (ANGLE_vertexOut.gl_Position.y * ANGLE_sbd7.w);\n    if (ANGLERasterizerDisabled)\n    {\n      ANGLE_vertexOut.gl_Position = ANGLE_sbc7(-3.0f, -3.0f, -3.0f, 1.0f);\n    } else {}\n  }\n  #if TRANSFORM_FEEDBACK_ENABLED\n  return;\n  #else\n  return ANGLE_vertexOut;\n  #endif\n\n}\n"},
++ {"mac/f100-simple/empty","macos",false,"","\n\n#include <metal_stdlib>\n\n#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))\n\nANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)\n{\n    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));\n};\n\n#if TRANSFORM_FEEDBACK_ENABLED\n    #define __VERTEX_OUT(args) void\n#else\n    #define __VERTEX_OUT(args) args\n#endif\n\n#pragma clang diagnostic ignored \"-Wunused-value\"\n#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0\n#define ANGLE_RASTERIZATION_DISCARD_INDEX     1\n#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2\n#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3\n#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4\n#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5\n\nconstant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];\nconstant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];\nconstant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];\nconstant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];\nconstant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];\nconstant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];\n\n#define ANGLE_ALPHA0\n\nstruct ANGLEDepthRangeParams\n{\n  float ANGLE_near;\n  float ANGLE_far;\n  float ANGLE_diff;\n};\n\nstruct ANGLEUniformBlock\n{\n  metal::float2 ANGLE_depthRange;\n  uint32_t ANGLE_renderArea;\n  uint32_t ANGLE_flipXY;\n  uint32_t ANGLE_misc;\n  int ANGLE_baseInstance;\n  metal::uint2 ANGLE_acbBufferOffsets;\n  metal::int4 ANGLE_xfbBufferOffsets;\n  int ANGLE_xfbVerticesPerInstance;\n  uint32_t ANGLE_coverageMask;\n  metal::uint2 ANGLE_unused;\n};\n\nstruct ANGLE_FragmentOut\n{\n  metal::float4 gl_FragColor [[color(0)]];\n};\n\nstruct ANGLE_FragmentIn\n{\n};\n\nvoid ANGLE__0_main(thread ANGLE_FragmentOut & ANGLE_fragmentOut, thread ANGLE_FragmentIn & ANGLE_fragmentIn)\n{\n  ANGLE_fragmentOut.gl_FragColor = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);\n}\n\nfragment ANGLE_FragmentOut main0(ANGLE_FragmentIn ANGLE_fragmentIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]])\n{\n  ANGLE_FragmentOut ANGLE_fragmentOut;\n  {\n    ANGLE__0_main(ANGLE_fragmentOut, ANGLE_fragmentIn);\n  }\n  return ANGLE_fragmentOut;\n}\n"},
++ {"mac/f100-simple/beforeCompile","macos",false,"precision mediump float;\nvoid main(){gl_FragColor=vec4(0.25,0.5,0.75,1.);}","\n\n#include <metal_stdlib>\n\n#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))\n\nANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)\n{\n    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));\n};\n\n#if TRANSFORM_FEEDBACK_ENABLED\n    #define __VERTEX_OUT(args) void\n#else\n    #define __VERTEX_OUT(args) args\n#endif\n\n#pragma clang diagnostic ignored \"-Wunused-value\"\n#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0\n#define ANGLE_RASTERIZATION_DISCARD_INDEX     1\n#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2\n#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3\n#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4\n#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5\n\nconstant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];\nconstant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];\nconstant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];\nconstant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];\nconstant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];\nconstant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];\n\n#define ANGLE_ALPHA0\n\nstruct ANGLEDepthRangeParams\n{\n  float ANGLE_near;\n  float ANGLE_far;\n  float ANGLE_diff;\n};\n\nstruct ANGLEUniformBlock\n{\n  metal::float2 ANGLE_depthRange;\n  uint32_t ANGLE_renderArea;\n  uint32_t ANGLE_flipXY;\n  uint32_t ANGLE_misc;\n  int ANGLE_baseInstance;\n  metal::uint2 ANGLE_acbBufferOffsets;\n  metal::int4 ANGLE_xfbBufferOffsets;\n  int ANGLE_xfbVerticesPerInstance;\n  uint32_t ANGLE_coverageMask;\n  metal::uint2 ANGLE_unused;\n};\n\nstruct ANGLE_FragmentOut\n{\n  metal::float4 gl_FragColor [[color(0)]];\n};\n\nstruct ANGLE_FragmentIn\n{\n};\n\nvoid ANGLE__0_main(thread ANGLE_FragmentOut & ANGLE_fragmentOut, thread ANGLE_FragmentIn & ANGLE_fragmentIn)\n{\n  ANGLE_fragmentOut.gl_FragColor = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);\n}\n\nfragment ANGLE_FragmentOut main0(ANGLE_FragmentIn ANGLE_fragmentIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]])\n{\n  ANGLE_FragmentOut ANGLE_fragmentOut;\n  {\n    ANGLE__0_main(ANGLE_fragmentOut, ANGLE_fragmentIn);\n  }\n  return ANGLE_fragmentOut;\n}\n"},
++ {"mac/v100-declarations/beforeCompile","macos",true,"attribute vec3 position;\nattribute vec2 texcoord;\nvarying vec2 uv;\nuniform mat4 transform;\nuniform mat3 normalMatrix;\nuniform mat2 smallMatrix;\nuniform vec4 tint;\nuniform vec3 normal;\nuniform vec2 offset;\nuniform float gain;\nuniform int selector;\nuniform bool enabled;\nvoid main(){uv=texcoord;gl_Position=transform*vec4(position,1.);}","\n\n#include <metal_stdlib>\n\n#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))\n\nANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)\n{\n    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));\n};\n\n#if TRANSFORM_FEEDBACK_ENABLED\n    #define __VERTEX_OUT(args) void\n#else\n    #define __VERTEX_OUT(args) args\n#endif\n\n#pragma clang diagnostic ignored \"-Wunused-value\"\n#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0\n#define ANGLE_RASTERIZATION_DISCARD_INDEX     1\n#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2\n#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3\n#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4\n#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5\n\nconstant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];\nconstant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];\nconstant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];\nconstant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];\nconstant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];\nconstant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];\n\n#define ANGLE_ALPHA0\n\nstruct ANGLEDepthRangeParams\n{\n  float ANGLE_near;\n  float ANGLE_far;\n  float ANGLE_diff;\n};\n\nstruct ANGLEUniformBlock\n{\n  metal::float2 ANGLE_depthRange;\n  uint32_t ANGLE_renderArea;\n  uint32_t ANGLE_flipXY;\n  uint32_t ANGLE_misc;\n  int ANGLE_baseInstance;\n  metal::uint2 ANGLE_acbBufferOffsets;\n  metal::int4 ANGLE_xfbBufferOffsets;\n  int ANGLE_xfbVerticesPerInstance;\n  uint32_t ANGLE_coverageMask;\n  metal::uint2 ANGLE_unused;\n};\n\nstruct ANGLE_VertexOut\n{\n  metal::float4 gl_Position [[position]];\n  float gl_PointSize [[point_size]];\n};\n\nstruct ANGLE_VertexIn\n{\n  metal::float3 _uposition __unassigned_attribute__;\n  metal::float2 _utexcoord __unassigned_attribute__;\n};\n\nmetal::float4 ANGLE_sbc7(float ANGLE_sbc8, float ANGLE_sbc9, float ANGLE_sbca, float ANGLE_sbcb)\n{\n  metal::float4 ANGLE_sbcc = metal::float4(ANGLE_sbc8, ANGLE_sbc9, ANGLE_sbca, ANGLE_sbcb);\n  return ANGLE_sbcc;;\n}\n\nvoid ANGLE__0_main(thread ANGLE_VertexOut & ANGLE_vertexOut, thread ANGLE_VertexIn & ANGLE_vertexIn)\n{\n  ANGLE_vertexOut.gl_Position = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);\n  ANGLE_vertexOut.gl_Position = metal::float4(ANGLE_vertexIn._uposition);\n}\n\nvertex __VERTEX_OUT(ANGLE_VertexOut)  main0(ANGLE_VertexIn ANGLE_vertexIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]], uint32_t ANGLE_instanceIdMod [[instance_id]], uint32_t ANGLE_baseInstance [[base_instance]], uint32_t ANGLE_vertexIDMetal [[vertex_id]] @@XFB-Bindings@@ )\n{\n  ANGLE_VertexOut ANGLE_vertexOut;\n  {\n    ANGLE_vertexOut.gl_PointSize = 1.0f;\n    ANGLE__0_main(ANGLE_vertexOut, ANGLE_vertexIn);\n    ANGLE_@@XFB-OUT@@\n    float ANGLE_sbd0;\n    if (ANGLE_angleUniforms.ANGLE_depthRange.y < ANGLE_angleUniforms.ANGLE_depthRange.x)\n    {\n      ANGLE_sbd0 = -1.0f;\n    }\n    else\n    {\n      ANGLE_sbd0 = 1.0f;\n    }\n    ANGLE_vertexOut.gl_Position.z = (ANGLE_vertexOut.gl_Position.z * ANGLE_sbd0);\n    uint32_t ANGLE_sbd2 = (ANGLE_angleUniforms.ANGLE_misc >> 20u);\n    uint32_t ANGLE_sbd3 = (ANGLE_sbd2 & 1u);\n    bool ANGLE_sbd4 = bool(ANGLE_sbd3);\n    if (ANGLE_sbd4)\n    {\n      float ANGLE_sbd5 = (ANGLE_vertexOut.gl_Position.z + ANGLE_vertexOut.gl_Position.w);\n      ANGLE_vertexOut.gl_Position.z = (ANGLE_sbd5 * 0.5f);\n    } else {}\n    metal::float4 ANGLE_sbd7 = metal::unpack_snorm4x8_to_float(ANGLE_angleUniforms.ANGLE_flipXY);\n    ANGLE_vertexOut.gl_Position.y = (ANGLE_vertexOut.gl_Position.y * ANGLE_sbd7.w);\n    if (ANGLERasterizerDisabled)\n    {\n      ANGLE_vertexOut.gl_Position = ANGLE_sbc7(-3.0f, -3.0f, -3.0f, 1.0f);\n    } else {}\n  }\n  #if TRANSFORM_FEEDBACK_ENABLED\n  return;\n  #else\n  return ANGLE_vertexOut;\n  #endif\n\n}\n"},
++ {"mac/f100-declarations/beforeCompile","macos",false,"precision mediump float;\nvarying vec2 uv;\nuniform sampler2D image;\nuniform samplerCube cube;\nuniform vec4 tint;\nuniform ivec2 a;\nuniform ivec3 b;\nuniform ivec4 c;\nvoid main(){gl_FragColor=texture2D(image,uv)+textureCube(cube,vec3(1.))+tint;}","\n\n#include <metal_stdlib>\n\n#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))\n\nANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)\n{\n    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));\n};\n\n#if TRANSFORM_FEEDBACK_ENABLED\n    #define __VERTEX_OUT(args) void\n#else\n    #define __VERTEX_OUT(args) args\n#endif\n\n#pragma clang diagnostic ignored \"-Wunused-value\"\n#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0\n#define ANGLE_RASTERIZATION_DISCARD_INDEX     1\n#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2\n#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3\n#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4\n#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5\n\nconstant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];\nconstant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];\nconstant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];\nconstant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];\nconstant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];\nconstant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];\n\n#define ANGLE_ALPHA0\n\nstruct ANGLEDepthRangeParams\n{\n  float ANGLE_near;\n  float ANGLE_far;\n  float ANGLE_diff;\n};\n\nstruct ANGLEUniformBlock\n{\n  metal::float2 ANGLE_depthRange;\n  uint32_t ANGLE_renderArea;\n  uint32_t ANGLE_flipXY;\n  uint32_t ANGLE_misc;\n  int ANGLE_baseInstance;\n  metal::uint2 ANGLE_acbBufferOffsets;\n  metal::int4 ANGLE_xfbBufferOffsets;\n  int ANGLE_xfbVerticesPerInstance;\n  uint32_t ANGLE_coverageMask;\n  metal::uint2 ANGLE_unused;\n};\n\nstruct ANGLE_FragmentOut\n{\n  metal::float4 gl_FragColor [[color(0)]];\n};\n\nstruct ANGLE_FragmentIn\n{\n  metal::float2 _uuv;\n};\n\nvoid ANGLE__0_main(thread ANGLE_FragmentOut & ANGLE_fragmentOut, thread ANGLE_FragmentIn & ANGLE_fragmentIn)\n{\n  ANGLE_fragmentOut.gl_FragColor = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);\n}\n\nfragment ANGLE_FragmentOut main0(ANGLE_FragmentIn ANGLE_fragmentIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]])\n{\n  ANGLE_FragmentOut ANGLE_fragmentOut;\n  {\n    ANGLE__0_main(ANGLE_fragmentOut, ANGLE_fragmentIn);\n  }\n  return ANGLE_fragmentOut;\n}\n"},
++ {"mac/v100-tabs-precision-arrays/beforeCompile","macos",true,"  attribute\thighp\tvec4 p;\r\n\tuniform lowp vec2 offsets[2];\n// uniform float ignored;\n/* uniform float alsoIgnored; */\n\nvoid main(){gl_Position=p+vec4(offsets[1],0.,0.);}","\n\n#include <metal_stdlib>\n\n#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))\n\nANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)\n{\n    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));\n};\n\n#if TRANSFORM_FEEDBACK_ENABLED\n    #define __VERTEX_OUT(args) void\n#else\n    #define __VERTEX_OUT(args) args\n#endif\n\n#pragma clang diagnostic ignored \"-Wunused-value\"\n#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0\n#define ANGLE_RASTERIZATION_DISCARD_INDEX     1\n#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2\n#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3\n#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4\n#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5\n\nconstant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];\nconstant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];\nconstant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];\nconstant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];\nconstant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];\nconstant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];\n\n#define ANGLE_ALPHA0\n\nstruct ANGLEDepthRangeParams\n{\n  float ANGLE_near;\n  float ANGLE_far;\n  float ANGLE_diff;\n};\n\nstruct ANGLEUniformBlock\n{\n  metal::float2 ANGLE_depthRange;\n  uint32_t ANGLE_renderArea;\n  uint32_t ANGLE_flipXY;\n  uint32_t ANGLE_misc;\n  int ANGLE_baseInstance;\n  metal::uint2 ANGLE_acbBufferOffsets;\n  metal::int4 ANGLE_xfbBufferOffsets;\n  int ANGLE_xfbVerticesPerInstance;\n  uint32_t ANGLE_coverageMask;\n  metal::uint2 ANGLE_unused;\n};\n\nstruct ANGLE_VertexOut\n{\n  metal::float4 gl_Position [[position]];\n  float gl_PointSize [[point_size]];\n};\n\nstruct ANGLE_VertexIn\n{\n  metal::float4 _up __unassigned_attribute__;\n};\n\nmetal::float4 ANGLE_sbc7(float ANGLE_sbc8, float ANGLE_sbc9, float ANGLE_sbca, float ANGLE_sbcb)\n{\n  metal::float4 ANGLE_sbcc = metal::float4(ANGLE_sbc8, ANGLE_sbc9, ANGLE_sbca, ANGLE_sbcb);\n  return ANGLE_sbcc;;\n}\n\nvoid ANGLE__0_main(thread ANGLE_VertexOut & ANGLE_vertexOut, thread ANGLE_VertexIn & ANGLE_vertexIn)\n{\n  ANGLE_vertexOut.gl_Position = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);\n  ANGLE_vertexOut.gl_Position = metal::float4(ANGLE_vertexIn._up);\n}\n\nvertex __VERTEX_OUT(ANGLE_VertexOut)  main0(ANGLE_VertexIn ANGLE_vertexIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]], uint32_t ANGLE_instanceIdMod [[instance_id]], uint32_t ANGLE_baseInstance [[base_instance]], uint32_t ANGLE_vertexIDMetal [[vertex_id]] @@XFB-Bindings@@ )\n{\n  ANGLE_VertexOut ANGLE_vertexOut;\n  {\n    ANGLE_vertexOut.gl_PointSize = 1.0f;\n    ANGLE__0_main(ANGLE_vertexOut, ANGLE_vertexIn);\n    ANGLE_@@XFB-OUT@@\n    float ANGLE_sbd0;\n    if (ANGLE_angleUniforms.ANGLE_depthRange.y < ANGLE_angleUniforms.ANGLE_depthRange.x)\n    {\n      ANGLE_sbd0 = -1.0f;\n    }\n    else\n    {\n      ANGLE_sbd0 = 1.0f;\n    }\n    ANGLE_vertexOut.gl_Position.z = (ANGLE_vertexOut.gl_Position.z * ANGLE_sbd0);\n    uint32_t ANGLE_sbd2 = (ANGLE_angleUniforms.ANGLE_misc >> 20u);\n    uint32_t ANGLE_sbd3 = (ANGLE_sbd2 & 1u);\n    bool ANGLE_sbd4 = bool(ANGLE_sbd3);\n    if (ANGLE_sbd4)\n    {\n      float ANGLE_sbd5 = (ANGLE_vertexOut.gl_Position.z + ANGLE_vertexOut.gl_Position.w);\n      ANGLE_vertexOut.gl_Position.z = (ANGLE_sbd5 * 0.5f);\n    } else {}\n    metal::float4 ANGLE_sbd7 = metal::unpack_snorm4x8_to_float(ANGLE_angleUniforms.ANGLE_flipXY);\n    ANGLE_vertexOut.gl_Position.y = (ANGLE_vertexOut.gl_Position.y * ANGLE_sbd7.w);\n    if (ANGLERasterizerDisabled)\n    {\n      ANGLE_vertexOut.gl_Position = ANGLE_sbc7(-3.0f, -3.0f, -3.0f, 1.0f);\n    } else {}\n  }\n  #if TRANSFORM_FEEDBACK_ENABLED\n  return;\n  #else\n  return ANGLE_vertexOut;\n  #endif\n\n}\n"},
++ {"mac/v100-one-line/beforeCompile","macos",true,"attribute vec4 p; uniform vec2 uv; void main(){gl_Position=p+vec4(uv,0.,0.);}","\n\n#include <metal_stdlib>\n\n#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))\n\nANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)\n{\n    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));\n};\n\n#if TRANSFORM_FEEDBACK_ENABLED\n    #define __VERTEX_OUT(args) void\n#else\n    #define __VERTEX_OUT(args) args\n#endif\n\n#pragma clang diagnostic ignored \"-Wunused-value\"\n#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0\n#define ANGLE_RASTERIZATION_DISCARD_INDEX     1\n#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2\n#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3\n#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4\n#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5\n\nconstant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];\nconstant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];\nconstant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];\nconstant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];\nconstant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];\nconstant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];\n\n#define ANGLE_ALPHA0\n\nstruct ANGLEDepthRangeParams\n{\n  float ANGLE_near;\n  float ANGLE_far;\n  float ANGLE_diff;\n};\n\nstruct ANGLEUniformBlock\n{\n  metal::float2 ANGLE_depthRange;\n  uint32_t ANGLE_renderArea;\n  uint32_t ANGLE_flipXY;\n  uint32_t ANGLE_misc;\n  int ANGLE_baseInstance;\n  metal::uint2 ANGLE_acbBufferOffsets;\n  metal::int4 ANGLE_xfbBufferOffsets;\n  int ANGLE_xfbVerticesPerInstance;\n  uint32_t ANGLE_coverageMask;\n  metal::uint2 ANGLE_unused;\n};\n\nstruct ANGLE_VertexOut\n{\n  metal::float4 gl_Position [[position]];\n  float gl_PointSize [[point_size]];\n};\n\nstruct ANGLE_VertexIn\n{\n  metal::float4 _up __unassigned_attribute__;\n};\n\nmetal::float4 ANGLE_sbc7(float ANGLE_sbc8, float ANGLE_sbc9, float ANGLE_sbca, float ANGLE_sbcb)\n{\n  metal::float4 ANGLE_sbcc = metal::float4(ANGLE_sbc8, ANGLE_sbc9, ANGLE_sbca, ANGLE_sbcb);\n  return ANGLE_sbcc;;\n}\n\nvoid ANGLE__0_main(thread ANGLE_VertexOut & ANGLE_vertexOut, thread ANGLE_VertexIn & ANGLE_vertexIn)\n{\n  ANGLE_vertexOut.gl_Position = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);\n  ANGLE_vertexOut.gl_Position = metal::float4(ANGLE_vertexIn._up);\n}\n\nvertex __VERTEX_OUT(ANGLE_VertexOut)  main0(ANGLE_VertexIn ANGLE_vertexIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]], uint32_t ANGLE_instanceIdMod [[instance_id]], uint32_t ANGLE_baseInstance [[base_instance]], uint32_t ANGLE_vertexIDMetal [[vertex_id]] @@XFB-Bindings@@ )\n{\n  ANGLE_VertexOut ANGLE_vertexOut;\n  {\n    ANGLE_vertexOut.gl_PointSize = 1.0f;\n    ANGLE__0_main(ANGLE_vertexOut, ANGLE_vertexIn);\n    ANGLE_@@XFB-OUT@@\n    float ANGLE_sbd0;\n    if (ANGLE_angleUniforms.ANGLE_depthRange.y < ANGLE_angleUniforms.ANGLE_depthRange.x)\n    {\n      ANGLE_sbd0 = -1.0f;\n    }\n    else\n    {\n      ANGLE_sbd0 = 1.0f;\n    }\n    ANGLE_vertexOut.gl_Position.z = (ANGLE_vertexOut.gl_Position.z * ANGLE_sbd0);\n    uint32_t ANGLE_sbd2 = (ANGLE_angleUniforms.ANGLE_misc >> 20u);\n    uint32_t ANGLE_sbd3 = (ANGLE_sbd2 & 1u);\n    bool ANGLE_sbd4 = bool(ANGLE_sbd3);\n    if (ANGLE_sbd4)\n    {\n      float ANGLE_sbd5 = (ANGLE_vertexOut.gl_Position.z + ANGLE_vertexOut.gl_Position.w);\n      ANGLE_vertexOut.gl_Position.z = (ANGLE_sbd5 * 0.5f);\n    } else {}\n    metal::float4 ANGLE_sbd7 = metal::unpack_snorm4x8_to_float(ANGLE_angleUniforms.ANGLE_flipXY);\n    ANGLE_vertexOut.gl_Position.y = (ANGLE_vertexOut.gl_Position.y * ANGLE_sbd7.w);\n    if (ANGLERasterizerDisabled)\n    {\n      ANGLE_vertexOut.gl_Position = ANGLE_sbc7(-3.0f, -3.0f, -3.0f, 1.0f);\n    } else {}\n  }\n  #if TRANSFORM_FEEDBACK_ENABLED\n  return;\n  #else\n  return ANGLE_vertexOut;\n  #endif\n\n}\n"},
++ {"mac/v100-multiple-names/beforeCompile","macos",true,"attribute vec4 p;\nuniform float a,b;\nvoid main(){gl_Position=p+vec4(a+b);}","\n\n#include <metal_stdlib>\n\n#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))\n\nANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)\n{\n    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));\n};\n\n#if TRANSFORM_FEEDBACK_ENABLED\n    #define __VERTEX_OUT(args) void\n#else\n    #define __VERTEX_OUT(args) args\n#endif\n\n#pragma clang diagnostic ignored \"-Wunused-value\"\n#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0\n#define ANGLE_RASTERIZATION_DISCARD_INDEX     1\n#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2\n#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3\n#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4\n#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5\n\nconstant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];\nconstant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];\nconstant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];\nconstant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];\nconstant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];\nconstant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];\n\n#define ANGLE_ALPHA0\n\nstruct ANGLEDepthRangeParams\n{\n  float ANGLE_near;\n  float ANGLE_far;\n  float ANGLE_diff;\n};\n\nstruct ANGLEUniformBlock\n{\n  metal::float2 ANGLE_depthRange;\n  uint32_t ANGLE_renderArea;\n  uint32_t ANGLE_flipXY;\n  uint32_t ANGLE_misc;\n  int ANGLE_baseInstance;\n  metal::uint2 ANGLE_acbBufferOffsets;\n  metal::int4 ANGLE_xfbBufferOffsets;\n  int ANGLE_xfbVerticesPerInstance;\n  uint32_t ANGLE_coverageMask;\n  metal::uint2 ANGLE_unused;\n};\n\nstruct ANGLE_VertexOut\n{\n  metal::float4 gl_Position [[position]];\n  float gl_PointSize [[point_size]];\n};\n\nstruct ANGLE_VertexIn\n{\n  metal::float4 _up __unassigned_attribute__;\n};\n\nmetal::float4 ANGLE_sbc7(float ANGLE_sbc8, float ANGLE_sbc9, float ANGLE_sbca, float ANGLE_sbcb)\n{\n  metal::float4 ANGLE_sbcc = metal::float4(ANGLE_sbc8, ANGLE_sbc9, ANGLE_sbca, ANGLE_sbcb);\n  return ANGLE_sbcc;;\n}\n\nvoid ANGLE__0_main(thread ANGLE_VertexOut & ANGLE_vertexOut, thread ANGLE_VertexIn & ANGLE_vertexIn)\n{\n  ANGLE_vertexOut.gl_Position = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);\n  ANGLE_vertexOut.gl_Position = metal::float4(ANGLE_vertexIn._up);\n}\n\nvertex __VERTEX_OUT(ANGLE_VertexOut)  main0(ANGLE_VertexIn ANGLE_vertexIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]], uint32_t ANGLE_instanceIdMod [[instance_id]], uint32_t ANGLE_baseInstance [[base_instance]], uint32_t ANGLE_vertexIDMetal [[vertex_id]] @@XFB-Bindings@@ )\n{\n  ANGLE_VertexOut ANGLE_vertexOut;\n  {\n    ANGLE_vertexOut.gl_PointSize = 1.0f;\n    ANGLE__0_main(ANGLE_vertexOut, ANGLE_vertexIn);\n    ANGLE_@@XFB-OUT@@\n    float ANGLE_sbd0;\n    if (ANGLE_angleUniforms.ANGLE_depthRange.y < ANGLE_angleUniforms.ANGLE_depthRange.x)\n    {\n      ANGLE_sbd0 = -1.0f;\n    }\n    else\n    {\n      ANGLE_sbd0 = 1.0f;\n    }\n    ANGLE_vertexOut.gl_Position.z = (ANGLE_vertexOut.gl_Position.z * ANGLE_sbd0);\n    uint32_t ANGLE_sbd2 = (ANGLE_angleUniforms.ANGLE_misc >> 20u);\n    uint32_t ANGLE_sbd3 = (ANGLE_sbd2 & 1u);\n    bool ANGLE_sbd4 = bool(ANGLE_sbd3);\n    if (ANGLE_sbd4)\n    {\n      float ANGLE_sbd5 = (ANGLE_vertexOut.gl_Position.z + ANGLE_vertexOut.gl_Position.w);\n      ANGLE_vertexOut.gl_Position.z = (ANGLE_sbd5 * 0.5f);\n    } else {}\n    metal::float4 ANGLE_sbd7 = metal::unpack_snorm4x8_to_float(ANGLE_angleUniforms.ANGLE_flipXY);\n    ANGLE_vertexOut.gl_Position.y = (ANGLE_vertexOut.gl_Position.y * ANGLE_sbd7.w);\n    if (ANGLERasterizerDisabled)\n    {\n      ANGLE_vertexOut.gl_Position = ANGLE_sbc7(-3.0f, -3.0f, -3.0f, 1.0f);\n    } else {}\n  }\n  #if TRANSFORM_FEEDBACK_ENABLED\n  return;\n  #else\n  return ANGLE_vertexOut;\n  #endif\n\n}\n"},
++ {"mac/v300-in-out/beforeCompile","macos",true,"#version 300 es\nprecision highp float;\nin vec4 p;\nin vec2 uv;\nout vec2 v;\nuniform mat4 transform;\nuniform vec4 colors[3];\nvoid main(){v=uv;gl_Position=transform*p+colors[1];}","\n\n#include <metal_stdlib>\n\n#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))\n\nANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)\n{\n    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));\n};\n\n#if TRANSFORM_FEEDBACK_ENABLED\n    #define __VERTEX_OUT(args) void\n#else\n    #define __VERTEX_OUT(args) args\n#endif\n\n#pragma clang diagnostic ignored \"-Wunused-value\"\n#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0\n#define ANGLE_RASTERIZATION_DISCARD_INDEX     1\n#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2\n#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3\n#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4\n#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5\n\nconstant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];\nconstant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];\nconstant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];\nconstant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];\nconstant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];\nconstant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];\n\n#define ANGLE_ALPHA0\n\nstruct ANGLEDepthRangeParams\n{\n  float ANGLE_near;\n  float ANGLE_far;\n  float ANGLE_diff;\n};\n\nstruct ANGLEUniformBlock\n{\n  metal::float2 ANGLE_depthRange;\n  uint32_t ANGLE_renderArea;\n  uint32_t ANGLE_flipXY;\n  uint32_t ANGLE_misc;\n  int ANGLE_baseInstance;\n  metal::uint2 ANGLE_acbBufferOffsets;\n  metal::int4 ANGLE_xfbBufferOffsets;\n  int ANGLE_xfbVerticesPerInstance;\n  uint32_t ANGLE_coverageMask;\n  metal::uint2 ANGLE_unused;\n};\n\nstruct ANGLE_VertexOut\n{\n  metal::float4 gl_Position [[position]];\n  float gl_PointSize [[point_size]];\n};\n\nstruct ANGLE_VertexIn\n{\n  metal::float4 _up __unassigned_attribute__;\n  metal::float2 _uuv __unassigned_attribute__;\n};\n\nmetal::float4 ANGLE_sbc7(float ANGLE_sbc8, float ANGLE_sbc9, float ANGLE_sbca, float ANGLE_sbcb)\n{\n  metal::float4 ANGLE_sbcc = metal::float4(ANGLE_sbc8, ANGLE_sbc9, ANGLE_sbca, ANGLE_sbcb);\n  return ANGLE_sbcc;;\n}\n\nvoid ANGLE__0_main(thread ANGLE_VertexOut & ANGLE_vertexOut, thread ANGLE_VertexIn & ANGLE_vertexIn)\n{\n  ANGLE_vertexOut.gl_Position = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);\n  ANGLE_vertexOut.gl_Position = metal::float4(ANGLE_vertexIn._up);\n}\n\nvertex __VERTEX_OUT(ANGLE_VertexOut)  main0(ANGLE_VertexIn ANGLE_vertexIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]], uint32_t ANGLE_instanceIdMod [[instance_id]], uint32_t ANGLE_baseInstance [[base_instance]], uint32_t ANGLE_vertexIDMetal [[vertex_id]] @@XFB-Bindings@@ )\n{\n  ANGLE_VertexOut ANGLE_vertexOut;\n  {\n    ANGLE_vertexOut.gl_PointSize = 1.0f;\n    ANGLE__0_main(ANGLE_vertexOut, ANGLE_vertexIn);\n    ANGLE_@@XFB-OUT@@\n    float ANGLE_sbd0;\n    if (ANGLE_angleUniforms.ANGLE_depthRange.y < ANGLE_angleUniforms.ANGLE_depthRange.x)\n    {\n      ANGLE_sbd0 = -1.0f;\n    }\n    else\n    {\n      ANGLE_sbd0 = 1.0f;\n    }\n    ANGLE_vertexOut.gl_Position.z = (ANGLE_vertexOut.gl_Position.z * ANGLE_sbd0);\n    uint32_t ANGLE_sbd2 = (ANGLE_angleUniforms.ANGLE_misc >> 20u);\n    uint32_t ANGLE_sbd3 = (ANGLE_sbd2 & 1u);\n    bool ANGLE_sbd4 = bool(ANGLE_sbd3);\n    if (ANGLE_sbd4)\n    {\n      float ANGLE_sbd5 = (ANGLE_vertexOut.gl_Position.z + ANGLE_vertexOut.gl_Position.w);\n      ANGLE_vertexOut.gl_Position.z = (ANGLE_sbd5 * 0.5f);\n    } else {}\n    metal::float4 ANGLE_sbd7 = metal::unpack_snorm4x8_to_float(ANGLE_angleUniforms.ANGLE_flipXY);\n    ANGLE_vertexOut.gl_Position.y = (ANGLE_vertexOut.gl_Position.y * ANGLE_sbd7.w);\n    if (ANGLERasterizerDisabled)\n    {\n      ANGLE_vertexOut.gl_Position = ANGLE_sbc7(-3.0f, -3.0f, -3.0f, 1.0f);\n    } else {}\n  }\n  #if TRANSFORM_FEEDBACK_ENABLED\n  return;\n  #else\n  return ANGLE_vertexOut;\n  #endif\n\n}\n"},
++ {"mac/f300-in-out/beforeCompile","macos",false,"#version 300 es\nprecision highp float;\nin vec2 v;\nout vec4 result;\nuniform sampler2D image;\nuniform samplerCube cube;\nuniform uint n;\nuniform uvec2 u;\nvoid main(){result=texture(image,v)+texture(cube,vec3(1.));}","\n\n#include <metal_stdlib>\n\n#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))\n\nANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)\n{\n    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));\n};\n\n#if TRANSFORM_FEEDBACK_ENABLED\n    #define __VERTEX_OUT(args) void\n#else\n    #define __VERTEX_OUT(args) args\n#endif\n\n#pragma clang diagnostic ignored \"-Wunused-value\"\n#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0\n#define ANGLE_RASTERIZATION_DISCARD_INDEX     1\n#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2\n#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3\n#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4\n#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5\n\nconstant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];\nconstant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];\nconstant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];\nconstant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];\nconstant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];\nconstant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];\n\n#define ANGLE_ALPHA0\n\nstruct ANGLEDepthRangeParams\n{\n  float ANGLE_near;\n  float ANGLE_far;\n  float ANGLE_diff;\n};\n\nstruct ANGLEUniformBlock\n{\n  metal::float2 ANGLE_depthRange;\n  uint32_t ANGLE_renderArea;\n  uint32_t ANGLE_flipXY;\n  uint32_t ANGLE_misc;\n  int ANGLE_baseInstance;\n  metal::uint2 ANGLE_acbBufferOffsets;\n  metal::int4 ANGLE_xfbBufferOffsets;\n  int ANGLE_xfbVerticesPerInstance;\n  uint32_t ANGLE_coverageMask;\n  metal::uint2 ANGLE_unused;\n};\n\nstruct ANGLE_FragmentOut\n{\n  metal::float4 gl_FragColor [[color(0)]];\n};\n\nstruct ANGLE_FragmentIn\n{\n  metal::float2 _uv;\n};\n\nvoid ANGLE__0_main(thread ANGLE_FragmentOut & ANGLE_fragmentOut, thread ANGLE_FragmentIn & ANGLE_fragmentIn)\n{\n  ANGLE_fragmentOut.gl_FragColor = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);\n}\n\nfragment ANGLE_FragmentOut main0(ANGLE_FragmentIn ANGLE_fragmentIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]])\n{\n  ANGLE_FragmentOut ANGLE_fragmentOut;\n  {\n    ANGLE__0_main(ANGLE_fragmentOut, ANGLE_fragmentIn);\n  }\n  return ANGLE_fragmentOut;\n}\n"},
++ {"mac/v300-layout-flat/beforeCompile","macos",true,"#version 300 es\nprecision highp float;\nlayout(location=0) in vec4 p;\nflat out int index;\nuniform vec4 array[2];\nvoid main(){index=1;gl_Position=p+array[1];}","\n\n#include <metal_stdlib>\n\n#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))\n\nANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)\n{\n    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));\n};\n\n#if TRANSFORM_FEEDBACK_ENABLED\n    #define __VERTEX_OUT(args) void\n#else\n    #define __VERTEX_OUT(args) args\n#endif\n\n#pragma clang diagnostic ignored \"-Wunused-value\"\n#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0\n#define ANGLE_RASTERIZATION_DISCARD_INDEX     1\n#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2\n#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3\n#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4\n#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5\n\nconstant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];\nconstant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];\nconstant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];\nconstant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];\nconstant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];\nconstant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];\n\n#define ANGLE_ALPHA0\n\nstruct ANGLEDepthRangeParams\n{\n  float ANGLE_near;\n  float ANGLE_far;\n  float ANGLE_diff;\n};\n\nstruct ANGLEUniformBlock\n{\n  metal::float2 ANGLE_depthRange;\n  uint32_t ANGLE_renderArea;\n  uint32_t ANGLE_flipXY;\n  uint32_t ANGLE_misc;\n  int ANGLE_baseInstance;\n  metal::uint2 ANGLE_acbBufferOffsets;\n  metal::int4 ANGLE_xfbBufferOffsets;\n  int ANGLE_xfbVerticesPerInstance;\n  uint32_t ANGLE_coverageMask;\n  metal::uint2 ANGLE_unused;\n};\n\nstruct ANGLE_VertexOut\n{\n  metal::float4 gl_Position [[position]];\n  float gl_PointSize [[point_size]];\n};\n\nstruct ANGLE_VertexIn\n{\n};\n\nmetal::float4 ANGLE_sbc7(float ANGLE_sbc8, float ANGLE_sbc9, float ANGLE_sbca, float ANGLE_sbcb)\n{\n  metal::float4 ANGLE_sbcc = metal::float4(ANGLE_sbc8, ANGLE_sbc9, ANGLE_sbca, ANGLE_sbcb);\n  return ANGLE_sbcc;;\n}\n\nvoid ANGLE__0_main(thread ANGLE_VertexOut & ANGLE_vertexOut, thread ANGLE_VertexIn & ANGLE_vertexIn)\n{\n  ANGLE_vertexOut.gl_Position = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);\n}\n\nvertex __VERTEX_OUT(ANGLE_VertexOut)  main0(ANGLE_VertexIn ANGLE_vertexIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]], uint32_t ANGLE_instanceIdMod [[instance_id]], uint32_t ANGLE_baseInstance [[base_instance]], uint32_t ANGLE_vertexIDMetal [[vertex_id]] @@XFB-Bindings@@ )\n{\n  ANGLE_VertexOut ANGLE_vertexOut;\n  {\n    ANGLE_vertexOut.gl_PointSize = 1.0f;\n    ANGLE__0_main(ANGLE_vertexOut, ANGLE_vertexIn);\n    ANGLE_@@XFB-OUT@@\n    float ANGLE_sbd0;\n    if (ANGLE_angleUniforms.ANGLE_depthRange.y < ANGLE_angleUniforms.ANGLE_depthRange.x)\n    {\n      ANGLE_sbd0 = -1.0f;\n    }\n    else\n    {\n      ANGLE_sbd0 = 1.0f;\n    }\n    ANGLE_vertexOut.gl_Position.z = (ANGLE_vertexOut.gl_Position.z * ANGLE_sbd0);\n    uint32_t ANGLE_sbd2 = (ANGLE_angleUniforms.ANGLE_misc >> 20u);\n    uint32_t ANGLE_sbd3 = (ANGLE_sbd2 & 1u);\n    bool ANGLE_sbd4 = bool(ANGLE_sbd3);\n    if (ANGLE_sbd4)\n    {\n      float ANGLE_sbd5 = (ANGLE_vertexOut.gl_Position.z + ANGLE_vertexOut.gl_Position.w);\n      ANGLE_vertexOut.gl_Position.z = (ANGLE_sbd5 * 0.5f);\n    } else {}\n    metal::float4 ANGLE_sbd7 = metal::unpack_snorm4x8_to_float(ANGLE_angleUniforms.ANGLE_flipXY);\n    ANGLE_vertexOut.gl_Position.y = (ANGLE_vertexOut.gl_Position.y * ANGLE_sbd7.w);\n    if (ANGLERasterizerDisabled)\n    {\n      ANGLE_vertexOut.gl_Position = ANGLE_sbc7(-3.0f, -3.0f, -3.0f, 1.0f);\n    } else {}\n  }\n  #if TRANSFORM_FEEDBACK_ENABLED\n  return;\n  #else\n  return ANGLE_vertexOut;\n  #endif\n\n}\n"},
++ {"mac/f100-invalid/beforeCompile","macos",false,"uniform float broken;\nthis is not GLSL;","\n\n#include <metal_stdlib>\n\n#define ANGLE_ALWAYS_INLINE __attribute__((always_inline))\n\nANGLE_ALWAYS_INLINE int ANGLE_int_clamp(int value, int minValue, int maxValue)\n{\n    return ((value < minValue) ?  minValue : ((value > maxValue) ? maxValue : value));\n};\n\n#if TRANSFORM_FEEDBACK_ENABLED\n    #define __VERTEX_OUT(args) void\n#else\n    #define __VERTEX_OUT(args) args\n#endif\n\n#pragma clang diagnostic ignored \"-Wunused-value\"\n#define ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX   0\n#define ANGLE_RASTERIZATION_DISCARD_INDEX     1\n#define ANGLE_MULTISAMPLED_RENDERING_INDEX    2\n#define ANGLE_DEPTH_WRITE_ENABLED_INDEX       3\n#define ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX 4\n#define ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX  5\n\nconstant bool ANGLEUseSampleCompareGradient [[function_constant(ANGLE_SAMPLE_COMPARE_GRADIENT_INDEX)]];\nconstant bool ANGLERasterizerDisabled       [[function_constant(ANGLE_RASTERIZATION_DISCARD_INDEX)]];\nconstant bool ANGLEMultisampledRendering    [[function_constant(ANGLE_MULTISAMPLED_RENDERING_INDEX)]];\nconstant bool ANGLEDepthWriteEnabled        [[function_constant(ANGLE_DEPTH_WRITE_ENABLED_INDEX)]];\nconstant bool ANGLEEmulateAlphaToCoverage   [[function_constant(ANGLE_EMULATE_ALPHA_TO_COVERAGE_INDEX)]];\nconstant bool ANGLEWriteHelperSampleMask    [[function_constant(ANGLE_WRITE_HELPER_SAMPLE_MASK_INDEX)]];\n\n#define ANGLE_ALPHA0\n\nstruct ANGLEDepthRangeParams\n{\n  float ANGLE_near;\n  float ANGLE_far;\n  float ANGLE_diff;\n};\n\nstruct ANGLEUniformBlock\n{\n  metal::float2 ANGLE_depthRange;\n  uint32_t ANGLE_renderArea;\n  uint32_t ANGLE_flipXY;\n  uint32_t ANGLE_misc;\n  int ANGLE_baseInstance;\n  metal::uint2 ANGLE_acbBufferOffsets;\n  metal::int4 ANGLE_xfbBufferOffsets;\n  int ANGLE_xfbVerticesPerInstance;\n  uint32_t ANGLE_coverageMask;\n  metal::uint2 ANGLE_unused;\n};\n\nstruct ANGLE_FragmentOut\n{\n  metal::float4 gl_FragColor [[color(0)]];\n};\n\nstruct ANGLE_FragmentIn\n{\n};\n\nvoid ANGLE__0_main(thread ANGLE_FragmentOut & ANGLE_fragmentOut, thread ANGLE_FragmentIn & ANGLE_fragmentIn)\n{\n  ANGLE_fragmentOut.gl_FragColor = metal::float4(0.0f, 0.0f, 0.0f, 0.0f);\n}\n\nfragment ANGLE_FragmentOut main0(ANGLE_FragmentIn ANGLE_fragmentIn [[stage_in]], constant ANGLEUniformBlock & ANGLE_angleUniforms [[buffer(17)]])\n{\n  ANGLE_FragmentOut ANGLE_fragmentOut;\n  {\n    ANGLE__0_main(ANGLE_fragmentOut, ANGLE_fragmentIn);\n  }\n  return ANGLE_fragmentOut;\n}\n"},
++};
++}  // namespace base
++#endif
+diff --git a/third_party/blink/renderer/modules/webgl/webgl_debug_shaders.cc b/third_party/blink/renderer/modules/webgl/webgl_debug_shaders.cc
+--- a/third_party/blink/renderer/modules/webgl/webgl_debug_shaders.cc
++++ b/third_party/blink/renderer/modules/webgl/webgl_debug_shaders.cc
+@@ -24,12 +24,14 @@
+  */
+ 
+ #include "third_party/blink/renderer/modules/webgl/webgl_debug_shaders.h"
+ 
+ #include "base/uxr_config.h"
+ 
++#include "base/uxr_original_webgl_translated.h"
++#include "third_party/blink/renderer/modules/webgl/gpu_fingerprint.h"
+ #include "third_party/blink/renderer/modules/webgl/gl_string_query.h"
+ #include "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h"
+ #include "third_party/blink/renderer/modules/webgl/webgl_shader.h"
+ #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+ 
+ namespace blink {
+@@ -53,12 +55,18 @@
+   WebGLExtensionScopedContext scoped(this);
+   if (scoped.IsLost())
+     return String();
+   if (!scoped.Context()->ValidateWebGLObject("getTranslatedShaderSource",
+                                              shader))
+     return "";
++  if (IsOriginalWebGLExtensionsV2()) {
++    if (auto translated = base::UxrOriginalWebGLTranslatedShaderV2(
++            OriginalWebGLPlatformV2(), shader->GetType() == GL_VERTEX_SHADER,
++            shader->Source().Utf8()))
++      return String::FromUtf8(*translated);
++  }
+   GLStringQuery query(scoped.Context()->ContextGL());
+   return query.Run<GLStringQuery::TranslatedShaderSourceANGLE>(
+       shader->Object());
+ }
+ 
+ bool WebGLDebugShaders::Supported(WebGLRenderingContextBase* context) {

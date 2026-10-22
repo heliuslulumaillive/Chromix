@@ -118,7 +118,17 @@
     "patches/fingerprint-modes/0014-original-cloak-fonts.patch",
     "patches/fingerprint-modes/0015-original-cloak-async-export.patch",
     "patches/fingerprint-modes/0016-original-cloak-string-api.patch",
-    "patches/fingerprint-modes/0017-original-cloak-opaque-webgl-png.patch"
+    "patches/fingerprint-modes/0017-original-cloak-opaque-webgl-png.patch",
+    "patches/fingerprint-modes/0018-original-cloak-webgl-public.patch",
+    "patches/fingerprint-modes/0019-original-cloak-text-dispatch.patch",
+    "patches/fingerprint-modes/0020-original-cloak-text-recorder-wrappers.patch",
+    "patches/fingerprint-modes/0021-original-opaque-upload.patch",
+    "patches/fingerprint-modes/0022-original-cloak-raw-device-memory.patch",
+    "patches/fingerprint-modes/0023-original-webgl-translated-shaders.patch",
+    "patches/fingerprint-modes/0024-original-cloak-webgl-renderer-aliases.patch",
+    "patches/fingerprint-modes/0025-original-cloak-generic-font-selection.patch",
+    "patches/fingerprint-modes/0027-original-final-native-wiring.patch",
+    "patches/fingerprint-modes/0028-original-cloak-mac-font-family-alias.patch"
   ],
   "extra_sources": [
     "chrome/browser/BUILD.gn",

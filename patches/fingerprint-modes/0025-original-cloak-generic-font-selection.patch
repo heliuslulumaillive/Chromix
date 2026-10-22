@@ -1,0 +1,51 @@
+diff --git a/third_party/blink/renderer/platform/fonts/font_selector.cc b/third_party/blink/renderer/platform/fonts/font_selector.cc
+--- a/third_party/blink/renderer/platform/fonts/font_selector.cc
++++ b/third_party/blink/renderer/platform/fonts/font_selector.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "third_party/blink/renderer/platform/fonts/font_selector.h"
+ 
++#include "base/uxr_config.h"
+ #include "build/build_config.h"
+ #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
+ #include "third_party/blink/renderer/platform/fonts/alternate_font_family.h"
+@@ -70,6 +71,39 @@
+   }
+ #else   // BUILDFLAG(IS_ANDROID)
+   UScriptCode script = font_description.GetScript();
++  const auto original_modes = base::UxrConfig::GetInstance().SurfaceModes();
++  if (original_modes.fonts.mode == base::UxrSurfaceMode::kCloakOriginal) {
++    // Original Cloak155 chooses a preferred real family before generic script
++    // settings. Quoted names and -webkit-standard guards above still apply.
++    // Availability goes through FontCache's actual selection/allowlist policy;
++    // unavailable assets keep the normal settings and last-resort paths below.
++    AtomicString original_preferred;
++    const bool standard_family =
++        font_description.GenericFamily() == FontDescription::kStandardFamily ||
++        font_description.GenericFamily() == FontDescription::kWebkitBodyFamily;
++    if (original_modes.platform == "macos") {
++      if (standard_family || generic_family_name == font_family_names::kSerif) {
++        original_preferred = font_family_names::kTimes;
++      } else if (generic_family_name == font_family_names::kSansSerif) {
++        original_preferred = font_family_names::kHelvetica;
++      } else if (generic_family_name == font_family_names::kCursive) {
++        original_preferred = AtomicString("Apple Chancery");
++      } else if (generic_family_name == font_family_names::kFantasy) {
++        original_preferred = AtomicString("Papyrus");
++      }
++    } else if (original_modes.platform == "windows" && !standard_family) {
++      if (generic_family_name == font_family_names::kMonospace) {
++        original_preferred = AtomicString("Consolas");
++      } else if (generic_family_name == font_family_names::kMath) {
++        original_preferred = AtomicString("Cambria Math");
++      }
++    }
++    if (!original_preferred.empty() &&
++        FontCache::Get().IsPlatformFamilyMatchAvailable(font_description,
++                                                       original_preferred)) {
++      return original_preferred;
++    }
++  }
+   if (font_description.GenericFamily() == FontDescription::kStandardFamily ||
+       font_description.GenericFamily() == FontDescription::kWebkitBodyFamily)
+     return settings.Standard(script);
