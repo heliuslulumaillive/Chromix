@@ -351,7 +351,11 @@ try {
     $buildRecordHash = (Get-FileHash -LiteralPath 'C:\c\dist\chromix\google-services-build.json' -Algorithm SHA256).Hash.ToLowerInvariant()
     Copy-Item -LiteralPath $nativeTests -Destination 'C:\c\dist\native-passkey-unittests.json'
     Copy-Item -LiteralPath $nativeLauncher -Destination 'C:\c\dist\native-passkey-launcher.json'
-    $smokeReport = Join-Path $logs "candidate-smoke-stage-$Stage\report.json"
+    if ($env:GITHUB_RUN_ID -notmatch '^[1-9][0-9]*$' -or
+        $env:GITHUB_RUN_ATTEMPT -notmatch '^[1-9][0-9]*$') {
+      throw 'Native smoke evidence requires the actual GitHub run and attempt'
+    }
+    $smokeReport = Join-Path $logs "candidate-smoke-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-stage-$Stage\report.json"
     Checked { python -X utf8 (Join-Path $repo 'tools\verify_windows_bundle.py') --bundle 'C:\c\dist\chromix' --arch x64 --native --version '155.0.8059.39' --report $smokeReport | Select-Object -Last 12 }
     Copy-Item -LiteralPath $smokeReport -Destination 'C:\c\dist\candidate-smoke.json'
     Checked { python -m pip install --disable-pip-version-check -r (Join-Path $repo 'tools\google-services-requirements.txt') }
