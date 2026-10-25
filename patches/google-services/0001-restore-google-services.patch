@@ -57228,17 +57228,18 @@
    InitializeWinParentalControls();
 --- a/content/browser/gpu/gpu_data_manager_impl_private.cc
 +++ b/content/browser/gpu/gpu_data_manager_impl_private.cc
-@@ -4,6 +4,9 @@
+@@ -4,6 +4,10 @@
  
  
  #include "content/browser/gpu/gpu_data_manager_impl_private.h"
++#include "base/process/process.h"
 +#include "base/strings/string_number_conversions.h"
 +#include "content/public/common/result_codes.h"
 +#include "ui/gl/gl_implementation.h"
  
  #include "base/notreached.h"
  #include "build/build_config.h"
-@@ -106,6 +109,27 @@
+@@ -106,6 +110,27 @@
  
  namespace {
  
@@ -57266,7 +57267,7 @@
  #if BUILDFLAG(IS_ANDROID)
  // NOINLINE to ensure this function is used in crash reports.
  NOINLINE void FatalGpuProcessLaunchFailureOnBackground() {
-@@ -863,8 +887,11 @@
+@@ -863,8 +888,11 @@
  
  void GpuDataManagerImplPrivate::RequestVideoMemoryUsageStatsUpdate(
      GpuDataManager::VideoMemoryUsageStatsCallback callback) const {
@@ -57279,7 +57280,7 @@
        base::BindOnce(&RequestVideoMemoryUsageStats, std::move(callback)));
  }
  
-@@ -921,6 +948,13 @@
+@@ -921,6 +949,15 @@
    uint32_t vulkan_version = gpu_info_.vulkan_version;
  #endif
    gpu_info_ = gpu_info;
@@ -57287,13 +57288,15 @@
 +  if (base::CommandLine::ForCurrentProcess()->HasSwitch("chromix-gpu-binding") &&
 +      !gpu_info_.gl_renderer.empty() && !UxrRequiredGpuMatches(gpu_info_)) {
 +    LOG(ERROR) << "Chromix GPU binding changed or silently fell back";
-+    ::ExitProcess(content::RESULT_CODE_GPU_DEAD_ON_ARRIVAL);
++    // Avoid DLL detach callbacks while the GPU manager is updating its state.
++    base::Process::TerminateCurrentProcessImmediately(
++        content::RESULT_CODE_GPU_DEAD_ON_ARRIVAL);
 +  }
 +#endif
    RecordDiscreteGpuHistograms(gpu_info_);
    RecordNpuHistograms(gpu_info_);
  #if BUILDFLAG(ENABLE_VULKAN)
-@@ -1650,6 +1684,14 @@
+@@ -1650,6 +1687,15 @@
      IntentionallyCrashBrowserForUnusableGpuProcess();
    }
  
@@ -57302,7 +57305,8 @@
 +      fallback_modes_.back() != gpu::GpuMode::HARDWARE_GL &&
 +      fallback_modes_.back() != gpu::GpuMode::HARDWARE_GRAPHITE) {
 +    LOG(ERROR) << "Chromix bound GPU cannot fall back to a different backend";
-+    ::ExitProcess(content::RESULT_CODE_GPU_DEAD_ON_ARRIVAL);
++    base::Process::TerminateCurrentProcessImmediately(
++        content::RESULT_CODE_GPU_DEAD_ON_ARRIVAL);
 +  }
 +#endif
    gpu_mode_ = fallback_modes_.back();

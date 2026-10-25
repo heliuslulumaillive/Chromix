@@ -42,7 +42,7 @@
     },
     {
       "path": "patches/fingerprint-modes/0008-required-physical-gpu.patch",
-      "sha256": "97b95ddb88165f64f28be64182abc2dd798c6f358692973cc304e84d0c683d4f",
+      "sha256": "5f89a7060130e72f391594cd36af305294095daccd7ef16991bd4723a49ed1b2",
       "files": 2
     }
   ],
@@ -60,7 +60,7 @@
       "0007-custom-ua-client-hints.patch"
     ]
   },
-  "combined_patch_sha256": "66810f555550617030406f4878acc3bccb3fbd255526b5bce964a647d629058e",
+  "combined_patch_sha256": "f0d614db429fa74b3e11989c4eeda10aeb7364bd6ae6c34249ae6f864735a13c",
   "combined_patch_changed_files": 211,
   "source_upgrade": {
     "from_run": 39498745053,
