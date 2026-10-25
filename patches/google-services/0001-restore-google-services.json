@@ -29,6 +29,7 @@
     "chrome/app/settings_strings.grdp",
     "chrome/browser/BUILD.gn",
     "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
+    "chrome/browser/chrome_browser_main.cc",
     "chrome/browser/download/download_target_determiner.cc",
     "chrome/browser/enterprise/BUILD.gn",
     "chrome/browser/enterprise/signin/managed_profile_creation_controller.cc",
@@ -160,6 +161,7 @@
     "components/translate/core/browser/translate_ranker_impl.cc",
     "components/translate/core/browser/translate_script.cc",
     "components/variations/net/variations_http_headers.cc",
+    "content/browser/gpu/gpu_data_manager_impl_private.cc",
     "content/browser/preloading/prefetch/prefetch_resource_request_utils.cc",
     "device/fido/win/authenticator.cc",
     "device/fido/win/authenticator.h",
@@ -996,6 +998,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "0658fb3c34f1211123725fbbb71b3f70d2cc800e79e72af5987f6a6ff477f28c",
+  "patch_sha256": "66810f555550617030406f4878acc3bccb3fbd255526b5bce964a647d629058e",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

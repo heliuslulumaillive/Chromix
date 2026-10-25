@@ -170,6 +170,8 @@ def recipe_identity(repo: Path):
         if not capabilities.is_file():
             raise ValueError("Fingerprint overlay requires its capability contract")
         files.append("build/fingerprint-modes-capabilities.json")
+    if (repo / 'build/gpu-binding-capabilities.json').is_file():
+        files.append('build/gpu-binding-capabilities.json')
     inputs = {name: hashlib.sha256((repo / name).read_bytes()).hexdigest() for name in files}
     return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest(), inputs
 

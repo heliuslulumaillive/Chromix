@@ -71,6 +71,10 @@ if (Test-Path -LiteralPath $serviceMetadata -PathType Leaf) {
       throw 'Fingerprint-mode capability contract does not match this build'
     }
     Copy-Item -LiteralPath $capabilities -Destination (Join-Path $Bundle 'fingerprint-modes-capabilities.json')
+    $gpuBinding = Join-Path $Repo 'build/gpu-binding-capabilities.json'
+    if (Test-Path -LiteralPath $gpuBinding -PathType Leaf) {
+      Copy-Item -LiteralPath $gpuBinding -Destination (Join-Path $Bundle 'gpu-binding-capabilities.json')
+    }
   }
 }
 

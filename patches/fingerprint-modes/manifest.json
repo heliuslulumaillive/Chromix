@@ -39,6 +39,11 @@
       "path": "patches/fingerprint-modes/0007-custom-ua-client-hints.patch",
       "sha256": "795389a9615f383dc8025e445e94a4eff55e06d5584bee88b0a74ac1cb6ab554",
       "files": 1
+    },
+    {
+      "path": "patches/fingerprint-modes/0008-required-physical-gpu.patch",
+      "sha256": "97b95ddb88165f64f28be64182abc2dd798c6f358692973cc304e84d0c683d4f",
+      "files": 2
     }
   ],
   "sequential_incremental_files": {
@@ -55,8 +60,8 @@
       "0007-custom-ua-client-hints.patch"
     ]
   },
-  "combined_patch_sha256": "0658fb3c34f1211123725fbbb71b3f70d2cc800e79e72af5987f6a6ff477f28c",
-  "combined_patch_changed_files": 209,
+  "combined_patch_sha256": "66810f555550617030406f4878acc3bccb3fbd255526b5bce964a647d629058e",
+  "combined_patch_changed_files": 211,
   "source_upgrade": {
     "from_run": 39498745053,
     "from_commit": "4c5f53ca8efef6acca5c8037aaf18ab609550651",
