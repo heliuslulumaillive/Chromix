@@ -44,6 +44,8 @@ inline std::pair<size_t, size_t> RunShardWebGLV2Properties() {
           check(i % 4 == 3 ? full[i] == original[i] :
                 std::abs(int(full[i]) - int(original[i])) <= 1);
           if (original[(i / 4) * 4 + 3] == 0) check(full[i] == original[i]);
+          if (i % 4 != 3 && (original[i] == 0 || original[i] == 255))
+            check(full[i] == original[i]);
         }
         // Arbitrary tiles with sentinel stride padding must compose exactly.
         auto tiles = original;
@@ -91,6 +93,39 @@ inline std::pair<size_t, size_t> RunShardWebGLV2Properties() {
   base::UxrSurfacePolicy policy;
   policy.mode = base::UxrSurfaceMode::kShardX;
   policy.seed = 32452843;
+  // Boundary-only colors must remain exact across sizes, alpha conventions
+  // and read/export orientation. This is a color invariant, not a canvas-size
+  // exemption; the preceding interior-valued scenes still require changes.
+  for (const auto [w, h] : {std::pair{17u, 19u}, {128u, 96u}, {301u, 151u}}) {
+    for (bool premultiplied : {false, true}) {
+      for (uint32_t alpha : {0u, 1u, 2u, 64u, 128u, 255u}) {
+        std::vector<uint8_t> raw(w * h * 4), exported(raw.size());
+        const uint32_t maximum = premultiplied ? alpha : 255;
+        for (uint32_t y = 0; y < h; ++y) for (uint32_t x = 0; x < w; ++x) {
+          for (uint32_t channel = 0; channel < 3; ++channel) {
+            const bool high = ((x + y + channel) & 1u) != 0;
+            raw[(y * w + x) * 4 + channel] = high ? maximum : 0;
+            exported[((h - 1 - y) * w + x) * 4 + channel] =
+                high && (!premultiplied || alpha) ? 255 : 0;
+          }
+          raw[(y * w + x) * 4 + 3] = alpha;
+          exported[((h - 1 - y) * w + x) * 4 + 3] = alpha;
+        }
+        const auto original_raw = raw, original_export = exported;
+        base::UxrPixelRegion raw_region{raw, w * 4, w, h, w, h,
+                                         0, 0, false, premultiplied};
+        base::UxrPixelRegion export_region{exported, w * 4, w, h, w, h,
+                                            0, 0, false, premultiplied};
+        check(base::UxrApplyGraphicsNoiseV1(policy,
+            base::UxrPixelSurface::kWebGLReadback, raw_region) ==
+            base::UxrPixelResult::kUnchanged);
+        check(base::UxrApplyGraphicsNoiseV1(policy,
+            base::UxrPixelSurface::kWebGLExport, export_region) ==
+            base::UxrPixelResult::kUnchanged);
+        check(raw == original_raw && exported == original_export);
+      }
+    }
+  }
   const uint32_t width = 128, height = 96;
   // Valid premultiplied storage and its straight-alpha export must round trip
   // to the same changed raw bytes, including low-alpha quantization boundaries.
@@ -122,7 +157,12 @@ inline std::pair<size_t, size_t> RunShardWebGLV2Properties() {
                                    raw_region);
     base::UxrApplyGraphicsNoiseV1(policy, base::UxrPixelSurface::kWebGLExport,
                                    export_region);
-    check(raw != native_raw);
+    // Alpha 1 has only the two representable endpoints, with no interior
+    // color on which a positive perturbation can be validly demonstrated.
+    check(alpha == 1 ? raw == native_raw : raw != native_raw);
+    for (size_t i = 0; i < raw.size(); ++i)
+      if (i % 4 != 3 && (native_raw[i] == 0 || native_raw[i] == alpha))
+        check(raw[i] == native_raw[i]);
     bool match = true;
     for (uint32_t y = 0; y < height; ++y) for (uint32_t x = 0; x < width; ++x)
       for (uint32_t c = 0; c < 3; ++c)

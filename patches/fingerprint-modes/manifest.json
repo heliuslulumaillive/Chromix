@@ -47,7 +47,7 @@
     },
     {
       "path": "patches/fingerprint-modes/0009-shardx-webgl-consistent-readback.patch",
-      "sha256": "9a6ea6d7b97ffd4db16f908e07d1604feac5b181214f12cb1447c4761021bc34",
+      "sha256": "372c30b9d8e32efd0c1003e1fc177139f582634ee08b1c2c7138e9304f59dd94",
       "files": 15
     }
   ],
@@ -70,7 +70,7 @@
       "0009-shardx-webgl-consistent-readback.patch"
     ]
   },
-  "combined_patch_sha256": "e2bca474dd32dad3eaadd6f44b349fff8b4a9f62a864b74945d08397fa3bd86a",
+  "combined_patch_sha256": "d22bbbba1e85f2c383eacaca07f23c7f520671951d64e99f2c86648380b2b68c",
   "combined_patch_changed_files": 217,
   "source_upgrade": {
     "from_run": 39498745053,
@@ -122,8 +122,9 @@
       "Copying WebGL to Canvas2D uses the separate Canvas policy"
     ],
     "source_contract": "Descriptive source revision only. Requires exact DLL runtime acceptance before admission.",
-    "alpha": "Premultiplied contexts use representable storage-lattice assignments with explicit export convention; valid low-alpha samples must show positive perturbation. Alpha-zero is preserved.",
+    "alpha": "Premultiplied contexts use representable storage-lattice assignments with explicit export convention. Endpoint-only alpha1 stays unchanged; scenes with representable interior colors require positive perturbation.",
     "pbo_memory": "Compact actual-pixel staging without PACK padding allocation; checked allocation reports OUT_OF_MEMORY without modifying the original PBO.",
-    "offscreen_straight_alpha": "Use the same raw RGBA snapshot as HTML Canvas only for active ShardX straight-alpha WebGL; avoid GetImage premultiplication before sparse export."
+    "offscreen_straight_alpha": "Use the same raw RGBA snapshot as HTML Canvas only for active ShardX straight-alpha WebGL; avoid GetImage premultiplication before sparse export.",
+    "color_endpoints": "RGBA8 preserves straight0/255 and premultiplied0/alpha, matching FLOAT0/1 boundary preservation. Interior colors remain eligible for sparse perturbation. Alpha1 has no interior premultiplied values."
   }
 }
