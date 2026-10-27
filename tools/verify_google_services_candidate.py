@@ -275,6 +275,9 @@ def validate_mode_runtime(report, payload):
     required.update((scenario, name + '_matches_js')
                     for scenario in ('hardware_cloak', 'memory_custom')
                     for name in ('device-memory', 'sec-ch-device-memory'))
+    required.update(('webgl_shardx', kind + '_v2_' + name)
+                    for kind in ('webgl', 'webgl2')
+                    for name in ('sparse_positive', 'repeat', 'absolute_crop', 'export_matches_readback'))
     if not required.issubset(executed):
         raise ValueError('Runtime mode routing coverage is incomplete')
     validate_positive_coverage(report, checks)

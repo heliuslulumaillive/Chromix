@@ -44,6 +44,11 @@
       "path": "patches/fingerprint-modes/0008-required-physical-gpu.patch",
       "sha256": "5f89a7060130e72f391594cd36af305294095daccd7ef16991bd4723a49ed1b2",
       "files": 2
+    },
+    {
+      "path": "patches/fingerprint-modes/0009-shardx-webgl-consistent-readback.patch",
+      "sha256": "a5e20df0073cf912200775ebb93e01c7cd48677b42e0d6599cc525af172833ef",
+      "files": 15
     }
   ],
   "sequential_incremental_files": {
@@ -53,15 +58,20 @@
     ],
     "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc": [
       "0002-graphics.patch",
-      "0004-gpu-compatible-modes-v1.patch"
+      "0004-gpu-compatible-modes-v1.patch",
+      "0009-shardx-webgl-consistent-readback.patch"
     ],
     "components/embedder_support/user_agent_utils.cc": [
       "0001-independent-mode-contract.patch",
       "0007-custom-ua-client-hints.patch"
+    ],
+    "base/uxr_graphics_noise.cc": [
+      "0002-graphics.patch",
+      "0009-shardx-webgl-consistent-readback.patch"
     ]
   },
-  "combined_patch_sha256": "f0d614db429fa74b3e11989c4eeda10aeb7364bd6ae6c34249ae6f864735a13c",
-  "combined_patch_changed_files": 211,
+  "combined_patch_sha256": "71dfdb58a77538f288e10df0610ba4144e383f9db19724e93c6d7cf4cf8b1906",
+  "combined_patch_changed_files": 217,
   "source_upgrade": {
     "from_run": 39498745053,
     "from_commit": "4c5f53ca8efef6acca5c8037aaf18ab609550651",
@@ -84,5 +94,35 @@
     },
     "qualification": "Selected-source replay with both exact receipts; object preservation checked using synthetic sentinels."
   },
-  "qualification": "Pinned source replay and donor-upgrade identity only; compiled and runtime evidence is separate."
+  "qualification": "Pinned source replay and donor-upgrade identity only; compiled and runtime evidence is separate.",
+  "shardx_webgl_v2": {
+    "revision": 2,
+    "algorithm": "absolute-coordinate sparse RGB LSB assignment; idempotent; seed stable",
+    "readback": [
+      "RGBA8",
+      "RGBA32F"
+    ],
+    "paths": [
+      "default framebuffer alpha true/false",
+      "FBO",
+      "PBO copy chains",
+      "Window",
+      "OffscreenCanvas",
+      "Worker",
+      "PNG data URL and Blob export"
+    ],
+    "native_fallbacks": [
+      "HALF_FLOAT",
+      "packed pixel types",
+      "integer pixel formats",
+      "unavailable native completion metadata"
+    ],
+    "limitations": [
+      "No claim of full detector acceptance, every GPU workload or non-linkability",
+      "Copying WebGL to Canvas2D uses the separate Canvas policy"
+    ],
+    "source_contract": "Descriptive source revision only. Requires exact DLL runtime acceptance before admission.",
+    "alpha": "Premultiplied contexts use representable storage-lattice assignments with explicit export convention; valid low-alpha samples must show positive perturbation. Alpha-zero is preserved.",
+    "pbo_memory": "Compact actual-pixel staging without PACK padding allocation; checked allocation reports OUT_OF_MEMORY without modifying the original PBO."
+  }
 }

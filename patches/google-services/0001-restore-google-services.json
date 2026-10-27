@@ -18,6 +18,7 @@
     "base/uxr_graphics_noise.cc",
     "base/uxr_graphics_noise.h",
     "base/uxr_hardware_golden_tests.cc",
+    "base/uxr_shard_webgl_v2_properties.h",
     "base/uxr_surface_golden_tests.cc",
     "base/uxr_surface_math.h",
     "base/uxr_surface_modes.h",
@@ -172,6 +173,10 @@
     "extensions/browser/webstore_installer.cc",
     "extensions/common/extension_urls.cc",
     "google_apis/gaia/gaia_auth_fetcher.cc",
+    "gpu/command_buffer/client/gles2_implementation.cc",
+    "gpu/command_buffer/client/gles2_implementation.h",
+    "gpu/command_buffer/client/gles2_interface.h",
+    "gpu/command_buffer/client/gles2_trace_implementation.h",
     "net/base/url_util.cc",
     "third_party/blink/common/device_memory/approximated_device_memory.cc",
     "third_party/blink/renderer/core/dom/element.cc",
@@ -199,6 +204,7 @@
     "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.h",
     "third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc",
     "third_party/blink/renderer/modules/webgl/gpu_fingerprint.h",
+    "third_party/blink/renderer/modules/webgl/uxr_shard_readback.h",
     "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
     "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
     "third_party/blink/renderer/modules/webgpu/gpu_adapter.cc",
@@ -241,6 +247,10 @@
     {
       "path": "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
       "sha256": "c538f6d0c4698f63acd10e7de51e8bfd5c77b393e4aacc070df97674ab3aea01"
+    },
+    {
+      "path": "chrome/browser/chrome_browser_main.cc",
+      "sha256": "a4e11a49034ef40ceeab817ac38204a801426008cdf028534c1ee8770998dca7"
     },
     {
       "path": "chrome/browser/download/download_target_determiner.cc",
@@ -779,6 +789,10 @@
       "sha256": "f1b8c95333f33b3b4c8ed96f863e10570be9fa59ccf9b8a194259a182d19b98c"
     },
     {
+      "path": "content/browser/gpu/gpu_data_manager_impl_private.cc",
+      "sha256": "b969ab70b11d27d01a2d409a9215694483a499c2b2aba1390e4a94d16ed8c673"
+    },
+    {
       "path": "content/browser/preloading/prefetch/prefetch_resource_request_utils.cc",
       "sha256": "f435761e367522629912e59ffa0b7e3d4608fb25e873c9831934ea4536899ac8"
     },
@@ -825,6 +839,22 @@
     {
       "path": "google_apis/gaia/gaia_auth_fetcher.cc",
       "sha256": "8dec1909a6040d488ae7fd40f6be3cd698b6555cf300cb68c7a292222d791ab7"
+    },
+    {
+      "path": "gpu/command_buffer/client/gles2_implementation.cc",
+      "sha256": "e7d9d0012890d4c1ff44b728665b3553760d35468cd89549bf226169a07ec637"
+    },
+    {
+      "path": "gpu/command_buffer/client/gles2_implementation.h",
+      "sha256": "a363e49843e26b8697ab66cf6f05bc40df38240d02fa8c10e21b6af44bf6e952"
+    },
+    {
+      "path": "gpu/command_buffer/client/gles2_interface.h",
+      "sha256": "59bf19e183037e06f10733027820e0858efe37a1e3817057637131a3509cf3b2"
+    },
+    {
+      "path": "gpu/command_buffer/client/gles2_trace_implementation.h",
+      "sha256": "0c419611f7cd58a571a1527498ffdb17715a28e21544a9261f0d544bdd6949fa"
     },
     {
       "path": "net/base/url_util.cc",
@@ -998,6 +1028,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "f0d614db429fa74b3e11989c4eeda10aeb7364bd6ae6c34249ae6f864735a13c",
+  "patch_sha256": "71dfdb58a77538f288e10df0610ba4144e383f9db19724e93c6d7cf4cf8b1906",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

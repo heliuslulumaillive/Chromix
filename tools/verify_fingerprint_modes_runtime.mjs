@@ -601,13 +601,11 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
       if (!gl?.supported) { skip(id, kind, gl?.reason || gl?.error || "Unavailable"); continue; }
       const raw = bytes(gl.full);
       check(id, `${kind}_readback`, raw?.length === 16384 && gl.readError === 0);
-      if (id !== "webgl_shardx")
-        check(id, `${kind}_repeat_and_crop`, equal(raw, bytes(gl.repeat)) && equal(cropped(raw, 64, 11, 13, 18, 16), bytes(gl.crop)));
-      else check(id, `${kind}_repeat`, equal(raw, bytes(gl.repeat)));
+      check(id, `${kind}_repeat_and_crop`, equal(raw, bytes(gl.repeat)) && equal(cropped(raw, 64, 11, 13, 18, 16), bytes(gl.crop)));
       try {
         const decoded = decodePNG(bytes(gl.png));
         check(id, `${kind}_png_decoded`, decoded.width === 64 && decoded.height === 64);
-        if (!["legacy_seeded", "webgl_shardx"].includes(id))
+        if (id !== "legacy_seeded")
           check(id, `${kind}_png_matches_readback`, equal(decoded.rgba, flipped(raw, 64, 64)));
       } catch (error) { check(id, `${kind}_png_decoded`, false, errorText(error)); }
       if (kind === "webgl") check(id, "webgl1_invalid_webgl2_enum", gl.negative.webgl2Enum === 1280);
@@ -752,18 +750,22 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
       if (!baseline?.supported) skipped("webgl_shardx", `${kind}_positive`, "Native WebGL context unavailable", "shard_webgl");
       else {
         const original = bytes(baseline.full), target = bytes(shard?.full);
-        if (original?.length !== 16384) tagged("webgl_shardx", `${kind}_captured_xor_oracle`, false, "shard_webgl", "Native readback missing");
+        if (original?.length !== 16384) tagged("webgl_shardx", `${kind}_v2_sparse_positive`, false, "shard_webgl", "Native readback missing");
         else {
-          const expected = Buffer.from(original);
-          for (const index of oracle.shardWebGL.xor1_byte_offsets) expected[index] ^= 1;
-          tagged("webgl_shardx", `${kind}_captured_xor_oracle`, equal(expected, target) && !equal(original, target), "shard_webgl");
-          const expectedCrop = cropped(original, 64, 11, 13, 18, 16);
-          for (const index of oracle.shardWebGL.xor1_byte_offsets) if (index < expectedCrop.length) expectedCrop[index] ^= 1;
-          tagged("webgl_shardx", `${kind}_crop_restarts_captured_mask`, equal(expectedCrop, bytes(shard?.crop)), "shard_webgl");
+          // The repaired ShardX-derived policy is coordinate-addressed and
+          // idempotent. Historical process-order XOR bytes remain native
+          // reference fixtures, not an oracle for the new production policy.
+          const delta = difference(original, target);
+          tagged("webgl_shardx", `${kind}_v2_sparse_positive`, !!delta &&
+            delta.changed > 0 && delta.changed <= 256 && delta.maxDelta === 1 &&
+            delta.alphaChanges === 0, "shard_webgl", delta);
+          tagged("webgl_shardx", `${kind}_v2_repeat`, equal(target, bytes(shard?.repeat)), "shard_webgl");
+          tagged("webgl_shardx", `${kind}_v2_absolute_crop`, target?.length === 16384 &&
+            equal(cropped(target, 64, 11, 13, 18, 16), bytes(shard?.crop)), "shard_webgl");
           try {
-            tagged("webgl_shardx", `${kind}_export_preserves_native_strategy`,
-              equal(decodePNG(bytes(shard?.png)).rgba, decodePNG(bytes(baseline.png)).rgba), "shard_webgl");
-          } catch (error) { tagged("webgl_shardx", `${kind}_export_preserves_native_strategy`, false, "shard_webgl", errorText(error)); }
+            tagged("webgl_shardx", `${kind}_v2_export_matches_readback`, target?.length === 16384 &&
+              equal(decodePNG(bytes(shard?.png)).rgba, flipped(target, 64, 64)), "shard_webgl");
+          } catch (error) { tagged("webgl_shardx", `${kind}_v2_export_matches_readback`, false, "shard_webgl", errorText(error)); }
         }
       }
       const masked = byId.gpu_masked_custom?.probe?.webgl?.[kind];

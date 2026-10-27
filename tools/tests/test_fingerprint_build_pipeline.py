@@ -175,6 +175,8 @@ def write_fingerprint_evidence(root, bundle):
     checks = [{'scenario': case, 'name': name, 'passed': True} for case in cases
               for name in common + ([] if case in candidate.FINGERPRINT_BASIC_SCENARIOS else full)]
     specific = {
+        'webgl_shardx': [kind + '_v2_' + name for kind in ('webgl', 'webgl2')
+                         for name in ('sparse_positive', 'repeat', 'absolute_crop', 'export_matches_readback')],
         'all_native': ['native_cpu_matches_off_control', 'native_memory_matches_off_control',
                        'native_ua_matches_off_control', 'native_screen_matches_off_control'],
         'legacy_seeded': ['selected_canvas_noise_reaches_runtime'],
@@ -193,7 +195,7 @@ def write_fingerprint_evidence(root, bundle):
         'legacy_canvas': ('legacy_seeded', 'selected_canvas_noise_reaches_runtime'),
         'shard_canvas': ('canvas_shardx', 'selected_canvas_noise_reaches_runtime'),
         'cloak_canvas': ('hardware_cloak', 'selected_canvas_noise_reaches_runtime'),
-        'shard_webgl': ('webgl_shardx', 'webgl_captured_xor_oracle'),
+        'shard_webgl': ('webgl_shardx', 'webgl_v2_sparse_positive'),
         'cloak_webgl': ('webgl_cloak', 'webgl_noise_reaches_runtime'),
         'shard_audio': ('shard_surfaces', 'audio_changed'),
         'shard_rects': ('shard_surfaces', 'rect_mode_effect_and_bound'),

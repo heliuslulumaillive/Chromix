@@ -122,7 +122,7 @@ test("the bounded matrix has distinct scenes and uses basic probes for independe
   assert.equal(POSITIVE_GROUPS.length, 25);
   assert.ok(matrix.filter(s => BASIC_SCENARIOS.has(s.id)).every(s => s.flags.includes("--fingerprint-canvas-mode=native")));
 });
-test("the Shard WebGL oracle is the pinned opaque byte mask with no alpha changes", () => {
+test("repaired Shard WebGL requires positive sparse noise, stable coordinates and matching export", () => {
   const mask = oracle.shardWebGL.xor1_byte_offsets;
   assert.equal(mask.length, 52);
   assert.equal(new Set(mask).size, 52);
@@ -132,14 +132,16 @@ test("the Shard WebGL oracle is the pinned opaque byte mask with no alpha change
   const native = Buffer.alloc(16384);
   for (let p = 0; p < 4096; p++) native.set([51, 102, 153, 255], p * 4);
   const noised = Buffer.from(native);
-  for (const index of mask) noised[index] ^= 1;
+  // Independent invariant fixture, deliberately not a copy of the new PRNG.
+  noised[0] ^= 1;
+  noised[(13 * 64 + 11) * 4 + 1] ^= 1;
+  noised[(63 * 64 + 63) * 4 + 2] ^= 1;
   const crop = Buffer.alloc(18 * 16 * 4);
-  for (let p = 0; p < 18 * 16; p++) crop.set([51, 102, 153, 255], p * 4);
-  for (const index of mask) if (index < crop.length) crop[index] ^= 1;
+  for (let y = 0; y < 16; y++) noised.copy(crop, y * 18 * 4, ((13+y)*64+11)*4, ((13+y)*64+29)*4);
   const header = Buffer.alloc(13); header.writeUInt32BE(64); header.writeUInt32BE(64, 4); header[8] = 8; header[9] = 6;
   const chunk = (name, data) => { const b = Buffer.alloc(data.length + 12); b.writeUInt32BE(data.length); b.write(name, 4); data.copy(b, 8); return b; };
   const scanlines = Buffer.alloc(64 * 257);
-  for (let y = 0; y < 64; y++) native.copy(scanlines, y * 257 + 1, y * 256, (y + 1) * 256);
+  for (let y = 0; y < 64; y++) noised.copy(scanlines, y * 257 + 1, (63-y) * 256, (64-y) * 256);
   const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", header),
     chunk("IDAT", zlib.deflateSync(scanlines)), chunk("IEND", Buffer.alloc(0))]).toString("base64");
   const gl = data => ({ supported: true, full: data.toString("base64"), repeat: data.toString("base64"),
@@ -148,6 +150,9 @@ test("the Shard WebGL oracle is the pinned opaque byte mask with no alpha change
   const target = { id: "webgl_shardx", probe: { webgl: { webgl: gl(noised), webgl2: gl(noised) } } };
   const result = verifyResults([base, target], false, oracle);
   assert.equal(result.positive_acceptance.shard_webgl.status, "observed_pass");
+  target.probe.webgl.webgl.crop = Buffer.alloc(crop.length).toString("base64");
+  assert.equal(verifyResults([base, target], false, oracle).positive_acceptance.shard_webgl.status, "failed");
+  target.probe.webgl.webgl.crop = crop.toString("base64");
   target.probe.webgl.webgl.full = native.toString("base64");
   assert.equal(verifyResults([base, target], false, oracle).positive_acceptance.shard_webgl.status, "failed");
 });
