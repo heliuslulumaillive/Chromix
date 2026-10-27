@@ -67,6 +67,24 @@ function Output([string]$Name, [string]$Value) {
   if ($env:GITHUB_OUTPUT) { Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "$Name=$Value" }
   Write-Host "$Name=$Value"
 }
+function Get-RuntimeEvidencePaths(
+  [string]$Logs,
+  [ValidatePattern('^[1-9][0-9]*$')][string]$RunId,
+  [ValidatePattern('^[1-9][0-9]*$')][string]$RunAttempt,
+  [ValidateRange(1, 4)][int]$EvidenceStage
+) {
+  # A checkpoint may retain prior validation output. Keep the compiler/cache
+  # paths stable, but never reuse or overwrite another execution's evidence.
+  $directory = Join-Path ([IO.Path]::GetFullPath($Logs)) "runtime-run-$RunId-attempt-$RunAttempt-stage-$EvidenceStage"
+  return @{
+    directory = $directory
+    native_tests = Join-Path $directory 'native-passkey-unittests.json'
+    native_launcher = Join-Path $directory 'native-passkey-launcher.json'
+    native_log = Join-Path $directory 'native-passkey-unittests.log'
+    smoke = Join-Path $directory 'candidate-smoke\report.json'
+    google_runtime = Join-Path $directory 'google-services-runtime.json'
+  }
+}
 function Invoke-BuildTelemetry([int]$OwnedPid) {
   if (-not $isFingerprint) { return }
   & python -B -X utf8 (Join-Path $repo 'tools\build_telemetry.py') --root-pid $OwnedPid `
@@ -342,20 +360,22 @@ try {
     throw "Ninja failed: $($process.ExitCode)"
   }
   if (-not $timedOut) {
-    $nativeTests = Join-Path $logs "native-passkey-unittests-stage-$Stage.json"
-    $nativeLauncher = Join-Path $logs "native-passkey-launcher-stage-$Stage.json"
-    Checked { & "$PSScriptRoot\run-native-passkey-tests.ps1" -Executable (Join-Path $out 'native_passkey_unittests.exe') -Summary $nativeTests -Log (Join-Path $logs "native-passkey-unittests-stage-$Stage.log") -Receipt $nativeLauncher -WorkingDirectory $src }
+    $runtimeEvidence = Get-RuntimeEvidencePaths -Logs $logs -RunId $env:GITHUB_RUN_ID -RunAttempt $env:GITHUB_RUN_ATTEMPT -EvidenceStage $Stage
+    if (Test-Path -LiteralPath $runtimeEvidence.directory) { throw 'Current runtime evidence directory must be fresh' }
+    $nativeTests = $runtimeEvidence.native_tests
+    $nativeLauncher = $runtimeEvidence.native_launcher
+    Checked { & "$PSScriptRoot\run-native-passkey-tests.ps1" -Executable (Join-Path $out 'native_passkey_unittests.exe') -Summary $nativeTests -Log $runtimeEvidence.native_log -Receipt $nativeLauncher -WorkingDirectory $src }
     Checked { python -B -X utf8 (Join-Path $repo 'tools\verify_google_services_candidate.py') --native-tests-json $nativeTests }
     if (Test-Path -LiteralPath 'C:\c\dist') { throw 'Expected a fresh candidate output directory' }
     Checked { & "$PSScriptRoot\package-win.ps1" -Out $out -Dest 'C:\c\dist' -Arch x64 -SkipArchive }
     $buildRecordHash = (Get-FileHash -LiteralPath 'C:\c\dist\chromix\google-services-build.json' -Algorithm SHA256).Hash.ToLowerInvariant()
     Copy-Item -LiteralPath $nativeTests -Destination 'C:\c\dist\native-passkey-unittests.json'
     Copy-Item -LiteralPath $nativeLauncher -Destination 'C:\c\dist\native-passkey-launcher.json'
-    $smokeReport = Join-Path $logs "candidate-smoke-stage-$Stage\report.json"
+    $smokeReport = $runtimeEvidence.smoke
     Checked { python -X utf8 (Join-Path $repo 'tools\verify_windows_bundle.py') --bundle 'C:\c\dist\chromix' --arch x64 --native --version '155.0.8059.39' --report $smokeReport | Select-Object -Last 12 }
     Copy-Item -LiteralPath $smokeReport -Destination 'C:\c\dist\candidate-smoke.json'
     Checked { python -m pip install --disable-pip-version-check -r (Join-Path $repo 'tools\google-services-requirements.txt') }
-    $googleReport = Join-Path $logs "google-services-runtime-stage-$Stage.json"
+    $googleReport = $runtimeEvidence.google_runtime
     Checked { python -B -X utf8 (Join-Path $repo 'tools\verify_google_services_runtime.py') --browser 'C:\c\dist\chromix\chrome.exe' --report $googleReport }
     Copy-Item -LiteralPath $googleReport -Destination 'C:\c\dist\google-services-runtime.json'
     Copy-Item -LiteralPath (Join-Path $work 'google-services-source.json') -Destination 'C:\c\dist\google-services-source.json'

@@ -505,12 +505,33 @@
          CanvasAsyncBlobCreator::kHTMLCanvasToBlobCallback, callback, start_time,
 --- a/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
 +++ b/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
-@@ -577,7 +577,8 @@
+@@ -564,7 +564,19 @@
+   }
+ 
+   base::TimeTicks start_time = base::TimeTicks::Now();
+-  scoped_refptr<StaticBitmapImage> image_bitmap = context_->GetImage();
++  const auto surface_modes = base::UxrConfig::GetInstance().SurfaceModes();
++  // GetImage() uses a premultiplied snapshot. With straight-alpha WebGL this
++  // quantizes colors before export (for example blue 192 -> 191 at alpha 128),
++  // so assigning the same sparse bit no longer agrees with readPixels(). Use
++  // the raw RGBA snapshot already used by HTMLCanvasElement for this context.
++  // Native and other strategies retain the existing snapshot behavior.
++  const bool shard_straight_webgl = context_->IsWebGL() &&
++      !context_->CreationAttributes().premultiplied_alpha &&
++      surface_modes.webgl.mode == base::UxrSurfaceMode::kShardX &&
++      !surface_modes.noise_disabled && !surface_modes.raw;
++  scoped_refptr<StaticBitmapImage> image_bitmap = shard_straight_webgl
++      ? context_->GetRGBAUnacceleratedStaticBitmapImage(kBackBuffer)
++      : context_->GetImage();
+   if (image_bitmap) {
+     auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<Blob>>(
+         script_state, exception_state.GetContext());
+@@ -577,7 +589,8 @@
                              ? UxrCanvasExportSource::kWebGL
                              : UxrCanvasExportSource::kOther;
      const auto export_context = UxrCanvasExportContext::FromModes(
 -        base::UxrConfig::GetInstance().SurfaceModes(), source, true);
-+        base::UxrConfig::GetInstance().SurfaceModes(), source, true,
++        surface_modes, source, true,
 +        context_->IsWebGL() && context_->CreationAttributes().premultiplied_alpha);
      auto* async_creator = MakeGarbageCollected<CanvasAsyncBlobCreator>(
          image_bitmap, options, function_type, start_time, execution_context,

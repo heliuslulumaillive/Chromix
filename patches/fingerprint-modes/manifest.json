@@ -47,7 +47,7 @@
     },
     {
       "path": "patches/fingerprint-modes/0009-shardx-webgl-consistent-readback.patch",
-      "sha256": "a5e20df0073cf912200775ebb93e01c7cd48677b42e0d6599cc525af172833ef",
+      "sha256": "9a6ea6d7b97ffd4db16f908e07d1604feac5b181214f12cb1447c4761021bc34",
       "files": 15
     }
   ],
@@ -70,7 +70,7 @@
       "0009-shardx-webgl-consistent-readback.patch"
     ]
   },
-  "combined_patch_sha256": "71dfdb58a77538f288e10df0610ba4144e383f9db19724e93c6d7cf4cf8b1906",
+  "combined_patch_sha256": "e2bca474dd32dad3eaadd6f44b349fff8b4a9f62a864b74945d08397fa3bd86a",
   "combined_patch_changed_files": 217,
   "source_upgrade": {
     "from_run": 39498745053,
@@ -123,6 +123,7 @@
     ],
     "source_contract": "Descriptive source revision only. Requires exact DLL runtime acceptance before admission.",
     "alpha": "Premultiplied contexts use representable storage-lattice assignments with explicit export convention; valid low-alpha samples must show positive perturbation. Alpha-zero is preserved.",
-    "pbo_memory": "Compact actual-pixel staging without PACK padding allocation; checked allocation reports OUT_OF_MEMORY without modifying the original PBO."
+    "pbo_memory": "Compact actual-pixel staging without PACK padding allocation; checked allocation reports OUT_OF_MEMORY without modifying the original PBO.",
+    "offscreen_straight_alpha": "Use the same raw RGBA snapshot as HTML Canvas only for active ShardX straight-alpha WebGL; avoid GetImage premultiplication before sparse export."
   }
 }

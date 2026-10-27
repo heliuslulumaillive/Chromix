@@ -306,6 +306,69 @@ class ArchiveAfterValidationTest(unittest.TestCase):
 
 class BuildBudgetTest(unittest.TestCase):
     @unittest.skipUnless(shutil.which('pwsh') or shutil.which('powershell'), 'PowerShell is required')
+    def test_resume_preserves_cached_objects_and_uses_fresh_runtime_evidence(self):
+        # Execute the production path helper and report-path assignments only.
+        # Model a restored object and old smoke evidence; never enter the fixed
+        # runner build, source-preparation, package or cleanup entrypoints.
+        command = r'''
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $parseErrors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($env:GOOGLE_BUILD_SCRIPT, [ref]$tokens, [ref]$parseErrors)
+if ($parseErrors.Count) { throw 'Invalid build script' }
+$helper = @($ast.FindAll({ param($node)
+  $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-RuntimeEvidencePaths'
+}, $true))
+if ($helper.Count -ne 1) { throw 'Evidence helper missing' }
+Invoke-Expression $helper[0].Extent.Text
+$assignments = @($ast.FindAll({ param($node)
+  $node -is [System.Management.Automation.Language.AssignmentStatementAst] -and
+  $node.Left.Extent.Text -in @('$runtimeEvidence', '$nativeTests', '$nativeLauncher', '$smokeReport', '$googleReport')
+}, $true) | Sort-Object { $_.Extent.StartOffset })
+if ($assignments.Count -ne 5) { throw 'Runtime reports must use the scoped paths' }
+$logs = Join-Path $env:GOOGLE_EVIDENCE_ROOT 'logs'
+$out = Join-Path $env:GOOGLE_EVIDENCE_ROOT 'out/Default'
+$null = New-Item -ItemType Directory -Path $out -Force
+$cached = Join-Path $out 'already-compiled.obj'
+[IO.File]::WriteAllText($cached, 'restored compiled object')
+[IO.File]::SetLastWriteTimeUtc($cached, [datetime]'2026-10-20T00:00:00Z')
+$beforeHash = (Get-FileHash -LiteralPath $cached).Hash
+$beforeTime = (Get-Item -LiteralPath $cached).LastWriteTimeUtc.Ticks
+$legacy = Join-Path $logs 'candidate-smoke-stage-1/headless.stdout'
+$null = New-Item -ItemType Directory -Path (Split-Path $legacy) -Force
+[IO.File]::WriteAllText($legacy, 'prior checkpoint evidence')
+$directories = [Collections.Generic.HashSet[string]]::new()
+foreach ($identity in @(@('1001', '1', 1), @('1002', '1', 1), @('1001', '2', 1), @('1001', '1', 2))) {
+  $env:GITHUB_RUN_ID = $identity[0]; $env:GITHUB_RUN_ATTEMPT = $identity[1]; $Stage = [int]$identity[2]
+  foreach ($statement in $assignments) { Invoke-Expression $statement.Extent.Text }
+  if (-not $directories.Add($runtimeEvidence.directory)) { throw 'Execution identities collided' }
+  foreach ($path in @($nativeTests, $nativeLauncher, $runtimeEvidence.native_log, $smokeReport, $googleReport,
+                        (Join-Path (Split-Path $smokeReport) 'headless.stdout'))) {
+    if (-not $path.StartsWith($runtimeEvidence.directory + [IO.Path]::DirectorySeparatorChar)) { throw 'Evidence escaped scope' }
+    $null = New-Item -ItemType Directory -Path (Split-Path $path) -Force
+    $stream = [IO.File]::Open($path, [IO.FileMode]::CreateNew)
+    $stream.Dispose()
+  }
+}
+if ((Get-FileHash -LiteralPath $cached).Hash -ne $beforeHash -or (Get-Item -LiteralPath $cached).LastWriteTimeUtc.Ticks -ne $beforeTime) {
+  throw 'Resume report routing changed cached objects'
+}
+if ([IO.File]::ReadAllText($legacy) -ne 'prior checkpoint evidence') { throw 'Historical evidence was overwritten' }
+foreach ($invalid in @('', '../escape', '0')) {
+  $rejected = $false
+  try { $null = Get-RuntimeEvidencePaths -Logs $logs -RunId $invalid -RunAttempt 1 -EvidenceStage 1 }
+  catch { $rejected = $true }
+  if (-not $rejected) { throw 'Unsafe execution identity accepted' }
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run([shutil.which('pwsh') or shutil.which('powershell'),
+                                     '-NoProfile', '-NonInteractive', '-Command', command],
+                                    env={**os.environ, 'GOOGLE_BUILD_SCRIPT': str(REPO / 'build/windows/build-google-services.ps1'),
+                                         'GOOGLE_EVIDENCE_ROOT': directory},
+                                    capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    @unittest.skipUnless(shutil.which('pwsh') or shutil.which('powershell'), 'PowerShell is required')
     def test_exhausted_budget_returns_normally_before_and_after_preparation(self):
         # Execute just the real parameter/budget/guard AST nodes. Never source the
         # build script, install tools, restore a checkpoint or launch a compiler.
