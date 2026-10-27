@@ -275,9 +275,28 @@ def validate_mode_runtime(report, payload):
     required.update((scenario, name + '_matches_js')
                     for scenario in ('hardware_cloak', 'memory_custom')
                     for name in ('device-memory', 'sec-ch-device-memory'))
-    required.update(('webgl_shardx', kind + '_v2_' + name)
-                    for kind in ('webgl', 'webgl2')
-                    for name in ('sparse_positive', 'repeat', 'absolute_crop', 'export_matches_readback'))
+    shard_probe = next(s for s in scenarios if s['id'] == 'webgl_shardx')['probe'].get('webgl', {})
+    for kind in ('webgl', 'webgl2'):
+        names = {('webgl_shardx', kind + '_v2_' + name) for name in (
+            'sparse_positive', 'repeat', 'absolute_crop', 'export_matches_readback')}
+        actual = shard_probe.get(kind) if isinstance(shard_probe, dict) else None
+        unavailable = [row for row in report['not_tested'] if isinstance(row, dict)
+                       and row.get('scenario') == 'webgl_shardx'
+                       and row.get('name') == kind + '_positive'
+                       and row.get('acceptance_group') == 'shard_webgl']
+        # A candidate can retain an explicit unavailable-context observation,
+        # but it must never manufacture positive WebGL acceptance from it.
+        if isinstance(actual, dict) and actual.get('supported') is False:
+            if (not isinstance(actual.get('reason'), str) or not actual['reason'].strip()
+                    or len(unavailable) != 1
+                    or unavailable[0].get('reason') != 'Native WebGL context unavailable'
+                    or unavailable[0].get('optional_candidate') is not None
+                    or names & executed):
+                raise ValueError('ShardX WebGL unavailable evidence is missing or contradictory: ' + kind)
+        else:
+            if unavailable:
+                raise ValueError('ShardX WebGL unavailable evidence contradicts the probe: ' + kind)
+            required.update(names)
     if not required.issubset(executed):
         raise ValueError('Runtime mode routing coverage is incomplete')
     validate_positive_coverage(report, checks)

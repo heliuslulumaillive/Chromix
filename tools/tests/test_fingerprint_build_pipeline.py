@@ -223,6 +223,9 @@ def write_fingerprint_evidence(root, bundle):
             existing = {'scenario': scenario, 'name': name, 'passed': True}
             checks.append(existing)
         existing['acceptance_group'] = group
+    for check in checks:
+        if check['scenario'] == 'webgl_shardx' and '_v2_' in check['name']:
+            check['acceptance_group'] = 'shard_webgl'
     missing = [{'scenario': 'gpu_masked_custom', 'name': 'webgl_hardware_masked_identity',
                 'acceptance_group': 'masked_webgl', 'reason': 'Synthetic schema fixture: actual hardware path unavailable'}]
     coverage = {}
@@ -243,6 +246,8 @@ def write_fingerprint_evidence(root, bundle):
                                   {'pid': 100 + index, 'parent': 1, 'created': '2026-10-20T00:00:00Z'}],
                               'known_owned_processes_remaining': [], 'process_tree_error': None}}
                  for index, case in enumerate(cases)]
+    next(s for s in scenarios if s['id'] == 'webgl_shardx')['probe']['webgl'] = {
+        kind: {'supported': True} for kind in ('webgl', 'webgl2')}
     cap = (ROOT / 'build/fingerprint-modes-capabilities.json').read_bytes()
     (root / 'fingerprint-modes-capabilities.json').write_bytes(cap)
     (bundle / 'fingerprint-modes-capabilities.json').write_bytes(cap)
@@ -278,7 +283,97 @@ def rebind_fingerprint_fixture(root):
     path.write_text(json.dumps(value))
 
 
+def refresh_shard_positive_fixture(runtime):
+    actual = [row for row in runtime['checks'] if row.get('acceptance_group') == 'shard_webgl']
+    missing = [row for row in runtime['not_tested'] if row.get('acceptance_group') == 'shard_webgl']
+    runtime['positive_acceptance']['shard_webgl'] = {
+        'status': 'not_tested' if missing or not actual else 'observed_pass',
+        'eligible_count': len(actual), 'passed_count': len(actual),
+        'reason': 'Synthetic receipt schema only; no browser execution claimed',
+        'evidence': [{'scenario': row['scenario'], 'name': row['name']} for row in actual],
+        'missing': [{'scenario': row['scenario'], 'name': row['name'], 'reason': row['reason']} for row in missing],
+    }
+
+
+def unavailable_shard_fixture(runtime, kinds=('webgl', 'webgl2')):
+    probe = next(s for s in runtime['scenarios'] if s['id'] == 'webgl_shardx')['probe']['webgl']
+    for kind in kinds:
+        probe[kind] = {'supported': False, 'reason': 'Context creation unavailable'}
+        runtime['checks'] = [row for row in runtime['checks'] if not (
+            row['scenario'] == 'webgl_shardx' and row['name'].startswith(kind + '_v2_'))]
+        runtime['not_tested'].append({'scenario': 'webgl_shardx', 'name': kind + '_positive',
+                                     'acceptance_group': 'shard_webgl',
+                                     'reason': 'Native WebGL context unavailable'})
+    refresh_shard_positive_fixture(runtime)
+
+
 class FingerprintEvidenceTest(unittest.TestCase):
+    def test_shard_v2_unavailable_context_remains_explicitly_unaccepted(self):
+        for kinds in [('webgl',), ('webgl2',), ('webgl', 'webgl2')]:
+            with self.subTest(kinds=kinds), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                bundle = root / 'bundle'
+                bundle.mkdir()
+                (bundle / 'chrome.exe').write_bytes(b'exe')
+                (bundle / 'chrome.dll').write_bytes(b'dll')
+                report = write_fingerprint_evidence(root, bundle)
+                runtime = json.loads((root / 'modes-runtime.json').read_text())
+                unavailable_shard_fixture(runtime, kinds)
+                (root / 'modes-runtime.json').write_text(json.dumps(runtime))
+                rebind_fingerprint_fixture(root)
+                result = candidate.validate_fingerprint_tests(report, bundle)
+                self.assertEqual(result['positive_acceptance']['shard_webgl']['status'], 'not_tested')
+                self.assertEqual(len(result['positive_acceptance']['shard_webgl']['missing']), len(kinds))
+                self.assertFalse(result['full_strategy_acceptance'])
+                self.assertTrue(result['partial'])
+
+    def test_shard_v2_missing_checks_or_forged_unavailability_fail_closed(self):
+        for kind in ('webgl', 'webgl2'):
+            for mutation in ('supported_missing_check', 'supported_forged_skip',
+                             'missing_probe', 'missing_probe_reason', 'missing_skip',
+                             'wrong_skip_reason', 'duplicate_skip', 'optional_skip',
+                             'unavailable_with_positive_check', 'forged_observed_pass'):
+                with self.subTest(kind=kind, mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    bundle = root / 'bundle'
+                    bundle.mkdir()
+                    (bundle / 'chrome.exe').write_bytes(b'exe')
+                    (bundle / 'chrome.dll').write_bytes(b'dll')
+                    report = write_fingerprint_evidence(root, bundle)
+                    runtime = json.loads((root / 'modes-runtime.json').read_text())
+                    check = next(row for row in runtime['checks'] if row['scenario'] == 'webgl_shardx'
+                                 and row['name'] == kind + '_v2_repeat')
+                    if mutation == 'supported_missing_check':
+                        runtime['checks'].remove(check)
+                    else:
+                        unavailable_shard_fixture(runtime, (kind,))
+                        probe = next(s for s in runtime['scenarios'] if s['id'] == 'webgl_shardx')['probe']['webgl']
+                        skip = next(row for row in runtime['not_tested'] if row['scenario'] == 'webgl_shardx'
+                                    and row['name'] == kind + '_positive')
+                        if mutation == 'supported_forged_skip':
+                            probe[kind]['supported'] = True
+                        elif mutation == 'missing_probe':
+                            probe.pop(kind)
+                        elif mutation == 'missing_probe_reason':
+                            probe[kind]['reason'] = '  '
+                        elif mutation == 'missing_skip':
+                            runtime['not_tested'].remove(skip)
+                        elif mutation == 'wrong_skip_reason':
+                            skip['reason'] = 'Fabricated unrelated reason'
+                        elif mutation == 'duplicate_skip':
+                            runtime['not_tested'].append(copy.deepcopy(skip))
+                        elif mutation == 'optional_skip':
+                            skip['optional_candidate'] = True
+                        elif mutation == 'unavailable_with_positive_check':
+                            runtime['checks'].append(check)
+                    refresh_shard_positive_fixture(runtime)
+                    if mutation == 'forged_observed_pass':
+                        runtime['positive_acceptance']['shard_webgl']['status'] = 'observed_pass'
+                    (root / 'modes-runtime.json').write_text(json.dumps(runtime))
+                    rebind_fingerprint_fixture(root)
+                    with self.assertRaises(ValueError):
+                        candidate.validate_fingerprint_tests(report, bundle)
+
     def test_runtime_acceptance_modules_and_matrix_contract(self):
         node = os.environ.get('FINGERPRINT_TEST_NODE') or shutil.which('node')
         if not node:

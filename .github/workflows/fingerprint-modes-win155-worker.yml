@@ -140,6 +140,25 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
+      - name: Retain unaccepted runtime only for failure diagnosis
+        if: ${{ !cancelled() && steps.build.outcome == 'failure' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingerprint-modes-win155-unaccepted-runtime-s${{ inputs.stage }}
+          path: |
+            C:/c/dist/chromix/
+            C:/c/chromix/google-services-source.json
+            C:/c/dist/candidate-smoke.json
+            C:/c/dist/google-services-runtime.json
+            C:/c/dist/native-passkey-unittests.json
+            C:/c/dist/native-passkey-launcher.json
+            C:/c/dist/fingerprint-modes-validation.json
+            C:/c/dist/modes-native.json
+            C:/c/dist/modes-runtime.json
+            C:/c/dist/fingerprint-modes-capabilities.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Upload concise build and transfer evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -155,6 +174,7 @@ jobs:
             C:/c/dist/fingerprint-modes-validation.json
             C:/c/dist/modes-native.json
             C:/c/dist/modes-runtime.json
+            C:/c/dist/modes-runtime-evidence-*/**/browser.stderr.log
           if-no-files-found: ignore
           retention-days: 7
       - name: Preserve changed build outputs unless candidate delivery succeeded
