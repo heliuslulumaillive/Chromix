@@ -174,7 +174,7 @@ try {
   $native.processes += $helpers
   $native.groups['production'] = @(Read-NativeGroups $helpers @(
       'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks',
-      'font_allowlist_checks', 'audio_default_checks', 'configuration_checks'))
+      'font_allowlist_checks', 'audio_default_checks', 'voice_compat_checks', 'configuration_checks'))
   $native.status = 'passed'
   Write-Json $nativePath $native
   $runtime = Invoke-OwnedCheck $node @(

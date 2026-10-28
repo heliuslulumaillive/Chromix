@@ -511,5 +511,16 @@
     "media/cloak": "Original empty-list fake input has no capture backend; deliberately omitted rather than add a no-op mode.",
     "voices/shardx": "No separately established strategy in the audited target."
   },
-  "data_policy": "Four header-only resources/algorithms contain decoded numeric/string metadata. No opaque ciphertext, licensing material, keys or remote runtime loads. Dataset build validates counts, uniqueness and captured hashes."
+  "data_policy": "Four header-only resources/algorithms contain decoded numeric/string metadata. No opaque ciphertext, licensing material, keys or remote runtime loads. Dataset build validates counts, uniqueness and captured hashes.",
+  "windows_native_voice_compatibility": {
+    "version": 1,
+    "catalog": "Chromium 155 network speech names and languages",
+    "alias_count": 19,
+    "backend": "Windows SAPI",
+    "native_voices_preserved": true,
+    "requires_manager_extension": false,
+    "google_cloud_synthesis": false,
+    "missing_language": "matching primary language, otherwise original platform default",
+    "scope": "Windows native backend inventory and routing; Google names and remote attributes are compatibility declarations. Existing renderer voice filters remain effective."
+  }
 }
