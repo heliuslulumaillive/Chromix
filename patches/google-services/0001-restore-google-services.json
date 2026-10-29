@@ -24,6 +24,8 @@
     "base/uxr_surface_modes.h",
     "base/uxr_surface_modes_test_main.cc",
     "base/uxr_surface_reference_data.h",
+    "base/uxr_voice_compat.h",
+    "base/uxr_voice_compat_tests.cc",
     "base/uxr_voice_reference_data.h",
     "chrome/app/chrome_main.cc",
     "chrome/app/settings_chromium_strings.grdp",
@@ -164,6 +166,7 @@
     "components/variations/net/variations_http_headers.cc",
     "content/browser/gpu/gpu_data_manager_impl_private.cc",
     "content/browser/preloading/prefetch/prefetch_resource_request_utils.cc",
+    "content/browser/speech/tts_win.cc",
     "device/fido/win/authenticator.cc",
     "device/fido/win/authenticator.h",
     "device/fido/win/authenticator_unittest.cc",
@@ -797,6 +800,10 @@
       "sha256": "f435761e367522629912e59ffa0b7e3d4608fb25e873c9831934ea4536899ac8"
     },
     {
+      "path": "content/browser/speech/tts_win.cc",
+      "sha256": "f041b0e568de8e687c347d969d7172f22c78260ed5ae4647894fdc82ea7b7bb5"
+    },
+    {
       "path": "content/browser/webauth/webauth_request_security_checker_impl.cc",
       "sha256": "3c4859e53d9198feb51f5cdba399b76b9c706cc408604ad2c20da7da2d24bcd5"
     },
@@ -1028,6 +1035,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "d22bbbba1e85f2c383eacaca07f23c7f520671951d64e99f2c86648380b2b68c",
+  "patch_sha256": "6d01b4985fd5c03fe4f8818d99b31d1bf42b29c01923278c11e79bcd56385115",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

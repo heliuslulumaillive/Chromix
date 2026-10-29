@@ -1,4 +1,5 @@
 """Validate the native voice overlay's routing and build evidence contracts."""
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -9,6 +10,36 @@ PATCH = 'patches/fingerprint-modes/0010-windows-native-voice-compat.patch'
 
 
 class WindowsVoiceCompatibilityTest(unittest.TestCase):
+    def test_ci_restoration_contains_the_backend_and_executed_suite(self):
+        # CI applies this aggregate, not restoration_overlays individually.
+        # The failed 40692824400 run shipped the previous DLL because this
+        # aggregate had not been regenerated after adding the voice overlay.
+        combined = ROOT / 'patches/google-services/0001-restore-google-services.patch'
+        compiled = combined.read_text(encoding='utf-8')
+        for fragment in (
+            '+++ b/base/uxr_voice_compat.h',
+            '+++ b/base/uxr_voice_compat_tests.cc',
+            '+      "uxr_voice_compat_tests.cc",',
+            '+    const int voices = RunVoiceCompatibilityTests();',
+            '+  SetVoiceFromName(base::uxr_voice_compat::NativeVoiceName(voice));',
+            '+  base::uxr_voice_compat::AppendWindowsCompatibilityVoices(out_voices);',
+        ):
+            self.assertTrue(fragment in compiled, 'CI aggregate is missing: ' + fragment)
+        receipt = json.loads(combined.with_suffix('.json').read_text(encoding='utf-8'))
+        self.assertEqual(receipt['patch_sha256'], hashlib.sha256(combined.read_bytes()).hexdigest())
+        self.assertIn('content/browser/speech/tts_win.cc', receipt['changed_files'])
+
+    def test_overlay_manifest_matches_the_actual_ci_recipe(self):
+        config = json.loads((ROOT / 'build/google-services-win155.json').read_text(encoding='utf-8'))
+        manifest = json.loads((ROOT / 'patches/fingerprint-modes/manifest.json').read_text(encoding='utf-8'))
+        active = [name for name in config['restoration_overlays']
+                  if name.startswith('patches/fingerprint-modes/')]
+        self.assertEqual([entry['path'] for entry in manifest['ordered_overlays']], active)
+        for entry in manifest['ordered_overlays']:
+            self.assertEqual(entry['sha256'], hashlib.sha256((ROOT / entry['path']).read_bytes()).hexdigest())
+        combined = ROOT / 'patches/google-services/0001-restore-google-services.patch'
+        self.assertEqual(manifest['combined_patch_sha256'], hashlib.sha256(combined.read_bytes()).hexdigest())
+
     def test_overlay_is_in_the_verified_preparation_recipe(self):
         config = json.loads((ROOT / 'build/google-services-win155.json').read_text(encoding='utf-8'))
         self.assertEqual(config['restoration_overlays'].count(PATCH), 1)

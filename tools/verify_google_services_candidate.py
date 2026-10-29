@@ -116,7 +116,7 @@ def validate_mode_native(report, payload):
         'config-chromix': ('chromix', {'configuration_checks'}, '--config-chromix'),
         'production-helpers-and-config': ('production', {
             'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks', 'font_allowlist_checks',
-            'audio_default_checks', 'configuration_checks'}, None),
+            'audio_default_checks', 'voice_compat_checks', 'configuration_checks'}, None),
     }
     processes, groups = report.get('processes'), report.get('groups')
     if (report.get('status') != 'passed'

@@ -149,6 +149,7 @@ def write_fingerprint_evidence(root, bundle):
             {'checks': 3, 'failures': 0}, {'gpu_checks': 4, 'failures': 0},
             {'hardware_checks': 5, 'failures': 0},
             {'font_allowlist_checks': 38, 'failures': 0}, {'audio_default_checks': 28, 'failures': 0},
+            {'voice_compat_checks': 89, 'failures': 0},
             {'status': 'passed', 'configuration_checks': 6, 'failures': 0},
         ],
     }
@@ -411,6 +412,8 @@ class FingerprintEvidenceTest(unittest.TestCase):
             ('native_inner_status', lambda n, r, c: n['groups']['legacy'][0].update(status='failed')),
             ('native_missing_font_group', lambda n, r, c: n['groups']['production'].pop(4)),
             ('native_missing_audio_group', lambda n, r, c: n['groups']['production'].pop(5)),
+            ('native_missing_voice_group', lambda n, r, c: n['groups']['production'].pop(6)),
+            ('native_zero_voice_count', lambda n, r, c: n['groups']['production'][6].update(voice_compat_checks=0)),
             ('runtime_status', lambda n, r, c: r.update(status='failed')),
             ('runtime_baseline', lambda n, r, c: r.update(baseline_only=True)),
             ('runtime_payload', lambda n, r, c: r.update(chrome_dll_sha256='0' * 64)),
@@ -484,6 +487,7 @@ class FingerprintEvidenceTest(unittest.TestCase):
             self.assertEqual(result['positive_acceptance']['cloak_audio']['status'], 'observed_pass')
             self.assertGreater(result['native_executed_counts']['production.font_allowlist_checks'], 0)
             self.assertGreater(result['native_executed_counts']['production.audio_default_checks'], 0)
+            self.assertGreater(result['native_executed_counts']['production.voice_compat_checks'], 0)
 
     def test_caps_bundle_and_source_receipt_are_independently_bound(self):
         with tempfile.TemporaryDirectory() as directory:

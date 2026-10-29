@@ -12,6 +12,16 @@ import re
 CPP_TOKENS = re.compile(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|(?P<comment>//[^\r\n]*|/\*[\s\S]*?\*/)')
 
 REQUIRED = {
+    'base/BUILD.gn': ['"uxr_voice_compat.h"', '"uxr_voice_compat_tests.cc"'],
+    'base/uxr_surface_modes_test_main.cc': [
+        'const int voices = RunVoiceCompatibilityTests();',
+        'Check(voices == 0, "Windows voice compatibility routing checks");',
+    ],
+    'content/browser/speech/tts_win.cc': [
+        '#include "base/uxr_voice_compat.h"',
+        'SetVoiceFromName(base::uxr_voice_compat::NativeVoiceName(voice));',
+        'base::uxr_voice_compat::AppendWindowsCompatibilityVoices(out_voices);',
+    ],
     'BUILD.gn': ['"//chrome/test:native_passkey_unittests"'],
     'chrome/test/BUILD.gn': [
         'test("native_passkey_unittests")',

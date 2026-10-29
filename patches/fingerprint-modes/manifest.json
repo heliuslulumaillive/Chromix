@@ -49,6 +49,11 @@
       "path": "patches/fingerprint-modes/0009-shardx-webgl-consistent-readback.patch",
       "sha256": "372c30b9d8e32efd0c1003e1fc177139f582634ee08b1c2c7138e9304f59dd94",
       "files": 15
+    },
+    {
+      "path": "patches/fingerprint-modes/0010-windows-native-voice-compat.patch",
+      "sha256": "381ddaab9deada285759f6553adf96972027873a8367e5e1366eff20e3c155f5",
+      "files": 5
     }
   ],
   "sequential_incremental_files": {
@@ -70,8 +75,8 @@
       "0009-shardx-webgl-consistent-readback.patch"
     ]
   },
-  "combined_patch_sha256": "d22bbbba1e85f2c383eacaca07f23c7f520671951d64e99f2c86648380b2b68c",
-  "combined_patch_changed_files": 217,
+  "combined_patch_sha256": "6d01b4985fd5c03fe4f8818d99b31d1bf42b29c01923278c11e79bcd56385115",
+  "combined_patch_changed_files": 220,
   "source_upgrade": {
     "from_run": 39498745053,
     "from_commit": "4c5f53ca8efef6acca5c8037aaf18ab609550651",

@@ -23,6 +23,25 @@ with mock.patch.object(sys, 'path', [str(Path(__file__).parents[1]), *sys.path])
 
 
 class DomainRestorationTest(unittest.TestCase):
+    def test_source_gate_rejects_a_checkpoint_without_the_voice_overlay(self):
+        with tempfile.TemporaryDirectory() as directory:
+            src = Path(directory)
+            for name, fragments in source_checks.REQUIRED.items():
+                path = src / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('\n'.join('"' + fragment + '";' if fragment.startswith('https://') else fragment
+                                          for fragment in fragments), encoding='utf-8')
+            source_checks.verify(src)
+            for name in ('base/BUILD.gn', 'base/uxr_surface_modes_test_main.cc',
+                         'content/browser/speech/tts_win.cc'):
+                path = src / name
+                original = path.read_text(encoding='utf-8')
+                for fragment in source_checks.REQUIRED[name]:
+                    path.write_text(original.replace(fragment, '// ' + fragment), encoding='utf-8')
+                    with self.assertRaisesRegex(ValueError, name.replace('.', r'\.')):
+                        source_checks.verify(src)
+                path.write_text(original, encoding='utf-8')
+
     def test_google_appid_restoration_survives_domain_list_regeneration(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
