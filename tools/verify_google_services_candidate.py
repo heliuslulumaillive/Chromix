@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import struct
 import sys
+import zlib
 
 from fingerprint_subprocess import run_command
 from verify_windows_bundle import extract_archive, runtime_smoke, sha256
@@ -29,6 +32,8 @@ FINGERPRINT_RUNTIME_SCENARIOS = {
     'cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive', 'cloak_audio_positive',
     'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono', 'audio_default_stereo',
     'audio_default_32', 'gpu_masked_custom',
+    'headless_custom_dpr2', 'headless_custom_fractional', 'headless_explicit_info',
+    'headless_force_scale', 'headless_native_ignored', 'headless_off_ignored',
 }
 FINGERPRINT_POSITIVE_SCENARIOS = {
     'legacy_canvas': {'legacy_seeded'}, 'shard_canvas': {'canvas_shardx'}, 'cloak_canvas': {'hardware_cloak'},
@@ -44,16 +49,20 @@ FINGERPRINT_POSITIVE_SCENARIOS = {
     'audio_defaults': {'audio_defaults_44100', 'audio_defaults_32000'},
     'audio_channels': {'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono',
                        'audio_default_stereo', 'audio_default_32'},
+    'headless_screen': {'headless_custom_dpr2', 'headless_custom_fractional', 'headless_explicit_info',
+                        'headless_force_scale', 'headless_native_ignored', 'headless_off_ignored'},
 }
 FINGERPRINT_EXTRA_SCOPES = {
-    'all_native': ('fonts', 'reference', 'audio', 'renderbuffer'),
+    'all_native': ('fonts', 'reference', 'audio', 'renderbuffer', 'pixel_semantics'),
     'gpu_custom': ('renderbuffer',),
+    'canvas_shardx': ('pixel_semantics',), 'webgl_shardx': ('pixel_semantics',),
+    **{name: ('headless_screen',) for name in FINGERPRINT_POSITIVE_SCENARIOS['headless_screen']},
     **{name: ('fonts',) for name in ('fonts_shard42', 'fonts_shard43', 'fonts_cloak10026', 'fonts_allowlists', 'fonts_empty')},
     **{name: ('reference',) for name in ('cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive')},
     **{name: ('audio',) for name in ('cloak_audio_positive', 'audio_defaults_44100', 'audio_defaults_32000',
                                    'audio_default_mono', 'audio_default_stereo', 'audio_default_32')},
 }
-FINGERPRINT_BASIC_SCENARIOS = set(FINGERPRINT_EXTRA_SCOPES) - {'all_native', 'gpu_custom'}
+FINGERPRINT_BASIC_SCENARIOS = set(FINGERPRINT_EXTRA_SCOPES) - {'all_native', 'gpu_custom', 'canvas_shardx', 'webgl_shardx'}
 REQUIRED_CHECKS = {
     'secure_context', 'ordinary_registration', 'ordinary_authentication',
     'foreign_rp_rejected', 'google_registration', 'google_appid_exclude',
@@ -105,6 +114,9 @@ def validate_source_recipe(inner, outer, repo=REPO, *, build_variant=GOOGLE_VARI
             if not path.is_relative_to(repo.resolve()) or not path.is_file():
                 raise ValueError('Invalid restoration overlay path')
             names.append(name)
+        if 'patches/fingerprint-modes/0011-pixel-semantic-preservation.patch' in config.get('restoration_overlays', []):
+            names.extend('tools/tests/fixtures/pixel-semantics-v1/' + name
+                         for name in ('cases.tsv', 'pixels.bin', 'provenance.json'))
     for name in dict.fromkeys(names):
         if inputs.get(name) != sha256(repo / name):
             raise ValueError('Candidate source inputs do not match: ' + name)
@@ -116,7 +128,7 @@ def validate_mode_native(report, payload):
         'config-chromix': ('chromix', {'configuration_checks'}, '--config-chromix'),
         'production-helpers-and-config': ('production', {
             'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks', 'font_allowlist_checks',
-            'audio_default_checks', 'voice_compat_checks', 'configuration_checks'}, None),
+            'audio_default_checks', 'voice_compat_checks', 'configuration_checks', 'pixel_semantic_corpus_records'}, None),
     }
     processes, groups = report.get('processes'), report.get('groups')
     if (report.get('status') != 'passed'
@@ -160,6 +172,13 @@ def validate_mode_native(report, payload):
             if len(values) != 1 or type(values[0]) is not int or values[0] <= 0:
                 raise ValueError('Native mode group did not execute: ' + field)
             counts[group + '.' + field] = values[0]
+        if group == 'production':
+            graphics = [record for record in records if 'graphics_cases' in record]
+            nested = graphics[0].get('groups') if len(graphics) == 1 else None
+            count = nested.get('pixel_semantic_properties') if isinstance(nested, dict) else None
+            if type(count) is not int or count <= 0:
+                raise ValueError('Native pixel semantic properties did not execute')
+            counts['production.groups.pixel_semantic_properties'] = count
         if not any(r.get('status') == 'passed' and r.get('configuration_checks', 0) > 0 for r in records):
             raise ValueError('Native mode configuration acceptance is missing')
     if len(binaries) != 1:
@@ -211,6 +230,226 @@ def validate_positive_coverage(report, checks):
     return coverage
 
 
+def _semantic_bytes(value, count=None):
+    if not isinstance(value, str) or not value or len(value) > 4 * 1024**2:
+        raise ValueError('Pixel semantic bytes are absent or oversized')
+    try:
+        data = base64.b64decode(value, validate=True)
+    except (ValueError, TypeError) as error:
+        raise ValueError('Pixel semantic bytes are not base64') from error
+    if base64.b64encode(data).decode() != value or (count is not None and len(data) != count):
+        raise ValueError('Pixel semantic byte count differs')
+    return data
+
+
+def _semantic_png(value, *, pixels=False):
+    data = _semantic_bytes(value)
+    if len(data) < 45 or data[:8] != b'\x89PNG\r\n\x1a\n':
+        raise ValueError('Screenshot/semantic PNG is absent')
+    width = height = channels = None
+    compressed = bytearray()
+    end = False
+    at = 8
+    while at + 12 <= len(data):
+        count = struct.unpack_from('>I', data, at)[0]
+        if count > len(data) - at - 12:
+            raise ValueError('Truncated PNG')
+        kind, body = data[at + 4:at + 8], data[at + 8:at + 8 + count]
+        if (zlib.crc32(kind + body) & 0xffffffff) != struct.unpack_from('>I', data, at + 8 + count)[0]:
+            raise ValueError('PNG checksum mismatch')
+        if kind == b'IHDR':
+            if width is not None or count != 13:
+                raise ValueError('Invalid PNG IHDR')
+            width, height = struct.unpack_from('>II', body)
+            if not (0 < width <= 4096 and 0 < height <= 4096):
+                raise ValueError('PNG dimensions are outside bounded viewport')
+            if pixels:
+                if width > 256 or height > 256 or body[8] != 8 or body[9] not in (2, 6) or any(body[10:]):
+                    raise ValueError('Pixel semantic PNG format differs')
+                channels = 4 if body[9] == 6 else 3
+        elif kind == b'IDAT':
+            compressed.extend(body)
+        elif kind == b'IEND':
+            end = True
+            break
+        at += count + 12
+    if not width or not end or not compressed:
+        raise ValueError('PNG has no complete image')
+    answer = {'width': width, 'height': height, 'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
+    if pixels:
+        stride = width * channels
+        expected = (stride + 1) * height
+        inflater = zlib.decompressobj()
+        packed = inflater.decompress(bytes(compressed), expected + 1)
+        if len(packed) != expected or not inflater.eof or inflater.unconsumed_tail:
+            raise ValueError('PNG decompression is incomplete or oversized')
+        raw = bytearray(stride * height)
+        for y in range(height):
+            mode = packed[y * (stride + 1)]
+            if mode > 4:
+                raise ValueError('Invalid PNG filter')
+            for x in range(stride):
+                left = raw[y * stride + x - channels] if x >= channels else 0
+                up = raw[(y - 1) * stride + x] if y else 0
+                diagonal = raw[(y - 1) * stride + x - channels] if y and x >= channels else 0
+                p = left + up - diagonal
+                distances = (abs(p - left), abs(p - up), abs(p - diagonal))
+                paeth = left if distances[0] <= min(distances[1:]) else up if distances[1] <= distances[2] else diagonal
+                predictor = (0, left, up, (left + up) // 2, paeth)[mode]
+                raw[y * stride + x] = (packed[y * (stride + 1) + x + 1] + predictor) & 255
+        rgba = bytearray(width * height * 4)
+        for i in range(width * height):
+            rgba[i * 4:i * 4 + 3] = raw[i * channels:i * channels + 3]
+            rgba[i * 4 + 3] = raw[i * channels + 3] if channels == 4 else 255
+        answer['rgba'] = bytes(rgba)
+    return answer
+
+
+def _semantic_crop(data, width, height, rect):
+    x, y, w, h = rect
+    output = bytearray(w * h * 4)
+    for row in range(h):
+        for col in range(w):
+            if 0 <= x + col < width and 0 <= y + row < height:
+                begin = ((y + row) * width + x + col) * 4
+                output[(row * w + col) * 4:(row * w + col + 1) * 4] = data[begin:begin + 4]
+    return bytes(output)
+
+
+def _semantic_crop_specs(width, height, canvas=False):
+    values = [[0, 0, 1, 1], [width-1, 0, 1, 1], [0, height-1, 1, 1], [width-1, height-1, 1, 1],
+              [1, 1, 1, 1], [0, 7, 1, 9], [width-1, 7, 1, 9], [8, 0, 9, 1], [8, height-1, 9, 1], [11, 13, 18, 16]]
+    return values + ([[-1, -1, 3, 3]] if canvas else [])
+
+
+def _semantic_positive(native, target):
+    changed = [(i, abs(a-b)) for i, (a, b) in enumerate(zip(native, target)) if a != b]
+    return len(native) == len(target) and 0 < len(changed) <= 256 and all(i % 4 != 3 and d == 1 for i, d in changed)
+
+
+def validate_pixel_semantics(scenarios, report):
+    required = set()
+    records = {s['id']: s for s in scenarios}
+    baseline = records['all_native']['extra']['pixel_semantics']
+    for identity in ('all_native', 'canvas_shardx', 'webgl_shardx'):
+        value = records[identity]['extra']['pixel_semantics']
+        if value.get('errors') != [] or not isinstance(value.get('canvas'), dict) or set(value['canvas']) != {'flat', 'text', 'gradient', 'embedded'}:
+            raise ValueError('Pixel semantic scenes are missing or failed')
+        required.add((identity, 'pixel_semantics_no_errors'))
+        for name in ('flat', 'text', 'gradient', 'embedded'):
+            row = value['canvas'][name]
+            w, h = (64 if name == 'flat' else 128), (96 if name == 'embedded' else 64)
+            if not isinstance(row, dict) or row.get('width') != w or row.get('height') != h:
+                raise ValueError('Canvas semantic dimensions are missing')
+            full = _semantic_bytes(row.get('full'), w*h*4)
+            if full != _semantic_bytes(row.get('repeat'), w*h*4):
+                raise ValueError('Canvas semantic repeat differs')
+            crops = row.get('crops')
+            specs = _semantic_crop_specs(w, h, True)
+            if not isinstance(crops, list) or not all(isinstance(c,dict) for c in crops) or [c.get('rect') for c in crops] != specs:
+                raise ValueError('Canvas semantic edge crops are missing')
+            for c in crops:
+                if _semantic_crop(full, w, h, c['rect']) != _semantic_bytes(c.get('raw'), c['rect'][2]*c['rect'][3]*4):
+                    raise ValueError('Canvas semantic crop differs')
+            png = _semantic_png(row.get('png'), pixels=True)
+            if (png['width'], png['height'], png['rgba']) != (w, h, full):
+                raise ValueError('Canvas semantic PNG differs')
+            prefix = 'semantic_canvas_' + name + '_'
+            required.update((identity, prefix + check) for check in ('present', 'repeat', 'edge_crops', 'png'))
+            if name == 'flat':
+                if full != bytes([137, 73, 91, 255]) * (w*h):
+                    raise ValueError('Flat canvas was changed')
+                required.add((identity, prefix + 'exact'))
+            elif identity == 'canvas_shardx':
+                native = _semantic_bytes(baseline['canvas'][name].get('full'), w*h*4)
+                if not _semantic_positive(native, full):
+                    raise ValueError('Rendered canvas has no bounded positive perturbation')
+                required.add((identity, prefix + 'rendered_positive'))
+            if name == 'embedded':
+                f = row.get('flatRegion', {})
+                flat = _semantic_bytes(f.get('raw'), 36*28*4)
+                if f.get('rect') != [66, 34, 36, 28] or flat != bytes([137, 73, 91, 255])*(36*28) or flat != _semantic_crop(full,w,h,f['rect']):
+                    raise ValueError('Embedded flat canvas region was changed')
+                required.add((identity,prefix+'flat_region_exact'))
+        webgl = value.get('webgl')
+        if not isinstance(webgl, dict) or set(webgl) != {'webgl', 'webgl2'}:
+            raise ValueError('WebGL semantic probes missing')
+        for kind in ('webgl','webgl2'):
+            row, native = webgl[kind], baseline.get('webgl', {}).get(kind)
+            prefix='semantic_'+kind+'_'
+            if isinstance(native, dict) and native.get('supported') is False:
+                if not isinstance(row, dict) or row.get('supported') is not False or not row.get('reason'):
+                    raise ValueError('Unavailable semantic context lacks explicit evidence')
+                required.add((identity,prefix+'unavailable_record'))
+                if identity == 'webgl_shardx':
+                    missing=[r for r in report['not_tested'] if r.get('scenario')==identity and r.get('name')==prefix+'positive' and r.get('acceptance_group')=='shard_webgl' and r.get('reason')=='Native WebGL context unavailable']
+                    if len(missing)!=1: raise ValueError('Semantic WebGL unavailable result was hidden')
+                continue
+            if not isinstance(row, dict) or row.get('supported') is not True or row.get('error') != 0:
+                raise ValueError('WebGL semantic context failed')
+            full=_semantic_bytes(row.get('full'),16384)
+            if full!=_semantic_bytes(row.get('repeat'),16384): raise ValueError('WebGL semantic repeat differs')
+            clear=row.get('clear',{})
+            if _semantic_bytes(clear.get('full'),16384)!=bytes([137,73,91,255])*4096 or clear.get('repeat')!=clear.get('full'):
+                raise ValueError('WebGL clear pixels were changed')
+            crops=row.get('crops');specs=_semantic_crop_specs(64,64)
+            if not isinstance(crops,list) or not all(isinstance(c,dict) for c in crops) or [c.get('rect') for c in crops]!=specs: raise ValueError('WebGL semantic crops missing')
+            for c in crops:
+                if _semantic_crop(full,64,64,c['rect'])!=_semantic_bytes(c.get('raw'),c['rect'][2]*c['rect'][3]*4): raise ValueError('WebGL semantic crop differs')
+            png=_semantic_png(row.get('png'),pixels=True)
+            flipped=b''.join(full[y*256:(y+1)*256] for y in reversed(range(64)))
+            if (png['width'],png['height'],png['rgba'])!=(64,64,flipped): raise ValueError('WebGL semantic PNG differs')
+            required.update((identity,prefix+check) for check in ('present','clear_exact','repeat','edge_crops','png'))
+            if identity=='webgl_shardx':
+                if not _semantic_positive(_semantic_bytes(native.get('full'),16384),full): raise ValueError('Rendered WebGL has no bounded positive perturbation')
+                required.add((identity,prefix+'rendered_positive'))
+            if kind=='webgl2':
+                pbo=row.get('pbo',{});state=pbo.get('state',{})
+                packed=_semantic_bytes(pbo.get('raw'),18528)
+                unpacked=bytearray();written=set()
+                for y in range(64):
+                    begin=16+(2+y)*280+3*4;unpacked.extend(packed[begin:begin+256]);written.update(range(begin,begin+256))
+                if pbo.get('error')!=0 or bytes(unpacked)!=full or _semantic_bytes(pbo.get('unpacked'),16384)!=full:
+                    raise ValueError('PBO semantic readback differs')
+                if pbo.get('unwrittenUntouched') is not True or any(v!=165 for i,v in enumerate(packed) if i not in written): raise ValueError('PBO padding was changed')
+                if state!={'alignment':8,'rowLength':69,'skipRows':2,'skipPixels':3,'pboBinding':True,'readFramebuffer':True,'readBuffer':True}: raise ValueError('PBO/PACK state was not restored')
+                required.update((identity,prefix+check) for check in ('pbo_readback','pack_state_restored','pbo_padding_untouched'))
+    return required
+
+
+def validate_headless_screens(scenarios):
+    required=set();records={s['id']:s for s in scenarios}
+    targets={'headless_custom_dpr2':2,'headless_custom_fractional':1.25,'headless_explicit_info':1.5,'headless_force_scale':1.5}
+    for identity in FINGERPRINT_POSITIVE_SCENARIOS['headless_screen']:
+        value=records[identity]['extra']['headless_screen'];page=value.get('page',{});shot=value.get('screenshot',{})
+        png=_semantic_png(shot.get('png'))
+        if any(shot.get(k)!=png[k] for k in ('width','height','bytes','sha256')): raise ValueError('Headless PNG identity mismatch')
+        viewport=value.get('layout',{}).get('cssVisualViewport',{})
+        w,h=viewport.get('clientWidth',page.get('innerWidth')),viewport.get('clientHeight',page.get('innerHeight'))
+        scale=targets.get(identity,page.get('dpr'))
+        if any(type(v) not in (int,float) or not 0<v<65536 for v in (w,h,scale)) or abs(png['width']-w*scale)>1 or abs(png['height']-h*scale)>1:
+            raise ValueError('Headless native raster does not match required scale')
+        command=value.get('effectiveCommandLine')
+        if not isinstance(command,str) or '--headless' not in command: raise ValueError('Effective headless command line is missing')
+        required.update((identity,k) for k in ('headless_png_identity','headless_raster_scale','headless_effective_command_record'))
+        if identity.startswith('headless_custom_'):
+            screen=page.get('screen',{})
+            if screen.get('width')!=640 or screen.get('height')!=480 or screen.get('availHeight')!=440 or page.get('dpr')!=scale:
+                raise ValueError('Custom headless display differs from explicit input')
+            if '--screen-info=' not in command or 'devicePixelRatio='+str(scale) not in command: raise ValueError('Native headless display was not injected')
+            required.update((identity,k) for k in ('headless_declared_display','headless_native_display_injected'))
+        elif identity=='headless_explicit_info':
+            if '960x720 devicePixelRatio=1.5' not in command or command.count('--screen-info=')!=1: raise ValueError('Caller screen-info was replaced')
+            required.add((identity,'headless_caller_screen_preserved'))
+        elif identity=='headless_force_scale':
+            if '--force-device-scale-factor=1.5' not in command or '--screen-info=' in command: raise ValueError('Caller force scale was replaced')
+            required.add((identity,'headless_caller_scale_preserved'))
+        else:
+            if any(flag in command for flag in ('--screen-info=','--uxr-screen-width=','--uxr-device-pixel-ratio=')): raise ValueError('Native/global-off display was mapped')
+            required.add((identity,'headless_native_off_not_mapped'))
+    return required
+
+
 def validate_mode_runtime(report, payload):
     checks, scenarios = report.get('checks'), report.get('scenarios')
     if (report.get('status') != 'passed' or report.get('baseline_only') is not False
@@ -222,6 +461,10 @@ def validate_mode_runtime(report, payload):
             or not isinstance(report.get('not_tested'), list)
             or not isinstance(report.get('coverage_limits'), list) or not report['coverage_limits']):
         raise ValueError('Runtime mode evidence is failed, empty, partial, or bound to another payload')
+    module_hashes = report.get('collector_modules_sha256', {})
+    if (not isinstance(module_hashes, dict)
+            or module_hashes.get('pixel_semantic_acceptance.mjs') != sha256(REPO / 'tools/pixel_semantic_acceptance.mjs')):
+        raise ValueError('Pixel/headless collector identity differs from the selected source')
     executed = set()
     for check in checks:
         if (not isinstance(check, dict) or check.get('passed') is not True
@@ -297,9 +540,13 @@ def validate_mode_runtime(report, payload):
             if unavailable:
                 raise ValueError('ShardX WebGL unavailable evidence contradicts the probe: ' + kind)
             required.update(names)
+    required.update(validate_pixel_semantics(scenarios, report))
+    required.update(validate_headless_screens(scenarios))
     if not required.issubset(executed):
         raise ValueError('Runtime mode routing coverage is incomplete')
     validate_positive_coverage(report, checks)
+    if report['positive_acceptance'].get('headless_screen',{}).get('status') != 'observed_pass':
+        raise ValueError('Headless screen synchronization must execute, not remain untested')
     return len(checks)
 
 

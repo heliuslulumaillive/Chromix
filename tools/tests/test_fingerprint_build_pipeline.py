@@ -18,6 +18,7 @@ import yaml
 
 from tools import google_services_checkpoint as checkpoint
 from tools import google_services_cache_audit as audit
+from tools.tests.pixel_semantics_fixtures import pixel_fixture, headless_fixture
 
 ROOT = Path(__file__).resolve().parents[2]
 with mock.patch.object(sys, 'path', [str(ROOT / 'tools'), *sys.path]):
@@ -145,7 +146,7 @@ def write_fingerprint_evidence(root, bundle):
         'legacy': [{'status': 'passed', 'configuration_checks': 6, 'failures': 0}],
         'chromix': [{'status': 'passed', 'configuration_checks': 4, 'failures': 0}],
         'production': [
-            {'graphics_cases': 2, 'failures': 0, 'groups': {'fixture_pixels': 2}},
+            {'graphics_cases': 2, 'pixel_semantic_corpus_records': 1, 'failures': 0, 'groups': {'fixture_pixels': 2, 'pixel_semantic_properties': 1}},
             {'checks': 3, 'failures': 0}, {'gpu_checks': 4, 'failures': 0},
             {'hardware_checks': 5, 'failures': 0},
             {'font_allowlist_checks': 38, 'failures': 0}, {'audio_default_checks': 28, 'failures': 0},
@@ -169,7 +170,8 @@ def write_fingerprint_evidence(root, bundle):
              'webgl_shardx', 'fonts_shard42', 'fonts_shard43', 'fonts_cloak10026', 'fonts_allowlists', 'fonts_empty',
              'cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive', 'cloak_audio_positive',
              'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono', 'audio_default_stereo',
-             'audio_default_32', 'gpu_masked_custom']
+             'audio_default_32', 'gpu_masked_custom',
+             'headless_custom_dpr2','headless_custom_fractional','headless_explicit_info','headless_force_scale','headless_native_ignored','headless_off_ignored']
     common = ['probe_completed', 'normal_owned_browser_shutdown', 'secure_loopback', 'no_internal_probe_errors',
               'window_worker_cpu_memory', 'probe_scope']
     full = ['audio_alias_copy_preserves_unwritten_tail', 'analyser_preserves_unwritten_tails', 'synthetic_media_tracks']
@@ -217,6 +219,7 @@ def write_fingerprint_evidence(root, bundle):
         'cloak_audio': ('cloak_audio_positive', 'reference_5000_full_pcm'),
         'audio_defaults': ('audio_defaults_44100', 'default_sample_rate'),
         'audio_channels': ('audio_defaults_44100', 'backend_bounded_capacity_and_initial_count'),
+        'headless_screen': ('headless_custom_dpr2', 'headless_raster_scale'),
     }
     for group, (scenario, name) in positive_checks.items():
         existing = next((value for value in checks if value['scenario'] == scenario and value['name'] == name), None)
@@ -249,10 +252,27 @@ def write_fingerprint_evidence(root, bundle):
                  for index, case in enumerate(cases)]
     next(s for s in scenarios if s['id'] == 'webgl_shardx')['probe']['webgl'] = {
         kind: {'supported': True} for kind in ('webgl', 'webgl2')}
+    for scenario in scenarios:
+        if scenario['id'] in ('all_native','canvas_shardx','webgl_shardx'):
+            scenario['extra']['pixel_semantics']=pixel_fixture(scenario['id'])
+        if scenario['id'] in candidate.FINGERPRINT_POSITIVE_SCENARIOS['headless_screen']:
+            scenario['extra']['headless_screen']=headless_fixture(scenario['id'])
+    required_semantics=candidate.validate_pixel_semantics(scenarios,{'not_tested':missing})|candidate.validate_headless_screens(scenarios)
+    for scenario,name in sorted(required_semantics):
+        existing=next((row for row in checks if row['scenario']==scenario and row['name']==name),None)
+        if existing is None:
+            existing={'scenario':scenario,'name':name,'passed':True};checks.append(existing)
+        if scenario in candidate.FINGERPRINT_POSITIVE_SCENARIOS['headless_screen']:existing['acceptance_group']='headless_screen'
+        elif scenario=='canvas_shardx' and name.startswith('semantic_canvas_'):existing['acceptance_group']='shard_canvas'
+        elif scenario=='webgl_shardx' and name.startswith('semantic_webgl'):existing['acceptance_group']='shard_webgl'
+    for group in coverage:
+        actual=[c for c in checks if c.get('acceptance_group')==group]
+        coverage[group].update(eligible_count=len(actual),passed_count=len(actual),evidence=[{'scenario':c['scenario'],'name':c['name']} for c in actual])
     cap = (ROOT / 'build/fingerprint-modes-capabilities.json').read_bytes()
     (root / 'fingerprint-modes-capabilities.json').write_bytes(cap)
     (bundle / 'fingerprint-modes-capabilities.json').write_bytes(cap)
     runtime = {'schema_version': 1, 'status': 'passed', **payload, 'baseline_only': False,
+               'collector_modules_sha256': {'pixel_semantic_acceptance.mjs':candidate.sha256(ROOT/'tools/pixel_semantic_acceptance.mjs')},
                'capabilities_sha256': hashlib.sha256(cap).hexdigest(),
                'expected_scenarios': len(cases), 'scenarios': scenarios, 'checks': checks, 'failed': [],
                'not_tested': missing, 'positive_acceptance': coverage,
@@ -309,6 +329,74 @@ def unavailable_shard_fixture(runtime, kinds=('webgl', 'webgl2')):
 
 
 class FingerprintEvidenceTest(unittest.TestCase):
+    def test_new_native_pixel_counts_require_executed_nonzero_records(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);bundle=root/'bundle';bundle.mkdir()
+            (bundle/'chrome.exe').write_bytes(b'exe');(bundle/'chrome.dll').write_bytes(b'dll')
+            write_fingerprint_evidence(root,bundle)
+            native=json.loads((root/'modes-native.json').read_text())
+            payload={name:candidate.sha256(bundle/name) for name in ('chrome.exe','chrome.dll')}
+            self.assertGreater(candidate.validate_mode_native(native,payload)['production.groups.pixel_semantic_properties'],0)
+            for field in ('pixel_semantic_properties','pixel_semantic_corpus_records'):
+                for value in (None,0,True,'3'):
+                    with self.subTest(field=field,value=value):
+                        changed=copy.deepcopy(native);record=changed['groups']['production'][0]
+                        target=record['groups'] if field=='pixel_semantic_properties' else record
+                        if value is None:target.pop(field)
+                        else:target[field]=value
+                        process=next(p for p in changed['processes'] if p['label']=='production-helpers-and-config')
+                        process['stdout']='\n'.join(json.dumps(v) for v in changed['groups']['production'])+'\n'
+                        process['stdout_sha256']=hashlib.sha256(process['stdout'].encode()).hexdigest()
+                        with self.assertRaises(ValueError):candidate.validate_mode_native(changed,payload)
+
+    def test_pixel_semantic_raw_records_cannot_be_replaced_by_passed_labels(self):
+        records=[{'id':name,'extra':{'pixel_semantics':pixel_fixture(name)}} for name in ('all_native','canvas_shardx','webgl_shardx')]
+        self.assertTrue(candidate.validate_pixel_semantics(records,{'not_tested':[]}))
+        def target(rows):return rows[1]['extra']['pixel_semantics']
+        mutations=[
+            lambda r:target(r).update(canvas={}),
+            lambda r:target(r)['canvas']['flat'].update(full=''),
+            lambda r:target(r)['canvas']['text'].update(crops=[]),
+            lambda r:target(r)['canvas']['gradient']['crops'].__setitem__(0,None),
+            lambda r:target(r)['canvas'].__setitem__('text',copy.deepcopy(r[0]['extra']['pixel_semantics']['canvas']['text'])),
+            lambda r:target(r)['canvas']['embedded']['flatRegion'].update(raw=''),
+            lambda r:r[2]['extra']['pixel_semantics']['webgl']['webgl'].update(png=''),
+            lambda r:r[2]['extra']['pixel_semantics']['webgl']['webgl2']['pbo']['state'].update(alignment=4),
+        ]
+        for mutate in mutations:
+            value=copy.deepcopy(records);mutate(value)
+            with self.assertRaises(ValueError):candidate.validate_pixel_semantics(value,{'not_tested':[]})
+
+    def test_headless_group_cannot_be_left_untested(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);bundle=root/'bundle';bundle.mkdir()
+            (bundle/'chrome.exe').write_bytes(b'exe');(bundle/'chrome.dll').write_bytes(b'dll')
+            write_fingerprint_evidence(root,bundle)
+            value=json.loads((root/'modes-runtime.json').read_text())
+            missing={'scenario':'headless_custom_dpr2','name':'unobserved_screen','reason':'Synthetic missing observation','acceptance_group':'headless_screen'}
+            value['not_tested'].append(missing)
+            group=value['positive_acceptance']['headless_screen'];group['status']='not_tested'
+            group['missing']=[{k:missing[k] for k in ('scenario','name','reason')}]
+            payload={name:candidate.sha256(bundle/name) for name in ('chrome.exe','chrome.dll')}
+            with self.assertRaisesRegex(ValueError,'Headless screen synchronization must execute'):
+                candidate.validate_mode_runtime(value,payload)
+
+    def test_headless_raw_screenshot_and_precedence_are_mandatory(self):
+        records=[{'id':name,'extra':{'headless_screen':headless_fixture(name)}} for name in sorted(candidate.FINGERPRINT_POSITIVE_SCENARIOS['headless_screen'])]
+        self.assertTrue(candidate.validate_headless_screens(records))
+        def named(rows,name):return next(r for r in rows if r['id']==name)['extra']['headless_screen']
+        mutations=[
+            lambda r:named(r,'headless_custom_dpr2')['screenshot'].update(sha256='0'*64),
+            lambda r:named(r,'headless_custom_fractional')['layout']['cssVisualViewport'].update(clientWidth=80),
+            lambda r:named(r,'headless_explicit_info').update(effectiveCommandLine='chrome --headless --screen-info={1280x960 devicePixelRatio=2}'),
+            lambda r:named(r,'headless_force_scale').update(effectiveCommandLine='chrome --headless --force-device-scale-factor=1.5 --screen-info={1280x960 devicePixelRatio=2}'),
+            lambda r:named(r,'headless_native_ignored').update(effectiveCommandLine='chrome --headless --uxr-device-pixel-ratio=2'),
+            lambda r:named(r,'headless_off_ignored')['screenshot'].update(png=''),
+        ]
+        for mutate in mutations:
+            value=copy.deepcopy(records);mutate(value)
+            with self.assertRaises(ValueError):candidate.validate_headless_screens(value)
+
     def test_shard_v2_unavailable_context_remains_explicitly_unaccepted(self):
         for kinds in [('webgl',), ('webgl2',), ('webgl', 'webgl2')]:
             with self.subTest(kinds=kinds), tempfile.TemporaryDirectory() as directory:
@@ -382,7 +470,8 @@ class FingerprintEvidenceTest(unittest.TestCase):
         result = subprocess.run([node, '--test', *[str(ROOT / 'tools/tests' / name) for name in (
                                     'test_fingerprint_runtime_acceptance.mjs',
                                     'test_audio_clock_acceptance.mjs',
-                                    'test_renderbuffer_acceptance.mjs')]],
+                                    'test_renderbuffer_acceptance.mjs',
+                                    'test_pixel_semantic_acceptance.mjs')]],
                                 cwd=ROOT, capture_output=True, text=True, timeout=45)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         contract = subprocess.run([node, '--input-type=module', '-e',
@@ -406,6 +495,12 @@ class FingerprintEvidenceTest(unittest.TestCase):
             ('native_wrong_arguments', lambda n, r, c: n['processes'][1].update(arguments=['--config-legacy'])),
             ('native_empty_group', lambda n, r, c: n['groups'].update(chromix=[])),
             ('native_zero_count', lambda n, r, c: n['groups']['production'][0].update(graphics_cases=0)),
+            ('native_semantic_properties_missing', lambda n, r, c: n['groups']['production'][0]['groups'].pop('pixel_semantic_properties')),
+            ('native_semantic_properties_zero', lambda n, r, c: n['groups']['production'][0]['groups'].update(pixel_semantic_properties=0)),
+            ('native_semantic_properties_boolean', lambda n, r, c: n['groups']['production'][0]['groups'].update(pixel_semantic_properties=True)),
+            ('native_semantic_corpus_missing', lambda n, r, c: n['groups']['production'][0].pop('pixel_semantic_corpus_records')),
+            ('native_semantic_corpus_zero', lambda n, r, c: n['groups']['production'][0].update(pixel_semantic_corpus_records=0)),
+            ('native_semantic_corpus_boolean', lambda n, r, c: n['groups']['production'][0].update(pixel_semantic_corpus_records=True)),
             ('native_boolean_count', lambda n, r, c: n['groups']['production'][2].update(gpu_checks=True)),
             ('native_string_count', lambda n, r, c: n['groups']['production'][3].update(hardware_checks='99')),
             ('native_inner_failure', lambda n, r, c: n['groups']['production'][1].update(failures=1)),
@@ -505,11 +600,21 @@ class FingerprintEvidenceTest(unittest.TestCase):
                  'patches/google-services/0002-windows-native-passkey-discovery.patch',
                  'patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch']
         names.extend(json.loads((ROOT / names[0]).read_text()).get('restoration_overlays', []))
+        if 'patches/fingerprint-modes/0011-pixel-semantic-preservation.patch' in names:
+            names.extend('tools/tests/fixtures/pixel-semantics-v1/'+name for name in ('cases.tsv','pixels.bin','provenance.json'))
         receipt = {'variant': 'google-services-self-use', 'build_variant': FP,
                    'chromium_version': checkpoint.VERSION,
                    'patch_sha256': candidate.sha256(ROOT / 'patches/google-services/0001-restore-google-services.patch'),
                    'preparation_inputs': {name: candidate.sha256(ROOT / name) for name in names}}
         candidate.validate_source_recipe(receipt, copy.deepcopy(receipt), build_variant=FP)
+        for name in ('cases.tsv','pixels.bin','provenance.json'):
+            key='tools/tests/fixtures/pixel-semantics-v1/'+name
+            for value in (None,'0'*64):
+                changed=copy.deepcopy(receipt)
+                if value is None:changed['preparation_inputs'].pop(key)
+                else:changed['preparation_inputs'][key]=value
+                with self.assertRaisesRegex(ValueError,'pixel-semantics-v1'):
+                    candidate.validate_source_recipe(changed,copy.deepcopy(changed),build_variant=FP)
         for value in (None, '0' * 64):
             changed = copy.deepcopy(receipt)
             if value is None:
@@ -534,6 +639,8 @@ class FingerprintEvidenceTest(unittest.TestCase):
                          'patches/google-services/0002-windows-native-passkey-discovery.patch',
                          'patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch']
                 names.extend(json.loads((ROOT / names[0]).read_text()).get('restoration_overlays', []))
+                if 'patches/fingerprint-modes/0011-pixel-semantic-preservation.patch' in names:
+                    names.extend('tools/tests/fixtures/pixel-semantics-v1/'+name for name in ('cases.tsv','pixels.bin','provenance.json'))
                 receipt = {'variant': 'google-services-self-use', 'build_variant': FP,
                            'chromium_version': checkpoint.VERSION,
                            'patch_sha256': candidate.sha256(ROOT / 'patches/google-services/0001-restore-google-services.patch'),

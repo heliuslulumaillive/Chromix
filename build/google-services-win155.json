@@ -111,7 +111,9 @@
     "patches/fingerprint-modes/0007-custom-ua-client-hints.patch",
     "patches/fingerprint-modes/0008-required-physical-gpu.patch",
     "patches/fingerprint-modes/0009-shardx-webgl-consistent-readback.patch",
-    "patches/fingerprint-modes/0010-windows-native-voice-compat.patch"
+    "patches/fingerprint-modes/0010-windows-native-voice-compat.patch",
+    "patches/fingerprint-modes/0011-pixel-semantic-preservation.patch",
+    "patches/fingerprint-modes/0014-headless-screen-synchronization.patch"
   ],
   "extra_sources": [
     "chrome/browser/BUILD.gn",

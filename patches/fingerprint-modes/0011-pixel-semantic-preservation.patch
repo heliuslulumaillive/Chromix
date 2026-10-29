@@ -1,0 +1,741 @@
+--- a/base/BUILD.gn
++++ b/base/BUILD.gn
+@@ -6675,6 +6675,7 @@
+     sources = [
+       "uxr_surface_modes_test_main.cc",
+       "uxr_graphics_mode_goldens.cc",
++      "uxr_pixel_semantic_properties.h",
+       "uxr_surface_golden_tests.cc",
+       "uxr_gpu_mode_golden_tests.cc",
+       "uxr_hardware_golden_tests.cc",
+--- a/base/uxr_graphics_mode_goldens.cc
++++ b/base/uxr_graphics_mode_goldens.cc
+@@ -1,6 +1,7 @@
+ // Tests the production helper against independently captured browser bytes.
+ #include "base/uxr_graphics_noise.h"
+ #include "base/uxr_shard_webgl_v2_properties.h"
++#include "base/uxr_pixel_semantic_properties.h"
+ 
+ #include <array>
+ #include <charconv>
+@@ -59,9 +60,11 @@
+   std::string line;
+   std::getline(cases, line);
+   const auto v2 = RunShardWebGLV2Properties();
+-  size_t checked = v2.first, failed = v2.second;
++  const auto semantics = RunPixelSemanticProperties(fixture_root);
++  size_t checked = v2.first + semantics.first, failed = v2.second + semantics.second;
+   std::map<std::string, size_t> groups;
+   groups["shard_webgl_v2_properties"] = v2.first;
++  groups["pixel_semantic_properties"] = semantics.first;
+   while (std::getline(cases, line)) {
+     if (!line.empty() && line.back() == '\r')
+       line.pop_back();
+--- a/base/uxr_graphics_noise.cc
++++ b/base/uxr_graphics_noise.cc
+@@ -1,6 +1,7 @@
+ // Copyright 2026. Independent implementation from byte-verified models.
+ #include "base/uxr_graphics_noise.h"
+ 
++#include <algorithm>
+ #include <array>
+ #include <cmath>
+ #include <cstring>
+@@ -109,6 +110,95 @@
+         changed |= value != pixel[index];
+         pixel[index] = value;
+       }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++bool ValidNeighborhood(const UxrPixelNeighborhood& view, size_t pixel_bytes) {
++  if (view.bytes.empty())
++    return view.width == 0 && view.height == 0;
++  const size_t row_bytes = static_cast<size_t>(view.width) * pixel_bytes;
++  return view.width && view.height && row_bytes / pixel_bytes == view.width &&
++         view.row_stride >= row_bytes && view.bytes.size() >= row_bytes &&
++         view.height - 1 <= (view.bytes.size() - row_bytes) / view.row_stride;
++}
++
++// Absolute 2x2 cells are independent of the requested crop. Clamp only when
++// the halo's completed read reaches a real surface edge. RGB bit zero is not
++// part of the decision; otherwise a previous assignment could move the guard.
++bool ShardFlatCell(const UxrPixelRegion& region, UxrPixelSurface surface,
++                   uint32_t x, uint32_t y, bool floating = false) {
++  const auto& view = region.neighborhood;
++  if (view.bytes.empty())
++    return false;  // historical/reference helper calls retain their old path
++  const int64_t ax = int64_t{region.origin_x} + x;
++  const int64_t ay = int64_t{region.origin_y} + y;
++  const int64_t last_x = int64_t{view.origin_x} + view.width - 1;
++  const int64_t last_y = int64_t{view.origin_y} + view.height - 1;
++  if (ax < view.origin_x || ay < view.origin_y || ax > last_x || ay > last_y)
++    return true;  // native clipped/unknown pixels are never invented
++  const int64_t px = std::clamp(ax ^ 1, int64_t{view.origin_x}, last_x);
++  // WebGL's mask is anchored at the framebuffer bottom. Export rows are
++  // top-down, including odd-height surfaces whose 2x2 parity would otherwise
++  // disagree with readPixels.
++  const int64_t paired_y = surface == UxrPixelSurface::kWebGLExport
++      ? int64_t{region.canvas_height} - 1 -
++            ((int64_t{region.canvas_height} - 1 - ay) ^ 1)
++      : ay ^ 1;
++  const int64_t py = std::clamp(paired_y, int64_t{view.origin_y}, last_y);
++  const size_t bytes_per_pixel = floating ? 16 : 4;
++  auto canonical = [&](int64_t cx, int64_t cy) {
++    const size_t offset = static_cast<size_t>(cy - view.origin_y) * view.row_stride +
++                          static_cast<size_t>(cx - view.origin_x) * bytes_per_pixel;
++    auto pixel = view.bytes.subspan(offset, bytes_per_pixel);
++    std::array<uint32_t, 4> value;
++    if (floating) {
++      for (size_t channel = 0; channel < 4; ++channel) {
++        std::memcpy(&value[channel], pixel.subspan(channel * 4, size_t{4}).data(), 4);
++        if (channel != 3)
++          value[channel] &= ~1u;
++      }
++    } else {
++      value[3] = pixel[3];
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        uint32_t component = pixel[Channel(region, channel)];
++        if (region.premultiplied && surface == UxrPixelSurface::kWebGLExport &&
++            value[3] != 255) {
++          const uint32_t product = component * value[3];
++          component = (product + ((product + 128u) >> 8) + 128u) >> 8;
++        }
++        value[channel] = component & 0xfeu;
++      }
++    }
++    return value;
++  };
++  const auto center = canonical(ax, ay);
++  return center == canonical(px, ay) && center == canonical(ax, py) &&
++         center == canonical(px, py);
++}
++
++std::array<uint32_t, 2> ShardWebGLMask(uint32_t seed, uint32_t x, uint32_t y);
++
++UxrPixelResult ApplyShardCanvasSemantic(const UxrSurfacePolicy& policy,
++                                        const UxrPixelRegion& region) {
++  if (uint64_t{region.canvas_width} * region.canvas_height < 1024)
++    return UxrPixelResult::kUnchanged;
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (!pixel[3] || ShardFlatCell(region, UxrPixelSurface::kCanvas2D, x, y))
++        continue;
++      // Separate Canvas's coordinate stream from WebGL. One candidate per
++      // 256 non-flat pixels, one selected RGB low bit, no read counter or
++      // content-dependent early stop. Large blank margins do not dilute it.
++      const auto mask = ShardWebGLMask(static_cast<uint32_t>(policy.seed) ^ 0x43415633u,
++          static_cast<uint32_t>(int64_t{region.origin_x} + x),
++          static_cast<uint32_t>(int64_t{region.origin_y} + y));
++      if ((mask[0] & 255u) == 0)
++        changed |= AssignShardBit(pixel, Channel(region, (mask[0] >> 8) % 3),
++                                  mask[1] & 1u);
+     }
+   }
+   return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
+@@ -187,7 +277,7 @@
+               (static_cast<uint32_t>(region.origin_y) + y);
+     for (uint32_t x = 0; x < region.width; ++x) {
+       auto pixel = Pixel(region, x, y);
+-      if (!pixel[3])
++      if (!pixel[3] || ShardFlatCell(region, surface, x, y))
+         continue;
+       const auto mask = ShardWebGLMask(static_cast<uint32_t>(policy.seed),
+           static_cast<uint32_t>(region.origin_x) + x, absolute_y);
+@@ -360,12 +450,17 @@
+     return UxrPixelResult::kUnchanged;
+   if (!ValidLayout(region))
+     return UxrPixelResult::kInvalidLayout;
++  if (policy.mode == UxrSurfaceMode::kShardX &&
++      !ValidNeighborhood(region.neighborhood, 4))
++    return UxrPixelResult::kInvalidLayout;
+   switch (policy.mode) {
+     case UxrSurfaceMode::kChromix:
+       return ApplyChromix(policy, surface, region);
+     case UxrSurfaceMode::kShardX:
+       if (surface == UxrPixelSurface::kCanvas2D)
+-        return ApplyShardCanvas(policy, region);
++        return flavor == UxrPixelFlavor::kCompatibleV1 && !region.neighborhood.bytes.empty()
++                   ? ApplyShardCanvasSemantic(policy, region)
++                   : ApplyShardCanvas(policy, region);
+       if (flavor == UxrPixelFlavor::kCompatibleV1)
+         return ApplyShardWebGLV2(policy, surface, region);
+       if (surface == UxrPixelSurface::kWebGLExport)
+@@ -388,6 +483,8 @@
+       region.row_stride < row_bytes || region.bytes.size() < row_bytes ||
+       region.height - 1 > (region.bytes.size() - row_bytes) / region.row_stride)
+     return UxrPixelResult::kInvalidLayout;
++  if (!ValidNeighborhood(region.neighborhood, 16))
++    return UxrPixelResult::kInvalidLayout;
+   if (policy.mode != UxrSurfaceMode::kShardX || !policy.seed ||
+       policy.seed > std::numeric_limits<uint32_t>::max())
+     return UxrPixelResult::kUnsupportedSeed;
+@@ -398,7 +495,8 @@
+                                         size_t{16});
+       float alpha;
+       std::memcpy(&alpha, pixel.subspan(size_t{12}, size_t{4}).data(), sizeof(alpha));
+-      if (!std::isfinite(alpha) || alpha == 0)
++      if (!std::isfinite(alpha) || alpha == 0 ||
++          ShardFlatCell(region, UxrPixelSurface::kWebGLReadback, x, y, true))
+         continue;
+       const auto mask = ShardWebGLMask(static_cast<uint32_t>(policy.seed),
+           static_cast<uint32_t>(region.origin_x) + x,
+--- a/base/uxr_graphics_noise.h
++++ b/base/uxr_graphics_noise.h
+@@ -29,6 +29,19 @@
+   kUnsupportedRegion,
+ };
+ 
++// A successful read of the same surface, including the one-pixel halo needed
++// at crop boundaries. It uses the output's component format and orientation.
++// Comparisons ignore only bits assigned by noise, so aliasing the output is
++// safe: earlier assignments cannot change which subsequent pixels are flat.
++struct UxrPixelNeighborhood {
++  span<const uint8_t> bytes;
++  size_t row_stride = 0;
++  uint32_t width = 0;
++  uint32_t height = 0;
++  int32_t origin_x = 0;
++  int32_t origin_y = 0;
++};
++
+ // An owned, completed RGBA8/BGRA8 readback. Padding is never a pixel.
+ // Canvas origin is top-left. WebGL readback origin is bottom-left.
+ struct UxrPixelRegion {
+@@ -45,6 +58,7 @@
+   // RGBA and use this to reconstruct the same representable storage lattice.
+   // FBO data has no compositor alpha convention.
+   bool premultiplied = false;
++  UxrPixelNeighborhood neighborhood;
+ };
+ 
+ // The recovered byte hash includes signed 8-bit tail loads and uint32 wrap.
+--- /dev/null
++++ b/base/uxr_pixel_semantic_properties.h
+@@ -0,0 +1,233 @@
++// Properties of the production implementation; no duplicate noise algorithm.
++#ifndef BASE_UXR_PIXEL_SEMANTIC_PROPERTIES_H_
++#define BASE_UXR_PIXEL_SEMANTIC_PROPERTIES_H_
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <cstring>
++#include <fstream>
++#include <iostream>
++#include <iterator>
++#include <limits>
++#include <sstream>
++#include <string>
++#include <utility>
++#include <vector>
++
++inline std::pair<size_t, size_t> RunPixelSemanticProperties(const std::string& fixture_root) {
++  size_t checks = 0, failures = 0;
++  auto check = [&](bool condition) { ++checks; failures += !condition; };
++  const std::array<uint32_t, 8> seeds{1, 2, 42, 314159, 32452843, 49979687,
++                                     123456789, 0xffffffffu};
++  size_t density_pixels = 0, density_changed = 0, positive_cases = 0;
++  size_t old_canvas_changed = 0, new_canvas_changed = 0;
++  auto changed_pixels = [](const auto& a, const auto& b) {
++    size_t n = 0;
++    for (size_t i = 0; i < a.size(); i += 4)
++      n += !std::equal(a.begin() + i, a.begin() + i + 4, b.begin() + i);
++    return n;
++  };
++  for (const auto [w, h] : {std::pair{128u, 96u}, {257u, 65u}, {67u, 33u}}) {
++    for (uint32_t seed : seeds) {
++      base::UxrSurfacePolicy policy;
++      policy.mode = base::UxrSurfaceMode::kShardX;
++      policy.seed = seed;
++      for (auto surface : {base::UxrPixelSurface::kCanvas2D,
++                           base::UxrPixelSurface::kWebGLReadback}) {
++        for (bool premultiplied : {false, true}) {
++          if (surface == base::UxrPixelSurface::kCanvas2D && premultiplied)
++            continue;
++          for (uint8_t alpha : {uint8_t{1}, uint8_t{64}, uint8_t{255}}) {
++            std::vector<uint8_t> original(w * h * 4);
++            for (uint32_t y = 0; y < h; ++y) for (uint32_t x = 0; x < w; ++x) {
++              const size_t i = (y * w + x) * 4;
++              const unsigned range = premultiplied ? alpha + 1 : 256;
++              original[i] = (x * 7 + y * 11 + 13) % range;
++              original[i + 1] = (x * 3 + y * 5 + 17) % range;
++              original[i + 2] = (x * 11 + y * 19 + 29) % range;
++              original[i + 3] = alpha;
++              if (x >= 14 && x < 48 && y >= 10 && y < 28) {
++                original[i] = 13 % range; original[i + 1] = 27 % range;
++                original[i + 2] = 39 % range;
++              }
++            }
++            auto apply = [&](std::vector<uint8_t>& output,
++                             uint32_t ox, uint32_t oy, uint32_t width,
++                             uint32_t height, bool own_halo) {
++              base::UxrPixelRegion r{output, width * size_t{4}, width, height,
++                  w, h, static_cast<int32_t>(ox), static_cast<int32_t>(oy),
++                  false, premultiplied};
++              std::vector<uint8_t> halo;
++              if (own_halo) {
++                const uint32_t left = ox ? ox - 1 : 0, top = oy ? oy - 1 : 0;
++                const uint32_t right = std::min(w, ox + width + 1);
++                const uint32_t bottom = std::min(h, oy + height + 1);
++                halo.resize((right - left) * (bottom - top) * 4);
++                for (uint32_t row = top; row < bottom; ++row)
++                  std::copy_n(original.begin() + (row * w + left) * 4,
++                      (right - left) * 4,
++                      halo.begin() + (row - top) * (right - left) * 4);
++                r.neighborhood = {halo, (right - left) * size_t{4}, right-left,
++                    bottom-top, static_cast<int32_t>(left), static_cast<int32_t>(top)};
++              } else {
++                r.neighborhood = {output, w * size_t{4}, w, h, 0, 0};
++              }
++              return base::UxrApplyGraphicsNoiseV1(policy, surface, r);
++            };
++            auto full = original; apply(full, 0, 0, w, h, false);
++            auto repeat = original; apply(repeat, 0, 0, w, h, true);
++            check(full == repeat);
++            auto twice = full; apply(twice, 0, 0, w, h, false);
++            check(full == twice);
++            const size_t altered = changed_pixels(original, full);
++            if (alpha == 255) {
++              density_pixels += w * h; density_changed += altered;
++              positive_cases += altered > 0;
++              check(altered > 0);
++              check(altered * 100 < w * h * 2);  // below 2% of pixels
++            }
++            for (size_t i = 0; i < full.size(); ++i) {
++              check(i % 4 == 3 ? full[i] == original[i] :
++                    std::abs(int(full[i]) - int(original[i])) <= 1);
++              if (premultiplied && i % 4 != 3)
++                check(full[i] <= alpha);
++            }
++            for (uint32_t y = 12; y < 26; ++y) for (uint32_t x = 16; x < 46; ++x)
++              check(std::equal(full.begin() + (y*w+x)*4,
++                  full.begin() + (y*w+x)*4 + 4, original.begin() + (y*w+x)*4));
++            for (const auto [ox, oy, cw, ch] : {
++                std::array<uint32_t,4>{0,0,1,1}, {1,1,1,1}, {w-1,h-1,1,1},
++                {3,5,31,17}, {16,11,29,15}, {w-3,h-3,3,3}}) {
++              std::vector<uint8_t> part(cw * ch * 4), expected(part.size());
++              for (uint32_t y = 0; y < ch; ++y) {
++                std::copy_n(original.begin() + ((oy+y)*w+ox)*4, cw*4, part.begin()+y*cw*4);
++                std::copy_n(full.begin() + ((oy+y)*w+ox)*4, cw*4, expected.begin()+y*cw*4);
++              }
++              apply(part, ox, oy, cw, ch, true);check(part == expected);
++            }
++            std::vector<uint8_t> flat(w*h*4);
++            for (size_t i=0;i<flat.size();i+=4) {
++              flat[i]=premultiplied ? alpha/3 : 99;
++              flat[i+1]=premultiplied ? alpha/2 : 77;
++              flat[i+2]=premultiplied ? alpha/4 : 155;flat[i+3]=alpha;
++            }
++            const auto flat_before=flat;
++            apply(flat,0,0,w,h,false);check(flat==flat_before);
++            if (surface == base::UxrPixelSurface::kCanvas2D && alpha==255) {
++              auto old=original;
++              base::UxrPixelRegion old_region{old,w*size_t{4},w,h,w,h};
++              base::UxrApplyGraphicsNoiseV1(policy,surface,old_region,0,
++                  base::UxrPixelFlavor::kReferenceV1);
++              old_canvas_changed+=changed_pixels(old,original);
++              new_canvas_changed+=altered;
++            }
++            if (surface == base::UxrPixelSurface::kWebGLReadback) {
++              std::vector<uint8_t> exported(original.size()),expected(original.size());
++              auto straight=[&](uint8_t v){return premultiplied && alpha!=255
++                  ? uint8_t((uint32_t{v}*(0xff000000u/alpha)+0x800000u)>>24) : v;};
++              for(uint32_t y=0;y<h;++y) for(uint32_t x=0;x<w;++x) {
++                const size_t s=(y*w+x)*4,d=((h-1-y)*w+x)*4;
++                for(uint32_t c=0;c<3;++c) {
++                  exported[d+2-c]=straight(original[s+c]);
++                  expected[d+2-c]=straight(full[s+c]);
++                }
++                exported[d+3]=alpha;expected[d+3]=alpha;
++              }
++              base::UxrPixelRegion r{exported,w*size_t{4},w,h,w,h,0,0,true,premultiplied};
++              r.neighborhood={exported,r.row_stride,w,h,0,0};
++              base::UxrApplyGraphicsNoiseV1(policy,base::UxrPixelSurface::kWebGLExport,r);
++              check(exported==expected);
++            }
++          }
++        }
++      }
++      // RGBA32F protects flat cells and keeps crop/assignment invariance.
++      std::vector<float> floats(w*h*4);
++      for(uint32_t y=0;y<h;++y)for(uint32_t x=0;x<w;++x) {
++        size_t i=(y*w+x)*4;
++        floats[i]=(x+1)/float(w+3);floats[i+1]=(y+1)/float(h+5);
++        floats[i+2]=(x+y+3)/float(w+h+7);floats[i+3]=1;
++      }
++      auto span_bytes=[](auto& v){return base::span<uint8_t>(reinterpret_cast<uint8_t*>(v.data()),v.size()*sizeof(float));};
++      auto full=floats;auto bytes=span_bytes(full);
++      base::UxrPixelRegion r{bytes,w*size_t{16},w,h,w,h};
++      r.neighborhood={bytes,r.row_stride,w,h,0,0};
++      base::UxrApplyShardWebGLFloatV2(policy,r);check(full!=floats);
++      auto twice=full;auto twice_bytes=span_bytes(twice);r.bytes=twice_bytes;r.neighborhood.bytes=twice_bytes;
++      base::UxrApplyShardWebGLFloatV2(policy,r);check(twice==full);
++      std::vector<float> part(17*13*4);
++      for(uint32_t y=0;y<13;++y)std::copy_n(floats.begin()+((y+3)*w+5)*4,17*4,part.begin()+y*17*4);
++      auto pbytes=span_bytes(part),sourcebytes=span_bytes(floats);
++      base::UxrPixelRegion crop{pbytes,17*size_t{16},17,13,w,h,5,3};
++      crop.neighborhood={sourcebytes,w*size_t{16},w,h,0,0};
++      base::UxrApplyShardWebGLFloatV2(policy,crop);
++      for(uint32_t y=0;y<13;++y)check(std::equal(part.begin()+y*17*4,part.begin()+(y+1)*17*4,full.begin()+((y+3)*w+5)*4));
++      std::fill(floats.begin(),floats.end(),0.375f);
++      for(size_t i=3;i<floats.size();i+=4)floats[i]=1;
++      const auto before=floats;auto fb=span_bytes(floats);
++      base::UxrPixelRegion flat{fb,w*size_t{16},w,h,w,h};flat.neighborhood={fb,flat.row_stride,w,h,0,0};
++      base::UxrApplyShardWebGLFloatV2(policy,flat);check(floats==before);
++    }
++  }
++  // Retain the existing 64x64 runtime fixture's bounded amplitude/density.
++  // This is not a claim that all script-authored pixels have provenance guards.
++  {
++    std::vector<uint8_t> pixels(64*64*4);
++    for(size_t p=0;p<4096;++p){pixels[p*4]=(p*17+31)&255;pixels[p*4+1]=(p*37+66)&255;pixels[p*4+2]=(p*13+123)&255;pixels[p*4+3]=255;}
++    const auto before=pixels;
++    base::UxrSurfacePolicy policy;policy.mode=base::UxrSurfaceMode::kShardX;policy.seed=314159;
++    base::UxrPixelRegion region{pixels,64*size_t{4},64,64,64,64};
++    region.neighborhood={pixels,region.row_stride,64,64,0,0};
++    base::UxrApplyGraphicsNoiseV1(policy,base::UxrPixelSurface::kCanvas2D,region);
++    size_t changed=0,maximum=0,alpha=0;
++    for(size_t i=0;i<pixels.size();++i){changed+=pixels[i]!=before[i];alpha+=i%4==3&&pixels[i]!=before[i];maximum=std::max(maximum,size_t(std::abs(int(pixels[i])-int(before[i]))));}
++    const bool ok=changed>0&&changed<=32&&maximum<=1&&alpha==0;check(ok);
++    std::cout<<"{\"pixel_runtime_64_changed\":"<<changed<<",\"maximum_delta\":"<<maximum<<",\"alpha_changes\":"<<alpha<<",\"failures\":"<<!ok<<"}\n";
++  }
++  // These inputs were rendered by an independent native Chrome, not generated
++  // from the candidate algorithm or inferred from a detector score.
++  std::ifstream corpus(fixture_root + "/pixel-semantics-v1/cases.tsv");
++  std::ifstream bytes_file(fixture_root + "/pixel-semantics-v1/pixels.bin", std::ios::binary);
++  check(corpus.good() && bytes_file.good());
++  const std::vector<uint8_t> corpus_bytes{std::istreambuf_iterator<char>(bytes_file),
++                                        std::istreambuf_iterator<char>()};
++  size_t corpus_records = 0;
++  std::string line;std::getline(corpus,line);
++  while (std::getline(corpus,line)) {
++    std::istringstream row(line);std::string name;
++    uint32_t w=0,h=0;size_t offset=0,length=0;
++    row >> name >> w >> h >> offset >> length;
++    if (!w || !h || length!=w*size_t{4}*h || offset>corpus_bytes.size() ||
++        length>corpus_bytes.size()-offset) {check(false);continue;}
++    const std::vector<uint8_t> original(corpus_bytes.begin()+offset,
++                                       corpus_bytes.begin()+offset+length);
++    ++corpus_records;
++    for(uint32_t seed:seeds) {
++      base::UxrSurfacePolicy policy;policy.mode=base::UxrSurfaceMode::kShardX;policy.seed=seed;
++      auto old=original,now=original;
++      base::UxrPixelRegion before{old,w*size_t{4},w,h,w,h};
++      base::UxrApplyGraphicsNoiseV1(policy,base::UxrPixelSurface::kCanvas2D,before,0,
++                                   base::UxrPixelFlavor::kReferenceV1);
++      base::UxrPixelRegion after{now,w*size_t{4},w,h,w,h};
++      after.neighborhood={now,after.row_stride,w,h,0,0};
++      base::UxrApplyGraphicsNoiseV1(policy,base::UxrPixelSurface::kCanvas2D,after);
++      const auto old_count=changed_pixels(old,original),new_count=changed_pixels(now,original);
++      size_t maximum=0;for(size_t i=0;i<now.size();++i)maximum=std::max(maximum,size_t(std::abs(int(now[i])-int(original[i]))));
++      check(new_count>0);check(maximum<=1);check(new_count*100<static_cast<size_t>(w)*h);
++      std::cout << "{\"pixel_semantic_corpus\":\"" << name << "\",\"seed\":" << seed
++                << ",\"pixels\":" << w*size_t{h} << ",\"old_changed\":" << old_count
++                << ",\"new_changed\":" << new_count << ",\"maximum_delta\":" << maximum
++                << ",\"failures\":" << (new_count==0 || maximum>1 ? 1 : 0) << "}\n";
++    }
++  }
++  check(corpus_records > 0);
++  std::cout << "{\"pixel_semantic_checks\":" << checks << ",\"pixel_semantic_corpus_records\":" << corpus_records
++            << ",\"failures\":" << failures
++            << ",\"positive_complex_cases\":" << positive_cases
++            << ",\"tested_complex_pixels\":" << density_pixels
++            << ",\"changed_complex_pixels\":" << density_changed
++            << ",\"old_canvas_changed\":" << old_canvas_changed
++            << ",\"new_canvas_changed\":" << new_canvas_changed << "}\n";
++  return {checks,failures};
++}
++#endif
+--- a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
++++ b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+@@ -782,12 +782,35 @@
+         !surface_modes.raw && pixmap.addr() &&
+         (pixmap.colorType() == kRGBA_8888_SkColorType ||
+          pixmap.colorType() == kBGRA_8888_SkColorType)) {
+-      const base::UxrPixelRegion region{
++      base::UxrPixelRegion region{
+           gfx::SkPixmapToWritableSpan(pixmap), pixmap.rowBytes(),
+           static_cast<uint32_t>(pixmap.width()),
+           static_cast<uint32_t>(pixmap.height()),
+           static_cast<uint32_t>(Width()), static_cast<uint32_t>(Height()),
+           sx, sy, pixmap.colorType() == kBGRA_8888_SkColorType};
++      SkBitmap neighborhood;
++      if (surface_modes.canvas.mode == base::UxrSurfaceMode::kShardX) {
++        // Read the halo from the same immutable snapshot as getImageData.
++        // The caller's crop edge is not a semantic boundary of the image.
++        const int64_t left = std::max<int64_t>(0, int64_t{sx} - 1);
++        const int64_t top = std::max<int64_t>(0, int64_t{sy} - 1);
++        const int64_t right = std::min<int64_t>(snapshot->Size().width(),
++            int64_t{sx} + pixmap.width() + 1);
++        const int64_t bottom = std::min<int64_t>(snapshot->Size().height(),
++            int64_t{sy} + pixmap.height() + 1);
++        if (right <= left || bottom <= top ||
++            !neighborhood.tryAllocPixels(pixmap.info().makeWH(
++                static_cast<int>(right - left), static_cast<int>(bottom - top))))
++          return image_data;
++        const SkPixmap halo = neighborhood.pixmap();
++        if (!snapshot->PaintImageForCurrentFrame().readPixels(halo.info(),
++                halo.writable_addr(), halo.rowBytes(), static_cast<int>(left),
++                static_cast<int>(top)))
++          return image_data;
++        region.neighborhood = {gfx::SkPixmapToSpan(halo), halo.rowBytes(),
++            static_cast<uint32_t>(halo.width()), static_cast<uint32_t>(halo.height()),
++            static_cast<int32_t>(left), static_cast<int32_t>(top)};
++      }
+       base::UxrApplyGraphicsNoiseV1(surface_modes.canvas,
+                                    base::UxrPixelSurface::kCanvas2D, region);
+     }
+--- a/third_party/blink/renderer/modules/webgl/uxr_shard_readback.h
++++ b/third_party/blink/renderer/modules/webgl/uxr_shard_readback.h
+@@ -4,8 +4,11 @@
+ 
+ #include <algorithm>
+ #include <limits>
++#include <memory>
+ #include <optional>
++#include "base/compiler_specific.h"
+ #include "base/containers/span.h"
++#include "base/process/memory.h"
+ #include "base/uxr_graphics_noise.h"
+ #include "gpu/command_buffer/client/gles2_interface.h"
+ 
+@@ -67,6 +70,66 @@
+       std::max(x, 0), std::max(y, 0), false, premultiplied};
+ }
+ 
++struct UxrShardNeighborhood {
++  std::unique_ptr<uint8_t, base::UncheckedFreeDeleter> storage;
++  base::UxrPixelNeighborhood view;
++};
++
++// A completed second read from the same still-bound framebuffer provides the
++// halo. It never consumes getError(), and restores every PACK/PBO state it
++// temporarily changes. It is called only after the user's original read
++// succeeded. On allocation/read failure the original native pixels are kept.
++inline UxrShardNeighborhood UxrShardReadNeighborhood(
++    gpu::gles2::GLES2Interface* gl, GLenum type,
++    const base::UxrPixelRegion& region, int alignment, int row_length,
++    int skip_pixels, int skip_rows, bool extended_pack, GLuint pack_buffer) {
++  UxrShardNeighborhood result;
++  if (!gl || !gl->SupportsReadPixelsCompletion() || !region.width ||
++      !region.height || region.origin_x < 0 || region.origin_y < 0)
++    return result;
++  const int x = std::max(region.origin_x - 1, 0);
++  const int y = std::max(region.origin_y - 1, 0);
++  const int64_t width = int64_t{region.width} + (region.origin_x != 0) + 1;
++  const int64_t height = int64_t{region.height} + (region.origin_y != 0) + 1;
++  if (width > std::numeric_limits<int>::max() - int64_t{x} ||
++      height > std::numeric_limits<int>::max() - int64_t{y})
++    return result;
++  const auto layout = UxrShardLayout(static_cast<int>(width),
++      static_cast<int>(height), 1, 0, 0, 0, GL_RGBA, type,
++      std::numeric_limits<size_t>::max());
++  if (!layout)
++    return result;
++  void* allocation = nullptr;
++  if (!base::UncheckedMalloc(layout->total, &allocation))
++    return result;
++  result.storage.reset(static_cast<uint8_t*>(allocation));
++  // SAFETY: storage owns exactly layout->total bytes through completion.
++  auto bytes = UNSAFE_BUFFERS(base::span<uint8_t>(result.storage.get(), layout->total));
++  if (extended_pack) {
++    gl->BindBuffer(GL_PIXEL_PACK_BUFFER, 0);
++    gl->PixelStorei(GL_PACK_ROW_LENGTH, 0);
++    gl->PixelStorei(GL_PACK_SKIP_PIXELS, 0);
++    gl->PixelStorei(GL_PACK_SKIP_ROWS, 0);
++  }
++  gl->PixelStorei(GL_PACK_ALIGNMENT, 1);
++  const auto done = gl->ReadPixelsWithCompletion(x, y, static_cast<int>(width),
++      static_cast<int>(height), GL_RGBA, type, bytes.data());
++  gl->PixelStorei(GL_PACK_ALIGNMENT, alignment);
++  if (extended_pack) {
++    gl->PixelStorei(GL_PACK_ROW_LENGTH, row_length);
++    gl->PixelStorei(GL_PACK_SKIP_PIXELS, skip_pixels);
++    gl->PixelStorei(GL_PACK_SKIP_ROWS, skip_rows);
++    gl->BindBuffer(GL_PIXEL_PACK_BUFFER, pack_buffer);
++  }
++  const auto completed = UxrShardCompletedRegion(bytes, *layout, done, x, y,
++      static_cast<int>(width), static_cast<int>(height), region.premultiplied);
++  if (completed) {
++    result.view = {completed->bytes, completed->row_stride, completed->width,
++                   completed->height, completed->origin_x, completed->origin_y};
++  }
++  return result;
++}
++
+ inline void UxrShardApplyCompleted(const base::UxrSurfacePolicy& policy,
+                                   GLenum type, const base::UxrPixelRegion& region) {
+   if (type == GL_FLOAT)
+--- a/third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc
++++ b/third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc
+@@ -966,14 +966,22 @@
+   ClearIfComposited(kClearCallerOther);
+ 
+   {
+-    ScopedDrawingBufferBinder binder(GetDrawingBuffer(), framebuffer);
+-    if (!binder.Succeeded()) {
++    // Keep the GL transport alive if either synchronous read loses the
++    // context and clears the context-visible drawing_buffer_.
++    scoped_refptr<DrawingBuffer> readback_owner = GetDrawingBuffer();
++    if (!readback_owner)
++      return;
++    ScopedDrawingBufferBinder binder(readback_owner.get(), framebuffer);
++    if (!binder.Succeeded() || isContextLost()) {
+       return;
+     }
++    auto* readback_gl = readback_owner->ContextGL();
++    if (!readback_gl)
++      return;
+     const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
+     if (modes.webgl.mode == base::UxrSurfaceMode::kShardX &&
+         !modes.noise_disabled && !modes.raw &&
+-        ContextGL()->SupportsReadPixelsCompletion()) {
++        readback_gl->SupportsReadPixelsCompletion()) {
+       const auto pack = GetPackPixelStoreParams();
+       const auto layout = UxrShardLayout(width, height, pack.alignment,
+           pack.row_length, pack.skip_pixels, pack.skip_rows, format, type,
+@@ -997,31 +1005,45 @@
+         // SAFETY: The owner retains exactly packed->total allocated bytes.
+         auto staging = UNSAFE_BUFFERS(
+             base::span<uint8_t>(owned.get(), packed->total));
+-        ContextGL()->BindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+-        ContextGL()->PixelStorei(GL_PACK_ALIGNMENT, 1);
+-        ContextGL()->PixelStorei(GL_PACK_ROW_LENGTH, 0);
+-        ContextGL()->PixelStorei(GL_PACK_SKIP_PIXELS, 0);
+-        ContextGL()->PixelStorei(GL_PACK_SKIP_ROWS, 0);
+-        const auto done = ContextGL()->ReadPixelsWithCompletion(
++        const GLuint pack_buffer_object = buffer->Object();
++        readback_gl->BindBuffer(GL_PIXEL_PACK_BUFFER, 0);
++        readback_gl->PixelStorei(GL_PACK_ALIGNMENT, 1);
++        readback_gl->PixelStorei(GL_PACK_ROW_LENGTH, 0);
++        readback_gl->PixelStorei(GL_PACK_SKIP_PIXELS, 0);
++        readback_gl->PixelStorei(GL_PACK_SKIP_ROWS, 0);
++        const auto done = readback_gl->ReadPixelsWithCompletion(
+             x, y, width, height, format, type, staging.data());
+-        ContextGL()->PixelStorei(GL_PACK_ALIGNMENT, pack.alignment);
+-        ContextGL()->PixelStorei(GL_PACK_ROW_LENGTH, pack.row_length);
+-        ContextGL()->PixelStorei(GL_PACK_SKIP_PIXELS, pack.skip_pixels);
+-        ContextGL()->PixelStorei(GL_PACK_SKIP_ROWS, pack.skip_rows);
+-        ContextGL()->BindBuffer(GL_PIXEL_PACK_BUFFER, buffer->Object());
+-        if (!isContextLost()) {
++        readback_gl->PixelStorei(GL_PACK_ALIGNMENT, pack.alignment);
++        readback_gl->PixelStorei(GL_PACK_ROW_LENGTH, pack.row_length);
++        readback_gl->PixelStorei(GL_PACK_SKIP_PIXELS, pack.skip_pixels);
++        readback_gl->PixelStorei(GL_PACK_SKIP_ROWS, pack.skip_rows);
++        readback_gl->BindBuffer(GL_PIXEL_PACK_BUFFER, pack_buffer_object);
++        if (isContextLost())
++          return;
++        {
+           const auto region = UxrShardCompletedRegion(staging, *packed, done,
+               x, y, width, height,
+               !framebuffer && CreationAttributes().premultiplied_alpha);
+           if (region) {
+-            UxrShardApplyCompleted(modes.webgl, type, *region);
++            const auto neighborhood = UxrShardReadNeighborhood(readback_gl, type,
++                *region, pack.alignment, pack.row_length, pack.skip_pixels,
++                pack.skip_rows, true, pack_buffer_object);
++            if (isContextLost())
++              return;
++            if (!neighborhood.view.bytes.empty()) {
++              auto protected_region = *region;
++              protected_region.neighborhood = neighborhood.view;
++              UxrShardApplyCompleted(modes.webgl, type, protected_region);
++            }
+             const size_t start = region->bytes.data() - staging.data();
+             const size_t destination_start = layout->skip +
+                 static_cast<size_t>(int64_t{region->origin_y} - y) * layout->stride +
+                 static_cast<size_t>(int64_t{region->origin_x} - x) * layout->pixel_bytes;
+             const size_t row_bytes = region->width * layout->pixel_bytes;
+             for (uint32_t row = 0; row < region->height; ++row) {
+-              ContextGL()->BufferSubData(GL_PIXEL_PACK_BUFFER,
++              if (isContextLost())
++                return;
++              readback_gl->BufferSubData(GL_PIXEL_PACK_BUFFER,
+                   static_cast<GLintptr>(offset + destination_start + row * layout->stride),
+                   row_bytes, staging.subspan(start + row * packed->stride,
+                                            row_bytes).data());
+--- a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
++++ b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
+@@ -5900,12 +5900,21 @@
+     return;
+ 
+   {
+-    ScopedDrawingBufferBinder binder(GetDrawingBuffer(), framebuffer);
+-    if (!binder.Succeeded()) {
++    // A synchronous decoder completion can lose the context and clear the
++    // context-visible DrawingBuffer/GL pointers. Retain the transport owner
++    // through both reads, PACK restoration and binder destruction.
++    scoped_refptr<DrawingBuffer> readback_owner = GetDrawingBuffer();
++    if (!readback_owner)
+       return;
+-    }
++    ScopedDrawingBufferBinder binder(readback_owner.get(), framebuffer);
++    if (!binder.Succeeded() || isContextLost()) {
++      return;
++    }
++    auto* readback_gl = readback_owner->ContextGL();
++    if (!readback_gl)
++      return;
+     const auto policy = base::UxrConfig::GetInstance().GpuBackendPolicy();
+-    const gfx::Size drawing_size = GetDrawingBuffer()->Size();
++    const gfx::Size drawing_size = readback_owner->Size();
+     const auto surface_modes = base::UxrConfig::GetInstance().SurfaceModes();
+     if (surface_modes.webgl.IsConfigured()) {
+       const auto& selected = surface_modes.webgl;
+@@ -5917,15 +5926,27 @@
+             pack.row_length, pack.skip_pixels, pack.skip_rows, format, type,
+             buffer_size.ValueOrDie());
+         if (layout) {
+-          const auto done = ContextGL()->ReadPixelsWithCompletion(
++          const auto done = readback_gl->ReadPixelsWithCompletion(
+               x, y, width, height, format, type, data);
+-          if (!isContextLost()) {
++          if (isContextLost())
++            return;
++          {
+             auto bytes = pixels->ByteSpanMaybeShared().subspan(offset_in_bytes.ValueOrDie());
+             const auto region = UxrShardCompletedRegion(bytes, *layout, done,
+                 x, y, width, height,
+                 !framebuffer && CreationAttributes().premultiplied_alpha);
+-            if (region)
+-              UxrShardApplyCompleted(selected, type, *region);
++            if (region) {
++              const auto neighborhood = UxrShardReadNeighborhood(readback_gl, type,
++                  *region, pack.alignment, pack.row_length, pack.skip_pixels,
++                  pack.skip_rows, IsWebGL2(), 0);
++              if (isContextLost())
++                return;
++              if (!neighborhood.view.bytes.empty()) {
++                auto protected_region = *region;
++                protected_region.neighborhood = neighborhood.view;
++                UxrShardApplyCompleted(selected, type, protected_region);
++              }
++            }
+           }
+           return;
+         }
+--- a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
++++ b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
+@@ -77,7 +77,7 @@
+         !pm.readPixels(info, copy.writable_addr(), copy.rowBytes())) {
+       return false;
+     }
+-    const base::UxrPixelRegion region{
++    base::UxrPixelRegion region{
+         gfx::SkPixmapToWritableSpan(copy), copy.rowBytes(),
+         static_cast<uint32_t>(copy.width()),
+         static_cast<uint32_t>(copy.height()),
+@@ -85,6 +85,9 @@
+         static_cast<uint32_t>(copy.height()), 0, 0,
+         color_type == kBGRA_8888_SkColorType,
+         export_context.webgl_premultiplied};
++    if (export_context.policy.mode == base::UxrSurfaceMode::kShardX)
++      region.neighborhood = {region.bytes, region.row_stride, region.width,
++                             region.height, 0, 0};
+     const auto result = base::UxrApplyGraphicsNoiseV1(
+         export_context.policy,
+         export_context.source == UxrCanvasExportSource::kWebGL

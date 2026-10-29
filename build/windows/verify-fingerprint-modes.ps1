@@ -174,7 +174,20 @@ try {
   $native.processes += $helpers
   $native.groups['production'] = @(Read-NativeGroups $helpers @(
       'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks',
-      'font_allowlist_checks', 'audio_default_checks', 'voice_compat_checks', 'configuration_checks'))
+      'font_allowlist_checks', 'audio_default_checks', 'voice_compat_checks',
+      'pixel_semantic_corpus_records', 'configuration_checks'))
+  $graphicsRecords = @($native.groups['production'] | Where-Object {
+      $_.PSObject.Properties['graphics_cases'] })
+  if ($graphicsRecords.Count -ne 1 -or
+      -not $graphicsRecords[0].PSObject.Properties['groups'] -or
+      -not $graphicsRecords[0].groups.PSObject.Properties['pixel_semantic_properties']) {
+    throw 'Executed pixel semantic property coverage is missing'
+  }
+  $semanticChecks = $graphicsRecords[0].groups.pixel_semantic_properties
+  if (($semanticChecks -isnot [int] -and $semanticChecks -isnot [long]) -or
+      $semanticChecks -le 0) {
+    throw 'Pixel semantic property coverage must be a positive integer'
+  }
   $native.status = 'passed'
   Write-Json $nativePath $native
   $runtime = Invoke-OwnedCheck $node @(
@@ -195,7 +208,8 @@ try {
       $result.full_strategy_acceptance -isnot [bool] -or $result.partial -isnot [bool] -or
       $result.partial -eq $result.full_strategy_acceptance -or
       -not $result.positive_acceptance -or
-      @($result.positive_acceptance.PSObject.Properties).Count -ne 25 -or
+      @($result.positive_acceptance.PSObject.Properties).Count -ne 26 -or
+      $result.positive_acceptance.headless_screen.status -cne 'observed_pass' -or
       @($result.positive_acceptance.PSObject.Properties | Where-Object {
           $_.Value.status -notin @('observed_pass', 'not_tested')
         }).Count) {

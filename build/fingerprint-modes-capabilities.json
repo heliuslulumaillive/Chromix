@@ -281,7 +281,7 @@
       "storage": "Owned completed RGBA8/BGRA8 output; original drawing pixels are not mutated",
       "other_formats": "Native fallback; float16/HDR algorithms are not implemented",
       "chromix": "Existing uint64 seed fold and absolute-coordinate RGB +/-1 algorithm",
-      "shardx": "Byte-verified xoshiro128** 32 assignments over the complete canvas, projected into crops, with the recovered partial-alpha round-trip guard",
+      "shardx": "Production compatible-v1: independent-seed absolute-coordinate sparse RGB low-bit candidates and canonical 2x2 flat-cell preservation, shared by cropped readback and export; alpha guard retained. Reference/helper flavor retains the historical xoshiro128** 32-assignment model.",
       "cloak": {
         "core": "Byte-verified hash and ten sparse LSB candidates",
         "intentional_differences": [
@@ -299,7 +299,8 @@
       },
       "native_fallback_conditions": [
         "Unavailable snapshot or unsuccessful actual read",
-        "Unsupported storage format"
+        "Unsupported storage format",
+        "ShardX neighborhood allocation or completed snapshot read unavailable; no fail-closed privacy claim"
       ]
     },
     "webgl": {
@@ -310,23 +311,22 @@
         "cloak"
       ],
       "variant": "completion-safe-pack-safe-compatible-v1",
-      "production_seed_sequence": "ShardX uses zero on every read; no process counter is consumed",
+      "production_seed_sequence": "Absolute-coordinate keyed ShardX V2 mask; no process or read counter",
       "shardx_dimension_exception": "Original 256x24 exception deliberately removed",
-      "supported_readback": "Opaque default framebuffer, in-bounds RGBA/UNSIGNED_BYTE TypedArray, non-shared destination, valid PACK layout, at most 16 MiB staging",
-      "completion_proof": "All staging alpha bytes become 255 before any caller output is committed",
+      "supported_readback": "Service-completed RGBA8 and RGBA32F readback from default/user framebuffers, TypedArray and PBO paths, including clipped extents and transparent contexts; actual-driver acceptance is separate",
+      "completion_proof": "Native GLES2 completion status and clipped extents; no alpha sentinel inference",
       "fallbacks": [
-        "transparent contexts",
-        "user FBO",
-        "PBO",
-        "FLOAT and other formats",
-        "shared destination",
-        "out-of-bounds crop",
-        "over-budget staging"
+        "Unsupported format/type combinations, including HALF_FLOAT, packed and integer formats",
+        "Completion support or valid completed region unavailable",
+        "Staging or neighborhood allocation/read failure; native pixels retained",
+        "Full HDR algorithm equivalence is not established"
       ],
       "errors": "Never consume the page GL error queue; failed/incomplete staging does not alter the caller buffer",
-      "shardx_export": "Native; the original CPU readPixels algorithm did not affect PNG export",
+      "shardx_export": "Owned RGBA8/BGRA8 export uses the same coordinate mask and canonical flat-cell decision, with bottom/top orientation and premultiplied-alpha handling",
       "cloak_export": "Logical RGB and top-left full-canvas coordinates agree with the corresponding supported GL readback",
-      "legacy_scope_expanded": false
+      "legacy_scope_expanded": false,
+      "flat_region_guard": "Canonical coordinate-anchored 2x2 cells with a same-surface 1px halo at crop boundaries; only assigned RGB low bits are ignored",
+      "context_loss": "Retain DrawingBuffer and GLES transport through PACK restoration; exit after synchronous loss, never write back a PBO after loss"
     },
     "export_routing": {
       "source": "Actual canvas rendering context, classified as Canvas2D/WebGL/Other at the HTML or Offscreen call site",
@@ -339,7 +339,8 @@
       "chromix": "Nonzero uint64, old fold unchanged",
       "cloak": "Nonzero uint64 serialized as canonical decimal ASCII",
       "shardx": "Effective uint32; explicit values outside 1..UINT32_MAX rejected by the common parser; environment-seed folding is a separately documented launcher v1 rule"
-    }
+    },
+    "semantic_revision": 1
   },
   "gpu": {
     "identity_flags": [
@@ -445,7 +446,7 @@
     "General Cloak DSP emulation, unconfirmed double-destination state, arbitrary graph/reference matching.",
     "Gyroscope/orientation/refresh scheduling mechanisms without established source/runtime evidence.",
     "Virtual capture backends, synthetic device identities and a complete cross-platform codec/DRM policy.",
-    "All unhandled WebGL enums and transparent/FBO/PBO/FLOAT/HDR noise paths; explicit native fallback remains."
+    "Unhandled WebGL enums/formats, HALF_FLOAT, packed/integer pixels and complete HDR equivalence; supported ShardX V2 readback/export paths are described in graphics.webgl."
   ],
   "surface_differences": [
     {
@@ -522,5 +523,21 @@
     "google_cloud_synthesis": false,
     "missing_language": "matching primary language, otherwise original platform default",
     "scope": "Windows native backend inventory and routing; Google names and remote attributes are compatibility declarations. Existing renderer voice filters remain effective."
+  },
+  "headless_display_synchronization": {
+    "kind": "source_contract_not_runtime_acceptance",
+    "overlay": "0014-headless-screen-synchronization",
+    "when": "Browser process, headless, complete explicit normalized screen width/height/DPR after Native/global-off removal",
+    "dpr_range": [
+      0.5,
+      8
+    ],
+    "geometry": "CSS dimensions to native physical screen-info pixels, outward integer rounding, declared available area retained",
+    "caller_precedence": [
+      "screen-info",
+      "force-device-scale-factor"
+    ],
+    "headed_changed": false,
+    "new_user_option": false
   }
 }

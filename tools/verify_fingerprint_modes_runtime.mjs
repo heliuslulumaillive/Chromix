@@ -12,6 +12,7 @@ import { audioAcceptanceProbe, validateAudioAcceptance } from "./fingerprint_aud
 import { fontAcceptanceProbe, validateFontAcceptance, FONT_ACCEPTANCE_ORACLE } from "./fingerprint_font_acceptance.mjs";
 import { referenceAcceptanceProbe, validateReferenceAcceptance } from "./fingerprint_reference_acceptance.mjs";
 import { renderbufferAcceptanceProbe, validateRenderbufferAcceptance } from "./fingerprint_renderbuffer_acceptance.mjs";
+import { pixelSemanticProbe, validatePixelSemantics, validateHeadlessScreens, pngDimensions, PIXEL_SCENARIOS, HEADLESS_SCENARIOS } from "./pixel_semantic_acceptance.mjs";
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function deadline(promise, ms, message) {
@@ -238,7 +239,26 @@ async function pageProbe(input) {
     const identity = debug ? { vendor: gl.getParameter(debug.UNMASKED_VENDOR_WEBGL),
       renderer: gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) } : null;
     const maskedIdentity = { vendor: gl.getParameter(gl.VENDOR), renderer: gl.getParameter(gl.RENDERER) };
-    gl.clearColor(0.2, 0.4, 0.6, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    // Positive evidence uses rendered variation. Uniform clear is separately
+    // required to remain exact by pixelSemanticProbe.
+    const shader = (type, source) => {
+      const value = gl.createShader(type); gl.shaderSource(value, source); gl.compileShader(value);
+      if (!gl.getShaderParameter(value, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(value));
+      return value;
+    };
+    const vertexShader = shader(gl.VERTEX_SHADER, kind === "webgl2" ?
+      "#version 300 es\nin vec2 p;void main(){gl_Position=vec4(p,0.,1.);}" :
+      "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}");
+    const fragmentBody = "vec2 p=gl_FragCoord.xy;vec4 c=vec4(fract(p.x*.017+p.y*.011),fract(p.x*.007+p.y*.023),fract((p.x+p.y)*.013),1.);";
+    const fragmentShader = shader(gl.FRAGMENT_SHADER, kind === "webgl2" ?
+      "#version 300 es\nprecision highp float;out vec4 color;void main(){" + fragmentBody + "color=c;}" :
+      "precision highp float;void main(){" + fragmentBody + "gl_FragColor=c;}");
+    const program = gl.createProgram(); gl.attachShader(program, vertexShader); gl.attachShader(program, fragmentShader); gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+    gl.useProgram(program); const vertexBuffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,3,-1,-1,3]), gl.STATIC_DRAW);
+    const position = gl.getAttribLocation(program, "p"); gl.enableVertexAttribArray(position); gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
+    gl.disable(gl.DITHER); gl.viewport(0,0,64,64); gl.drawArrays(gl.TRIANGLES,0,3);
     const full = new Uint8Array(64 * 64 * 4), repeat = new Uint8Array(full.length), crop = new Uint8Array(18 * 16 * 4);
     gl.readPixels(0, 0, 64, 64, gl.RGBA, gl.UNSIGNED_BYTE, full);
     gl.readPixels(0, 0, 64, 64, gl.RGBA, gl.UNSIGNED_BYTE, repeat);
@@ -269,6 +289,7 @@ async function pageProbe(input) {
       gl.deleteTexture(texture); gl.deleteTexture(cube); gl.deleteRenderbuffer(renderbuffer);
     }
     if (kind === "webgl") { gl.getParameter(0x8073); negative.webgl2Enum = gl.getError(); }
+    gl.deleteBuffer(vertexBuffer); gl.deleteProgram(program); gl.deleteShader(vertexShader); gl.deleteShader(fragmentShader);
     gl.getExtension("WEBGL_lose_context")?.loseContext();
     return { supported: true, identity, maskedIdentity, limits, extensionNames, readError, full: b64(full), repeat: b64(repeat),
       crop: b64(crop), png, negative, dimensions: [64, 64] };
@@ -474,6 +495,7 @@ export function scenarios() {
       if (overrides[field] !== "omit") flags.push(`--fingerprint-${field}-mode=${overrides[field] || "native"}`);
     return { id, flags: [...flags, ...extra] };
   };
+  const display = scale => ["--fingerprint-screen-width=640", "--fingerprint-screen-height=480", "--fingerprint-taskbar-height=40", `--uxr-device-pixel-ratio=${scale}`, "--window-size=640,480"];
   return [
     { id: "native_off_control", flags: ["--fingerprint=off"] },
     make("all_native"),
@@ -508,6 +530,12 @@ export function scenarios() {
     make("gpu_masked_custom", {}, ["--fingerprint-webgl-identity-mode=custom",
       "--fingerprint-gpu-vendor=Test Graphics Vendor", "--fingerprint-gpu-renderer=Test Graphics Renderer",
       "--fingerprint-webgl-masked-vendor=Test Masked Vendor", "--fingerprint-webgl-masked-renderer=Test Masked Renderer"]),
+    make("headless_custom_dpr2", {screen:"custom"}, display(2)),
+    make("headless_custom_fractional", {screen:"custom"}, display(1.25)),
+    make("headless_explicit_info", {screen:"custom"}, [...display(2), "--screen-info={960x720 devicePixelRatio=1.5}"]),
+    make("headless_force_scale", {screen:"custom"}, [...display(2), "--force-device-scale-factor=1.5"]),
+    make("headless_native_ignored", {}, display(2)),
+    {id:"headless_off_ignored", flags:["--fingerprint=off", ...display(2)]},
   ];
 }
 export const POSITIVE_GROUPS = [
@@ -515,13 +543,14 @@ export const POSITIVE_GROUPS = [
   "shard_audio", "shard_rects", "shard_text", "shard_sensors", "shard_media",
   "memory_custom", "hardware_profile", "webgl_resource_limits", "webgpu_capabilities",
   "hardware_gpu_identity", "masked_webgl", "shard_fonts", "cloak_fonts", "font_allowlists",
-  "cloak_voices", "cloak_offset", "cloak_text", "cloak_audio", "audio_defaults", "audio_channels",
+  "cloak_voices", "cloak_offset", "cloak_text", "cloak_audio", "audio_defaults", "audio_channels", "headless_screen",
 ];
 export const BASIC_SCENARIOS = new Set([
   "fonts_shard42", "fonts_shard43", "fonts_cloak10026", "fonts_allowlists", "fonts_empty",
   "cloak_voices", "cloak_voices_no_local", "cloak_offset", "cloak_text_positive",
   "cloak_audio_positive", "audio_defaults_44100", "audio_defaults_32000",
   "audio_default_mono", "audio_default_stereo", "audio_default_32",
+  ...HEADLESS_SCENARIOS,
 ]);
 export function summarizePositiveAcceptance(checks, notTested) {
   const positive_acceptance = {};
@@ -725,8 +754,10 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
     // Presence is mandatory even if a native capability legitimately makes an
     // individual positive condition ineligible. Missing probes are not skips.
     const extraScopes = {
-      all_native: ["fonts", "reference", "audio", "renderbuffer"],
+      all_native: ["fonts", "reference", "audio", "renderbuffer", "pixel_semantics"],
       gpu_custom: ["renderbuffer"],
+      canvas_shardx: ["pixel_semantics"], webgl_shardx: ["pixel_semantics"],
+      ...Object.fromEntries(HEADLESS_SCENARIOS.map(id=>[id,["headless_screen"]])),
       ...Object.fromEntries(["fonts_shard42", "fonts_shard43", "fonts_cloak10026", "fonts_allowlists", "fonts_empty"].map(id => [id, ["fonts"]])),
       ...Object.fromEntries(["cloak_voices", "cloak_voices_no_local", "cloak_offset", "cloak_text_positive"].map(id => [id, ["reference"]])),
       ...Object.fromEntries(["cloak_audio_positive", "audio_defaults_44100", "audio_defaults_32000", "audio_default_mono", "audio_default_stereo", "audio_default_32"].map(id => [id, ["audio"]])),
@@ -741,6 +772,10 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
     }
     const fontResult = validateFontAcceptance(byId, FONT_ACCEPTANCE_ORACLE);
     checks.push(...fontResult.checks); notTested.push(...fontResult.not_tested);
+    const pixelResult = validatePixelSemantics(byId, decodePNG);
+    checks.push(...pixelResult.checks.filter(c=>!c.name.endsWith("_acceptance_probe_present"))); notTested.push(...pixelResult.not_tested);
+    const headlessResult = validateHeadlessScreens(byId);
+    checks.push(...headlessResult.checks.filter(c=>!c.name.endsWith("_acceptance_probe_present"))); notTested.push(...headlessResult.not_tested);
     const tagged = (id, name, passed, group, detail = null) =>
       checks.push({ scenario: id, name, passed: passed === true, acceptance_group: group, detail });
     const skipped = (id, name, reason, group) =>
@@ -871,11 +906,12 @@ async function main() {
     started_at: new Date().toISOString(), node: process.version, transport: "Raw CDP; sensor emulation only, no API replacement or automatic UA/font/media/viewport emulation",
     synthetic_media_only: true, credentials_environment_removed: true, external_pages: false, baseline_only: !!args["baseline-only"], scenarios: [],
     oracle_sha256: await sha256(oraclePath),
-    collector_modules_sha256: Object.fromEntries(await Promise.all(["fingerprint_audio_acceptance.mjs", "fingerprint_font_acceptance.mjs", "fingerprint_reference_acceptance.mjs", "fingerprint_renderbuffer_acceptance.mjs"]
+    collector_modules_sha256: Object.fromEntries(await Promise.all(["fingerprint_audio_acceptance.mjs", "fingerprint_font_acceptance.mjs", "fingerprint_reference_acceptance.mjs", "fingerprint_renderbuffer_acceptance.mjs", "pixel_semantic_acceptance.mjs"]
       .map(async name => [name, await sha256(path.join(toolRoot, name))]))),
     coverage_limits: ["Headless Windows acceptance; not all physical GPUs or driver versions.",
       "Cloak text/audio positive acceptance requires the pinned native input to meet the unchanged strict guard; ineligible rows remain not_tested.",
-      "No partial-alpha/float16/PBO/FBO pixel acceptance in this bounded run.",
+      "Pixel semantic checks cover opaque RGBA8 and a bounded WebGL2 PBO/PACK case; no partial-alpha/float16/FBO acceptance in this bounded run.",
+      "Headless screenshots verify raster scale and caller precedence, not ordinary headed-window or all-monitor behavior.",
       "No real camera, microphone, account, external STUN, network detection site or recording. Realtime AudioContext opens only its native output backend with zero-valued Worklet output; no audible signal is produced.",
       "Native font/voice availability and actual hardware adapter identity are environmental prerequisites; see positive_acceptance and partial.",
       "WebGPU small integer compute and negotiated features/limits do not prove every feature workload or large allocation."] };
@@ -947,6 +983,18 @@ async function main() {
           basicOnly: BASIC_SCENARIOS.has(scenario.id),
         })})`);
         record.extra = {};
+        if (PIXEL_SCENARIOS.includes(scenario.id)) {
+          record.extra.pixel_semantics = await evaluate(cdp, sessionId, `(${pixelSemanticProbe.toString()})()`, true);
+        }
+        if (HEADLESS_SCENARIOS.includes(scenario.id)) {
+          const page = await evaluate(cdp, sessionId, `({screen:{width:screen.width,height:screen.height,availWidth:screen.availWidth,availHeight:screen.availHeight},dpr:devicePixelRatio,innerWidth,innerHeight})`);
+          const layout = await cdp.send("Page.getLayoutMetrics", {}, sessionId);
+          const capture = await cdp.send("Page.captureScreenshot", {format:"png",fromSurface:true,captureBeyondViewport:false}, sessionId);
+          const dimensions = pngDimensions(capture.data);
+          const system = await cdp.send("SystemInfo.getInfo");
+          await fsp.writeFile(path.join(folder,"headless-viewport.png"),Buffer.from(capture.data,"base64"));
+          record.extra.headless_screen = {version:1,page,layout,effectiveCommandLine:system.commandLine,screenshot:{...dimensions,png:capture.data}};
+        }
         if (["all_native", "gpu_custom"].includes(scenario.id)) {
           record.extra.renderbuffer = await evaluate(cdp, sessionId, `(${renderbufferAcceptanceProbe.toString()})({})`, true);
         }

@@ -1,0 +1,4 @@
+name	width	height	offset	bytes
+text	220	40	0	35200
+gradient	320	160	35200	204800
+sparse	512	256	240000	524288

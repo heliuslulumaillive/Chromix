@@ -1,0 +1,138 @@
+--- /dev/null
++++ b/base/uxr_headless_screen.h
+@@ -0,0 +1,44 @@
++// Copyright 2026. Use of this source is governed by a BSD-style license.
++#ifndef BASE_UXR_HEADLESS_SCREEN_H_
++#define BASE_UXR_HEADLESS_SCREEN_H_
++
++#include <cmath>
++#include <optional>
++
++namespace base {
++
++// Headless --screen-info consumes physical pixels; the public fingerprint
++// display dimensions are CSS pixels. This describes one primary display.
++struct UxrHeadlessScreenInfo {
++  int pixel_width;
++  int pixel_height;
++  int work_area_right;
++  int work_area_bottom;
++  double device_pixel_ratio;
++};
++
++inline std::optional<UxrHeadlessScreenInfo> MakeUxrHeadlessScreenInfo(
++    int width, int height, int available_width, int available_height,
++    double scale) {
++  // Preserve the existing display bounds. Chromium 155's native screen-info
++  // parser supports DPR >= 0.5; the older virtual-only 0.25 range is unchanged.
++  if (width < 1 || height < 1 || width > 32768 || height > 32768 ||
++      available_width < 0 || available_height < 0 ||
++      available_width > width || available_height > height ||
++      !std::isfinite(scale) || scale < 0.5 || scale > 8.0) {
++    return std::nullopt;
++  }
++  const int pixel_width = static_cast<int>(std::ceil(width * scale));
++  const int pixel_height = static_cast<int>(std::ceil(height * scale));
++  const int available_pixel_width =
++      static_cast<int>(std::ceil(available_width * scale));
++  const int available_pixel_height =
++      static_cast<int>(std::ceil(available_height * scale));
++  return UxrHeadlessScreenInfo{pixel_width, pixel_height,
++                               pixel_width - available_pixel_width,
++                               pixel_height - available_pixel_height, scale};
++}
++
++}  // namespace base
++
++#endif  // BASE_UXR_HEADLESS_SCREEN_H_
+--- a/chrome/app/chrome_main.cc
++++ b/chrome/app/chrome_main.cc
+@@ -19,6 +19,7 @@
+ #include "base/strings/string_number_conversions.h"
+ #include "base/strings/string_split.h"
+ #include "base/strings/string_util.h"
++#include "base/uxr_headless_screen.h"
+ #include "base/functional/bind.h"
+ #include "base/functional/callback_helpers.h"
+ #include "base/logging.h"
+@@ -718,6 +719,70 @@
+       }
+     }
+ 
++    // Synchronize an explicit virtual display with native headless rastering.
++    // Run after per-field Native/global-off removal. Caller-owned native display
++    // switches win, and ordinary headed windows keep their existing behavior.
++    if (command_line->HasSwitch("headless") &&
++        !command_line->HasSwitch("screen-info") &&
++        !command_line->HasSwitch("force-device-scale-factor") &&
++        command_line->HasSwitch("uxr-screen-width") &&
++        command_line->HasSwitch("uxr-screen-height") &&
++        command_line->HasSwitch("uxr-device-pixel-ratio")) {
++      int width = 0;
++      int height = 0;
++      double scale = 0;
++      bool valid = base::StringToInt(
++                       command_line->GetSwitchValueASCII("uxr-screen-width"),
++                       &width) &&
++                   base::StringToInt(
++                       command_line->GetSwitchValueASCII("uxr-screen-height"),
++                       &height) &&
++                   base::StringToDouble(
++                       command_line->GetSwitchValueASCII("uxr-device-pixel-ratio"),
++                       &scale);
++      int available_width = width;
++      int available_height = height;
++      if (command_line->HasSwitch("uxr-screen-avail-width")) {
++        valid &= base::StringToInt(command_line->GetSwitchValueASCII(
++                                      "uxr-screen-avail-width"),
++                                  &available_width);
++      }
++      if (command_line->HasSwitch("uxr-screen-avail-height")) {
++        valid &= base::StringToInt(command_line->GetSwitchValueASCII(
++                                      "uxr-screen-avail-height"),
++                                  &available_height);
++      }
++      if (command_line->HasSwitch("uxr-taskbar-height")) {
++        int taskbar = 0;
++        valid &= base::StringToInt(
++            command_line->GetSwitchValueASCII("uxr-taskbar-height"), &taskbar);
++        if (taskbar < 0 || taskbar > height) {
++          valid = false;
++        } else {
++          if (command_line->HasSwitch("uxr-screen-avail-height") &&
++              available_height != height - taskbar) {
++            valid = false;
++          }
++          available_height = height - taskbar;
++        }
++      }
++      if (valid) {
++        const auto display = base::MakeUxrHeadlessScreenInfo(
++            width, height, available_width, available_height, scale);
++        if (display) {
++          command_line->AppendSwitchASCII(
++              "screen-info",
++              "{" + base::NumberToString(display->pixel_width) + "x" +
++                  base::NumberToString(display->pixel_height) +
++                  " devicePixelRatio=" + base::NumberToString(scale) +
++                  " colorDepth=24 workAreaRight=" +
++                  base::NumberToString(display->work_area_right) +
++                  " workAreaBottom=" +
++                  base::NumberToString(display->work_area_bottom) + "}");
++        }
++      }
++    }
++
+     // Set actual native window bounds. Getter overrides cannot resize a window
+     // or supply valid negative monitor coordinates. Native caller flags win.
+     constexpr char kWindowSize[] = "window-size";
+--- a/base/BUILD.gn
++++ b/base/BUILD.gn
+@@ -1035,6 +1035,7 @@
+     "uxr_cloak_hardware.h",
+     "uxr_graphics_noise.cc",
+     "uxr_graphics_noise.h",
++    "uxr_headless_screen.h",
+     "uxr_surface_math.h",
+     "uxr_surface_reference_data.h",
+     "uxr_voice_reference_data.h",

@@ -172,6 +172,11 @@ def recipe_identity(repo: Path):
         files.append("build/fingerprint-modes-capabilities.json")
     if (repo / 'build/gpu-binding-capabilities.json').is_file():
         files.append('build/gpu-binding-capabilities.json')
+    if 'patches/fingerprint-modes/0011-pixel-semantic-preservation.patch' in config.get('restoration_overlays', []):
+        # These independent native-rendered inputs are executed by the compiled
+        # pixel golden. Their identity belongs to the build recipe as well.
+        files.extend('tools/tests/fixtures/pixel-semantics-v1/' + name
+                     for name in ('cases.tsv', 'pixels.bin', 'provenance.json'))
     inputs = {name: hashlib.sha256((repo / name).read_bytes()).hexdigest() for name in files}
     return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest(), inputs
 

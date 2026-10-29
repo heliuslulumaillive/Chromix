@@ -43,7 +43,23 @@ class WindowsVoiceCompatibilityTest(unittest.TestCase):
     def test_overlay_is_in_the_verified_preparation_recipe(self):
         config = json.loads((ROOT / 'build/google-services-win155.json').read_text(encoding='utf-8'))
         self.assertEqual(config['restoration_overlays'].count(PATCH), 1)
-        self.assertEqual(config['restoration_overlays'][-1], PATCH)
+        # Later semantic repairs must not drop, duplicate, or move the native
+        # provider ahead of the existing prerequisite overlays.
+        active = [name for name in config['restoration_overlays']
+                  if name.startswith('patches/fingerprint-modes/')]
+        expected = [
+            '0001-independent-mode-contract.patch', '0002-graphics.patch',
+            '0003-surfaces.patch', '0004-gpu-compatible-modes-v1.patch',
+            '0005-installed-font-allowlists.patch', '0006-audio-defaults.patch',
+            '0007-custom-ua-client-hints.patch', '0008-required-physical-gpu.patch',
+            '0009-shardx-webgl-consistent-readback.patch',
+            '0010-windows-native-voice-compat.patch',
+        ]
+        self.assertEqual([Path(name).name for name in active[:10]], expected)
+        self.assertEqual(active.index(PATCH), 9)
+        later = [int(Path(name).name.split('-', 1)[0]) for name in active[10:]]
+        self.assertEqual(later, sorted(set(later)))
+        self.assertTrue(all(number > 10 for number in later))
 
     def test_real_backend_routing_and_native_suite_are_built(self):
         patch = (ROOT / PATCH).read_text(encoding='utf-8')

@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 import zlib from "node:zlib";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { referenceAcceptanceProbe, validateReferenceAcceptance } from "../fingerprint_reference_acceptance.mjs";
 import { audioAcceptanceProbe, validateAudioAcceptance } from "../fingerprint_audio_acceptance.mjs";
 import { fontAcceptanceProbe, validateFontAcceptance } from "../fingerprint_font_acceptance.mjs";
@@ -116,11 +118,13 @@ test("browser entrypoints serialize without importing Node helpers", () => {
 });
 test("the bounded matrix has distinct scenes and uses basic probes for independent additions", () => {
   const matrix = scenarios();
-  assert.equal(matrix.length, 26);
+  assert.equal(matrix.length, 32);
   assert.equal(new Set(matrix.map(s => s.id)).size, matrix.length);
-  assert.equal(BASIC_SCENARIOS.size, 15);
-  assert.equal(POSITIVE_GROUPS.length, 25);
-  assert.ok(matrix.filter(s => BASIC_SCENARIOS.has(s.id)).every(s => s.flags.includes("--fingerprint-canvas-mode=native")));
+  assert.equal(BASIC_SCENARIOS.size, 21);
+  assert.equal(POSITIVE_GROUPS.length, 26);
+  assert.ok(matrix.filter(s => BASIC_SCENARIOS.has(s.id)).every(s => s.flags.includes("--fingerprint-canvas-mode=native") || s.flags.includes("--fingerprint=off")));
+  assert.equal(BASIC_SCENARIOS.has("canvas_shardx"), false);
+  assert.equal(BASIC_SCENARIOS.has("webgl_shardx"), false);
 });
 test("repaired Shard WebGL requires positive sparse noise, stable coordinates and matching export", () => {
   const mask = oracle.shardWebGL.xor1_byte_offsets;
@@ -130,7 +134,7 @@ test("repaired Shard WebGL requires positive sparse noise, stable coordinates an
   assert.equal(oracle.audioReferencePairs.length, 3);
   assert.equal(oracle.cloakTextWindows.length, 11);
   const native = Buffer.alloc(16384);
-  for (let p = 0; p < 4096; p++) native.set([51, 102, 153, 255], p * 4);
+  for (let p = 0; p < 4096; p++) native.set([(p*7)%180+20, (p*11)%180+20, (p*13)%180+20, 255], p * 4);
   const noised = Buffer.from(native);
   // Independent invariant fixture, deliberately not a copy of the new PRNG.
   noised[0] ^= 1;
@@ -148,6 +152,10 @@ test("repaired Shard WebGL requires positive sparse noise, stable coordinates an
     crop: crop.toString("base64"), png, readError: 0, negative: { webgl2Enum: 1280 } });
   const base = { id: "all_native", probe: { webgl: { webgl: gl(native), webgl2: gl(native) } } };
   const target = { id: "webgl_shardx", probe: { webgl: { webgl: gl(noised), webgl2: gl(noised) } } };
+  const semantic = JSON.parse(execFileSync(process.env.PYTHON || "python", ["-B", "-X", "utf8", "-c",
+    "import json; from tools.tests.pixel_semantics_fixtures import pixel_fixture; print(json.dumps({k:pixel_fixture(k) for k in ['all_native','webgl_shardx']}))"],
+    {cwd:fileURLToPath(new URL("../..",import.meta.url)),encoding:"utf8",maxBuffer:4*1024*1024}));
+  base.extra = {pixel_semantics:semantic.all_native}; target.extra = {pixel_semantics:semantic.webgl_shardx};
   const result = verifyResults([base, target], false, oracle);
   assert.equal(result.positive_acceptance.shard_webgl.status, "observed_pass");
   target.probe.webgl.webgl.crop = Buffer.alloc(crop.length).toString("base64");
