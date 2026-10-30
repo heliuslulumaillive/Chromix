@@ -118,6 +118,41 @@ function Read-NativeGroups($Execution, [string[]]$RequiredFields) {
 foreach ($path in @($nativePath, $runtimePath, $reportPath)) {
   if (Test-Path -LiteralPath $path) { throw 'Fingerprint evidence must be fresh for this execution' }
 }
+function Assert-MaskFirstEquivalence($Records, $GraphicsRecord) {
+  $equivalenceRecords = @($Records | Where-Object { $_.PSObject.Properties['mask_first_equivalence_cases'] })
+  if ($equivalenceRecords.Count -ne 1) { throw 'Native mask-first equivalence evidence is missing or duplicated' }
+  $equivalent = $equivalenceRecords[0]
+  if ($equivalent.mask_first_oracle_revision -isnot [string] -or
+      $equivalent.mask_first_oracle_sha256 -isnot [string] -or
+      $equivalent.mask_first_oracle_revision -cne '9a06334258ed6039c597360038183f8693347e45' -or
+      $equivalent.mask_first_oracle_sha256 -cne '2bcefcc4b7b8ab34b070b964a4fdd81c643e88052b48fd0c3a75cf18d8965465') {
+    throw 'Native mask-first oracle identity does not match the frozen baseline'
+  }
+  $expected = [ordered]@{
+    mask_first_equivalence_cases = 93941
+    mask_first_equivalence_bytes = 439779036
+    mask_first_corpus_records = 3
+    mask_first_mutation_controls = 8
+    mask_first_mutation_rejections = 8
+    failures = 0
+  }
+  foreach ($name in $expected.Keys) {
+    if (-not $equivalent.PSObject.Properties[$name]) { throw "Missing mask-first field: $name" }
+    $value = $equivalent.$name
+    if (($value -isnot [int] -and $value -isnot [long]) -or $value -ne $expected[$name]) {
+      throw "Incomplete mask-first matrix or negative control: $name"
+    }
+  }
+  if (-not $GraphicsRecord.PSObject.Properties['groups'] -or
+      -not $GraphicsRecord.groups.PSObject.Properties['pixel_mask_first_equivalence']) {
+    throw 'Native graphics test did not execute mask-first equivalence'
+  }
+  $count = $GraphicsRecord.groups.pixel_mask_first_equivalence
+  if (($count -isnot [int] -and $count -isnot [long]) -or $count -ne 93941) {
+    throw 'Native graphics mask-first matrix is incomplete'
+  }
+}
+
 $main = [ordered]@{
   schema_version = 1; status = 'failed'; started_at = [DateTimeOffset]::UtcNow.ToString('o')
   browser_sha256 = $null; chrome_dll_sha256 = $null; files = @{}
@@ -175,7 +210,9 @@ try {
   $native.groups['production'] = @(Read-NativeGroups $helpers @(
       'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks',
       'font_allowlist_checks', 'audio_default_checks', 'voice_compat_checks',
-      'pixel_semantic_corpus_records', 'configuration_checks'))
+      'pixel_semantic_corpus_records', 'configuration_checks',
+      'mask_first_equivalence_cases', 'mask_first_equivalence_bytes',
+      'mask_first_corpus_records', 'mask_first_mutation_controls', 'mask_first_mutation_rejections'))
   $graphicsRecords = @($native.groups['production'] | Where-Object {
       $_.PSObject.Properties['graphics_cases'] })
   if ($graphicsRecords.Count -ne 1 -or
@@ -188,6 +225,7 @@ try {
       $semanticChecks -le 0) {
     throw 'Pixel semantic property coverage must be a positive integer'
   }
+  Assert-MaskFirstEquivalence $native.groups['production'] $graphicsRecords[0]
   $native.status = 'passed'
   Write-Json $nativePath $native
   $runtime = Invoke-OwnedCheck $node @(

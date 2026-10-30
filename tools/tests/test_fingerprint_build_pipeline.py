@@ -146,12 +146,16 @@ def write_fingerprint_evidence(root, bundle):
         'legacy': [{'status': 'passed', 'configuration_checks': 6, 'failures': 0}],
         'chromix': [{'status': 'passed', 'configuration_checks': 4, 'failures': 0}],
         'production': [
-            {'graphics_cases': 2, 'pixel_semantic_corpus_records': 1, 'failures': 0, 'groups': {'fixture_pixels': 2, 'pixel_semantic_properties': 1}},
+            {'graphics_cases': 93943, 'pixel_semantic_corpus_records': 1, 'failures': 0, 'groups': {
+                'fixture_pixels': 2, 'pixel_semantic_properties': 1, 'pixel_mask_first_equivalence': 93941}},
             {'checks': 3, 'failures': 0}, {'gpu_checks': 4, 'failures': 0},
             {'hardware_checks': 5, 'failures': 0},
             {'font_allowlist_checks': 38, 'failures': 0}, {'audio_default_checks': 28, 'failures': 0},
             {'voice_compat_checks': 89, 'failures': 0},
             {'status': 'passed', 'configuration_checks': 6, 'failures': 0},
+            {'mask_first_oracle_revision': candidate.MASK_FIRST_ORACLE_REVISION,
+             'mask_first_oracle_sha256': candidate.MASK_FIRST_ORACLE_SHA256,
+             **candidate.MASK_FIRST_COUNTS, 'failures': 0},
         ],
     }
     processes = []
@@ -329,6 +333,146 @@ def unavailable_shard_fixture(runtime, kinds=('webgl', 'webgl2')):
 
 
 class FingerprintEvidenceTest(unittest.TestCase):
+    def test_mask_first_overlay_pins_the_independent_oracle_and_runtime_change(self):
+        with mock.patch.object(sys, 'path', [str(ROOT / 'tools'), *sys.path]):
+            from tools.build_google_services_patch import sections
+        patch = (ROOT/'patches/fingerprint-modes/0015-pixel-mask-first.patch').read_text(encoding='utf-8')
+        files = {name: text for name, _, text in sections(patch)}
+        self.assertEqual(set(files), {'base/uxr_graphics_noise.cc', 'base/uxr_graphics_mode_goldens.cc',
+                                     'base/uxr_mask_first_reference.h', 'base/uxr_mask_first_equivalence.h', 'base/BUILD.gn'})
+        # This digest pins the reviewed three reorderings, not a second copy of
+        # the implementation generated from the current candidate.
+        self.assertEqual(hashlib.sha256(files['base/uxr_graphics_noise.cc'].encode()).hexdigest(),
+                         '67ad49570e1e13ea74d0a908944d9b8aaad9c348d88ace855e6a0237d22dd299')
+        reference = ''.join(line[1:] for line in files['base/uxr_mask_first_reference.h'].splitlines(keepends=True)
+                            if line.startswith('+') and not line.startswith('+++'))
+        frozen = reference.split('// BEGIN FROZEN 9a06334 HELPER\n', 1)[1].split('// END FROZEN 9a06334 HELPER\n', 1)[0]
+        baseline = frozen.replace('namespace base::mask_first_reference {', 'namespace base {', 1).replace(
+            '}  // namespace base::mask_first_reference\n', '}  // namespace base\n')
+        self.assertEqual(hashlib.sha256(baseline.encode()).hexdigest(), candidate.MASK_FIRST_ORACLE_SHA256)
+        prefix = reference.split('// BEGIN FROZEN')[0]
+        self.assertIn('namespace base::mask_first_reference {', prefix)
+        self.assertIn('uint32_t UxrCloakHashV1(std::string_view bytes);', prefix)
+        self.assertIn('RunPixelMaskFirstEquivalence(fixture_root)', files['base/uxr_graphics_mode_goldens.cc'])
+        self.assertIn('"uxr_mask_first_reference.h"', files['base/BUILD.gn'])
+        self.assertIn('"uxr_mask_first_equivalence.h"', files['base/BUILD.gn'])
+
+    def test_mask_first_equivalence_rejects_incomplete_or_wrong_oracle_receipts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); bundle = root/'bundle'; bundle.mkdir()
+            (bundle/'chrome.exe').write_bytes(b'exe'); (bundle/'chrome.dll').write_bytes(b'dll')
+            write_fingerprint_evidence(root, bundle)
+            native = json.loads((root/'modes-native.json').read_text())
+            payload = {name: candidate.sha256(bundle/name) for name in ('chrome.exe','chrome.dll')}
+            self.assertEqual(candidate.validate_mode_native(native, payload)[
+                'production.groups.pixel_mask_first_equivalence'], 93941)
+            mutations = []
+            for name, count in candidate.MASK_FIRST_COUNTS.items():
+                for value in (None, 0, True, str(count), count - 1, count + 1):
+                    mutations.append((name, value))
+            mutations += [('mask_first_oracle_revision', '0'*40), ('mask_first_oracle_sha256', '0'*64),
+                          ('mask_first_oracle_revision', None), ('mask_first_oracle_sha256', None),
+                          ('mask_first_oracle_revision', [candidate.MASK_FIRST_ORACLE_REVISION]),
+                          ('mask_first_oracle_sha256', [candidate.MASK_FIRST_ORACLE_SHA256])]
+            for name, value in mutations:
+                with self.subTest(field=name, value=value):
+                    changed = copy.deepcopy(native)
+                    equivalent = next(r for r in changed['groups']['production'] if 'mask_first_equivalence_cases' in r)
+                    if value is None: equivalent.pop(name)
+                    else: equivalent[name] = value
+                    self._refresh_native_stdout(changed)
+                    with self.assertRaises(ValueError): candidate.validate_mode_native(changed, payload)
+            for value in (None, 0, 93940, True, '93941'):
+                changed = copy.deepcopy(native)
+                group = changed['groups']['production'][0]['groups']
+                if value is None: group.pop('pixel_mask_first_equivalence')
+                else: group['pixel_mask_first_equivalence'] = value
+                self._refresh_native_stdout(changed)
+                with self.assertRaises(ValueError): candidate.validate_mode_native(changed, payload)
+            changed = copy.deepcopy(native)
+            changed['groups']['production'].append(copy.deepcopy(changed['groups']['production'][-1]))
+            self._refresh_native_stdout(changed)
+            with self.assertRaises(ValueError): candidate.validate_mode_native(changed, payload)
+
+    def test_powershell_mask_first_gate_rejects_the_same_invalid_records(self):
+        powershell = shutil.which('pwsh')
+        if not powershell and os.name != 'nt':
+            self.skipTest('Windows receipt gate execution requires PowerShell 7')
+        self.assertIsNotNone(powershell, 'The Windows receipt gate must be executed with PowerShell 7')
+        record = {'mask_first_oracle_revision': candidate.MASK_FIRST_ORACLE_REVISION,
+                  'mask_first_oracle_sha256': candidate.MASK_FIRST_ORACLE_SHA256,
+                  **candidate.MASK_FIRST_COUNTS, 'failures': 0}
+        graphics = {'graphics_cases': 93943, 'groups': {'pixel_mask_first_equivalence': 93941}}
+        cases = [{'name': 'valid', 'records': [record], 'graphics': graphics, 'expected': True}]
+        for field, count in candidate.MASK_FIRST_COUNTS.items():
+            for value in (None, 0, True, str(count), count - 1, count + 1):
+                changed = copy.deepcopy(record)
+                if value is None: changed.pop(field)
+                else: changed[field] = value
+                cases.append({'name': field + '-' + repr(value), 'records': [changed],
+                              'graphics': graphics, 'expected': False})
+        for field, value in [('mask_first_oracle_revision', None), ('mask_first_oracle_revision', '0'*40),
+                             ('mask_first_oracle_sha256', None), ('mask_first_oracle_sha256', '0'*64),
+                             ('mask_first_oracle_revision', [candidate.MASK_FIRST_ORACLE_REVISION]),
+                             ('mask_first_oracle_sha256', [candidate.MASK_FIRST_ORACLE_SHA256]),
+                             ('failures', None), ('failures', 1), ('failures', False), ('failures', '0')]:
+            changed = copy.deepcopy(record)
+            if value is None: changed.pop(field)
+            else: changed[field] = value
+            cases.append({'name': field + '-' + repr(value), 'records': [changed],
+                          'graphics': graphics, 'expected': False})
+        for value in (None, 0, 93940, True, '93941'):
+            changed = copy.deepcopy(graphics)
+            if value is None: changed['groups'].pop('pixel_mask_first_equivalence')
+            else: changed['groups']['pixel_mask_first_equivalence'] = value
+            cases.append({'name': 'nested-' + repr(value), 'records': [record],
+                          'graphics': changed, 'expected': False})
+        cases.extend([
+            {'name': 'missing-record', 'records': [], 'graphics': graphics, 'expected': False},
+            {'name': 'duplicate-record', 'records': [record, record], 'graphics': graphics, 'expected': False},
+        ])
+        with tempfile.TemporaryDirectory(prefix='mask-first-gate-') as directory:
+            work = Path(directory)
+            (work/'cases.json').write_text(json.dumps(cases), encoding='utf-8')
+            script = work/'run.ps1'
+            script.write_text('''param([string]$Source, [string]$Fixture)
+$ErrorActionPreference = 'Stop'
+$parseTokens = $null; $parseErrors = $null
+$ast = [Management.Automation.Language.Parser]::ParseFile($Source, [ref]$parseTokens, [ref]$parseErrors)
+if ($parseErrors.Count) { throw 'Receipt source does not parse' }
+$function = $ast.Find({ param($node)
+  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Assert-MaskFirstEquivalence'
+}, $true)
+if (-not $function) { throw 'Actual receipt gate function is missing' }
+Invoke-Expression $function.Extent.Text
+$cases = @(Get-Content -LiteralPath $Fixture -Raw | ConvertFrom-Json)
+$results = @()
+foreach ($case in $cases) {
+  $accepted = $true; $reason = $null
+  try { Assert-MaskFirstEquivalence @($case.records) $case.graphics }
+  catch { $accepted = $false; $reason = $_.Exception.Message }
+  $results += [pscustomobject]@{ name=$case.name; accepted=$accepted; expected=$case.expected; passed=($accepted -eq $case.expected); reason=$reason }
+}
+[pscustomobject]@{ cases=$results.Count; results=$results } | ConvertTo-Json -Depth 8 -Compress
+if (@($results | Where-Object { -not $_.passed }).Count) { exit 1 }
+''', encoding='utf-8')
+            result = subprocess.run([powershell, '-NoProfile', '-NonInteractive', '-File', str(script),
+                                     '-Source', str(ROOT/'build/windows/verify-fingerprint-modes.ps1'),
+                                     '-Fixture', str(work/'cases.json')],
+                                    capture_output=True, text=True, encoding='utf-8', timeout=30)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            evidence = json.loads(result.stdout)
+            self.assertEqual(evidence['cases'], len(cases))
+            self.assertTrue(all(row['passed'] for row in evidence['results']))
+            if os.environ.get('MASK_FIRST_GATE_REPORT'):
+                Path(os.environ['MASK_FIRST_GATE_REPORT']).write_text(json.dumps(evidence, indent=2)+'\n', encoding='utf-8')
+
+    @staticmethod
+    def _refresh_native_stdout(native):
+        process = next(p for p in native['processes'] if p['label']=='production-helpers-and-config')
+        process['stdout'] = '\n'.join(json.dumps(v) for v in native['groups']['production'])+'\n'
+        process['stdout_sha256'] = hashlib.sha256(process['stdout'].encode()).hexdigest()
+
     def test_new_native_pixel_counts_require_executed_nonzero_records(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);bundle=root/'bundle';bundle.mkdir()

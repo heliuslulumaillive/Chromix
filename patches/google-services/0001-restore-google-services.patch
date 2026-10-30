@@ -33,7 +33,7 @@
      "uuid.cc",
      "uuid.h",
      "value_iterators.cc",
-@@ -6656,6 +6670,24 @@
+@@ -6656,6 +6670,26 @@
    deps = [ "//base/tracing:perfetto_diff_tests" ]
  }
  
@@ -44,6 +44,8 @@
 +      "uxr_surface_modes_test_main.cc",
 +      "uxr_graphics_mode_goldens.cc",
 +      "uxr_pixel_semantic_properties.h",
++      "uxr_mask_first_reference.h",
++      "uxr_mask_first_equivalence.h",
 +      "uxr_surface_golden_tests.cc",
 +      "uxr_gpu_mode_golden_tests.cc",
 +      "uxr_hardware_golden_tests.cc",
@@ -18258,11 +18260,12 @@
 +#endif  // BASE_UXR_GPU_MODES_H_
 --- /dev/null
 +++ b/base/uxr_graphics_mode_goldens.cc
-@@ -0,0 +1,175 @@
+@@ -0,0 +1,179 @@
 +// Tests the production helper against independently captured browser bytes.
 +#include "base/uxr_graphics_noise.h"
 +#include "base/uxr_shard_webgl_v2_properties.h"
 +#include "base/uxr_pixel_semantic_properties.h"
++#include "base/uxr_mask_first_equivalence.h"
 +
 +#include <array>
 +#include <charconv>
@@ -18322,10 +18325,13 @@
 +  std::getline(cases, line);
 +  const auto v2 = RunShardWebGLV2Properties();
 +  const auto semantics = RunPixelSemanticProperties(fixture_root);
-+  size_t checked = v2.first + semantics.first, failed = v2.second + semantics.second;
++  const auto equivalent = RunPixelMaskFirstEquivalence(fixture_root);
++  size_t checked = v2.first + semantics.first + equivalent.first;
++  size_t failed = v2.second + semantics.second + equivalent.second;
 +  std::map<std::string, size_t> groups;
 +  groups["shard_webgl_v2_properties"] = v2.first;
 +  groups["pixel_semantic_properties"] = semantics.first;
++  groups["pixel_mask_first_equivalence"] = equivalent.first;
 +  while (std::getline(cases, line)) {
 +    if (!line.empty() && line.back() == '\r')
 +      line.pop_back();
@@ -18436,7 +18442,7 @@
 +#endif
 --- /dev/null
 +++ b/base/uxr_graphics_noise.cc
-@@ -0,0 +1,545 @@
+@@ -0,0 +1,556 @@
 +// Copyright 2026. Independent implementation from byte-verified models.
 +#include "base/uxr_graphics_noise.h"
 +
@@ -18450,6 +18456,1014 @@
 +#include "base/uxr_pixel_noise.h"
 +
 +namespace base {
++namespace {
++
++uint32_t RotateLeft(uint32_t value, unsigned count) {
++  return (value << count) | (value >> (32 - count));
++}
++
++uint32_t Fmix32(uint32_t value) {
++  value ^= value >> 16;
++  value *= 0x85ebca6bu;
++  value ^= value >> 13;
++  value *= 0xc2b2ae35u;
++  return value ^ (value >> 16);
++}
++
++class Xoshiro128 {
++ public:
++  explicit Xoshiro128(uint32_t seed) {
++    for (uint32_t i = 0; i < 4; ++i)
++      state_[i] = Fmix32(seed + (i + 1) * 0x9e3779b9u);
++  }
++  uint32_t Next() {
++    const uint32_t result = RotateLeft(state_[1] * 5u, 7) * 9u;
++    const uint32_t temporary = state_[1] << 9;
++    state_[2] ^= state_[0];
++    state_[3] ^= state_[1];
++    state_[1] ^= state_[2];
++    state_[0] ^= state_[3];
++    state_[2] ^= temporary;
++    state_[3] = RotateLeft(state_[3], 11);
++    return result;
++  }
++
++ private:
++  std::array<uint32_t, 4> state_;
++};
++
++bool ValidLayout(const UxrPixelRegion& region) {
++  if (region.width == 0 || region.height == 0)
++    return false;
++  const size_t row_bytes = static_cast<size_t>(region.width) * 4;
++  if (row_bytes / 4 != region.width || region.row_stride < row_bytes ||
++      region.bytes.size() < row_bytes)
++    return false;
++  return region.height - 1 <=
++         (region.bytes.size() - row_bytes) / region.row_stride;
++}
++
++span<uint8_t> Pixel(const UxrPixelRegion& region, uint32_t x, uint32_t y) {
++  return region.bytes.subspan(
++      static_cast<size_t>(y) * region.row_stride + static_cast<size_t>(x) * 4,
++      size_t{4});
++}
++
++uint32_t Channel(const UxrPixelRegion& region, uint32_t logical_rgb) {
++  return region.bgra ? 2 - logical_rgb : logical_rgb;
++}
++
++bool AssignShardBit(span<uint8_t> pixel, uint32_t channel, uint32_t bit) {
++  const uint32_t alpha = pixel[3];
++  if (alpha == 0)
++    return false;
++  const uint32_t candidate = (pixel[channel] & 0xfeu) | bit;
++  if (alpha != 255) {
++    const uint32_t product = candidate * alpha;
++    const uint32_t premultiplied =
++        (product + ((product + 128u) >> 8) + 128u) >> 8;
++    const uint32_t scale = 0xff000000u / alpha;
++    const uint32_t back = (premultiplied * scale + 0x800000u) >> 24;
++    if (candidate != back)
++      return false;
++  }
++  const bool changed = pixel[channel] != candidate;
++  pixel[channel] = static_cast<uint8_t>(candidate);
++  return changed;
++}
++
++UxrPixelResult ApplyChromix(const UxrSurfacePolicy& policy,
++                            UxrPixelSurface surface,
++                            const UxrPixelRegion& region) {
++  const uint32_t seed = UxrPixelNoiseSeed(policy.seed);
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    const uint32_t absolute_y =
++        surface == UxrPixelSurface::kWebGLReadback
++            ? region.canvas_height - 1 -
++                  (static_cast<uint32_t>(region.origin_y) + y)
++            : static_cast<uint32_t>(region.origin_y) + y;
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (pixel[3] == 0)
++        continue;
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        const uint32_t index = Channel(region, channel);
++        const uint8_t value =
++            UxrNoiseChannel(seed, static_cast<uint32_t>(region.origin_x) + x,
++                            absolute_y, channel, pixel[index]);
++        changed |= value != pixel[index];
++        pixel[index] = value;
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++bool ValidNeighborhood(const UxrPixelNeighborhood& view, size_t pixel_bytes) {
++  if (view.bytes.empty())
++    return view.width == 0 && view.height == 0;
++  const size_t row_bytes = static_cast<size_t>(view.width) * pixel_bytes;
++  return view.width && view.height && row_bytes / pixel_bytes == view.width &&
++         view.row_stride >= row_bytes && view.bytes.size() >= row_bytes &&
++         view.height - 1 <= (view.bytes.size() - row_bytes) / view.row_stride;
++}
++
++// Absolute 2x2 cells are independent of the requested crop. Clamp only when
++// the halo's completed read reaches a real surface edge. RGB bit zero is not
++// part of the decision; otherwise a previous assignment could move the guard.
++bool ShardFlatCell(const UxrPixelRegion& region, UxrPixelSurface surface,
++                   uint32_t x, uint32_t y, bool floating = false) {
++  const auto& view = region.neighborhood;
++  if (view.bytes.empty())
++    return false;  // historical/reference helper calls retain their old path
++  const int64_t ax = int64_t{region.origin_x} + x;
++  const int64_t ay = int64_t{region.origin_y} + y;
++  const int64_t last_x = int64_t{view.origin_x} + view.width - 1;
++  const int64_t last_y = int64_t{view.origin_y} + view.height - 1;
++  if (ax < view.origin_x || ay < view.origin_y || ax > last_x || ay > last_y)
++    return true;  // native clipped/unknown pixels are never invented
++  const int64_t px = std::clamp(ax ^ 1, int64_t{view.origin_x}, last_x);
++  // WebGL's mask is anchored at the framebuffer bottom. Export rows are
++  // top-down, including odd-height surfaces whose 2x2 parity would otherwise
++  // disagree with readPixels.
++  const int64_t paired_y = surface == UxrPixelSurface::kWebGLExport
++      ? int64_t{region.canvas_height} - 1 -
++            ((int64_t{region.canvas_height} - 1 - ay) ^ 1)
++      : ay ^ 1;
++  const int64_t py = std::clamp(paired_y, int64_t{view.origin_y}, last_y);
++  const size_t bytes_per_pixel = floating ? 16 : 4;
++  auto canonical = [&](int64_t cx, int64_t cy) {
++    const size_t offset = static_cast<size_t>(cy - view.origin_y) * view.row_stride +
++                          static_cast<size_t>(cx - view.origin_x) * bytes_per_pixel;
++    auto pixel = view.bytes.subspan(offset, bytes_per_pixel);
++    std::array<uint32_t, 4> value;
++    if (floating) {
++      for (size_t channel = 0; channel < 4; ++channel) {
++        std::memcpy(&value[channel], pixel.subspan(channel * 4, size_t{4}).data(), 4);
++        if (channel != 3)
++          value[channel] &= ~1u;
++      }
++    } else {
++      value[3] = pixel[3];
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        uint32_t component = pixel[Channel(region, channel)];
++        if (region.premultiplied && surface == UxrPixelSurface::kWebGLExport &&
++            value[3] != 255) {
++          const uint32_t product = component * value[3];
++          component = (product + ((product + 128u) >> 8) + 128u) >> 8;
++        }
++        value[channel] = component & 0xfeu;
++      }
++    }
++    return value;
++  };
++  const auto center = canonical(ax, ay);
++  return center == canonical(px, ay) && center == canonical(ax, py) &&
++         center == canonical(px, py);
++}
++
++std::array<uint32_t, 2> ShardWebGLMask(uint32_t seed, uint32_t x, uint32_t y);
++
++UxrPixelResult ApplyShardCanvasSemantic(const UxrSurfacePolicy& policy,
++                                        const UxrPixelRegion& region) {
++  if (uint64_t{region.canvas_width} * region.canvas_height < 1024)
++    return UxrPixelResult::kUnchanged;
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (!pixel[3])
++        continue;
++      // Separate Canvas's coordinate stream from WebGL. One candidate per
++      // 256 non-flat pixels, one selected RGB low bit, no read counter or
++      // content-dependent early stop. Large blank margins do not dilute it.
++      const auto mask = ShardWebGLMask(static_cast<uint32_t>(policy.seed) ^ 0x43415633u,
++          static_cast<uint32_t>(int64_t{region.origin_x} + x),
++          static_cast<uint32_t>(int64_t{region.origin_y} + y));
++      // The coordinate mask is independent of pixel contents. Only selected
++      // candidates can change; flatness need not be read for the other pixels.
++      if ((mask[0] & 255u) != 0 ||
++          ShardFlatCell(region, UxrPixelSurface::kCanvas2D, x, y))
++        continue;
++      changed |= AssignShardBit(pixel, Channel(region, (mask[0] >> 8) % 3),
++                                mask[1] & 1u);
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++UxrPixelResult ApplyShardCanvas(const UxrSurfacePolicy& policy,
++                                const UxrPixelRegion& region) {
++  const uint64_t pixels = uint64_t{region.canvas_width} * region.canvas_height;
++  if (pixels < 1024)
++    return UxrPixelResult::kUnchanged;
++  Xoshiro128 random(static_cast<uint32_t>(policy.seed));
++  bool changed = false;
++  for (uint32_t iteration = 0; iteration < 32; ++iteration) {
++    const uint32_t value = random.Next();
++    const uint64_t position = value % pixels;
++    const int64_t x =
++        static_cast<int64_t>(position % region.canvas_width) - region.origin_x;
++    const int64_t y =
++        static_cast<int64_t>(position / region.canvas_width) - region.origin_y;
++    if (x < 0 || y < 0 || x >= region.width || y >= region.height)
++      continue;
++    changed |= AssignShardBit(
++        Pixel(region, static_cast<uint32_t>(x), static_cast<uint32_t>(y)),
++        Channel(region, (value >> 16) % 3), (value >> 24) & 1);
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++// A ShardX-derived sparse mask addressed by absolute pixel coordinates.
++// There is no process counter and no restart at a crop/tile boundary.
++// Assignment (rather than XOR) prevents repeated application accumulating.
++std::array<uint32_t, 2> ShardWebGLMask(uint32_t seed, uint32_t x, uint32_t y) {
++  Xoshiro128 random(seed ^ Fmix32(x + 0x9e3779b9u) ^
++                    RotateLeft(Fmix32(y + 0x85ebca6bu), 16));
++  return {random.Next(), random.Next()};
++}
++
++bool AssignShardWebGLBit(span<uint8_t> pixel, uint32_t channel,
++                        uint32_t bit, bool premultiplied, bool exported) {
++  const uint32_t alpha = pixel[3];
++  if (!alpha)
++    return false;
++  uint32_t value = pixel[channel];
++  if (premultiplied && exported && alpha != 255) {
++    const uint32_t product = value * alpha;
++    value = (product + ((product + 128u) >> 8) + 128u) >> 8;
++  }
++  // Exact color endpoints carry no fractional rendering detail. Preserve
++  // them just as the floating-point path preserves 0 and 1. For premultiplied
++  // storage, alpha is the maximum representable color, including exports
++  // mapped back to that same storage lattice.
++  const uint32_t maximum = premultiplied ? alpha : 255;
++  if (value == 0 || value == maximum)
++    return false;
++  uint32_t candidate = (value & 0xfeu) | bit;
++  // A one-step change in premultiplied storage is representable even at very
++  // low alpha. Perturbing a straight LSB instead could make every sample at
++  // alpha 64 a no-op. Keep invalid premultiplied colors on their native path.
++  if (premultiplied && (value > alpha || candidate > alpha))
++    return false;
++  if (premultiplied && exported && alpha != 255)
++    candidate = (candidate * (0xff000000u / alpha) + 0x800000u) >> 24;
++  const bool changed = pixel[channel] != candidate;
++  pixel[channel] = static_cast<uint8_t>(candidate);
++  return changed;
++}
++
++UxrPixelResult ApplyShardWebGLV2(const UxrSurfacePolicy& policy,
++                                UxrPixelSurface surface,
++                                const UxrPixelRegion& region) {
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    const uint32_t absolute_y = surface == UxrPixelSurface::kWebGLReadback
++        ? static_cast<uint32_t>(region.origin_y) + y
++        : region.canvas_height - 1 -
++              (static_cast<uint32_t>(region.origin_y) + y);
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (!pixel[3])
++        continue;
++      const auto mask = ShardWebGLMask(static_cast<uint32_t>(policy.seed),
++          static_cast<uint32_t>(region.origin_x) + x, absolute_y);
++      if (((mask[0] & 255u) != 0 && ((mask[0] >> 8) & 255u) != 0 &&
++           ((mask[0] >> 16) & 255u) != 0) ||
++          ShardFlatCell(region, surface, x, y))
++        continue;
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        if (((mask[0] >> (channel * 8)) & 255u) == 0)
++          changed |= AssignShardWebGLBit(pixel, Channel(region, channel),
++              (mask[1] >> channel) & 1u, region.premultiplied,
++              surface == UxrPixelSurface::kWebGLExport);
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++UxrPixelResult ApplyShardWebGL(const UxrSurfacePolicy& policy,
++                               const UxrPixelRegion& region,
++                               uint32_t sequence) {
++  Xoshiro128 random(static_cast<uint32_t>(policy.seed) ^ sequence);
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (pixel[3] == 0)
++        continue;
++      const uint32_t value = random.Next();
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        if (((value >> (channel * 8)) & 255u) == 0) {
++          pixel[Channel(region, channel)] ^= 1;
++          changed = true;
++        }
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++UxrPixelResult ApplyCloak(const UxrSurfacePolicy& policy,
++                          UxrPixelSurface surface,
++                          const UxrPixelRegion& region,
++                          UxrPixelFlavor flavor) {
++  const bool compatible = flavor == UxrPixelFlavor::kCompatibleV1;
++  if (!compatible && surface == UxrPixelSurface::kCanvas2D &&
++      (region.origin_x != 0 || region.origin_y != 0 ||
++       region.width != region.canvas_width ||
++       region.height != region.canvas_height)) {
++    return UxrPixelResult::kUnsupportedRegion;
++  }
++  const uint32_t whole_width = compatible ? region.canvas_width : region.width;
++  const uint32_t whole_height =
++      compatible ? region.canvas_height : region.height;
++  if (whole_width < 8 || whole_height < 8)
++    return UxrPixelResult::kUnchanged;
++  // Half-transparent arithmetic was not byte-verified for this target.
++  // Check before modifying anything, including when a later pixel is partial.
++  if (!compatible) {
++    for (uint32_t y = 0; y < region.height; ++y) {
++      for (uint32_t x = 0; x < region.width; ++x) {
++        const uint8_t alpha = Pixel(region, x, y)[3];
++        if (alpha != 0 && alpha != 255)
++          return UxrPixelResult::kUnsupportedAlpha;
++      }
++    }
++  }
++  const uint64_t pixels = uint64_t{whole_width} * whole_height;
++  const std::string seed = std::to_string(policy.seed);
++  const uint32_t position_hash = UxrCloakHashV1(seed + "_pos");
++  bool changed = false;
++  for (uint32_t i = 0; i < 10; ++i) {
++    const uint32_t mixed = (position_hash ^ i) * 0x17385ca9u + 0x47502932u;
++    const uint64_t position = mixed % pixels;
++    const uint32_t x = static_cast<uint32_t>(position % whole_width);
++    const uint32_t y = static_cast<uint32_t>(position / whole_width);
++    const int64_t local_x = compatible ? int64_t{x} - region.origin_x : x;
++    const int64_t local_y =
++        !compatible ? y
++        : surface == UxrPixelSurface::kWebGLReadback
++            ? int64_t{whole_height} - 1 - y - region.origin_y
++            : int64_t{y} - region.origin_y;
++    if (local_x < 0 || local_y < 0 || local_x >= region.width ||
++        local_y >= region.height) {
++      continue;
++    }
++    auto pixel = Pixel(region, static_cast<uint32_t>(local_x),
++                       static_cast<uint32_t>(local_y));
++    if (pixel[3] == 0)
++      continue;
++    // Compatible v1 leaves partial-alpha pixels native. Unlike a whole-image
++    // rejection this remains consistent when an opaque region is cropped.
++    if (compatible && pixel[3] != 255)
++      continue;
++    const uint32_t bits = UxrCloakHashV1(seed + "_" + std::to_string(x) + "_" +
++                                         std::to_string(y));
++    // Reference goldens retain the original physical-slot discrepancy.
++    // The explicit compatible-v1 production flavor uses logical RGB.
++    for (uint32_t channel = 0; channel < 3; ++channel) {
++      const uint32_t index = compatible ? Channel(region, channel) : channel;
++      const uint8_t value = (pixel[index] & 0xfeu) | ((bits >> channel) & 1u);
++      changed |= value != pixel[index];
++      pixel[index] = value;
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++}  // namespace
++
++uint32_t UxrCloakHashV1(std::string_view bytes) {
++  if (bytes.empty() || bytes.size() >= 0x80000000u)
++    return 0;
++  uint32_t hash = static_cast<uint32_t>(bytes.size());
++  size_t offset = 0;
++  const auto read16 = [&bytes](size_t at) {
++    return static_cast<uint32_t>(static_cast<unsigned char>(bytes[at])) |
++           (static_cast<uint32_t>(static_cast<unsigned char>(bytes[at + 1]))
++            << 8);
++  };
++  for (; bytes.size() - offset >= 4; offset += 4) {
++    hash += read16(offset);
++    const uint32_t temporary = (read16(offset + 2) << 11) ^ hash;
++    hash = (hash << 16) ^ temporary;
++    hash += hash >> 11;
++  }
++  const auto signed_byte = [&bytes](size_t at) {
++    const uint32_t value = static_cast<unsigned char>(bytes[at]);
++    return value < 128 ? value : value - 256u;
++  };
++  switch (bytes.size() - offset) {
++    case 3:
++      hash += read16(offset);
++      hash ^= hash << 16;
++      hash ^= signed_byte(offset + 2) << 18;
++      hash += hash >> 11;
++      break;
++    case 2:
++      hash += read16(offset);
++      hash ^= hash << 11;
++      hash += hash >> 17;
++      break;
++    case 1:
++      hash += signed_byte(offset);
++      hash ^= hash << 10;
++      hash += hash >> 1;
++      break;
++    default:
++      break;
++  }
++  hash ^= hash << 3;
++  hash += hash >> 5;
++  hash ^= hash << 4;
++  hash += hash >> 17;
++  hash ^= hash << 25;
++  return hash + (hash >> 6);
++}
++
++UxrPixelResult UxrApplyGraphicsNoiseV1(const UxrSurfacePolicy& policy,
++                                       UxrPixelSurface surface,
++                                       const UxrPixelRegion& region,
++                                       uint32_t shard_webgl_sequence,
++                                       UxrPixelFlavor flavor) {
++  if (policy.IsLegacy())
++    return UxrPixelResult::kLegacy;
++  if (policy.IsNative())
++    return UxrPixelResult::kNative;
++  if (policy.seed == 0 ||
++      (policy.mode == UxrSurfaceMode::kShardX &&
++       policy.seed > std::numeric_limits<uint32_t>::max())) {
++    return UxrPixelResult::kUnsupportedSeed;
++  }
++  if (region.width == 0 || region.height == 0)
++    return UxrPixelResult::kUnchanged;
++  if (!ValidLayout(region))
++    return UxrPixelResult::kInvalidLayout;
++  if (policy.mode == UxrSurfaceMode::kShardX &&
++      !ValidNeighborhood(region.neighborhood, 4))
++    return UxrPixelResult::kInvalidLayout;
++  switch (policy.mode) {
++    case UxrSurfaceMode::kChromix:
++      return ApplyChromix(policy, surface, region);
++    case UxrSurfaceMode::kShardX:
++      if (surface == UxrPixelSurface::kCanvas2D)
++        return flavor == UxrPixelFlavor::kCompatibleV1 && !region.neighborhood.bytes.empty()
++                   ? ApplyShardCanvasSemantic(policy, region)
++                   : ApplyShardCanvas(policy, region);
++      if (flavor == UxrPixelFlavor::kCompatibleV1)
++        return ApplyShardWebGLV2(policy, surface, region);
++      if (surface == UxrPixelSurface::kWebGLExport)
++        return UxrPixelResult::kUnchanged;
++      return ApplyShardWebGL(policy, region, shard_webgl_sequence);
++    case UxrSurfaceMode::kCloak:
++      return ApplyCloak(policy, surface, region, flavor);
++    case UxrSurfaceMode::kLegacy:
++      return UxrPixelResult::kLegacy;
++    case UxrSurfaceMode::kNative:
++      return UxrPixelResult::kNative;
++  }
++  return UxrPixelResult::kInvalidLayout;
++}
++
++UxrPixelResult UxrApplyShardWebGLFloatV2(
++    const UxrSurfacePolicy& policy, const UxrPixelRegion& region) {
++  const size_t row_bytes = static_cast<size_t>(region.width) * 16;
++  if (!region.width || !region.height || row_bytes / 16 != region.width ||
++      region.row_stride < row_bytes || region.bytes.size() < row_bytes ||
++      region.height - 1 > (region.bytes.size() - row_bytes) / region.row_stride)
++    return UxrPixelResult::kInvalidLayout;
++  if (!ValidNeighborhood(region.neighborhood, 16))
++    return UxrPixelResult::kInvalidLayout;
++  if (policy.mode != UxrSurfaceMode::kShardX || !policy.seed ||
++      policy.seed > std::numeric_limits<uint32_t>::max())
++    return UxrPixelResult::kUnsupportedSeed;
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = region.bytes.subspan(y * region.row_stride + x * size_t{16},
++                                        size_t{16});
++      float alpha;
++      std::memcpy(&alpha, pixel.subspan(size_t{12}, size_t{4}).data(), sizeof(alpha));
++      if (!std::isfinite(alpha) || alpha == 0)
++        continue;
++      const auto mask = ShardWebGLMask(static_cast<uint32_t>(policy.seed),
++          static_cast<uint32_t>(region.origin_x) + x,
++          static_cast<uint32_t>(region.origin_y) + y);
++      if (((mask[0] & 255u) != 0 && ((mask[0] >> 8) & 255u) != 0 &&
++           ((mask[0] >> 16) & 255u) != 0) ||
++          ShardFlatCell(region, UxrPixelSurface::kWebGLReadback, x, y, true))
++        continue;
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        if (((mask[0] >> (channel * 8)) & 255u) != 0)
++          continue;
++        float value;
++        uint32_t bits;
++        auto bytes = pixel.subspan(channel * size_t{4}, size_t{4});
++        std::memcpy(&value, bytes.data(), sizeof(value));
++        if (!std::isfinite(value) || value == 0 || value == 1)
++          continue;
++        std::memcpy(&bits, &value, sizeof(bits));
++        const uint32_t replacement = (bits & ~1u) | ((mask[1] >> channel) & 1u);
++        changed |= bits != replacement;
++        std::memcpy(bytes.data(), &replacement, sizeof(replacement));
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++const char* UxrPixelResultName(UxrPixelResult result) {
++  switch (result) {
++    case UxrPixelResult::kApplied:
++      return "applied";
++    case UxrPixelResult::kUnchanged:
++      return "unchanged";
++    case UxrPixelResult::kNative:
++      return "native";
++    case UxrPixelResult::kLegacy:
++      return "legacy";
++    case UxrPixelResult::kInvalidLayout:
++      return "invalid-layout";
++    case UxrPixelResult::kUnsupportedSeed:
++      return "unsupported-seed";
++    case UxrPixelResult::kUnsupportedAlpha:
++      return "unsupported-alpha";
++    case UxrPixelResult::kUnsupportedRegion:
++      return "unsupported-region";
++  }
++  return "invalid-result";
++}
++
++}  // namespace base
+--- /dev/null
++++ b/base/uxr_graphics_noise.h
+@@ -0,0 +1,87 @@
++// Copyright 2026. Independently reconstructed, versioned pixel algorithms.
++#ifndef BASE_UXR_GRAPHICS_NOISE_H_
++#define BASE_UXR_GRAPHICS_NOISE_H_
++
++#include <cstddef>
++#include <cstdint>
++#include <string_view>
++
++#include "base/base_export.h"
++#include "base/containers/span.h"
++#include "base/uxr_surface_modes.h"
++
++namespace base {
++
++inline constexpr uint32_t kUxrGraphicsAlgorithmVersion = 1;
++inline constexpr bool kUxrCloakCanvasReferenceBankSupported = false;
++
++enum class UxrPixelSurface { kCanvas2D, kWebGLReadback, kWebGLExport };
++// Reference flavor exists for historical byte goldens, not production routing.
++enum class UxrPixelFlavor { kCompatibleV1, kReferenceV1 };
++enum class UxrPixelResult {
++  kApplied,
++  kUnchanged,
++  kNative,
++  kLegacy,
++  kInvalidLayout,
++  kUnsupportedSeed,
++  kUnsupportedAlpha,
++  kUnsupportedRegion,
++};
++
++// A successful read of the same surface, including the one-pixel halo needed
++// at crop boundaries. It uses the output's component format and orientation.
++// Comparisons ignore only bits assigned by noise, so aliasing the output is
++// safe: earlier assignments cannot change which subsequent pixels are flat.
++struct UxrPixelNeighborhood {
++  span<const uint8_t> bytes;
++  size_t row_stride = 0;
++  uint32_t width = 0;
++  uint32_t height = 0;
++  int32_t origin_x = 0;
++  int32_t origin_y = 0;
++};
++
++// An owned, completed RGBA8/BGRA8 readback. Padding is never a pixel.
++// Canvas origin is top-left. WebGL readback origin is bottom-left.
++struct UxrPixelRegion {
++  span<uint8_t> bytes;
++  size_t row_stride = 0;
++  uint32_t width = 0;
++  uint32_t height = 0;
++  uint32_t canvas_width = 0;
++  uint32_t canvas_height = 0;
++  int32_t origin_x = 0;
++  int32_t origin_y = 0;
++  bool bgra = false;
++  // WebGL default framebuffer storage convention. Exports arrive as straight
++  // RGBA and use this to reconstruct the same representable storage lattice.
++  // FBO data has no compositor alpha convention.
++  bool premultiplied = false;
++  UxrPixelNeighborhood neighborhood;
++};
++
++// The recovered byte hash includes signed 8-bit tail loads and uint32 wrap.
++BASE_EXPORT uint32_t UxrCloakHashV1(std::string_view bytes);
++
++// This function performs no allocation of image storage and no GL operations.
++// Shard Canvas projects full-canvas positions into the requested crop.
++// Compatible Cloak projects full-canvas points and preserves partial alpha;
++// its reference flavor is restricted to the original verified full buffers.
++BASE_EXPORT UxrPixelResult
++UxrApplyGraphicsNoiseV1(const UxrSurfacePolicy& policy,
++                        UxrPixelSurface surface,
++                        const UxrPixelRegion& region,
++                        uint32_t shard_webgl_sequence = 0,
++                        UxrPixelFlavor flavor = UxrPixelFlavor::kCompatibleV1);
++
++// RGBA32F readback uses the same coordinate mask with idempotent mantissa
++// assignments; this is not an 8-bit quantizer and preserves nonfinite/zero data.
++BASE_EXPORT UxrPixelResult UxrApplyShardWebGLFloatV2(
++    const UxrSurfacePolicy& policy, const UxrPixelRegion& region);
++
++BASE_EXPORT const char* UxrPixelResultName(UxrPixelResult result);
++
++}  // namespace base
++
++#endif  // BASE_UXR_GRAPHICS_NOISE_H_
+--- /dev/null
++++ b/base/uxr_hardware_golden_tests.cc
+@@ -0,0 +1,107 @@
++// Observed-rule golden values, generated with the historical independent model.
++#include "base/uxr_cloak_hardware.h"
++#include <cstdio>
++int RunHardwareGoldenTests() {
++  unsigned failures = 0, checks = 0;
++  { auto p=base::UxrSelectCloakHardwareV1(1ULL, "windows", "", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==34u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(1ULL, "windows", "intel", -1); ++checks; if (!(p && p->family=="intel" && p->index==6u && p->cpu==12u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(1ULL, "windows", "nvidia", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==34u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(1ULL, "macos", "", -1); ++checks; if (!(p && p->family=="apple" && p->index==17u && p->cpu==10u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "", -1); ++checks; if (!(p && p->family=="intel" && p->index==6u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", -1); ++checks; if (!(p && p->family=="intel" && p->index==6u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==35u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "", -1); ++checks; if (!(p && p->family=="apple" && p->index==2u && p->cpu==12u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12346ULL, "windows", "", -1); ++checks; if (!(p && p->family=="intel" && p->index==5u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12346ULL, "windows", "intel", -1); ++checks; if (!(p && p->family=="intel" && p->index==5u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12346ULL, "windows", "nvidia", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==23u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12346ULL, "macos", "", -1); ++checks; if (!(p && p->family=="apple" && p->index==4u && p->cpu==18u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(4294967295ULL, "windows", "", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==16u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(4294967295ULL, "windows", "intel", -1); ++checks; if (!(p && p->family=="intel" && p->index==11u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(4294967295ULL, "windows", "nvidia", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==16u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(4294967295ULL, "macos", "", -1); ++checks; if (!(p && p->family=="apple" && p->index==0u && p->cpu==10u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(18446744073709551615ULL, "windows", "", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==28u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(18446744073709551615ULL, "windows", "intel", -1); ++checks; if (!(p && p->family=="intel" && p->index==1u && p->cpu==16u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(18446744073709551615ULL, "windows", "nvidia", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==28u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(18446744073709551615ULL, "macos", "", -1); ++checks; if (!(p && p->family=="apple" && p->index==7u && p->cpu==14u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 0); ++checks; if (!(p && p->family=="intel" && p->index==0u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 1); ++checks; if (!(p && p->family=="intel" && p->index==1u && p->cpu==20u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 2); ++checks; if (!(p && p->family=="intel" && p->index==2u && p->cpu==18u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 3); ++checks; if (!(p && p->family=="intel" && p->index==3u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 4); ++checks; if (!(p && p->family=="intel" && p->index==4u && p->cpu==20u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 5); ++checks; if (!(p && p->family=="intel" && p->index==5u && p->cpu==8u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 6); ++checks; if (!(p && p->family=="intel" && p->index==6u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 7); ++checks; if (!(p && p->family=="intel" && p->index==7u && p->cpu==14u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 8); ++checks; if (!(p && p->family=="intel" && p->index==8u && p->cpu==24u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 9); ++checks; if (!(p && p->family=="intel" && p->index==9u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 10); ++checks; if (!(p && p->family=="intel" && p->index==10u && p->cpu==4u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 11); ++checks; if (!(p && p->family=="intel" && p->index==11u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 12); ++checks; if (!(p && p->family=="intel" && p->index==12u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 13); ++checks; if (!(p && p->family=="intel" && p->index==13u && p->cpu==28u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 14); ++checks; if (!(p && p->family=="intel" && p->index==14u && p->cpu==12u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 15); ++checks; if (!(p && p->family=="intel" && p->index==15u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 16); ++checks; if (!(p && p->family=="intel" && p->index==16u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 17); ++checks; if (!(p && p->family=="intel" && p->index==17u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 0); ++checks; if (!(p && p->family=="nvidia" && p->index==0u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 1); ++checks; if (!(p && p->family=="nvidia" && p->index==1u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 2); ++checks; if (!(p && p->family=="nvidia" && p->index==2u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 3); ++checks; if (!(p && p->family=="nvidia" && p->index==3u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 4); ++checks; if (!(p && p->family=="nvidia" && p->index==4u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 5); ++checks; if (!(p && p->family=="nvidia" && p->index==5u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 6); ++checks; if (!(p && p->family=="nvidia" && p->index==6u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 7); ++checks; if (!(p && p->family=="nvidia" && p->index==7u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 8); ++checks; if (!(p && p->family=="nvidia" && p->index==8u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 9); ++checks; if (!(p && p->family=="nvidia" && p->index==9u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 10); ++checks; if (!(p && p->family=="nvidia" && p->index==10u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 11); ++checks; if (!(p && p->family=="nvidia" && p->index==11u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 12); ++checks; if (!(p && p->family=="nvidia" && p->index==12u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 13); ++checks; if (!(p && p->family=="nvidia" && p->index==13u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 14); ++checks; if (!(p && p->family=="nvidia" && p->index==14u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 15); ++checks; if (!(p && p->family=="nvidia" && p->index==15u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 16); ++checks; if (!(p && p->family=="nvidia" && p->index==16u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 17); ++checks; if (!(p && p->family=="nvidia" && p->index==17u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 18); ++checks; if (!(p && p->family=="nvidia" && p->index==18u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 19); ++checks; if (!(p && p->family=="nvidia" && p->index==19u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 20); ++checks; if (!(p && p->family=="nvidia" && p->index==20u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 21); ++checks; if (!(p && p->family=="nvidia" && p->index==21u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 22); ++checks; if (!(p && p->family=="nvidia" && p->index==22u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 23); ++checks; if (!(p && p->family=="nvidia" && p->index==23u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 24); ++checks; if (!(p && p->family=="nvidia" && p->index==24u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 25); ++checks; if (!(p && p->family=="nvidia" && p->index==25u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 26); ++checks; if (!(p && p->family=="nvidia" && p->index==26u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 27); ++checks; if (!(p && p->family=="nvidia" && p->index==27u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 28); ++checks; if (!(p && p->family=="nvidia" && p->index==28u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 29); ++checks; if (!(p && p->family=="nvidia" && p->index==29u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 30); ++checks; if (!(p && p->family=="nvidia" && p->index==30u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 31); ++checks; if (!(p && p->family=="nvidia" && p->index==31u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 32); ++checks; if (!(p && p->family=="nvidia" && p->index==32u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 33); ++checks; if (!(p && p->family=="nvidia" && p->index==33u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 34); ++checks; if (!(p && p->family=="nvidia" && p->index==34u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 35); ++checks; if (!(p && p->family=="nvidia" && p->index==35u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 36); ++checks; if (!(p && p->family=="nvidia" && p->index==36u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 37); ++checks; if (!(p && p->family=="nvidia" && p->index==37u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 38); ++checks; if (!(p && p->family=="nvidia" && p->index==38u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 39); ++checks; if (!(p && p->family=="nvidia" && p->index==39u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 40); ++checks; if (!(p && p->family=="nvidia" && p->index==40u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 0); ++checks; if (!(p && p->family=="apple" && p->index==0u && p->cpu==10u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 1); ++checks; if (!(p && p->family=="apple" && p->index==1u && p->cpu==10u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 2); ++checks; if (!(p && p->family=="apple" && p->index==2u && p->cpu==12u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 3); ++checks; if (!(p && p->family=="apple" && p->index==3u && p->cpu==14u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 4); ++checks; if (!(p && p->family=="apple" && p->index==4u && p->cpu==18u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 5); ++checks; if (!(p && p->family=="apple" && p->index==5u && p->cpu==10u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 6); ++checks; if (!(p && p->family=="apple" && p->index==6u && p->cpu==12u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 7); ++checks; if (!(p && p->family=="apple" && p->index==7u && p->cpu==16u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 8); ++checks; if (!(p && p->family=="apple" && p->index==8u && p->cpu==16u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 9); ++checks; if (!(p && p->family=="apple" && p->index==9u && p->cpu==18u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 10); ++checks; if (!(p && p->family=="apple" && p->index==10u && p->cpu==20u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 11); ++checks; if (!(p && p->family=="apple" && p->index==11u && p->cpu==24u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 12); ++checks; if (!(p && p->family=="apple" && p->index==12u && p->cpu==28u && p->memory_gb==32u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 13); ++checks; if (!(p && p->family=="apple" && p->index==13u && p->cpu==8u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 14); ++checks; if (!(p && p->family=="apple" && p->index==14u && p->cpu==8u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 15); ++checks; if (!(p && p->family=="apple" && p->index==15u && p->cpu==8u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 16); ++checks; if (!(p && p->family=="apple" && p->index==16u && p->cpu==10u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 17); ++checks; if (!(p && p->family=="apple" && p->index==17u && p->cpu==10u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 18); ++checks; if (!(p && p->family=="apple" && p->index==18u && p->cpu==8u && p->memory_gb==16u)) ++failures; }
++  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 19); ++checks; if (!(p && p->family=="apple" && p->index==19u && p->cpu==8u && p->memory_gb==16u)) ++failures; }
++  std::printf("{\"hardware_checks\":%u,\"failures\":%u}\n", checks, failures);
++  return failures ? 1 : 0;
++}
+--- /dev/null
++++ b/base/uxr_headless_screen.h
+@@ -0,0 +1,44 @@
++// Copyright 2026. Use of this source is governed by a BSD-style license.
++#ifndef BASE_UXR_HEADLESS_SCREEN_H_
++#define BASE_UXR_HEADLESS_SCREEN_H_
++
++#include <cmath>
++#include <optional>
++
++namespace base {
++
++// Headless --screen-info consumes physical pixels; the public fingerprint
++// display dimensions are CSS pixels. This describes one primary display.
++struct UxrHeadlessScreenInfo {
++  int pixel_width;
++  int pixel_height;
++  int work_area_right;
++  int work_area_bottom;
++  double device_pixel_ratio;
++};
++
++inline std::optional<UxrHeadlessScreenInfo> MakeUxrHeadlessScreenInfo(
++    int width, int height, int available_width, int available_height,
++    double scale) {
++  // Preserve the existing display bounds. Chromium 155's native screen-info
++  // parser supports DPR >= 0.5; the older virtual-only 0.25 range is unchanged.
++  if (width < 1 || height < 1 || width > 32768 || height > 32768 ||
++      available_width < 0 || available_height < 0 ||
++      available_width > width || available_height > height ||
++      !std::isfinite(scale) || scale < 0.5 || scale > 8.0) {
++    return std::nullopt;
++  }
++  const int pixel_width = static_cast<int>(std::ceil(width * scale));
++  const int pixel_height = static_cast<int>(std::ceil(height * scale));
++  const int available_pixel_width =
++      static_cast<int>(std::ceil(available_width * scale));
++  const int available_pixel_height =
++      static_cast<int>(std::ceil(available_height * scale));
++  return UxrHeadlessScreenInfo{pixel_width, pixel_height,
++                               pixel_width - available_pixel_width,
++                               pixel_height - available_pixel_height, scale};
++}
++
++}  // namespace base
++
++#endif  // BASE_UXR_HEADLESS_SCREEN_H_
+--- /dev/null
++++ b/base/uxr_mask_first_equivalence.h
+@@ -0,0 +1,183 @@
++// Native differential acceptance for the mask-before-flatness optimization.
++// Compares the shipping helper with a separately named frozen 9a06334 oracle.
++#ifndef BASE_UXR_MASK_FIRST_EQUIVALENCE_H_
++#define BASE_UXR_MASK_FIRST_EQUIVALENCE_H_
++#include "base/uxr_graphics_noise.h"
++#include "base/uxr_mask_first_reference.h"
++#include <algorithm>
++#include <array>
++#include <bit>
++#include <cstring>
++#include <fstream>
++#include <iostream>
++#include <iterator>
++#include <limits>
++#include <sstream>
++#include <string>
++#include <utility>
++#include <vector>
++
++namespace base::mask_first_equivalence {
++inline constexpr char kOracleRevision[] = "9a06334258ed6039c597360038183f8693347e45";
++inline constexpr char kOracleSha256[] = "2bcefcc4b7b8ab34b070b964a4fdd81c643e88052b48fd0c3a75cf18d8965465";
++using Bytes = std::vector<uint8_t>;
++inline uint64_t compared=0,cases=0,failures=0,checksum=1469598103934665603ull;
++inline uint32_t corpus_records=0,mutation_controls=0,mutation_rejections=0;
++struct Args {
++  uint32_t width=0,height=0,canvas_w=0,canvas_h=0;
++  int32_t x=0,y=0;
++  uint64_t seed=32452843;
++  size_t stride=0;
++  int surface=0,flavor=0,mode=3;
++  uint32_t sequence=0;
++  bool floating=false,bgra=false,premultiplied=false;
++  uint32_t view_w=0,view_h=0;
++  int32_t view_x=0,view_y=0;
++  size_t view_stride=0;
++};
++
++uint64_t Hash(const Bytes& bytes) {
++  uint64_t result=1469598103934665603ull;
++  for(auto value:bytes) result=(result^value)*1099511628211ull;
++  return result;
++}
++bool Equivalent(int expected_result,const Bytes& expected,int actual_result,const Bytes& actual) {
++  return expected_result==actual_result && expected==actual;
++}
++int Run(bool reference,uint8_t* bytes,size_t size,const uint8_t* view,size_t view_size,const Args& a) {
++  UxrSurfacePolicy policy;policy.mode=static_cast<UxrSurfaceMode>(a.mode);policy.seed=a.seed;
++  UxrPixelRegion region{span<uint8_t>(bytes,size),a.stride,a.width,a.height,a.canvas_w,a.canvas_h,a.x,a.y,a.bgra,a.premultiplied};
++  region.neighborhood={span<const uint8_t>(view,view_size),a.view_stride,a.view_w,a.view_h,a.view_x,a.view_y};
++  if(reference) return static_cast<int>(a.floating?
++      mask_first_reference::UxrApplyShardWebGLFloatV2(policy,region):
++      mask_first_reference::UxrApplyGraphicsNoiseV1(policy,static_cast<UxrPixelSurface>(a.surface),region,a.sequence,static_cast<UxrPixelFlavor>(a.flavor)));
++  return static_cast<int>(a.floating?base::UxrApplyShardWebGLFloatV2(policy,region):
++      base::UxrApplyGraphicsNoiseV1(policy,static_cast<UxrPixelSurface>(a.surface),region,a.sequence,static_cast<UxrPixelFlavor>(a.flavor)));
++}
++int before_run(uint8_t* bytes,size_t size,const uint8_t* view,size_t view_size,const Args& args) {
++  return Run(true,bytes,size,view,view_size,args);
++}
++int after_run(uint8_t* bytes,size_t size,const uint8_t* view,size_t view_size,const Args& args) {
++  return Run(false,bytes,size,view,view_size,args);
++}
++Bytes Scene(unsigned w,unsigned h,bool floating,int pattern,unsigned alpha,size_t stride){
++ const size_t bpp=floating?16:4;Bytes out(stride*h,0x5a);uint32_t rng=0x1234abcd;
++ for(unsigned y=0;y<h;y++)for(unsigned x=0;x<w;x++){
++  auto* p=out.data()+y*stride+x*bpp;rng^=rng<<13;rng^=rng>>17;rng^=rng<<5;
++  unsigned v[4]={137,73,91,alpha};
++  if(pattern==1){v[0]=(x*7+y*3)%256;v[1]=(x*3+y*11)%256;v[2]=(x*13+y*5)%256;}
++  if(pattern==2){v[0]=rng&255;v[1]=(rng>>8)&255;v[2]=(rng>>16)&255;v[3]=(x+y)%9?alpha:(rng>>24);}
++  if(pattern==3){v[0]=(x%2)*255;v[1]=(y%2)*255;v[2]=((x+y)%3)*127;}
++  if(pattern==4&&x>w/3&&x<w*2/3&&y>h/3&&y<h*2/3){v[0]=unsigned(x*17+y*3)&255;v[1]=unsigned(x*3+y*9)&255;v[2]=unsigned(x*11+y*7)&255;}
++  if(!floating){for(int c=0;c<4;c++)p[c]=uint8_t(v[c]);}
++  else for(int c=0;c<4;c++){
++   float f=float(v[c])/255.f;
++   if(pattern==2&&c!=3){if((x+y+c)%17==0)f=std::numeric_limits<float>::infinity();if((x+y+c)%19==0)f=std::bit_cast<float>(0x7fc01235u);if((x+y+c)%23==0)f=-0.f;if((x+y+c)%29==0)f=std::numeric_limits<float>::denorm_min();}
++   if(pattern==3&&c==3&&(x+y)%13==0)f=std::bit_cast<float>(0x7fc01235u);
++   std::memcpy(p+c*4,&f,4);
++  }
++ }
++ return out;
++}
++Bytes Crop(const Bytes& full,unsigned w,unsigned h,size_t stride,int x,int y,unsigned cw,unsigned ch,size_t outstride,size_t bpp){
++ Bytes out(outstride*ch,0xa5);
++ for(unsigned oy=0;oy<ch;oy++)for(unsigned ox=0;ox<cw;ox++){
++  auto* p=out.data()+oy*outstride+ox*bpp;
++  if(x+int(ox)<0||y+int(oy)<0||x+ox>=w||y+oy>=h)std::memset(p,0,bpp);
++  else std::memcpy(p,full.data()+(y+oy)*stride+(x+ox)*bpp,bpp);
++ }
++ return out;
++}
++void Compare(Bytes input,const Bytes& view,Args a,int viewmode,const char* tag){
++ Bytes b=input,c=input;const uint8_t *bv=view.data(),*cv=view.data();size_t size=view.size();
++ if(viewmode==1){bv=b.data();cv=c.data();size=b.size();a.view_w=a.width;a.view_h=a.height;a.view_x=a.x;a.view_y=a.y;a.view_stride=a.stride;}
++ if(viewmode==2){bv=cv=nullptr;size=0;a.view_w=a.view_h=0;a.view_stride=0;}
++ const int rb=before_run(b.data(),b.size(),bv,size,a),rc=after_run(c.data(),c.size(),cv,size,a);
++ cases++;compared+=b.size();checksum^=Hash(b)+uint64_t(rb);checksum*=1099511628211ull;
++ if(!Equivalent(rb,b,rc,c)){failures++;if(failures<10)std::cerr<<"Mismatch "<<tag<<" case="<<cases<<" dimensions="<<a.width<<"x"<<a.height<<" origin="<<a.x<<","<<a.y<<" float="<<a.floating<<" surface="<<a.surface<<" seed="<<a.seed<<" view="<<viewmode<<"\n";}
++}
++void Equivalence(){
++ for(bool f:{false,true})for(auto [w,h]:{std::pair{1u,1u},{31u,33u},{67u,33u},{128u,97u}})
++ for(uint64_t seed:{1ull,42ull,314159ull,32452843ull,49979687ull,0xffffffffull})
++ for(int pattern:{0,1,2,3,4})for(unsigned alpha:{0u,1u,64u,255u}){
++  const size_t bpp=f?16:4,stride=w*bpp+8;auto full=Scene(w,h,f,pattern,alpha,stride);
++  for(int surface:{0,1,2}){if(f&&surface!=1)continue;for(bool bgra:{false,true})for(bool premul:{false,true}){
++   if(f&&(bgra||premul))continue;
++   for(auto crop:{std::array<int,4>{0,0,int(w),int(h)},std::array<int,4>{1,1,1,1},std::array<int,4>{int(w)-1,int(h)-1,1,1},std::array<int,4>{-1,-1,5,3},std::array<int,4>{3,5,11,9}}){
++    Args a;a.width=crop[2];a.height=crop[3];a.canvas_w=w;a.canvas_h=h;a.x=crop[0];a.y=crop[1];a.seed=seed;a.stride=a.width*bpp+12;a.surface=surface;a.floating=f;a.bgra=bgra;a.premultiplied=premul;a.view_w=w;a.view_h=h;a.view_stride=stride;
++    auto input=Crop(full,w,h,stride,a.x,a.y,a.width,a.height,a.stride,bpp);
++    for(int viewmode:{0,1,2})Compare(input,full,a,viewmode,"generated");
++   }
++  }}
++ }
++ // Unchanged surface modes, reference flavor, out-of-domain seeds and layouts.
++ auto full=Scene(67,33,false,2,255,67*4);Args a;a.width=a.canvas_w=67;a.height=a.canvas_h=33;a.stride=a.view_stride=67*4;a.view_w=67;a.view_h=33;
++ for(int mode:{0,1,2,3,4})for(int surface:{0,1,2})for(int flavor:{0,1})for(uint64_t seed:{0ull,1ull,0x100000000ull,~0ull}){a.mode=mode;a.surface=surface;a.flavor=flavor;a.seed=seed;Compare(full,full,a,0,"mode-seed");}
++ a.mode=3;a.flavor=0;a.seed=42;
++ for(int invalid=0;invalid<5;invalid++){Args bad=a;if(invalid==0)bad.width=0;if(invalid==1)bad.height=0;if(invalid==2)bad.stride=1;if(invalid==3)bad.view_stride=1;if(invalid==4)bad.view_h=0xffffffffu;Compare(full,full,bad,0,"invalid");}
++}
++
++void Corpus(const std::string& root) {
++  std::ifstream data(root+"/pixel-semantics-v1/pixels.bin",std::ios::binary);
++  std::ifstream list(root+"/pixel-semantics-v1/cases.tsv");
++  if(!data||!list) {++failures;return;}
++  Bytes pool{std::istreambuf_iterator<char>(data),std::istreambuf_iterator<char>()};
++  std::string line;std::getline(list,line);
++  while(std::getline(list,line)) {
++    if(line.empty()) continue;
++    std::istringstream input(line);std::string name,extra;uint64_t width=0,height=0,offset=0,size=0;
++    if(!(input>>name>>width>>height>>offset>>size)||input>>extra||!width||!height||
++        width>65536||height>65536||size!=width*height*4||offset>pool.size()||size>pool.size()-offset) {
++      ++failures;return;
++    }
++    Bytes bytes(pool.begin()+offset,pool.begin()+offset+size);++corpus_records;
++    for(uint64_t seed:{1ull,2ull,42ull,314159ull,32452843ull,49979687ull,123456789ull,0xffffffffull})
++      for(int surface:{0,1,2})for(int viewmode:{0,1,2}) {
++        Args a;a.width=a.canvas_w=a.view_w=static_cast<uint32_t>(width);
++        a.height=a.canvas_h=a.view_h=static_cast<uint32_t>(height);
++        a.stride=a.view_stride=width*4;a.surface=surface;a.seed=seed;
++        Compare(bytes,bytes,a,viewmode,"browser-corpus");
++      }
++  }
++  if(corpus_records!=3) ++failures;
++}
++
++void MutationControls() {
++  // A positive comparison is not useful if a changed seed or output bit can
++  // also pass. Exercise the same comparator with independently damaged results.
++  for(int route:{0,1,2,3}) {
++    Args a;a.width=a.canvas_w=a.view_w=128;a.height=a.canvas_h=a.view_h=97;
++    a.floating=route==3;a.surface=a.floating?1:route;a.seed=42;
++    const size_t bpp=a.floating?16:4;a.stride=a.view_stride=a.width*bpp;
++    auto input=Scene(a.width,a.height,a.floating,1,255,a.stride),expected=input,actual=input;
++    const int before=before_run(expected.data(),expected.size(),input.data(),input.size(),a);
++    Args wrong_seed=a;wrong_seed.seed^=0x9e3779b9u;
++    const int altered=after_run(actual.data(),actual.size(),input.data(),input.size(),wrong_seed);
++    ++mutation_controls;
++    if(!Equivalent(before,expected,altered,actual)) ++mutation_rejections;else ++failures;
++    actual=input;const int current=after_run(actual.data(),actual.size(),input.data(),input.size(),a);
++    actual[17]^=1u;
++    ++mutation_controls;
++    if(!Equivalent(before,expected,current,actual)) ++mutation_rejections;else ++failures;
++  }
++}
++}  // namespace base::mask_first_equivalence
++
++inline std::pair<size_t,size_t> RunPixelMaskFirstEquivalence(const std::string& fixture_root) {
++  using namespace base::mask_first_equivalence;
++  cases=compared=failures=0;checksum=1469598103934665603ull;
++  corpus_records=mutation_controls=mutation_rejections=0;
++  Equivalence();Corpus(fixture_root);MutationControls();
++  if(cases!=93941||compared!=439779036||mutation_controls!=8||mutation_rejections!=8) ++failures;
++  std::cout<<"{\"mask_first_oracle_revision\":\""<<kOracleRevision
++           <<"\",\"mask_first_oracle_sha256\":\""<<kOracleSha256
++           <<"\",\"mask_first_equivalence_cases\":"<<cases
++           <<",\"mask_first_equivalence_bytes\":"<<compared
++           <<",\"mask_first_corpus_records\":"<<corpus_records
++           <<",\"mask_first_mutation_controls\":"<<mutation_controls
++           <<",\"mask_first_mutation_rejections\":"<<mutation_rejections
++           <<",\"mask_first_oracle_checksum\":"<<checksum
++           <<",\"failures\":"<<failures<<"}\n";
++  return {static_cast<size_t>(cases),static_cast<size_t>(failures)};
++}
++#endif  // BASE_UXR_MASK_FIRST_EQUIVALENCE_H_
+--- /dev/null
++++ b/base/uxr_mask_first_reference.h
+@@ -0,0 +1,563 @@
++// Test-only oracle: exact pre-optimization helper from commit
++// 9a06334258ed6039c597360038183f8693347e45, SHA-256
++// 2bcefcc4b7b8ab34b070b964a4fdd81c643e88052b48fd0c3a75cf18d8965465.
++// The body below differs only in its namespace. Never refresh it from the
++// implementation under test. Included by the graphics test translation unit only.
++#ifndef BASE_UXR_MASK_FIRST_REFERENCE_H_
++#define BASE_UXR_MASK_FIRST_REFERENCE_H_
++#include "base/uxr_graphics_noise.h"
++
++namespace base::mask_first_reference {
++// Preserve the original header's forward declaration in the oracle namespace:
++// ApplyCloak must not resolve its hash function to the implementation under test.
++uint32_t UxrCloakHashV1(std::string_view bytes);
++}
++
++// BEGIN FROZEN 9a06334 HELPER
++// Copyright 2026. Independent implementation from byte-verified models.
++#include "base/uxr_graphics_noise.h"
++
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <cstring>
++#include <limits>
++#include <string>
++
++#include "base/uxr_pixel_noise.h"
++
++namespace base::mask_first_reference {
 +namespace {
 +
 +uint32_t RotateLeft(uint32_t value, unsigned count) {
@@ -18981,254 +19995,9 @@
 +  return "invalid-result";
 +}
 +
-+}  // namespace base
---- /dev/null
-+++ b/base/uxr_graphics_noise.h
-@@ -0,0 +1,87 @@
-+// Copyright 2026. Independently reconstructed, versioned pixel algorithms.
-+#ifndef BASE_UXR_GRAPHICS_NOISE_H_
-+#define BASE_UXR_GRAPHICS_NOISE_H_
-+
-+#include <cstddef>
-+#include <cstdint>
-+#include <string_view>
-+
-+#include "base/base_export.h"
-+#include "base/containers/span.h"
-+#include "base/uxr_surface_modes.h"
-+
-+namespace base {
-+
-+inline constexpr uint32_t kUxrGraphicsAlgorithmVersion = 1;
-+inline constexpr bool kUxrCloakCanvasReferenceBankSupported = false;
-+
-+enum class UxrPixelSurface { kCanvas2D, kWebGLReadback, kWebGLExport };
-+// Reference flavor exists for historical byte goldens, not production routing.
-+enum class UxrPixelFlavor { kCompatibleV1, kReferenceV1 };
-+enum class UxrPixelResult {
-+  kApplied,
-+  kUnchanged,
-+  kNative,
-+  kLegacy,
-+  kInvalidLayout,
-+  kUnsupportedSeed,
-+  kUnsupportedAlpha,
-+  kUnsupportedRegion,
-+};
-+
-+// A successful read of the same surface, including the one-pixel halo needed
-+// at crop boundaries. It uses the output's component format and orientation.
-+// Comparisons ignore only bits assigned by noise, so aliasing the output is
-+// safe: earlier assignments cannot change which subsequent pixels are flat.
-+struct UxrPixelNeighborhood {
-+  span<const uint8_t> bytes;
-+  size_t row_stride = 0;
-+  uint32_t width = 0;
-+  uint32_t height = 0;
-+  int32_t origin_x = 0;
-+  int32_t origin_y = 0;
-+};
-+
-+// An owned, completed RGBA8/BGRA8 readback. Padding is never a pixel.
-+// Canvas origin is top-left. WebGL readback origin is bottom-left.
-+struct UxrPixelRegion {
-+  span<uint8_t> bytes;
-+  size_t row_stride = 0;
-+  uint32_t width = 0;
-+  uint32_t height = 0;
-+  uint32_t canvas_width = 0;
-+  uint32_t canvas_height = 0;
-+  int32_t origin_x = 0;
-+  int32_t origin_y = 0;
-+  bool bgra = false;
-+  // WebGL default framebuffer storage convention. Exports arrive as straight
-+  // RGBA and use this to reconstruct the same representable storage lattice.
-+  // FBO data has no compositor alpha convention.
-+  bool premultiplied = false;
-+  UxrPixelNeighborhood neighborhood;
-+};
-+
-+// The recovered byte hash includes signed 8-bit tail loads and uint32 wrap.
-+BASE_EXPORT uint32_t UxrCloakHashV1(std::string_view bytes);
-+
-+// This function performs no allocation of image storage and no GL operations.
-+// Shard Canvas projects full-canvas positions into the requested crop.
-+// Compatible Cloak projects full-canvas points and preserves partial alpha;
-+// its reference flavor is restricted to the original verified full buffers.
-+BASE_EXPORT UxrPixelResult
-+UxrApplyGraphicsNoiseV1(const UxrSurfacePolicy& policy,
-+                        UxrPixelSurface surface,
-+                        const UxrPixelRegion& region,
-+                        uint32_t shard_webgl_sequence = 0,
-+                        UxrPixelFlavor flavor = UxrPixelFlavor::kCompatibleV1);
-+
-+// RGBA32F readback uses the same coordinate mask with idempotent mantissa
-+// assignments; this is not an 8-bit quantizer and preserves nonfinite/zero data.
-+BASE_EXPORT UxrPixelResult UxrApplyShardWebGLFloatV2(
-+    const UxrSurfacePolicy& policy, const UxrPixelRegion& region);
-+
-+BASE_EXPORT const char* UxrPixelResultName(UxrPixelResult result);
-+
-+}  // namespace base
-+
-+#endif  // BASE_UXR_GRAPHICS_NOISE_H_
---- /dev/null
-+++ b/base/uxr_hardware_golden_tests.cc
-@@ -0,0 +1,107 @@
-+// Observed-rule golden values, generated with the historical independent model.
-+#include "base/uxr_cloak_hardware.h"
-+#include <cstdio>
-+int RunHardwareGoldenTests() {
-+  unsigned failures = 0, checks = 0;
-+  { auto p=base::UxrSelectCloakHardwareV1(1ULL, "windows", "", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==34u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(1ULL, "windows", "intel", -1); ++checks; if (!(p && p->family=="intel" && p->index==6u && p->cpu==12u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(1ULL, "windows", "nvidia", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==34u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(1ULL, "macos", "", -1); ++checks; if (!(p && p->family=="apple" && p->index==17u && p->cpu==10u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "", -1); ++checks; if (!(p && p->family=="intel" && p->index==6u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", -1); ++checks; if (!(p && p->family=="intel" && p->index==6u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==35u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "", -1); ++checks; if (!(p && p->family=="apple" && p->index==2u && p->cpu==12u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12346ULL, "windows", "", -1); ++checks; if (!(p && p->family=="intel" && p->index==5u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12346ULL, "windows", "intel", -1); ++checks; if (!(p && p->family=="intel" && p->index==5u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12346ULL, "windows", "nvidia", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==23u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12346ULL, "macos", "", -1); ++checks; if (!(p && p->family=="apple" && p->index==4u && p->cpu==18u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(4294967295ULL, "windows", "", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==16u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(4294967295ULL, "windows", "intel", -1); ++checks; if (!(p && p->family=="intel" && p->index==11u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(4294967295ULL, "windows", "nvidia", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==16u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(4294967295ULL, "macos", "", -1); ++checks; if (!(p && p->family=="apple" && p->index==0u && p->cpu==10u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(18446744073709551615ULL, "windows", "", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==28u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(18446744073709551615ULL, "windows", "intel", -1); ++checks; if (!(p && p->family=="intel" && p->index==1u && p->cpu==16u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(18446744073709551615ULL, "windows", "nvidia", -1); ++checks; if (!(p && p->family=="nvidia" && p->index==28u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(18446744073709551615ULL, "macos", "", -1); ++checks; if (!(p && p->family=="apple" && p->index==7u && p->cpu==14u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 0); ++checks; if (!(p && p->family=="intel" && p->index==0u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 1); ++checks; if (!(p && p->family=="intel" && p->index==1u && p->cpu==20u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 2); ++checks; if (!(p && p->family=="intel" && p->index==2u && p->cpu==18u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 3); ++checks; if (!(p && p->family=="intel" && p->index==3u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 4); ++checks; if (!(p && p->family=="intel" && p->index==4u && p->cpu==20u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 5); ++checks; if (!(p && p->family=="intel" && p->index==5u && p->cpu==8u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 6); ++checks; if (!(p && p->family=="intel" && p->index==6u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 7); ++checks; if (!(p && p->family=="intel" && p->index==7u && p->cpu==14u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 8); ++checks; if (!(p && p->family=="intel" && p->index==8u && p->cpu==24u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 9); ++checks; if (!(p && p->family=="intel" && p->index==9u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 10); ++checks; if (!(p && p->family=="intel" && p->index==10u && p->cpu==4u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 11); ++checks; if (!(p && p->family=="intel" && p->index==11u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 12); ++checks; if (!(p && p->family=="intel" && p->index==12u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 13); ++checks; if (!(p && p->family=="intel" && p->index==13u && p->cpu==28u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 14); ++checks; if (!(p && p->family=="intel" && p->index==14u && p->cpu==12u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 15); ++checks; if (!(p && p->family=="intel" && p->index==15u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 16); ++checks; if (!(p && p->family=="intel" && p->index==16u && p->cpu==8u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "intel", 17); ++checks; if (!(p && p->family=="intel" && p->index==17u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 0); ++checks; if (!(p && p->family=="nvidia" && p->index==0u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 1); ++checks; if (!(p && p->family=="nvidia" && p->index==1u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 2); ++checks; if (!(p && p->family=="nvidia" && p->index==2u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 3); ++checks; if (!(p && p->family=="nvidia" && p->index==3u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 4); ++checks; if (!(p && p->family=="nvidia" && p->index==4u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 5); ++checks; if (!(p && p->family=="nvidia" && p->index==5u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 6); ++checks; if (!(p && p->family=="nvidia" && p->index==6u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 7); ++checks; if (!(p && p->family=="nvidia" && p->index==7u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 8); ++checks; if (!(p && p->family=="nvidia" && p->index==8u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 9); ++checks; if (!(p && p->family=="nvidia" && p->index==9u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 10); ++checks; if (!(p && p->family=="nvidia" && p->index==10u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 11); ++checks; if (!(p && p->family=="nvidia" && p->index==11u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 12); ++checks; if (!(p && p->family=="nvidia" && p->index==12u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 13); ++checks; if (!(p && p->family=="nvidia" && p->index==13u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 14); ++checks; if (!(p && p->family=="nvidia" && p->index==14u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 15); ++checks; if (!(p && p->family=="nvidia" && p->index==15u && p->cpu==16u && p->memory_gb==8u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 16); ++checks; if (!(p && p->family=="nvidia" && p->index==16u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 17); ++checks; if (!(p && p->family=="nvidia" && p->index==17u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 18); ++checks; if (!(p && p->family=="nvidia" && p->index==18u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 19); ++checks; if (!(p && p->family=="nvidia" && p->index==19u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 20); ++checks; if (!(p && p->family=="nvidia" && p->index==20u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 21); ++checks; if (!(p && p->family=="nvidia" && p->index==21u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 22); ++checks; if (!(p && p->family=="nvidia" && p->index==22u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 23); ++checks; if (!(p && p->family=="nvidia" && p->index==23u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 24); ++checks; if (!(p && p->family=="nvidia" && p->index==24u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 25); ++checks; if (!(p && p->family=="nvidia" && p->index==25u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 26); ++checks; if (!(p && p->family=="nvidia" && p->index==26u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 27); ++checks; if (!(p && p->family=="nvidia" && p->index==27u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 28); ++checks; if (!(p && p->family=="nvidia" && p->index==28u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 29); ++checks; if (!(p && p->family=="nvidia" && p->index==29u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 30); ++checks; if (!(p && p->family=="nvidia" && p->index==30u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 31); ++checks; if (!(p && p->family=="nvidia" && p->index==31u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 32); ++checks; if (!(p && p->family=="nvidia" && p->index==32u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 33); ++checks; if (!(p && p->family=="nvidia" && p->index==33u && p->cpu==12u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 34); ++checks; if (!(p && p->family=="nvidia" && p->index==34u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 35); ++checks; if (!(p && p->family=="nvidia" && p->index==35u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 36); ++checks; if (!(p && p->family=="nvidia" && p->index==36u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 37); ++checks; if (!(p && p->family=="nvidia" && p->index==37u && p->cpu==24u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 38); ++checks; if (!(p && p->family=="nvidia" && p->index==38u && p->cpu==20u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 39); ++checks; if (!(p && p->family=="nvidia" && p->index==39u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "windows", "nvidia", 40); ++checks; if (!(p && p->family=="nvidia" && p->index==40u && p->cpu==32u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 0); ++checks; if (!(p && p->family=="apple" && p->index==0u && p->cpu==10u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 1); ++checks; if (!(p && p->family=="apple" && p->index==1u && p->cpu==10u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 2); ++checks; if (!(p && p->family=="apple" && p->index==2u && p->cpu==12u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 3); ++checks; if (!(p && p->family=="apple" && p->index==3u && p->cpu==14u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 4); ++checks; if (!(p && p->family=="apple" && p->index==4u && p->cpu==18u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 5); ++checks; if (!(p && p->family=="apple" && p->index==5u && p->cpu==10u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 6); ++checks; if (!(p && p->family=="apple" && p->index==6u && p->cpu==12u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 7); ++checks; if (!(p && p->family=="apple" && p->index==7u && p->cpu==16u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 8); ++checks; if (!(p && p->family=="apple" && p->index==8u && p->cpu==16u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 9); ++checks; if (!(p && p->family=="apple" && p->index==9u && p->cpu==18u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 10); ++checks; if (!(p && p->family=="apple" && p->index==10u && p->cpu==20u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 11); ++checks; if (!(p && p->family=="apple" && p->index==11u && p->cpu==24u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 12); ++checks; if (!(p && p->family=="apple" && p->index==12u && p->cpu==28u && p->memory_gb==32u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 13); ++checks; if (!(p && p->family=="apple" && p->index==13u && p->cpu==8u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 14); ++checks; if (!(p && p->family=="apple" && p->index==14u && p->cpu==8u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 15); ++checks; if (!(p && p->family=="apple" && p->index==15u && p->cpu==8u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 16); ++checks; if (!(p && p->family=="apple" && p->index==16u && p->cpu==10u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 17); ++checks; if (!(p && p->family=="apple" && p->index==17u && p->cpu==10u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 18); ++checks; if (!(p && p->family=="apple" && p->index==18u && p->cpu==8u && p->memory_gb==16u)) ++failures; }
-+  { auto p=base::UxrSelectCloakHardwareV1(12345ULL, "macos", "apple", 19); ++checks; if (!(p && p->family=="apple" && p->index==19u && p->cpu==8u && p->memory_gb==16u)) ++failures; }
-+  std::printf("{\"hardware_checks\":%u,\"failures\":%u}\n", checks, failures);
-+  return failures ? 1 : 0;
-+}
---- /dev/null
-+++ b/base/uxr_headless_screen.h
-@@ -0,0 +1,44 @@
-+// Copyright 2026. Use of this source is governed by a BSD-style license.
-+#ifndef BASE_UXR_HEADLESS_SCREEN_H_
-+#define BASE_UXR_HEADLESS_SCREEN_H_
-+
-+#include <cmath>
-+#include <optional>
-+
-+namespace base {
-+
-+// Headless --screen-info consumes physical pixels; the public fingerprint
-+// display dimensions are CSS pixels. This describes one primary display.
-+struct UxrHeadlessScreenInfo {
-+  int pixel_width;
-+  int pixel_height;
-+  int work_area_right;
-+  int work_area_bottom;
-+  double device_pixel_ratio;
-+};
-+
-+inline std::optional<UxrHeadlessScreenInfo> MakeUxrHeadlessScreenInfo(
-+    int width, int height, int available_width, int available_height,
-+    double scale) {
-+  // Preserve the existing display bounds. Chromium 155's native screen-info
-+  // parser supports DPR >= 0.5; the older virtual-only 0.25 range is unchanged.
-+  if (width < 1 || height < 1 || width > 32768 || height > 32768 ||
-+      available_width < 0 || available_height < 0 ||
-+      available_width > width || available_height > height ||
-+      !std::isfinite(scale) || scale < 0.5 || scale > 8.0) {
-+    return std::nullopt;
-+  }
-+  const int pixel_width = static_cast<int>(std::ceil(width * scale));
-+  const int pixel_height = static_cast<int>(std::ceil(height * scale));
-+  const int available_pixel_width =
-+      static_cast<int>(std::ceil(available_width * scale));
-+  const int available_pixel_height =
-+      static_cast<int>(std::ceil(available_height * scale));
-+  return UxrHeadlessScreenInfo{pixel_width, pixel_height,
-+                               pixel_width - available_pixel_width,
-+                               pixel_height - available_pixel_height, scale};
-+}
-+
-+}  // namespace base
-+
-+#endif  // BASE_UXR_HEADLESS_SCREEN_H_
++}  // namespace base::mask_first_reference
++// END FROZEN 9a06334 HELPER
++#endif  // BASE_UXR_MASK_FIRST_REFERENCE_H_
 --- /dev/null
 +++ b/base/uxr_pixel_semantic_properties.h
 @@ -0,0 +1,233 @@

@@ -19,6 +19,8 @@
     "base/uxr_graphics_noise.h",
     "base/uxr_hardware_golden_tests.cc",
     "base/uxr_headless_screen.h",
+    "base/uxr_mask_first_equivalence.h",
+    "base/uxr_mask_first_reference.h",
     "base/uxr_pixel_semantic_properties.h",
     "base/uxr_shard_webgl_v2_properties.h",
     "base/uxr_surface_golden_tests.cc",
@@ -1037,6 +1039,6 @@
       "components/safe_browsing/core/common/safe_browsing_prefs.h"
     ]
   },
-  "patch_sha256": "dd0393c0d9bd647f18693ca80a9881beaa5c85e0b890ab386b9cb2097c2c4c97",
+  "patch_sha256": "b5c000a228c74087535c94bd9366a6470317e831a701534451b0f869d7b0f2fa",
   "qualification": "Source replay only; requires native build and actual account tests"
 }

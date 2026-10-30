@@ -64,6 +64,11 @@
       "path": "patches/fingerprint-modes/0014-headless-screen-synchronization.patch",
       "sha256": "3e7880453418a9a1d4f5478179caf22edbf0a50f0bca5ab693c8f07d942bf14a",
       "files": 3
+    },
+    {
+      "path": "patches/fingerprint-modes/0015-pixel-mask-first.patch",
+      "sha256": "48806ebce0ca13bbaec3c2cebacf9f486f930b03be610e9e2975d571282cd2a1",
+      "files": 5
     }
   ],
   "sequential_incremental_files": {
@@ -85,8 +90,8 @@
       "0009-shardx-webgl-consistent-readback.patch"
     ]
   },
-  "combined_patch_sha256": "dd0393c0d9bd647f18693ca80a9881beaa5c85e0b890ab386b9cb2097c2c4c97",
-  "combined_patch_changed_files": 222,
+  "combined_patch_sha256": "b5c000a228c74087535c94bd9366a6470317e831a701534451b0f869d7b0f2fa",
+  "combined_patch_changed_files": 224,
   "source_upgrade": {
     "from_run": 39498745053,
     "from_commit": "4c5f53ca8efef6acca5c8037aaf18ab609550651",
@@ -148,7 +153,8 @@
     "base_aggregate_sha256": "6d01b4985fd5c03fe4f8818d99b31d1bf42b29c01923278c11e79bcd56385115",
     "overlays": [
       "patches/fingerprint-modes/0011-pixel-semantic-preservation.patch",
-      "patches/fingerprint-modes/0014-headless-screen-synchronization.patch"
+      "patches/fingerprint-modes/0014-headless-screen-synchronization.patch",
+      "patches/fingerprint-modes/0015-pixel-mask-first.patch"
     ],
     "target_paths": [
       "base/BUILD.gn",
@@ -156,6 +162,8 @@
       "base/uxr_graphics_noise.cc",
       "base/uxr_graphics_noise.h",
       "base/uxr_headless_screen.h",
+      "base/uxr_mask_first_equivalence.h",
+      "base/uxr_mask_first_reference.h",
       "base/uxr_pixel_semantic_properties.h",
       "chrome/app/chrome_main.cc",
       "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",

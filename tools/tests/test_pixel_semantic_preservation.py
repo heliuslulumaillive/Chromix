@@ -35,7 +35,8 @@ def materialize(destination):
             target.write_text(value, encoding='utf-8', newline='\n')
     program = 'C:/Program Files/Git/usr/bin/patch.exe' if os.name == 'nt' else 'patch'
     for name in ['0009-shardx-webgl-consistent-readback.patch',
-                 '0011-pixel-semantic-preservation.patch']:
+                 '0011-pixel-semantic-preservation.patch',
+                 '0015-pixel-mask-first.patch']:
         chosen = ''.join(text for path, _, text in sections(
             (ROOT / 'patches/fingerprint-modes' / name).read_text(encoding='utf-8'))
             if (path.startswith('base/') and path != 'base/BUILD.gn') or path.endswith('/uxr_shard_readback.h'))
@@ -145,6 +146,30 @@ class PixelSemanticProperties(unittest.TestCase):
                                     capture_output=True, text=True, timeout=90)
         cls.records = [json.loads(line) for line in cls.result.stdout.splitlines()
                        if line.startswith('{')]
+        # Negative builds change the implementation, never the frozen oracle.
+        # Passing labels alone cannot establish bit-exact equivalence.
+        cls.negative_mutations = []
+        production = cls.source / 'base/uxr_graphics_noise.cc'
+        original = production.read_text(encoding='utf-8')
+        for label, before, after in [
+                ('canvas-seed', '0x43415633u', '0x43415632u'),
+                ('webgl-mask', '0x85ebca6bu), 16)', '0x85ebca6au), 16)')]:
+            if original.count(before) != 1:
+                raise RuntimeError('Mutation no longer selects the expected production code: ' + label)
+            mutated = cls.source / (label + '.cc')
+            mutated.write_text(original.replace(before, after), encoding='utf-8', newline='\n')
+            executable = cls.source / (label + ('.exe' if os.name == 'nt' else ''))
+            mutation_command = [cls.compiler, '-std=c++20', '-O2', '-DUXR_GRAPHICS_STANDALONE',
+                '-I' + str(cls.source), str(mutated),
+                str(cls.source / 'base/uxr_graphics_mode_goldens.cc'), '-o', str(executable)]
+            mutation_build = subprocess.run(mutation_command, env=cls.environment, capture_output=True, text=True)
+            if mutation_build.returncode:
+                raise RuntimeError(mutation_build.stdout + mutation_build.stderr)
+            mutation_run = subprocess.run([str(executable), str(ROOT / 'tools/tests/fixtures')],
+                                          capture_output=True, text=True, timeout=90)
+            cls.negative_mutations.append({'mutation': label, 'exitCode': mutation_run.returncode,
+                'records': [json.loads(line) for line in mutation_run.stdout.splitlines() if line.startswith('{')],
+                'stderr': mutation_run.stderr})
         gl_header = cls.source / 'gpu/command_buffer/client/gles2_interface.h'
         gl_header.parent.mkdir(parents=True, exist_ok=True)
         gl_header.write_text('''#pragma once
@@ -180,10 +205,11 @@ virtual ReadPixelsCompletion ReadPixelsWithCompletion(GLint,GLint,GLsizei,GLsize
         if destination:
             report = Path(destination)
             report.parent.mkdir(parents=True, exist_ok=True)
-            report.write_text(json.dumps({'status': 'passed' if cls.result.returncode == 0 and cls.halo_result.returncode == 0 and cls.empty_corpus_result.returncode != 0 else 'failed',
+            report.write_text(json.dumps({'status': 'passed' if cls.result.returncode == 0 and cls.halo_result.returncode == 0 and cls.empty_corpus_result.returncode != 0 and all(r['exitCode'] != 0 for r in cls.negative_mutations) else 'failed',
                 'compiler': cls.compiler, 'records': cls.records, 'stderr': cls.result.stderr,
                 'haloRecords': cls.halo_records, 'haloStderr': cls.halo_result.stderr,
                 'emptyCorpusNegative': {'exitCode': cls.empty_corpus_result.returncode, 'records': cls.empty_corpus_records},
+                'maskFirstMutationNegatives': cls.negative_mutations,
                 'scope': 'Real production helper, historical browser byte goldens, new semantics invariants; no live GL/PNG runtime acceptance'}, indent=2), encoding='utf-8')
 
     @classmethod
@@ -203,11 +229,47 @@ virtual ReadPixelsCompletion ReadPixelsWithCompletion(GLint,GLint,GLsizei,GLsize
         self.assertEqual(graphics[0]['failures'], 0)
 
     def test_append_only_patch_reverses(self):
-        patch = self.source / '0011-pixel-semantic-preservation.patch'
-        result = subprocess.run([self.patch_program, '-R', '-p1', '--dry-run', '--batch',
-                                 '--fuzz=0', '-i', str(patch)], cwd=self.source,
-                                capture_output=True, text=True)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        with tempfile.TemporaryDirectory(prefix='mask-first-reverse-') as directory:
+            copied = Path(directory) / 'tree'
+            shutil.copytree(self.source, copied)
+            for name in ['0015-pixel-mask-first.patch', '0011-pixel-semantic-preservation.patch']:
+                result = subprocess.run([self.patch_program, '-R', '-p1', '--batch',
+                                         '--fuzz=0', '-i', str(copied / name)], cwd=copied,
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_mask_first_exact_equivalence_and_mutation_controls(self):
+        records = [r for r in self.records if 'mask_first_equivalence_cases' in r]
+        self.assertEqual(len(records), 1)
+        expected = {'mask_first_equivalence_cases': 93941, 'mask_first_equivalence_bytes': 439779036,
+                    'mask_first_corpus_records': 3, 'mask_first_mutation_controls': 8,
+                    'mask_first_mutation_rejections': 8, 'failures': 0}
+        for name, value in expected.items():
+            self.assertEqual(records[0][name], value)
+        self.assertEqual(records[0]['mask_first_oracle_revision'], '9a06334258ed6039c597360038183f8693347e45')
+        self.assertEqual(records[0]['mask_first_oracle_sha256'], '2bcefcc4b7b8ab34b070b964a4fdd81c643e88052b48fd0c3a75cf18d8965465')
+        graphics = next(r for r in self.records if 'graphics_cases' in r)
+        self.assertEqual(graphics['groups']['pixel_mask_first_equivalence'], 93941)
+        for mutation in self.negative_mutations:
+            with self.subTest(mutation=mutation['mutation']):
+                self.assertNotEqual(mutation['exitCode'], 0)
+                value = next(r for r in mutation['records'] if 'mask_first_equivalence_cases' in r)
+                self.assertGreater(value['failures'], 0)
+
+    def test_frozen_oracle_is_exact_preoptimization_source(self):
+        reference = (self.source / 'base/uxr_mask_first_reference.h').read_text(encoding='utf-8')
+        frozen = reference.split('// BEGIN FROZEN 9a06334 HELPER\n', 1)[1].split('// END FROZEN 9a06334 HELPER\n', 1)[0]
+        restored = frozen.replace('namespace base::mask_first_reference {', 'namespace base {', 1).replace(
+            '}  // namespace base::mask_first_reference\n', '}  // namespace base\n')
+        self.assertEqual(hashlib.sha256(restored.encode()).hexdigest(),
+                         '2bcefcc4b7b8ab34b070b964a4fdd81c643e88052b48fd0c3a75cf18d8965465')
+        self.assertIn('namespace base::mask_first_reference {\n// Preserve', reference)
+        self.assertIn('uint32_t UxrCloakHashV1(std::string_view bytes);', reference.split('// BEGIN FROZEN')[0])
+        patch = (ROOT / 'patches/fingerprint-modes/0015-pixel-mask-first.patch').read_text()
+        files = {name: text for name, _, text in sections(patch)}
+        self.assertEqual(set(files), {'base/uxr_graphics_noise.cc', 'base/uxr_graphics_mode_goldens.cc',
+                                     'base/uxr_mask_first_reference.h', 'base/uxr_mask_first_equivalence.h', 'base/BUILD.gn'})
+        self.assertIn('"uxr_mask_first_equivalence.h"', files['base/BUILD.gn'])
 
     def test_halo_layout_and_pack_state(self):
         self.assertEqual(self.halo_result.returncode, 0, self.halo_result.stdout + self.halo_result.stderr)

@@ -48,6 +48,29 @@ physical-pixel rounding. An existing 155 binary was used to confirm that the
 native screen-info path produces actual DPR 2/1.25 rastering before writing this
 overlay.
 
+## Output-preserving pixel optimization
+
+`0015-pixel-mask-first.patch` retains the pixel behavior of the 9a06334
+candidate. Its runtime changes are limited to the Canvas, byte WebGL and float
+WebGL helper loops: test the deterministic seed/coordinate mask before reading
+the flat-cell neighborhood. An unselected pixel could not be changed by the
+previous implementation; selected pixels still use the same flatness classifier
+and bit assignment. Seeds, selected channels, endpoints, alpha, formats and
+absolute coordinate formulas are unchanged.
+
+The overlay does not change Canvas snapshots, WebGL/PBO reads, PACK state,
+DrawingBuffer lifetime, context-loss handling or PNG transport. Reducing a
+second neighborhood read is a separate deferred change, particularly for
+SharedArrayBuffer destinations and incomplete crop neighborhoods.
+
+The compiled native graphics test compares the production helper with a frozen
+pre-optimization reference and requires executed byte/return-value equivalence
+coverage. Existing semantic, historical-golden, voice and passkey checks remain
+required. Source equivalence and standalone timing do not establish the speed
+of a rebuilt browser. Each new DLL still needs paired native-pixel, crop,
+export, PBO, float, GPU-binding and performance observations before admission;
+the previous runtime acceptance cannot be inherited solely from the patch.
+
 ## Deferred changes
 
 Audio source preservation is not included. A first producer-boundary trial passed

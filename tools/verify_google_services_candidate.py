@@ -25,6 +25,15 @@ ARTIFACT_NAMES = {
     FINGERPRINT_VARIANT: 'fingerprint-modes-win155-x64',
 }
 FINGERPRINT_REPORTS = ('modes-native.json', 'modes-runtime.json', 'fingerprint-modes-capabilities.json')
+MASK_FIRST_ORACLE_REVISION = '9a06334258ed6039c597360038183f8693347e45'
+MASK_FIRST_ORACLE_SHA256 = '2bcefcc4b7b8ab34b070b964a4fdd81c643e88052b48fd0c3a75cf18d8965465'
+MASK_FIRST_COUNTS = {
+    'mask_first_equivalence_cases': 93941,
+    'mask_first_equivalence_bytes': 439779036,
+    'mask_first_corpus_records': 3,
+    'mask_first_mutation_controls': 8,
+    'mask_first_mutation_rejections': 8,
+}
 FINGERPRINT_RUNTIME_SCENARIOS = {
     'native_off_control', 'all_native', 'legacy_seeded', 'canvas_shardx',
     'webgl_cloak', 'shard_surfaces', 'memory_custom', 'hardware_cloak', 'gpu_custom',
@@ -128,7 +137,8 @@ def validate_mode_native(report, payload):
         'config-chromix': ('chromix', {'configuration_checks'}, '--config-chromix'),
         'production-helpers-and-config': ('production', {
             'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks', 'font_allowlist_checks',
-            'audio_default_checks', 'voice_compat_checks', 'configuration_checks', 'pixel_semantic_corpus_records'}, None),
+            'audio_default_checks', 'voice_compat_checks', 'configuration_checks', 'pixel_semantic_corpus_records',
+            *MASK_FIRST_COUNTS}, None),
     }
     processes, groups = report.get('processes'), report.get('groups')
     if (report.get('status') != 'passed'
@@ -179,6 +189,20 @@ def validate_mode_native(report, payload):
             if type(count) is not int or count <= 0:
                 raise ValueError('Native pixel semantic properties did not execute')
             counts['production.groups.pixel_semantic_properties'] = count
+            equivalents = [record for record in records if 'mask_first_equivalence_cases' in record]
+            if len(equivalents) != 1:
+                raise ValueError('Native mask-first equivalence evidence is missing or duplicated')
+            equivalent = equivalents[0]
+            if (equivalent.get('mask_first_oracle_revision') != MASK_FIRST_ORACLE_REVISION
+                    or equivalent.get('mask_first_oracle_sha256') != MASK_FIRST_ORACLE_SHA256):
+                raise ValueError('Native mask-first oracle identity does not match the frozen baseline')
+            if any(type(equivalent.get(name)) is not int or equivalent[name] != value
+                   for name, value in MASK_FIRST_COUNTS.items()):
+                raise ValueError('Native mask-first equivalence matrix or negative controls are incomplete')
+            if (type(nested.get('pixel_mask_first_equivalence')) is not int
+                    or nested['pixel_mask_first_equivalence'] != MASK_FIRST_COUNTS['mask_first_equivalence_cases']):
+                raise ValueError('Native graphics test did not execute the complete mask-first matrix')
+            counts['production.groups.pixel_mask_first_equivalence'] = nested['pixel_mask_first_equivalence']
         if not any(r.get('status') == 'passed' and r.get('configuration_checks', 0) > 0 for r in records):
             raise ValueError('Native mode configuration acceptance is missing')
     if len(binaries) != 1:
