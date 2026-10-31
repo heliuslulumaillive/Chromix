@@ -1,0 +1,3 @@
+# Apply after inherited core/platform/release arguments. Keep the upstream
+# Standard/Enhanced preference defaults; this enables the actual desktop code.
+safe_browsing_mode = 1

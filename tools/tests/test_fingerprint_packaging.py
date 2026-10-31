@@ -16,7 +16,9 @@ PWSH = shutil.which("pwsh")
 @unittest.skipUnless(PWSH, "PowerShell 7 is required for Windows packaging")
 class FingerprintPackagingTest(unittest.TestCase):
     def test_capabilities_are_staged_before_inventory_and_cannot_change_during_validation(self):
-        for fingerprint in (False, True):
+        for variant in (None, 'fingerprint-modes-win155', 'fingerprint-modes-win156'):
+            fingerprint = variant is not None
+            version = '156.0.8078.79' if variant == 'fingerprint-modes-win156' else '155.0.8059.39'
             with self.subTest(fingerprint=fingerprint), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 repo, work, dest = root / "repo", root / "work", root / "dist"
@@ -29,13 +31,16 @@ class FingerprintPackagingTest(unittest.TestCase):
                 (repo / "LICENSE").write_text("Synthetic packaging test license\n")
                 (work / "src/LICENSE").write_text("Synthetic Chromium input fixture\n")
                 source = {
-                    "variant": "google-services-self-use", "chromium_version": "155.0.8059.39",
+                    "variant": "google-services-self-use", "chromium_version": version,
                     "patch_sha256": "1" * 64, "preparation_sha256": "2" * 64,
                 }
                 if fingerprint:
-                    source["build_variant"] = "fingerprint-modes-win155"
+                    source["build_variant"] = variant
                 (work / "google-services-source.json").write_text(json.dumps(source))
-                capability_bytes = (ROOT / "build/fingerprint-modes-capabilities.json").read_bytes()
+                capability = json.loads((ROOT / "build/fingerprint-modes-capabilities.json").read_bytes())
+                if fingerprint:
+                    capability.update(build_variant=variant, chromium_version=version)
+                capability_bytes = json.dumps(capability).encode()
                 (repo / "build/fingerprint-modes-capabilities.json").write_bytes(capability_bytes)
                 for name in (
                         "chrome.exe", "chrome_elf.dll", "chrome_100_percent.pak",

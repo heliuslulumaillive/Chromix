@@ -7,6 +7,22 @@ import os
 from pathlib import Path
 import re
 
+FINGERPRINT_VERSIONS = {
+    'fingerprint-modes-win155': '155.0.8059.39',
+    'fingerprint-modes-win156': '156.0.8078.79',
+}
+
+
+def validate_source_pair(source):
+    if not isinstance(source, dict) or source.get('variant') != 'google-services-self-use':
+        raise ValueError('Expected a prepared Google-service source receipt')
+    build_variant = source.get('build_variant')
+    if 'build_variant' in source and (not isinstance(build_variant, str) or build_variant not in FINGERPRINT_VERSIONS):
+        raise ValueError('Unsupported explicit build variant')
+    expected = FINGERPRINT_VERSIONS.get(build_variant, '155.0.8059.39')
+    if source.get('chromium_version') != expected:
+        raise ValueError('Source build variant and Chromium version do not match')
+
 
 def sha256(path):
     digest = hashlib.sha256()
@@ -23,8 +39,7 @@ def main():
     parser.add_argument('--gn-args', type=Path, required=True)
     args = parser.parse_args()
     source = json.loads((args.work / 'google-services-source.json').read_text(encoding='utf-8-sig'))
-    if source.get('variant') != 'google-services-self-use':
-        raise ValueError('Expected a prepared Google-service source receipt')
+    validate_source_pair(source)
     commit = os.environ.get('GITHUB_SHA', '')
     run = os.environ.get('GITHUB_RUN_ID', '')
     if not re.fullmatch('[0-9a-f]{40}', commit) or not re.fullmatch('[0-9]+', run):
@@ -46,8 +61,6 @@ def main():
         'files': {},
     }
     if 'build_variant' in source:
-        if source['build_variant'] != 'fingerprint-modes-win155':
-            raise ValueError('Unsupported explicit build variant')
         record['build_variant'] = source['build_variant']
     destination = args.bundle / 'google-services-build.json'
     for path in sorted(args.bundle.rglob('*')):

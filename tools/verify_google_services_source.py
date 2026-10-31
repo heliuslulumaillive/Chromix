@@ -164,10 +164,105 @@ FORBIDDEN = {
     'chrome/browser/ui/webui/settings/settings_ui.cc': ['AddBoolean("signinAllowed", false)'],
 }
 
+SECURITY_REQUIRED = {
+    'chrome/browser/BUILD.gn': ['"//chrome/browser/safe_browsing"'],
+    'chrome/browser/safe_browsing/BUILD.gn': [
+        'static_library("safe_browsing")', '"safe_browsing_service.cc"',
+    ],
+    'components/safe_browsing/core/common/BUILD.gn': [
+        'static_library("safe_browsing_prefs")', '"safe_browsing_prefs.cc"',
+    ],
+    'components/safe_browsing/core/common/safe_browsing_prefs.cc': [
+        'prefs::kSafeBrowsingEnabled, true,',
+        'prefs::kSafeBrowsingEnhanced, false',
+        'prefs::kSafeBrowsingScoutReportingEnabled, false',
+    ],
+    'chrome/browser/prefs/browser_prefs.cc': [
+        'safe_browsing::RegisterLocalStatePrefs(registry)',
+    ],
+    'chrome/browser/browser_process_impl.cc': [
+        'safe_browsing::SafeBrowsingServiceInterface::CreateSafeBrowsingService()',
+        'safe_browsing_service_->Initialize()',
+    ],
+    'chrome/browser/safe_browsing/safe_browsing_service.cc': [
+        'services_delegate_->Initialize()',
+        'base::BindRepeating(&SafeBrowsingServiceImpl::RefreshState,',
+    ],
+    'chrome/browser/safe_browsing/services_delegate_desktop.cc': [
+        'database_manager_ = CreateDatabaseManager()',
+        'services_creator_->CreateDownloadProtectionService()',
+        'database_manager_->StartOnUIThread(browser_url_loader_factory, config)',
+    ],
+    'components/safe_browsing/core/browser/client_side_detection_service_base.cc': [
+        'network::SimpleURLLoader::Create(std::move(resource_request),',
+        'loader->AttachStringForUpload(request_data, "application/octet-stream")',
+    ],
+    'components/resources/safe_browsing_resources.grdp': [
+        'IDR_DOWNLOAD_FILE_TYPES_PB', 'download_file_types.pb',
+    ],
+    'components/safe_browsing/content/resources/BUILD.gn': [
+        'action("make_file_types_protobuf")',
+        'input_filename = "download_file_types.asciipb"',
+    ],
+    'components/safe_browsing/content/resources/download_file_types.asciipb': [
+        'extension: "exe"',
+    ],
+    'chrome/browser/component_updater/registration.cc': [
+        'RegisterFileTypePoliciesComponent(cus)',
+    ],
+    'chrome/browser/component_updater/file_type_policies_component_installer.cc': [
+        'safe_browsing::FileTypePolicies::GetInstance()->PopulateFromDynamicUpdate(',
+        'installer->Register(cus, base::OnceClosure())',
+    ],
+    'components/update_client/update_checker.cc': [
+        'update_check_callback_ = std::move(update_check_callback)',
+        '&UpdateCheckerImpl::CheckForUpdatesHelper', 'config_->UpdateUrl()',
+    ],
+    'components/download/internal/common/download_item_impl.cc': [
+        'danger_type_ = danger_type;',
+    ],
+    'components/password_manager/core/browser/leak_detection/leak_detection_check_impl.cc': [
+        'prefs.GetBoolean(prefs::kPasswordLeakDetectionEnabled)',
+        'return is_leak_protection_on && !LeakDetectionCheck::IsURLBlockedByPolicy(',
+    ],
+    'components/password_manager/core/browser/leak_detection_delegate.cc': [
+        'LeakDetectionCheck::CanStartLeakCheck(',
+        'leak_factory_->TryCreateLeakCheck(', 'leak_check_->Start(',
+    ],
+    'chrome/browser/extensions/api/settings_private/prefs_util.cc': [
+        '(*s_allowlist)[::prefs::kSafeBrowsingEnabled]',
+        '(*s_allowlist)[::prefs::kSafeBrowsingEnhanced]',
+        '(*s_allowlist)[password_manager::prefs::kPasswordLeakDetectionEnabled]',
+    ],
+    'chrome/browser/resources/settings/privacy_page/security/security_page.html': [
+        'id="safeBrowsingSection"', 'passwordsLeakDetectionLabel',
+    ],
+    'chrome/browser/resources/settings/privacy_page/privacy_page_index.ts': [
+        'this.showPage_(this.pageVisibility_.safetyHub)',
+        "defaultViews.push('safetyHubEntryPoint')",
+    ],
+}
 
-def verify(src: Path):
+
+def function_body(source: str, name: str) -> str:
+    match = re.search(re.escape(name) + r'\s*\([^;{}]*\)\s*(?:const\s*)?\{', source)
+    if not match:
+        raise ValueError('Security implementation is missing: ' + name)
+    depth = 1
+    for end in range(match.end(), len(source)):
+        depth += (source[end] == '{') - (source[end] == '}')
+        if depth == 0:
+            return source[match.end():end]
+    raise ValueError('Incomplete security implementation: ' + name)
+
+
+def verify(src: Path, *, require_security=False):
     errors = []
-    for name, required in REQUIRED.items():
+    requirements = {name: list(required) for name, required in REQUIRED.items()}
+    if require_security:
+        for name, required in SECURITY_REQUIRED.items():
+            requirements.setdefault(name, []).extend(required)
+    for name, required in requirements.items():
         path = src / name
         if not path.is_file():
             errors.append(name + ': missing source')
@@ -178,6 +273,22 @@ def verify(src: Path):
         if path.suffix == '.gn':
             text = re.sub(r'(?m)^\s*#.*$', '', text)
         source = CPP_TOKENS.sub(lambda token: '' if token.group('comment') else token[0], text)
+        if require_security:
+            if name in ('chrome/browser/safe_browsing/BUILD.gn',
+                        'components/safe_browsing/core/common/BUILD.gn') and re.search(r'\bif\s*\(\s*false\s*\)', source):
+                errors.append(name + ': security build target is disabled')
+            if name.endswith('/leak_detection_check_impl.cc'):
+                body = function_body(source, 'LeakDetectionCheck::CanStartLeakCheck')
+                if re.search(r'\breturn\s+(?:false|true)\s*;', body):
+                    errors.append(name + ': password leak checking or its policy gate is bypassed')
+            if name.endswith('/download_item_impl.cc'):
+                body = function_body(source, 'DownloadItemImpl::SetDangerType')
+                if re.search(r'danger_type_\s*=\s*(?:download::)?DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS', body):
+                    errors.append(name + ': download danger classification is discarded')
+            if name == 'components/update_client/update_checker.cc':
+                body = function_body(source, 'UpdateCheckerImpl::CheckForUpdates')
+                if re.match(r'\s*(?:if\s*\(\s*\(?\s*true\s*\)?\s*\)\s*)?return\s*;', body):
+                    errors.append(name + ': security component update requests are disabled')
         source = re.sub(r'\s+', '', source)
         for text in required:
             if re.sub(r'\s+', '', text) not in source:
@@ -187,12 +298,13 @@ def verify(src: Path):
                 errors.append(name + ': Google-service implementation remains disabled or substituted')
     if errors:
         raise ValueError('\n'.join(errors))
-    return list(REQUIRED)
+    return list(requirements)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('src', type=Path)
+    parser.add_argument('--security', action='store_true')
     args = parser.parse_args()
-    checked = verify(args.src)
+    checked = verify(args.src, require_security=args.security)
     print(f'Sign-in and persistence source checks passed ({len(checked)} files; cloud access not tested)')

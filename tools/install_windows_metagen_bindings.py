@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 import importlib
 import json
@@ -26,6 +27,49 @@ HASHES = {
     "__init__.py": "961d8ad419dc7aa10d8d7b75e5fcd624cc681403a55ce99ad14ae4fe4a7be749",
     "cindex.py": "0d572be5704bd7065420166bbe5e5b3fb5943423bd73ba6e40e4f8e9253c3f08",
 }
+LLVM_RESOURCE_MAJOR = '23'
+LLVM_REQUIRED_REVISION = None
+LLVM24_COMMIT = '62397f8b3c3986f54187ce08f00b3448ea1f8880'
+LLVM24_HASHES = {
+    '__init__.py': '961d8ad419dc7aa10d8d7b75e5fcd624cc681403a55ce99ad14ae4fe4a7be749',
+    'cindex.py': '63d99dac8ecc68dbc10b9d77fda2784fdcc13c4c555d84c6d150b59ede1865d5',
+}
+# Windows ungoogled 156.79 still ships LLVM 23.1.0. Chromium's own toolchain
+# uses this exact LLVM 24 revision instead. Select by the real Ninja action,
+# then require matching C API version/revision and immutable Python bytes.
+LLVM_PROFILES = ('ungoogled-llvm23', 'chromium-llvm24-62397f8b')
+
+
+@contextmanager
+def llvm_profile(name: str):
+    global LLVM_COMMIT, LLVM_VERSION, HASHES, LLVM_RESOURCE_MAJOR, LLVM_REQUIRED_REVISION
+    if name not in LLVM_PROFILES:
+        raise ValueError('unsupported exact LLVM bindings profile')
+    before = LLVM_COMMIT, LLVM_VERSION, HASHES, LLVM_RESOURCE_MAJOR, LLVM_REQUIRED_REVISION
+    try:
+        if name == 'chromium-llvm24-62397f8b':
+            LLVM_COMMIT, LLVM_VERSION, HASHES = LLVM24_COMMIT, '24.0.0', LLVM24_HASHES
+            LLVM_RESOURCE_MAJOR, LLVM_REQUIRED_REVISION = '24', LLVM24_COMMIT
+        yield
+    finally:
+        LLVM_COMMIT, LLVM_VERSION, HASHES, LLVM_RESOURCE_MAJOR, LLVM_REQUIRED_REVISION = before
+
+
+def action_llvm_profile(contract: dict, src: Path, chromium_version: str) -> str:
+    relative = contract['resource'].resolve().relative_to(src.resolve()).as_posix()
+    if relative == 'third_party/llvm-build/Release+Asserts/lib/clang/23':
+        return 'ungoogled-llvm23'
+    if chromium_version == '156.0.8078.79' and relative == 'third_party/llvm-build/Release+Asserts/lib/clang/24':
+        return 'chromium-llvm24-62397f8b'
+    raise ValueError('actual metagen action has no exact supported LLVM resource pin')
+
+
+def validate_loaded_llvm(version: str) -> None:
+    suffix = r'(?:git)?' if LLVM_REQUIRED_REVISION else ''
+    if re.search(r'\b' + re.escape(LLVM_VERSION) + suffix + r'\b', version) is None:
+        raise ValueError(f'expected libclang {LLVM_VERSION}, loaded {version}')
+    if LLVM_REQUIRED_REVISION and LLVM_REQUIRED_REVISION not in version:
+        raise ValueError('loaded libclang does not identify the exact pinned LLVM revision')
 SOURCE_PACKAGES = (
     "third_party/llvm-build/Release+Asserts/bindings/python/clang",
     "third_party/llvm-libclang/bindings/python/clang",
@@ -35,6 +79,8 @@ MAX_FILE = 1024 * 1024
 PINS = {
     "154.0.8037.97": None,
     CHROMIUM_VERSION: {"v8_revision": V8_REVISION, "target_cpus": ("x64", "arm64")},
+    "156.0.8078.79": {"v8_revision": "c9b3cfcab30ace06c21f9b48a0f0a34805e81e9d",
+                      "target_cpus": ("x64",)},
 }
 AMD64 = 0x8664
 
@@ -208,8 +254,8 @@ def validate_paths(contract: dict, src: Path, runtime: dict) -> None:
     if not contract["library"].is_file() or contract["library"].resolve() not in [p.resolve() for p in allowed_libraries]:
         raise ValueError("metagen DLL is not the source toolchain library")
     validate_library(contract["library"])
-    if contract["resource"].resolve() != (src / "third_party/llvm-build/Release+Asserts/lib/clang/23").resolve():
-        raise ValueError("metagen resource directory is not the source clang 23 toolchain")
+    if contract["resource"].resolve() != (src / f"third_party/llvm-build/Release+Asserts/lib/clang/{LLVM_RESOURCE_MAJOR}").resolve():
+        raise ValueError(f"metagen resource directory is not the source clang {LLVM_RESOURCE_MAJOR} toolchain")
     if not (contract["resource"] / "include/stddef.h").is_file():
         raise ValueError("metagen clang builtin headers are missing")
     bindings = local(contract["bindings"])
@@ -296,8 +342,7 @@ def probe(bindings: Path, library: Path, src: Path) -> dict:
     cindex.Config.set_library_file(str(library))
     cindex.Config.set_compatibility_check(True)
     version = cindex.Config().get_clang_version()  # Registers all required C API symbols.
-    if re.search(r"\b23\.1\.0\b", version) is None:
-        raise ValueError(f"expected libclang {LLVM_VERSION}, loaded {version}")
+    validate_loaded_llvm(version)
     index = cindex.Index.create()
     unit = index.parse("chromix-metagen-preflight.cc", args=["-x", "c++", "-std=c++20"],
                        unsaved_files=[("chromix-metagen-preflight.cc", "enum class ChromixProbe { Value = 23 }; ")])
@@ -355,16 +400,18 @@ def install(src: Path, out: Path, ninja: Path, version: str, *, download: bool) 
     runtime = run_json([contract["python"], "-I", "-c",
                         "import json,runpy; print(json.dumps(runpy.run_path("
                         + repr(str(Path(__file__).resolve())) + ")['runtime_info']()))"], cwd=out)
-    validate_paths(contract, src, runtime)
-    library_hash = digest(contract["library"].read_bytes())
-    origin = provision(src, contract["bindings"], download=download)
-    result = run_json([contract["python"], "-I", "-S", "-B", str(Path(__file__).resolve()), "--probe",
-                       "--bindings", str(contract["bindings"]), "--library", str(contract["library"]),
-                       "--src", str(src)], cwd=out)
-    if digest(contract["library"].read_bytes()) != library_hash:
-        raise ValueError("source libclang DLL changed during bindings provisioning")
-    return dict(result, status="verified", origin=origin, target_cpu=arch, llvm_commit=LLVM_COMMIT,
-                bindings_sha256=HASHES, library_sha256=library_hash)
+    selected_profile = action_llvm_profile(contract, src, version)
+    with llvm_profile(selected_profile):
+        validate_paths(contract, src, runtime)
+        library_hash = digest(contract["library"].read_bytes())
+        origin = provision(src, contract["bindings"], download=download)
+        result = run_json([contract["python"], "-I", "-S", "-B", str(Path(__file__).resolve()), "--probe",
+                           "--bindings", str(contract["bindings"]), "--library", str(contract["library"]),
+                           "--src", str(src), '--llvm-profile', selected_profile], cwd=out)
+        if digest(contract["library"].read_bytes()) != library_hash:
+            raise ValueError("source libclang DLL changed during bindings provisioning")
+        return dict(result, status="verified", origin=origin, target_cpu=arch, llvm_commit=LLVM_COMMIT,
+                    llvm_profile=selected_profile, bindings_sha256=HASHES, library_sha256=library_hash)
 
 
 def main(argv=None) -> int:
@@ -379,12 +426,14 @@ def main(argv=None) -> int:
     mode.add_argument("--configure", action="store_true")
     parser.add_argument("--bindings", type=Path)
     parser.add_argument("--library", type=Path)
+    parser.add_argument('--llvm-profile', choices=LLVM_PROFILES, default='ungoogled-llvm23')
     args = parser.parse_args(argv)
     try:
         if args.probe:
             if not args.bindings or not args.library:
                 parser.error("--probe requires --bindings and --library")
-            result = probe(args.bindings, args.library, args.src)
+            with llvm_profile(args.llvm_profile):
+                result = probe(args.bindings, args.library, args.src)
         elif args.configure:
             if not args.out or not args.chromium_version:
                 parser.error("--configure requires --out and --chromium-version")

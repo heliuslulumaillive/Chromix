@@ -12,6 +12,8 @@ REPO = Path(__file__).resolve().parents[2]
 HELPER = REPO / 'build/windows/ensure-windows-sdk.ps1'
 SDK_VERSION = '10.0.28000.0'
 INSTALLERS = {
+    '156.0.8078.79': ('10.0.28000.0', '38ab8f6d-3676-4860-ae84-3361308b9d7f',
+                     'b534d37a1f3140c8be1298ed88855b8cbddc35d2626c4d0afd39f186a4b578e3'),
     '155.0.8059.39': ('10.0.28000.0', '38ab8f6d-3676-4860-ae84-3361308b9d7f',
                      'b534d37a1f3140c8be1298ed88855b8cbddc35d2626c4d0afd39f186a4b578e3'),
     '154.0.8037.57': ('10.0.28000.0', '38ab8f6d-3676-4860-ae84-3361308b9d7f',
@@ -310,7 +312,7 @@ Write-Output "SDK_ROOT=$env:WINDOWSSDKDIR"
                 self.calls.unlink()
 
     def test_unknown_version_and_invalid_arch_fail_before_download(self):
-        for version in ('156.0.1.0', '151.0.1.0', '153', 'invalid'):
+        for version in ('157.0.1.0', '151.0.1.0', '153', 'invalid'):
             self.assert_failure(self.invoke(True, CHROMIUM=version), 'Chromium')
         self.assert_failure(self.invoke(True, ARCH='x86'), 'ValidateSet')
         self.assertEqual(self.events(), [])

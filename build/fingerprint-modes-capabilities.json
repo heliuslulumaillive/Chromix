@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "build_variant": "fingerprint-modes-win155",
-  "chromium_version": "155.0.8059.39",
+  "build_variant": "fingerprint-modes-win156",
+  "chromium_version": "156.0.8078.79",
   "strategy_version": 1,
   "new_strategy_flavor": "compatible-v1",
   "kind": "source_contract",

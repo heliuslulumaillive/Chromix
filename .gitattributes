@@ -16,9 +16,14 @@
 *.yaml    text eol=lf
 *.json    text eol=lf
 *.gn      text eol=lf
+*.psd1    text eol=lf
 *.conf    text eol=lf
 series    text eol=lf
 Makefile  text eol=lf
+CHROMIUM_WINDOWS_VERSION text eol=lf
+UNGOOGLED_WINDOWS_VERSION text eol=lf
+build/windows/security-requirements.txt text eol=lf
+tools/google-services-requirements.txt text eol=lf
 
 # Windows-only helpers keep CRLF.
 *.cmd     text eol=crlf
@@ -36,6 +41,7 @@ Makefile  text eol=lf
 *.woff2   binary
 *.dat     binary
 *.bin     binary
+*.pb      binary
 /tools/tests/fixtures/pixel-semantics-v1/cases.tsv text eol=lf
 /tools/tests/fixtures/pixel-semantics-v1/*.gz binary
 *.tar.gz  binary

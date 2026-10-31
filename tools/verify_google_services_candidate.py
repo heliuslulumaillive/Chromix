@@ -20,9 +20,17 @@ REPO = Path(__file__).resolve().parents[1]
 VERSION = '155.0.8059.39'
 GOOGLE_VARIANT = 'google-services'
 FINGERPRINT_VARIANT = 'fingerprint-modes-win155'
+SECURITY_VARIANT = 'fingerprint-modes-win156'
+VARIANT_VERSIONS = {
+    GOOGLE_VARIANT: VERSION,
+    FINGERPRINT_VARIANT: VERSION,
+    SECURITY_VARIANT: '156.0.8078.79',
+}
+FINGERPRINT_VARIANTS = frozenset((FINGERPRINT_VARIANT, SECURITY_VARIANT))
 ARTIFACT_NAMES = {
     GOOGLE_VARIANT: 'google-services-win155-x64',
     FINGERPRINT_VARIANT: 'fingerprint-modes-win155-x64',
+    SECURITY_VARIANT: 'security-win156-x64',
 }
 FINGERPRINT_REPORTS = ('modes-native.json', 'modes-runtime.json', 'fingerprint-modes-capabilities.json')
 MASK_FIRST_ORACLE_REVISION = '9a06334258ed6039c597360038183f8693347e45'
@@ -90,7 +98,14 @@ def read_object(path, *, max_bytes=512 * 1024):
     return value
 
 
+def variant_version(build_variant):
+    if not isinstance(build_variant, str) or build_variant not in VARIANT_VERSIONS:
+        raise ValueError('Unsupported exact build variant')
+    return VARIANT_VERSIONS[build_variant]
+
+
 def validate_source_run(source, *, build_variant=GOOGLE_VARIANT):
+    variant_version(build_variant)
     if (not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', str(source.get('repository', '')))
             or type(source.get('run_id')) is not int or source['run_id'] <= 0
             or type(source.get('artifact_id')) is not int or source['artifact_id'] <= 0
@@ -100,12 +115,15 @@ def validate_source_run(source, *, build_variant=GOOGLE_VARIANT):
 
 
 def validate_source_recipe(inner, outer, repo=REPO, *, build_variant=GOOGLE_VARIANT):
+    version = variant_version(build_variant)
     if inner != outer:
         raise ValueError('Packaged source receipt differs from the artifact receipt')
-    if inner.get('variant') != 'google-services-self-use' or inner.get('chromium_version') != VERSION:
-        raise ValueError('Candidate is not the expected Google-service Windows 155 variant')
-    if build_variant == FINGERPRINT_VARIANT and inner.get('build_variant') != FINGERPRINT_VARIANT:
+    if inner.get('variant') != 'google-services-self-use' or inner.get('chromium_version') != version:
+        raise ValueError('Candidate is not the expected Google-service variant/version pair')
+    if build_variant in FINGERPRINT_VARIANTS and inner.get('build_variant') != build_variant:
         raise ValueError('Candidate is not the fingerprint-modes build variant')
+    if build_variant == GOOGLE_VARIANT and inner.get('build_variant') not in (None, GOOGLE_VARIANT):
+        raise ValueError('Fingerprint receipt cannot be admitted as a Google-only variant')
     if inner.get('patch_sha256') != sha256(repo / 'patches/google-services/0001-restore-google-services.patch'):
         raise ValueError('Candidate was built with a different Google restoration patch')
     inputs = inner.get('preparation_inputs', {})
@@ -115,7 +133,7 @@ def validate_source_recipe(inner, outer, repo=REPO, *, build_variant=GOOGLE_VARI
              'patches/google-services/0001-restore-google-services.json',
              'patches/google-services/0002-windows-native-passkey-discovery.patch',
              'patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch']
-    if build_variant == FINGERPRINT_VARIANT:
+    if build_variant in FINGERPRINT_VARIANTS:
         names.append('build/fingerprint-modes-capabilities.json')
         config = read_object(repo / 'build/google-services-win155.json')
         for name in config.get('restoration_overlays', []):
@@ -126,9 +144,29 @@ def validate_source_recipe(inner, outer, repo=REPO, *, build_variant=GOOGLE_VARI
         if 'patches/fingerprint-modes/0011-pixel-semantic-preservation.patch' in config.get('restoration_overlays', []):
             names.extend('tools/tests/fixtures/pixel-semantics-v1/' + name
                          for name in ('cases.tsv', 'pixels.bin', 'provenance.json'))
+        if build_variant == SECURITY_VARIANT:
+            if config.get('chromium_version') != version or not config.get('security_restoration'):
+                raise ValueError('Security candidate source configuration has the wrong version or security scope')
+            names.extend(('tools/prepare_google_services.py', 'tools/verify_google_services_source.py',
+                          'tools/restored_source_resources.py', 'build/args.security.gn',
+                          'patches/google-services/0001-restore-google-services.patch'))
+            for spec in config.get('restore_pruned_resources', {}).values():
+                name = spec.get('repository_path') if isinstance(spec, dict) else None
+                if not isinstance(name, str):
+                    raise ValueError('Security resource input is missing its repository path')
+                path = (repo / name).resolve()
+                if not path.is_relative_to(repo.resolve()) or not path.is_file():
+                    raise ValueError('Invalid security resource input path')
+                names.append(name)
+            if (repo / 'build/gpu-binding-capabilities.json').is_file():
+                names.append('build/gpu-binding-capabilities.json')
     for name in dict.fromkeys(names):
         if inputs.get(name) != sha256(repo / name):
             raise ValueError('Candidate source inputs do not match: ' + name)
+    if build_variant == SECURITY_VARIANT:
+        if set(inputs) != set(names) or inner.get('preparation_sha256') != hashlib.sha256(
+                json.dumps(inputs, sort_keys=True).encode()).hexdigest():
+            raise ValueError('Security source recipe inventory or digest differs')
 
 
 def validate_mode_native(report, payload):
@@ -574,8 +612,11 @@ def validate_mode_runtime(report, payload):
     return len(checks)
 
 
-def validate_fingerprint_tests(report_path, bundle, payload_hashes=None):
+def validate_fingerprint_tests(report_path, bundle, payload_hashes=None, *, build_variant=FINGERPRINT_VARIANT):
     """Validate executed evidence, without rerunning an unavailable native exe."""
+    version = variant_version(build_variant)
+    if build_variant not in FINGERPRINT_VARIANTS:
+        raise ValueError('Fingerprint evidence requires an exact fingerprint build variant')
     report = read_object(report_path)
     payload = payload_hashes or {name: sha256(bundle / name) for name in ('chrome.exe', 'chrome.dll')}
     if (report.get('status') != 'passed'
@@ -597,8 +638,8 @@ def validate_fingerprint_tests(report_path, bundle, payload_hashes=None):
     runtime_checks = validate_mode_runtime(runtime, payload)
     packaged_capabilities = bundle / 'fingerprint-modes-capabilities.json'
     if (type(capabilities.get('schema_version')) is not int or capabilities['schema_version'] != 1
-            or capabilities.get('build_variant') != FINGERPRINT_VARIANT
-            or capabilities.get('chromium_version') != VERSION
+            or capabilities.get('build_variant') != build_variant
+            or capabilities.get('chromium_version') != version
             or packaged_capabilities.is_symlink() or not packaged_capabilities.is_file()
             or sha256(packaged_capabilities) != files['fingerprint-modes-capabilities.json']
             or runtime.get('capabilities_sha256') != files['fingerprint-modes-capabilities.json']):
@@ -658,7 +699,93 @@ def inventory(bundle):
             for path in sorted(bundle.rglob('*')) if path.is_file()}
 
 
+def validate_security_runtime(report_path, source_record_path, bundle, payload_hashes=None):
+    """Validate existing 156 security evidence only; importing the probe never runs it."""
+    try:
+        from . import verify_security_runtime as security
+    except ImportError:
+        import verify_security_runtime as security
+    for path in (report_path, source_record_path):
+        security.plain(path)
+        if not path.is_file():
+            raise ValueError('Mandatory Windows 156 security report/source record is missing')
+    report = read_object(report_path, max_bytes=4 * 1024**2)
+    checks = report.get('checks')
+    if (type(report.get('schema_version')) is not int or report['schema_version'] != 1
+            or report.get('status') != 'passed' or not isinstance(checks, list)
+            or len(checks) != len(security.REQUIRED_CHECKS)
+            or any(not isinstance(row, dict) or not isinstance(row.get('name'), str)
+                   or row.get('passed') is not True for row in checks)):
+        raise ValueError('Mandatory security runtime checks are missing, failed or malformed')
+    names = [row['name'] for row in checks]
+    if (set(names) != security.REQUIRED_CHECKS or len(names) != len(set(names))
+            or not security.report_passed(report)):
+        raise ValueError('Mandatory security runtime check inventory must be exact and unique')
+    version = variant_version(SECURITY_VARIANT)
+    if (report.get('browser_version') != 'Chrome/' + version
+            or report.get('preferences_changed') is not False
+            or report.get('trust_store_changed') is not False):
+        raise ValueError('Security runtime version or read-only scope differs')
+    if any(row['passed'] is not True for row in security.assess_pages(
+            report.get('pages', {}), report.get('preferences', {}))):
+        raise ValueError('Security page/default preference evidence contradicts its passed checks')
+    payload = payload_hashes or {name: sha256(bundle / name) for name in ('chrome.exe', 'chrome.dll')}
+    binding = report.get('binding')
+    expected_binding = {
+        'browser_sha256': payload['chrome.exe'], 'chrome_dll_sha256': payload['chrome.dll'],
+        'verifier_sha256': sha256(REPO / 'tools/verify_security_runtime.py'),
+        'recipe_tool_sha256': sha256(REPO / 'tools/security_build_record.py'),
+        'requirements_sha256': sha256(REPO / 'tools/google-services-requirements.txt'),
+    }
+    if not isinstance(binding, dict) or any(binding.get(k) != v for k, v in expected_binding.items()):
+        raise ValueError('Security runtime executable, DLL or verifier/tool identity differs')
+    if not re.fullmatch('[a-f0-9]{64}', str(binding.get('python_sha256', ''))):
+        raise ValueError('Security runtime producer Python identity is missing')
+    locked = dict(re.findall(r'(?m)^(playwright|psutil)==([^\s#]+)$',
+                            (REPO / 'tools/google-services-requirements.txt').read_text()))
+    dependencies = binding.get('dependencies')
+    if not isinstance(dependencies, dict) or set(dependencies) != {'playwright', 'psutil'}:
+        raise ValueError('Security runtime dependency inventory is incomplete')
+    for name, dependency in dependencies.items():
+        if (not isinstance(dependency, dict) or dependency.get('version') != locked.get(name)
+                or type(dependency.get('files')) is not int or dependency['files'] <= 0
+                or not re.fullmatch('[a-f0-9]{64}', str(dependency.get('inventory_sha256', '')))):
+            raise ValueError('Security runtime producer dependency identity differs: ' + name)
+    source = security.source_identity(source_record_path, security.build_record.recipe(REPO))
+    if report.get('source') != source:
+        raise ValueError('Security runtime source-record SHA or recipe binding differs')
+    source_record = read_object(source_record_path, max_bytes=4 * 1024**2)
+    build = read_object(bundle / 'google-services-build.json')
+    if (type(source_record.get('schema_version')) is not int
+            or source_record.get('payload_build_variant') != SECURITY_VARIANT
+            or source_record.get('core_commit') != security.build_record.CORE
+            or source_record.get('windows_commit') != security.build_record.WINDOWS
+            or build.get('build_variant') != SECURITY_VARIANT or build.get('chromium_version') != version
+            or source_record.get('source_commit') != build.get('source_commit')
+            or not re.fullmatch('[a-f0-9]{40}', str(source_record.get('source_commit', '')))
+            or not re.fullmatch('[1-9][0-9]*', str(source_record.get('run_id', '')))
+            or str(source_record['run_id']) != str(build.get('run_id'))
+            or source['source_receipt_sha256'] != sha256(bundle / 'google-services-source.json')
+            or source['gn_sha256'] != build.get('gn_args_sha256')):
+        raise ValueError('Security source record does not match the packaged source/build receipt')
+    gn = source_record.get('gn', {})
+    content = gn.get('content')
+    if (not isinstance(content, str) or type(gn.get('bytes')) is not int
+            or len(content.encode('utf-8')) != gn['bytes']
+            or hashlib.sha256(content.encode('utf-8')).hexdigest() != source['gn_sha256']):
+        raise ValueError('Recorded exact GN contents do not match the compiled GN digest')
+    for key, wanted in security.build_record.REQUIRED_FLAGS.items():
+        values = re.findall(r'(?m)^\s*' + re.escape(key) + r'\s*=\s*([^#\r\n]+)', content)
+        if len(values) != 1 or values[0].strip() != wanted:
+            raise ValueError('Security GN contents contradict required flags: ' + key)
+    return {'status': 'passed', 'report_sha256': sha256(report_path),
+            'checks': sorted(names), 'binding': binding, 'source': source,
+            'scope': 'Validated fresh-profile compiled pages/defaults tied to this artifact; no online threat verdict',
+            'producer_python_and_dependencies': 'Identity metadata retained; not assumed equal to the verification host'}
+
+
 def verify_candidate(artifact_dir, source, report_dir, record, *, build_variant=GOOGLE_VARIANT):
+    version = variant_version(build_variant)
     validate_source_run(source, build_variant=build_variant)
     native_tests = artifact_dir / 'native-passkey-unittests.json'
     record['native_passkey_regression_tests'] = validate_native_passkey_tests(read_object(native_tests))
@@ -675,9 +802,10 @@ def verify_candidate(artifact_dir, source, report_dir, record, *, build_variant=
                   verification_commit=os.environ.get('GITHUB_SHA'),
                   qualification='Tests of the original source-run artifact; not a rebuild of the verification commit')
     before = inventory(bundle)
-    if build_variant == FINGERPRINT_VARIANT:
+    if build_variant in FINGERPRINT_VARIANTS:
         build = read_object(bundle / 'google-services-build.json')
-        if (build.get('build_variant') != FINGERPRINT_VARIANT
+        if (build.get('build_variant') != build_variant
+                or build.get('chromium_version') != version
                 or build.get('source_commit') != source['head_sha']
                 or build.get('run_id') != source['run_id']
                 or build.get('repository') != source['repository']
@@ -689,8 +817,11 @@ def verify_candidate(artifact_dir, source, report_dir, record, *, build_variant=
             raise ValueError('Fingerprint candidate inventory differs from the pretest build receipt')
         record['build_variant'] = build_variant
         record['fingerprint_modes'] = validate_fingerprint_tests(
-            artifact_dir / 'fingerprint-modes-validation.json', bundle, before)
-    native = runtime_smoke(bundle_report, VERSION, report_dir / 'native-smoke')
+            artifact_dir / 'fingerprint-modes-validation.json', bundle, before, build_variant=build_variant)
+        if build_variant == SECURITY_VARIANT:
+            record['security_runtime'] = validate_security_runtime(
+                artifact_dir / 'security-runtime.json', artifact_dir / 'build-inputs.json', bundle, before)
+    native = runtime_smoke(bundle_report, version, report_dir / 'native-smoke')
     (report_dir / 'native-smoke.json').write_text(json.dumps(native, indent=2) + '\n', encoding='utf-8')
     probe_report = report_dir / 'google-webauthn.json'
     execution = run_command(
@@ -710,6 +841,10 @@ def verify_candidate(artifact_dir, source, report_dir, record, *, build_variant=
         raise ValueError('Runtime evidence is incomplete or belongs to another browser')
     if before != inventory(bundle) or sha256(archive) != record['archive_sha256']:
         raise ValueError('Candidate bytes changed during verification')
+    if build_variant == SECURITY_VARIANT and (
+            sha256(artifact_dir / 'security-runtime.json') != record['security_runtime']['report_sha256']
+            or sha256(artifact_dir / 'build-inputs.json') != record['security_runtime']['source']['record_sha256']):
+        raise ValueError('Mandatory security evidence changed during candidate verification')
     record.update(status='passed', files=before, runtime_checks=len(checks),
                   google_account_and_cloud_access='not_tested', windows_hello='not_tested',
                   google_password_manager_cloud_passkeys='not_tested')
@@ -721,10 +856,12 @@ def main():
     mode.add_argument('--artifact-dir', type=Path)
     mode.add_argument('--native-tests-json', type=Path)
     mode.add_argument('--fingerprint-tests-json', type=Path)
+    mode.add_argument('--security-tests-json', type=Path)
     parser.add_argument('--source-run-json', type=Path)
     parser.add_argument('--report-dir', type=Path)
     parser.add_argument('--bundle', type=Path)
-    parser.add_argument('--build-variant', choices=ARTIFACT_NAMES, default=GOOGLE_VARIANT)
+    parser.add_argument('--source-record', type=Path)
+    parser.add_argument('--build-variant', choices=ARTIFACT_NAMES)
     args = parser.parse_args()
     if args.native_tests_json:
         executed = validate_native_passkey_tests(read_object(args.native_tests_json))
@@ -733,7 +870,13 @@ def main():
     if args.fingerprint_tests_json:
         if not args.bundle:
             parser.error('Fingerprint evidence verification requires --bundle')
-        print(json.dumps(validate_fingerprint_tests(args.fingerprint_tests_json, args.bundle)))
+        print(json.dumps(validate_fingerprint_tests(args.fingerprint_tests_json, args.bundle,
+                         build_variant=args.build_variant or FINGERPRINT_VARIANT)))
+        return 0
+    if args.security_tests_json:
+        if not args.bundle or not args.source_record or args.build_variant != SECURITY_VARIANT:
+            parser.error('Security evidence requires --bundle, --source-record and the exact Windows 156 variant')
+        print(json.dumps(validate_security_runtime(args.security_tests_json, args.source_record, args.bundle)))
         return 0
     if not args.source_run_json or not args.report_dir:
         parser.error('Artifact verification requires --source-run-json and --report-dir')
@@ -742,7 +885,7 @@ def main():
               'source_checkpoint_restored': False}
     try:
         verify_candidate(args.artifact_dir, read_object(args.source_run_json), args.report_dir, record,
-                         build_variant=args.build_variant)
+                         build_variant=args.build_variant or GOOGLE_VARIANT)
     except Exception as error:
         record['error'] = str(error)
     (args.report_dir / 'verification.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')

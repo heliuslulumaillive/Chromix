@@ -137,7 +137,7 @@ class MetadataRefreshTest(unittest.TestCase):
         self.assertEqual(report['status'], 'failed')
 
 
-def write_fingerprint_evidence(root, bundle):
+def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
     # Small, schema-faithful versions of the actual PS/native/CDP receipts.
     # These are explicit test fixtures, not claims that a browser was executed.
     payload = {'browser_sha256': candidate.sha256(bundle / 'chrome.exe'),
@@ -272,7 +272,9 @@ def write_fingerprint_evidence(root, bundle):
     for group in coverage:
         actual=[c for c in checks if c.get('acceptance_group')==group]
         coverage[group].update(eligible_count=len(actual),passed_count=len(actual),evidence=[{'scenario':c['scenario'],'name':c['name']} for c in actual])
-    cap = (ROOT / 'build/fingerprint-modes-capabilities.json').read_bytes()
+    capability = json.loads((ROOT / 'build/fingerprint-modes-capabilities.json').read_bytes())
+    capability.update(build_variant=build_variant, chromium_version=candidate.variant_version(build_variant))
+    cap = json.dumps(capability).encode()
     (root / 'fingerprint-modes-capabilities.json').write_bytes(cap)
     (bundle / 'fingerprint-modes-capabilities.json').write_bytes(cap)
     runtime = {'schema_version': 1, 'status': 'passed', **payload, 'baseline_only': False,
@@ -798,7 +800,8 @@ if (@($results | Where-Object { -not $_.passed }).Count) { exit 1 }
                 (artifact / 'native-passkey-unittests.json').write_text(json.dumps({
                     'per_iteration_data': [{name: [{'status': 'SUCCESS'}] for name in candidate.NATIVE_PASSKEY_TESTS}]}))
                 write_fingerprint_evidence(artifact, bundle)
-                build = {'build_variant': FP, 'source_commit': source['head_sha'], 'run_id': 50,
+                build = {'build_variant': FP, 'chromium_version': candidate.variant_version(FP),
+                         'source_commit': source['head_sha'], 'run_id': 50,
                          'repository': source['repository'], 'patch_sha256': receipt['patch_sha256'],
                          'preparation_sha256': receipt['preparation_sha256'], 'files': candidate.inventory(bundle)}
                 if mutation == 'commit':

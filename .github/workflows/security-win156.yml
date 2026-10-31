@@ -1,0 +1,84 @@
+name: Security Windows 156
+on:
+  workflow_call:
+    secrets:
+      UPSTREAM_ACTIONS_TOKEN:
+        required: false
+    inputs:
+      operation:
+        type: string
+        default: fresh
+      source_run:
+        type: string
+        default: ''
+      max_stages:
+        type: string
+        default: '4'
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [fresh, resume, upstream]
+        default: fresh
+      source_run:
+        type: string
+        default: ''
+        description: 'Only a completed security-win156 checkpoint run; never a Windows 155 donor'
+      max_stages:
+        type: choice
+        options: ['1', '2', '3', '4']
+        default: '4'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: security-win156-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  stage1:
+    uses: ./.github/workflows/security-win156-worker.yml
+    secrets: inherit
+    with:
+      stage: 1
+      operation: ${{ inputs.operation }}
+      source_run: ${{ inputs.source_run }}
+  stage2:
+    needs: stage1
+    if: ${{ always() && !cancelled() && needs.stage1.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages) >= 2 }}
+    uses: ./.github/workflows/security-win156-worker.yml
+    secrets: inherit
+    with:
+      stage: 2
+      operation: resume
+      source_run: ${{ github.run_id }}
+  stage3:
+    needs: stage2
+    if: ${{ always() && !cancelled() && needs.stage2.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages) >= 3 }}
+    uses: ./.github/workflows/security-win156-worker.yml
+    secrets: inherit
+    with:
+      stage: 3
+      operation: resume
+      source_run: ${{ github.run_id }}
+  stage4:
+    needs: stage3
+    if: ${{ always() && !cancelled() && needs.stage3.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages) >= 4 }}
+    uses: ./.github/workflows/security-win156-worker.yml
+    secrets: inherit
+    with:
+      stage: 4
+      operation: resume
+      source_run: ${{ github.run_id }}
+  result:
+    needs: [stage1, stage2, stage3, stage4]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require an accepted candidate; checkpoints alone are unfinished
+        env:
+          DELIVERED: ${{ needs.stage1.outputs.finished == 'true' || needs.stage2.outputs.finished == 'true' || needs.stage3.outputs.finished == 'true' || needs.stage4.outputs.finished == 'true' }}
+        run: |
+          if [ "$DELIVERED" != true ]; then
+            echo "No accepted candidate delivered. Inspect the preserved Windows 156 checkpoint and failure evidence."
+            exit 1
+          fi

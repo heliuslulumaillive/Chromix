@@ -1,7 +1,7 @@
 {
-  "chromium_version": "155.0.8059.39",
-  "core_commit": "ffeb45a2bb88bc56a1dfed31410aeb10e9efcd5a",
-  "windows_commit": "989b4382364baaddb8b3180e1eb1030ca96a7273",
+  "chromium_version": "156.0.8078.79",
+  "core_commit": "28a211ab4ab6b83d919966a4f58a6df23cf4fb29",
+  "windows_commit": "8492884eb30fdd9417ea7816aa92def805c97c74",
   "remove_patches": [
     "core/inox-patchset/0003-disable-autofill-download-manager.patch",
     "core/inox-patchset/0005-disable-default-extensions.patch",
@@ -12,13 +12,20 @@
     "core/ungoogled-chromium/disable-gaia.patch",
     "core/ungoogled-chromium/disable-webstore-urls.patch",
     "core/ungoogled-chromium/disable-tos-dialog.patch",
-    "extra/ungoogled-chromium/add-flag-to-configure-extension-downloading.patch"
+    "extra/ungoogled-chromium/add-flag-to-configure-extension-downloading.patch",
+    "core/inox-patchset/0001-fix-building-without-safebrowsing.patch",
+    "core/ungoogled-chromium/fix-building-without-safebrowsing.patch",
+    "core/iridium-browser/safe_browsing-disable-incident-reporting.patch",
+    "core/iridium-browser/safe_browsing-disable-reporting-of-safebrowsing-over.patch",
+    "extra/ungoogled-chromium/disable-download-quarantine.patch",
+    "core/ungoogled-chromium/move-js-optimizer-unfamiliar-sites.patch"
   ],
   "restore_sections": {
     "core/ungoogled-chromium/block-requests.patch": [
       "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
       "components/affiliations/core/browser/hash_affiliation_fetcher.h",
-      "components/assist_ranker/ranker_url_fetcher.cc"
+      "components/update_client/update_checker.cc",
+      "components/translate/core/browser/ranker_url_fetcher.cc"
     ],
     "extra/inox-patchset/0006-modify-default-prefs.patch": [
       "components/password_manager/core/browser/password_manager.cc"
@@ -36,7 +43,8 @@
       "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc",
       "chrome/browser/ui/toolbar/app_menu_model.cc",
       "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc",
-      "chrome/browser/ui/webui/settings/settings_ui.cc"
+      "chrome/browser/ui/webui/settings/settings_ui.cc",
+      "chrome/browser/resources/settings/privacy_page/security/security_page.html"
     ],
     "core/ungoogled-chromium/remove-unused-preferences-fields.patch": [
       "chrome/browser/enterprise/BUILD.gn",
@@ -97,24 +105,79 @@
       "components/signin/public/base/signin_prefs.cc",
       "components/signin/public/base/signin_switches.cc",
       "components/signin/public/identity_manager/identity_utils.cc",
-      "components/sync/service/sync_prefs.cc"
+      "components/sync/service/sync_prefs.cc",
+      "chrome/browser/password_manager/generated_password_leak_detection_pref.cc",
+      "chrome/browser/safe_browsing/advanced_protection_status_manager_desktop.cc",
+      "chrome/browser/safe_browsing/advanced_protection_status_manager_unittest.cc",
+      "chrome/browser/safe_browsing/android/services_delegate_android.h",
+      "chrome/browser/safe_browsing/chrome_password_protection_service.cc",
+      "chrome/browser/safe_browsing/chrome_password_protection_service.h",
+      "chrome/browser/safe_browsing/chrome_password_protection_service_browsertest.cc",
+      "chrome/browser/safe_browsing/chrome_password_protection_service_sync_browsertest.cc",
+      "chrome/browser/safe_browsing/download_protection/check_client_download_request.cc",
+      "chrome/browser/safe_browsing/download_protection/check_client_download_request_base.cc",
+      "chrome/browser/safe_browsing/download_protection/download_protection_service_unittest.cc",
+      "chrome/browser/safe_browsing/incident_reporting/extension_data_collection_unittest.cc",
+      "chrome/browser/safe_browsing/incident_reporting/incident_reporting_service.cc",
+      "chrome/browser/safe_browsing/incident_reporting/incident_reporting_service_unittest.cc",
+      "chrome/browser/safe_browsing/incident_reporting/last_download_finder_unittest.cc",
+      "chrome/browser/safe_browsing/incident_reporting/state_store.cc",
+      "chrome/browser/safe_browsing/incident_reporting/state_store_unittest.cc",
+      "chrome/browser/safe_browsing/metrics/safe_browsing_metrics_provider.cc",
+      "chrome/browser/safe_browsing/safe_browsing_blocking_page_test.cc",
+      "chrome/browser/safe_browsing/safe_browsing_service.cc",
+      "chrome/browser/safe_browsing/safe_browsing_service.h",
+      "chrome/browser/safe_browsing/telemetry/android/android_telemetry_service.cc",
+      "chrome/browser/safe_browsing/telemetry/android/android_telemetry_service_unittest.cc",
+      "chrome/browser/safe_browsing/url_checker_delegate_impl.cc",
+      "components/password_manager/core/browser/leak_detection/leak_detection_check_impl.cc",
+      "components/password_manager/core/browser/leak_detection_delegate.cc",
+      "components/safe_browsing/content/browser/base_blocking_page.cc",
+      "components/safe_browsing/content/browser/client_side_detection_service.cc",
+      "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.cc",
+      "components/safe_browsing/content/browser/triggers/suspicious_site_trigger_unittest.cc",
+      "components/safe_browsing/content/browser/triggers/trigger_manager.cc",
+      "components/safe_browsing/content/browser/triggers/trigger_throttler.cc",
+      "components/safe_browsing/content/browser/triggers/trigger_throttler_unittest.cc",
+      "components/safe_browsing/content/browser/ui_manager.cc",
+      "components/safe_browsing/content/browser/ui_manager_unittest.cc",
+      "components/safe_browsing/core/browser/db/sb_local_database_manager.cc",
+      "components/safe_browsing/core/browser/db/sb_local_database_manager.h",
+      "components/safe_browsing/core/browser/db/sb_protocol_manager_util.cc",
+      "components/safe_browsing/core/browser/db/sb_protocol_manager_util.h",
+      "components/safe_browsing/core/browser/db/util.h",
+      "components/safe_browsing/core/browser/db/v4_update_protocol_manager.cc",
+      "components/safe_browsing/core/browser/db/v4_update_protocol_manager.h",
+      "components/safe_browsing/core/browser/password_protection/password_protection_service_base.h",
+      "components/safe_browsing/core/browser/realtime/policy_engine.cc",
+      "components/safe_browsing/core/browser/realtime/url_lookup_service.cc",
+      "components/safe_browsing/core/browser/realtime/url_lookup_service_base.cc",
+      "components/safe_browsing/core/browser/safe_browsing_metrics_collector.cc",
+      "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service.cc",
+      "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service_observer_util.cc",
+      "components/safe_browsing/core/browser/web_ui/safe_browsing_ui_handler.cc",
+      "components/safe_browsing/core/common/BUILD.gn",
+      "components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.cc",
+      "components/safe_browsing/core/common/safe_browsing_policy_handler.cc",
+      "components/safe_browsing/core/common/safe_browsing_prefs_unittest.cc"
     ]
   },
   "restoration_overlays": [
     "patches/google-services/0002-windows-native-passkey-discovery.patch",
     "patches/fingerprint-modes/0001-independent-mode-contract.patch",
-    "patches/fingerprint-modes/0002-graphics.patch",
+    "patches/fingerprint-modes-win156/0002-graphics.patch",
     "patches/fingerprint-modes/0003-surfaces.patch",
     "patches/fingerprint-modes/0004-gpu-compatible-modes-v1.patch",
     "patches/fingerprint-modes/0005-installed-font-allowlists.patch",
     "patches/fingerprint-modes/0006-audio-defaults.patch",
     "patches/fingerprint-modes/0007-custom-ua-client-hints.patch",
     "patches/fingerprint-modes/0008-required-physical-gpu.patch",
-    "patches/fingerprint-modes/0009-shardx-webgl-consistent-readback.patch",
+    "patches/fingerprint-modes-win156/0009-shardx-webgl-consistent-readback.patch",
     "patches/fingerprint-modes/0010-windows-native-voice-compat.patch",
     "patches/fingerprint-modes/0011-pixel-semantic-preservation.patch",
     "patches/fingerprint-modes/0014-headless-screen-synchronization.patch",
-    "patches/fingerprint-modes/0015-pixel-mask-first.patch"
+    "patches/fingerprint-modes/0015-pixel-mask-first.patch",
+    "patches/security/0001-restore-safety-hub-entry.patch"
   ],
   "extra_sources": [
     "chrome/browser/BUILD.gn",
@@ -123,7 +186,27 @@
     "components/browser_sync/sync_to_signin_migration.cc",
     "components/password_manager/core/browser/password_feature_manager_impl.cc",
     "content/browser/webauth/webauth_request_security_checker_impl.cc",
-    "content/browser/webauth/webauth_request_security_checker_impl.h"
+    "content/browser/webauth/webauth_request_security_checker_impl.h",
+    "chrome/browser/safe_browsing/BUILD.gn",
+    "components/safe_browsing/core/common/BUILD.gn",
+    "components/safe_browsing/core/common/safe_browsing_prefs.cc",
+    "chrome/browser/prefs/browser_prefs.cc",
+    "chrome/browser/browser_process_impl.cc",
+    "chrome/browser/safe_browsing/safe_browsing_service.cc",
+    "chrome/browser/safe_browsing/services_delegate_desktop.cc",
+    "components/download/internal/common/download_item_impl.cc",
+    "components/password_manager/core/browser/leak_detection/leak_detection_check_impl.cc",
+    "chrome/browser/extensions/api/settings_private/prefs_util.cc",
+    "chrome/browser/resources/settings/privacy_page/security/security_page.html",
+    "components/safe_browsing/core/browser/client_side_detection_service_base.cc",
+    "components/password_manager/core/browser/leak_detection_delegate.cc",
+    "components/resources/safe_browsing_resources.grdp",
+    "components/safe_browsing/content/resources/BUILD.gn",
+    "components/safe_browsing/content/resources/download_file_types.asciipb",
+    "chrome/browser/component_updater/registration.cc",
+    "chrome/browser/component_updater/file_type_policies_component_installer.cc",
+    "components/update_client/update_checker.cc",
+    "chrome/browser/resources/settings/privacy_page/privacy_page_index.ts"
   ],
   "restore_hunks": {
     "core/ungoogled-chromium/remove-unused-preferences-fields.patch": {
@@ -139,7 +222,11 @@
       "chrome/browser/extensions/api/settings_private/prefs_util.cc": [
         "kSigninAllowed",
         "kSigninAllowedOnNextStartup",
-        "signin_pref_names.h"
+        "signin_pref_names.h",
+        "safe_browsing",
+        "SafeBrowsing",
+        "PasswordLeakDetection",
+        "LeakDetection"
       ],
       "chrome/browser/policy/configuration_policy_handler_list_factory.cc": [
         "kGoogleServicesUsernamePattern",
@@ -148,10 +235,14 @@
         "kProfileSeparationSettings",
         "kSigninAllowed",
         "kSigninAllowedOnNextStartup",
-        "signin_pref_names.h"
+        "signin_pref_names.h",
+        "safe_browsing",
+        "SafeBrowsing",
+        "PasswordProtection"
       ],
       "chrome/browser/prefs/browser_prefs.cc": [
-        "signin_pref_names.h"
+        "signin_pref_names.h",
+        "safe_browsing"
       ],
       "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.cc": [
         "signin_pref_names.h"
@@ -167,7 +258,9 @@
       ],
       "chrome/browser/ui/hats/trust_safety_sentiment_service.cc": [
         "kGoogleServicesConsentedToSync",
-        "signin_pref_names.h"
+        "signin_pref_names.h",
+        "safe_browsing",
+        "SafeBrowsing"
       ],
       "chrome/browser/ui/views/toolbar/app_menu.cc": [
         "kSigninAllowed",
@@ -181,9 +274,6 @@
         "signin_pref_names.h"
       ],
       "chrome/browser/ui/webui/history/browsing_history_handler.cc": [
-        "signin_pref_names.h"
-      ],
-      "chrome/browser/ui/webui/history/history_ui.cc": [
         "signin_pref_names.h"
       ],
       "chrome/browser/ui/webui/policy/policy_ui_handler.cc": [
@@ -218,17 +308,244 @@
         "kSigninAllowed",
         "kSigninAllowedOnNextStartup",
         "signin_pref_names.h"
+      ],
+      "chrome/browser/chrome_content_browser_client.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/content_settings/generated_javascript_optimizer_pref.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/download/download_browsertest.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/download/download_ui_model.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/download/download_ui_safe_browsing_util.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/enterprise/connectors/analysis/content_analysis_delegate.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/enterprise/signals/context_info_fetcher.cc": [
+        "safe_browsing",
+        "SafeBrowsing",
+        "PasswordProtection"
+      ],
+      "chrome/browser/enterprise/signals/context_info_fetcher.h": [
+        "safe_browsing",
+        "SafeBrowsing",
+        "PasswordProtection"
+      ],
+      "chrome/browser/extensions/api/enterprise_reporting_private/enterprise_reporting_private_api.cc": [
+        "safe_browsing",
+        "SafeBrowsing",
+        "PasswordProtection"
+      ],
+      "chrome/browser/extensions/api/preference/preference_api.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "chrome/browser/extensions/api/preference/preference_apitest.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router_unittest.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/extensions/api/webstore_private/webstore_private_apitest.cc": [
+        "SafeBrowsing"
+      ],
+      "chrome/browser/extensions/extension_service.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/extensions/installed_loader.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/extensions/pref_mapping.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "chrome/browser/notifications/platform_notification_service_impl.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/prefs/chrome_command_line_pref_store.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "chrome/browser/prefs/chrome_pref_service_factory.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "chrome/browser/prefs/pref_functional_browsertest.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "chrome/browser/resources/settings/privacy_page/security/security_page.html": [
+        "safe_browsing",
+        "SafeBrowsing",
+        "safebrowsing"
+      ],
+      "chrome/browser/resources/settings/privacy_page/security/security_page.ts": [
+        "safe_browsing",
+        "SafeBrowsing",
+        "LeakDetection"
+      ],
+      "chrome/browser/resources/settings/site_settings/site_settings_page.ts": [
+        "SafeBrowsing"
+      ],
+      "chrome/browser/site_protection/site_familiarity_utils.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/ssl/sct_reporting_service.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "chrome/browser/ssl/ssl_browsertest.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/ssl/ssl_error_controller_client.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/ui/safety_hub/menu_notification_service.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "chrome/browser/ui/safety_hub/safe_browsing_result.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/ui/views/safe_browsing/password_reuse_modal_warning_dialog.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/ui/views/safe_browsing/password_reuse_modal_warning_dialog.h": [
+        "safe_browsing",
+        "PasswordProtection"
+      ],
+      "chrome/browser/ui/webui/browser_command/browser_command_handler.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "chrome/browser/ui/webui/downloads/downloads_dom_handler.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/ui/webui/management/management_ui_handler.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/ui/webui/reset_password/reset_password_ui.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/ui/webui/settings/safety_hub_handler.cc": [
+        "safe_browsing"
+      ],
+      "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "chrome/browser/unified_consent/unified_consent_service_factory.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "chrome/common/extensions/api/privacy.json": [
+        "SafeBrowsing"
+      ],
+      "components/device_signals/core/browser/browser_utils.h": [
+        "safe_browsing"
+      ],
+      "components/password_manager/core/browser/password_reuse_detector_impl.cc": [
+        "safe_browsing"
+      ],
+      "components/password_manager/core/browser/password_reuse_manager_impl.cc": [
+        "safe_browsing",
+        "PasswordProtection"
+      ],
+      "components/password_manager/core/browser/password_sync_util.cc": [
+        "safe_browsing",
+        "PasswordProtection"
+      ],
+      "components/password_manager/core/browser/store_metrics_reporter.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "components/password_manager/core/browser/sync_credentials_filter_unittest.cc": [
+        "safe_browsing"
+      ],
+      "components/safety_check/safety_check.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "components/security_interstitials/content/bad_clock_blocking_page.cc": [
+        "safe_browsing"
+      ],
+      "components/security_interstitials/content/captive_portal_blocking_page.cc": [
+        "safe_browsing"
+      ],
+      "components/security_interstitials/content/mitm_software_blocking_page.cc": [
+        "safe_browsing"
+      ],
+      "components/security_interstitials/content/security_interstitial_controller_client.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "components/security_interstitials/content/security_interstitial_page.cc": [
+        "safe_browsing"
+      ],
+      "components/security_interstitials/content/ssl_blocking_page.cc": [
+        "safe_browsing"
+      ],
+      "components/sync_preferences/common_syncable_prefs_database.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "extensions/browser/extension_allowlist.cc": [
+        "safe_browsing",
+        "SafeBrowsing"
       ]
     }
   },
   "restore_windows_sections": {
     "ungoogled-chromium/windows/windows-fix-remove-unused-preferences-fields.patch": [
-      "chrome/browser/enterprise/signin/profile_management_disclaimer_service.cc",
       "chrome/browser/policy/configuration_policy_handler_list_factory.cc"
+    ],
+    "ungoogled-chromium/windows/windows-fix-building-without-safebrowsing.patch": [
+      "chrome/app/BUILD.gn",
+      "chrome/browser/chrome_content_browser_client.cc",
+      "chrome/browser/safe_browsing/BUILD.gn",
+      "chrome/browser/safe_browsing/safe_browsing_dummy.cc",
+      "chrome/browser/signin/signin_util_win.cc",
+      "chrome/browser/ui/views/page_info/BUILD.gn",
+      "components/safe_browsing/buildflags.gni",
+      "components/safe_browsing/core/browser/ping_manager.cc"
+    ],
+    "ungoogled-chromium/windows/windows-disable-download-warning-prompt.patch": [
+      "components/download/internal/common/download_item_impl.cc"
     ]
   },
   "restore_pruned_sources": [
     "components/signin/public/base/signin_pref_names.cc",
-    "components/signin/public/base/signin_pref_names.h"
-  ]
+    "components/signin/public/base/signin_pref_names.h",
+    "components/safe_browsing/core/common/safe_browsing_prefs.cc",
+    "components/safe_browsing/core/common/safe_browsing_prefs.h",
+    "components/safe_browsing/content/resources/empty_file_type_policy.pb"
+  ],
+  "restore_pruned_resources": {
+    "components/safe_browsing/content/resources/empty_file_type_policy.pb": {
+      "repository_path": "build/security-resources/empty_file_type_policy.pb",
+      "sha256": "98ebc9403565619b3aa2f71f64f5f54adea01d4c4b54d873b2b91c2ac5544112",
+      "size": 14
+    }
+  },
+  "security_restoration": {
+    "safe_browsing_mode": 1,
+    "protection_defaults": "Chromium upstream defaults; no forced Enhanced Protection",
+    "restore_download_danger_classification": true,
+    "restore_download_quarantine": true
+  },
+  "domain_rules_sha256": "f59c4316b4ac32f9dfe4f6440c4cf9ad5dab0ab8827769f5dc2587ca07e91f09"
 }

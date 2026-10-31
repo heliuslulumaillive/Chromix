@@ -1,0 +1,13 @@
+--- a/chrome/browser/resources/settings/privacy_page/privacy_page_index.ts
++++ b/chrome/browser/resources/settings/privacy_page/privacy_page_index.ts
+@@ -216,6 +216,10 @@
+   private getDefaultViews_(): string[] {
+     const defaultViews = ['privacy'];
+ 
++    if (this.showPage_(this.pageVisibility_.safetyHub)) {
++      defaultViews.push('safetyHubEntryPoint');
++    }
++
+ 
+     return defaultViews;
+   }

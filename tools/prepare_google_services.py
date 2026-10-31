@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Restore Google endpoints and apply the focused Windows 155 service patch."""
+"""Restore endpoints, pinned resources and the version-bound Windows service patch."""
 from __future__ import annotations
 
 import argparse
@@ -11,6 +11,9 @@ import re
 import subprocess
 import tarfile
 from verify_google_services_source import verify as verify_signin_source
+from restored_source_resources import resources as resource_payloads
+from restored_source_resources import restore as restore_resources
+from restored_source_resources import verify as verify_resources
 
 CPP_TOKENS = re.compile(
     r'(?P<raw>R"(?P<delimiter>[^ ()\\\t\r\n]{0,16})\([\s\S]*?\)(?P=delimiter)")'
@@ -19,6 +22,20 @@ CPP_TOKENS = re.compile(
 )
 
 DOMAIN_RULES_SHA256 = 'f59c4316b4ac32f9dfe4f6440c4cf9ad5dab0ab8827769f5dc2587ca07e91f09'
+SUPPORTED_FINGERPRINT_BUILDS = {
+    '155.0.8059.39': 'fingerprint-modes-win155',
+    '156.0.8078.79': 'fingerprint-modes-win156',
+}
+
+
+def validate_fingerprint_identity(config: dict, capabilities: dict) -> str:
+    version = config.get('chromium_version')
+    variant = SUPPORTED_FINGERPRINT_BUILDS.get(version)
+    if variant is None:
+        raise ValueError('Unsupported exact Chromium restoration version')
+    if capabilities.get('chromium_version') != version or capabilities.get('build_variant') != variant:
+        raise ValueError('Fingerprint capability identity does not match the restoration version')
+    return variant
 # These are local origin-validation constants, not background service requests.
 # Keep them independent of a regenerated domain list (upstream PR #3914,
 # f9cc5514ec21ba73040b838465dfc34d34001f03). Existing prepared checkpoints
@@ -150,6 +167,7 @@ def apply_patch(src: Path, executable: str, patch: Path, *, reverse=False):
 def recipe_identity(repo: Path):
     files = [
         'tools/prepare_google_services.py', 'tools/verify_google_services_source.py',
+        'tools/restored_source_resources.py',
         'build/google-services-win155.json',
         'patches/google-services/0001-restore-google-services.patch',
         'patches/google-services/0001-restore-google-services.json',
@@ -159,6 +177,10 @@ def recipe_identity(repo: Path):
     # Bind every active overlay and the declared mode contract. Existing
     # Google-only repositories keep exactly the previous input set.
     config = json.loads((repo / "build/google-services-win155.json").read_text(encoding="utf-8"))
+    resource_payloads(repo, config)  # Validate before recording any recipe.
+    files.extend(spec['repository_path'] for spec in config.get('restore_pruned_resources', {}).values())
+    if config.get('security_restoration'):
+        files.append('build/args.security.gn')
     for name in config.get("restoration_overlays", []):
         candidate = (repo / name).resolve()
         if not candidate.is_relative_to(repo.resolve()) or not candidate.is_file():
@@ -166,7 +188,7 @@ def recipe_identity(repo: Path):
         if name not in files:
             files.append(name)
     capabilities = repo / "build/fingerprint-modes-capabilities.json"
-    if any(name.startswith("patches/fingerprint-modes/") for name in files):
+    if any(name.startswith(("patches/fingerprint-modes/", "patches/fingerprint-modes-win156/")) for name in files):
         if not capabilities.is_file():
             raise ValueError("Fingerprint overlay requires its capability contract")
         files.append("build/fingerprint-modes-capabilities.json")
@@ -192,8 +214,24 @@ def main():
     parser.add_argument("--patch-bin", required=True)
     args = parser.parse_args()
     src = args.work / "src"
+    config = json.loads((args.repo / 'build/google-services-win155.json').read_text(encoding='utf-8'))
+    require_security = bool(config.get('security_restoration'))
+    expected_version = config['chromium_version']
+    if not re.fullmatch(r'\d+\.\d+\.\d+\.\d+', expected_version):
+        raise ValueError('Restoration Chromium version is malformed')
+    expected_parts = dict(zip(('MAJOR', 'MINOR', 'BUILD', 'PATCH'), expected_version.split('.')))
+    version = (src / 'chrome/VERSION').read_text()
+    if dict(re.findall(r'(?m)^(MAJOR|MINOR|BUILD|PATCH)=(\d+)\s*$', version)) != expected_parts:
+        raise ValueError('This restoration is limited to Chromium ' + expected_version)
     patch = args.repo / "patches/google-services/0001-restore-google-services.patch"
     digest = hashlib.sha256(patch.read_bytes()).hexdigest()
+    patch_record = json.loads(patch.with_suffix('.json').read_text(encoding='utf-8'))
+    if patch_record.get('version') != expected_version or patch_record.get('patch_sha256') != digest:
+        raise ValueError('Restoration aggregate does not match the configured Chromium version and bytes')
+    if patch_record.get('restored_pruned_resources', {}) != config.get('restore_pruned_resources', {}):
+        raise ValueError('Restoration aggregate binary resource inventory does not match the recipe')
+    capabilities = json.loads((args.repo / 'build/fingerprint-modes-capabilities.json').read_text(encoding='utf-8'))
+    expected_build_variant = validate_fingerprint_identity(config, capabilities)
     recipe, recipe_inputs = recipe_identity(args.repo)
     marker = args.work / "google-services-source.json"
     blocker = args.work / ".google-services-preparing"
@@ -205,6 +243,10 @@ def main():
         saved = json.loads(marker.read_text())
         if saved.get('variant') != 'google-services-self-use':
             raise ValueError('Unsupported source preparation marker')
+        if saved.get('chromium_version') != expected_version:
+            raise ValueError('Cannot reuse a prepared checkpoint from another Chromium version')
+        if saved.get('build_variant') not in (None, expected_build_variant):
+            raise ValueError('Prepared source has a conflicting build variant')
         if saved.get("patch_sha256") != digest:
             previous = saved.get('patch_sha256', '')
             if not re.fullmatch(r'[a-f0-9]{64}', previous):
@@ -212,16 +254,14 @@ def main():
             old_patch = args.repo / 'patches/google-services/history' / (previous + '.patch')
             if not old_patch.is_file() or hashlib.sha256(old_patch.read_bytes()).hexdigest() != previous:
                 raise ValueError('Previous service patch is unavailable; restore its matching checkpoint or patch history')
-        elif saved.get('preparation_sha256') == recipe:
-            verify_signin_source(src)
+        elif saved.get('preparation_sha256') == recipe and saved.get('build_variant') == expected_build_variant:
+            verify_resources(src, args.repo, config)
+            verify_signin_source(src, require_security=require_security)
             print("Google-service source is already prepared and source checks passed")
             return
-    version = (src / "chrome/VERSION").read_text()
-    if dict(re.findall(r"(?m)^(MAJOR|MINOR|BUILD|PATCH)=(\d+)\s*$", version)) != {"MAJOR":"155","MINOR":"0","BUILD":"8059","PATCH":"39"}:
-        raise ValueError("This restoration is limited to Chromium 155.0.8059.39")
     cache = next((args.work / n for n in ["domain_substitution_cache.tar.gz", "domain_substitution_cache.tar"] if (args.work / n).is_file()), None)
     blocker.write_text(digest)
-    affected = set(json.loads(patch.with_suffix(".json").read_text())["changed_files"])
+    affected = set(patch_record['changed_files'])
     if old_patch:
         affected.update(patch_paths(old_patch))
     before = {}
@@ -241,15 +281,16 @@ def main():
         apply_patch(src, args.patch_bin, old_patch, reverse=True)
     if not saved or old_patch:
         apply_patch(src, args.patch_bin, patch)
-    checked = verify_signin_source(src)
+    restored_resources = restore_resources(src, args.repo, config)
+    checked = verify_signin_source(src, require_security=require_security)
     preserved = 0
     for name, (content, access_ns, modification_ns) in before.items():
         path = inside(src, name)
         if path.is_file() and path.read_bytes() == content:
             os.utime(path, ns=(access_ns, modification_ns))
             preserved += 1
-    report = {"variant": "google-services-self-use", "chromium_version": "155.0.8059.39", "patch_sha256": digest, "preparation_sha256": recipe, "preparation_inputs": recipe_inputs, "source_checks": checked, "unchanged_source_timestamps_preserved": preserved, "domain_restoration": domains, "google_account_and_cloud_access": "not_tested", "credentials": "runtime_environment_only"}
-    marker.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    report = {"variant": "google-services-self-use", "build_variant": expected_build_variant, "chromium_version": expected_version, "patch_sha256": digest, "preparation_sha256": recipe, "preparation_inputs": recipe_inputs, "source_checks": checked, "security_restoration": config.get('security_restoration'), "restored_pruned_resources": restored_resources, "unchanged_source_timestamps_preserved": preserved, "domain_restoration": domains, "google_account_and_cloud_access": "not_tested", "credentials": "runtime_environment_only"}
+    marker.write_text(json.dumps(report, indent=2), encoding="utf-8", newline="\n")
     blocker.unlink()
     print("Google-service source prepared; existing fingerprint and Windows storage implementations retained")
 

@@ -1,5 +1,5 @@
 {
-  "version": "155.0.8059.39",
+  "version": "156.0.8078.79",
   "changed_files": [
     "BUILD.gn",
     "base/BUILD.gn",
@@ -31,36 +31,100 @@
     "base/uxr_voice_compat.h",
     "base/uxr_voice_compat_tests.cc",
     "base/uxr_voice_reference_data.h",
+    "chrome/app/BUILD.gn",
     "chrome/app/chrome_main.cc",
     "chrome/app/settings_chromium_strings.grdp",
     "chrome/app/settings_strings.grdp",
     "chrome/browser/BUILD.gn",
     "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
     "chrome/browser/chrome_browser_main.cc",
+    "chrome/browser/chrome_content_browser_client.cc",
+    "chrome/browser/chrome_content_browser_client_navigation_throttles.cc",
+    "chrome/browser/component_updater/file_type_policies_component_installer.cc",
+    "chrome/browser/content_settings/generated_javascript_optimizer_pref.cc",
+    "chrome/browser/content_settings/generated_javascript_optimizer_pref.h",
+    "chrome/browser/download/BUILD.gn",
+    "chrome/browser/download/bubble/download_bubble_ui_controller.cc",
+    "chrome/browser/download/chrome_download_manager_delegate.cc",
+    "chrome/browser/download/download_browsertest.cc",
+    "chrome/browser/download/download_item_model.cc",
     "chrome/browser/download/download_target_determiner.cc",
+    "chrome/browser/download/download_ui_model.cc",
+    "chrome/browser/download/download_ui_safe_browsing_util.cc",
+    "chrome/browser/download/download_warning_desktop_hats_utils.cc",
     "chrome/browser/enterprise/BUILD.gn",
+    "chrome/browser/enterprise/connectors/analysis/content_analysis_delegate.cc",
+    "chrome/browser/enterprise/connectors/analysis/content_analysis_downloads_delegate.cc",
+    "chrome/browser/enterprise/connectors/connectors_manager.cc",
+    "chrome/browser/enterprise/connectors/device_trust/signals/decorators/common/context_signals_decorator.cc",
+    "chrome/browser/enterprise/connectors/referrer_cache_utils.cc",
+    "chrome/browser/enterprise/connectors/reporting/realtime_reporting_client.cc",
+    "chrome/browser/enterprise/connectors/reporting/telomere_reporting_context.cc",
+    "chrome/browser/enterprise/data_controls/chrome_clipboard_context.cc",
+    "chrome/browser/enterprise/data_protection/BUILD.gn",
+    "chrome/browser/enterprise/data_protection/data_protection_navigation_observer.cc",
+    "chrome/browser/enterprise/data_protection/data_protection_url_lookup_service_factory.cc",
+    "chrome/browser/enterprise/data_protection/data_protection_url_lookup_service_factory.h",
+    "chrome/browser/enterprise/reporting/browser_launch/browser_launch_event_uploader_desktop.cc",
+    "chrome/browser/enterprise/reporting/realtime_event_upload_helper.cc",
+    "chrome/browser/enterprise/reporting/saas_usage/saas_usage_report_scheduler_delegate_impl.cc",
+    "chrome/browser/enterprise/signals/context_info_fetcher.cc",
+    "chrome/browser/enterprise/signals/context_info_fetcher.h",
+    "chrome/browser/enterprise/signals/profile_signals_collector.cc",
     "chrome/browser/enterprise/signin/managed_profile_creation_controller.cc",
     "chrome/browser/enterprise/signin/oidc_authentication_signin_interceptor.cc",
     "chrome/browser/enterprise/signin/oidc_managed_profile_creation_delegate.cc",
     "chrome/browser/enterprise/signin/profile_management_disclaimer_service.cc",
     "chrome/browser/enterprise/signin/token_managed_profile_creation_delegate.cc",
     "chrome/browser/extensions/BUILD.gn",
+    "chrome/browser/extensions/api/downloads/downloads_api.cc",
+    "chrome/browser/extensions/api/enterprise_reporting_private/enterprise_reporting_private_api.cc",
     "chrome/browser/extensions/api/identity/identity_get_auth_token_function.cc",
+    "chrome/browser/extensions/api/preference/preference_api.cc",
+    "chrome/browser/extensions/api/preference/preference_apitest.cc",
+    "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router.cc",
+    "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router_unittest.cc",
+    "chrome/browser/extensions/api/settings_private/generated_prefs.cc",
     "chrome/browser/extensions/api/settings_private/prefs_util.cc",
+    "chrome/browser/extensions/api/webstore_private/webstore_private_apitest.cc",
     "chrome/browser/extensions/chrome_content_browser_client_extensions_part.cc",
     "chrome/browser/extensions/chrome_content_verifier_delegate.cc",
+    "chrome/browser/extensions/chrome_extension_system.cc",
     "chrome/browser/extensions/component_extensions_allowlist/allowlist.cc",
     "chrome/browser/extensions/component_loader.cc",
+    "chrome/browser/extensions/extension_allowlist_factory.cc",
     "chrome/browser/extensions/extension_management.cc",
     "chrome/browser/extensions/extension_migrator.cc",
     "chrome/browser/extensions/extension_migrator.h",
+    "chrome/browser/extensions/extension_safety_check_utils.cc",
+    "chrome/browser/extensions/extension_service.cc",
+    "chrome/browser/extensions/extension_service.h",
+    "chrome/browser/extensions/extension_telemetry_service_verdict_handler.cc",
     "chrome/browser/extensions/external_component_loader.cc",
+    "chrome/browser/extensions/installed_loader.cc",
+    "chrome/browser/extensions/pref_mapping.cc",
+    "chrome/browser/extensions/safe_browsing_verdict_handler.cc",
+    "chrome/browser/feedback/BUILD.gn",
+    "chrome/browser/feedback/report_unsafe_site/BUILD.gn",
+    "chrome/browser/feedback/report_unsafe_site/screenshot_taker.cc",
+    "chrome/browser/feedback/report_unsafe_site_dialog_views.cc",
     "chrome/browser/first_run/first_run.h",
     "chrome/browser/glic/glic_user_status_request.cc",
+    "chrome/browser/glic/host/glic_web_client_handler.cc",
+    "chrome/browser/lifetime/smart_restart_policy.cc",
+    "chrome/browser/metrics/chrome_metrics_service_client.cc",
+    "chrome/browser/notifications/platform_notification_service_impl.cc",
+    "chrome/browser/password_manager/generated_password_leak_detection_pref.cc",
+    "chrome/browser/permissions/permission_revocation_request.cc",
+    "chrome/browser/permissions/prediction_service/contextual_notification_permission_ui_selector.cc",
+    "chrome/browser/permissions/prediction_service/permissions_ai_ui_selector.cc",
     "chrome/browser/policy/browser_signin_policy_handler.cc",
     "chrome/browser/policy/configuration_policy_handler_list_factory.cc",
     "chrome/browser/prefs/browser_prefs.cc",
+    "chrome/browser/prefs/chrome_command_line_pref_store.cc",
     "chrome/browser/prefs/chrome_pref_service_factory.cc",
+    "chrome/browser/prefs/pref_functional_browsertest.cc",
+    "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc",
     "chrome/browser/profiles/profile_attributes_entry.cc",
     "chrome/browser/profiles/profile_attributes_storage.cc",
     "chrome/browser/profiles/profile_avatar_downloader.cc",
@@ -74,6 +138,42 @@
     "chrome/browser/resources/history/side_bar.ts",
     "chrome/browser/resources/settings/privacy_page/personalization_options.html",
     "chrome/browser/resources/settings/privacy_page/personalization_options.ts",
+    "chrome/browser/resources/settings/privacy_page/privacy_page_index.ts",
+    "chrome/browser/resources/settings/privacy_page/security/security_page.html",
+    "chrome/browser/resources/settings/privacy_page/security/security_page.ts",
+    "chrome/browser/resources/settings/site_settings/site_settings_page.ts",
+    "chrome/browser/resources/settings/site_settings/v8_page.ts",
+    "chrome/browser/safe_browsing/BUILD.gn",
+    "chrome/browser/safe_browsing/advanced_protection_status_manager_desktop.cc",
+    "chrome/browser/safe_browsing/advanced_protection_status_manager_unittest.cc",
+    "chrome/browser/safe_browsing/android/services_delegate_android.h",
+    "chrome/browser/safe_browsing/chrome_password_protection_service.cc",
+    "chrome/browser/safe_browsing/chrome_password_protection_service.h",
+    "chrome/browser/safe_browsing/chrome_password_protection_service_browsertest.cc",
+    "chrome/browser/safe_browsing/chrome_password_protection_service_sync_browsertest.cc",
+    "chrome/browser/safe_browsing/chrome_safe_browsing_blocking_page_factory.cc",
+    "chrome/browser/safe_browsing/download_protection/check_client_download_request.cc",
+    "chrome/browser/safe_browsing/download_protection/check_client_download_request_base.cc",
+    "chrome/browser/safe_browsing/download_protection/download_protection_service_unittest.cc",
+    "chrome/browser/safe_browsing/generated_safe_browsing_pref.cc",
+    "chrome/browser/safe_browsing/generated_safe_browsing_pref.h",
+    "chrome/browser/safe_browsing/generated_security_settings_bundle_pref.cc",
+    "chrome/browser/safe_browsing/incident_reporting/extension_data_collection_unittest.cc",
+    "chrome/browser/safe_browsing/incident_reporting/incident_report_uploader_impl.cc",
+    "chrome/browser/safe_browsing/incident_reporting/incident_reporting_service.cc",
+    "chrome/browser/safe_browsing/incident_reporting/incident_reporting_service_unittest.cc",
+    "chrome/browser/safe_browsing/incident_reporting/last_download_finder_unittest.cc",
+    "chrome/browser/safe_browsing/incident_reporting/state_store.cc",
+    "chrome/browser/safe_browsing/incident_reporting/state_store_unittest.cc",
+    "chrome/browser/safe_browsing/metrics/safe_browsing_metrics_provider.cc",
+    "chrome/browser/safe_browsing/safe_browsing_blocking_page_test.cc",
+    "chrome/browser/safe_browsing/safe_browsing_dummy.cc",
+    "chrome/browser/safe_browsing/safe_browsing_service.cc",
+    "chrome/browser/safe_browsing/safe_browsing_service.h",
+    "chrome/browser/safe_browsing/telemetry/android/android_telemetry_service.cc",
+    "chrome/browser/safe_browsing/telemetry/android/android_telemetry_service_unittest.cc",
+    "chrome/browser/safe_browsing/url_checker_delegate_impl.cc",
+    "chrome/browser/safe_browsing/url_lookup_service_factory.cc",
     "chrome/browser/signin/account_consistency_mode_manager.cc",
     "chrome/browser/signin/account_preview_data_service_factory.cc",
     "chrome/browser/signin/accounts_policy_manager.cc",
@@ -86,26 +186,58 @@
     "chrome/browser/signin/signin_promo_util.cc",
     "chrome/browser/signin/signin_util.cc",
     "chrome/browser/signin/signin_util_win.cc",
+    "chrome/browser/site_protection/site_familiarity_fetcher.cc",
+    "chrome/browser/site_protection/site_familiarity_utils.cc",
+    "chrome/browser/ssl/chrome_security_blocking_page_factory.cc",
+    "chrome/browser/ssl/generated_https_first_mode_pref.cc",
+    "chrome/browser/ssl/https_first_mode_settings_tracker.cc",
+    "chrome/browser/ssl/https_upgrades_util.cc",
+    "chrome/browser/ssl/sct_reporting_service.cc",
+    "chrome/browser/ssl/ssl_browsertest.cc",
+    "chrome/browser/ssl/ssl_error_controller_client.cc",
     "chrome/browser/sync/sync_service_factory.cc",
+    "chrome/browser/ui/autofill/BUILD.gn",
+    "chrome/browser/ui/autofill/chrome_autofill_client.cc",
     "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.cc",
     "chrome/browser/ui/browser_command_controller.cc",
     "chrome/browser/ui/chrome_pages.cc",
     "chrome/browser/ui/extensions/extension_post_install_dialog_model.cc",
     "chrome/browser/ui/hats/trust_safety_sentiment_service.cc",
     "chrome/browser/ui/profiles/profile_picker.cc",
+    "chrome/browser/ui/safety_hub/abusive_notification_permissions_manager.cc",
+    "chrome/browser/ui/safety_hub/menu_notification_service.cc",
+    "chrome/browser/ui/safety_hub/revoked_permissions_service.cc",
+    "chrome/browser/ui/safety_hub/safe_browsing_result.cc",
     "chrome/browser/ui/signin/dice_migration_service.cc",
     "chrome/browser/ui/signin/signin_view_controller.cc",
+    "chrome/browser/ui/tab_contents/BUILD.gn",
     "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc",
+    "chrome/browser/ui/toasts/toast_service.cc",
     "chrome/browser/ui/toolbar/app_menu_model.cc",
+    "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc",
+    "chrome/browser/ui/views/file_system_access/BUILD.gn",
+    "chrome/browser/ui/views/page_info/BUILD.gn",
     "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc",
     "chrome/browser/ui/views/profiles/profile_menu_view.cc",
+    "chrome/browser/ui/views/safe_browsing/password_reuse_modal_warning_dialog.h",
+    "chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views.cc",
+    "chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.mm",
     "chrome/browser/ui/views/toolbar/app_menu.cc",
     "chrome/browser/ui/views/user_education/browser_ntp_promos.cc",
+    "chrome/browser/ui/webui/browser_command/browser_command_handler.cc",
     "chrome/browser/ui/webui/cr_components/history/history_util.cc",
+    "chrome/browser/ui/webui/downloads/downloads_dom_handler.cc",
+    "chrome/browser/ui/webui/downloads/downloads_dom_handler.h",
+    "chrome/browser/ui/webui/feedback/report_unsafe_site/BUILD.gn",
+    "chrome/browser/ui/webui/feedback/report_unsafe_site/report_unsafe_site_handler.cc",
     "chrome/browser/ui/webui/history/browsing_history_handler.cc",
-    "chrome/browser/ui/webui/history/history_ui.cc",
+    "chrome/browser/ui/webui/management/management_ui_handler.cc",
     "chrome/browser/ui/webui/policy/policy_ui_handler.cc",
+    "chrome/browser/ui/webui/reset_password/reset_password_ui.cc",
+    "chrome/browser/ui/webui/settings/hats_handler.cc",
     "chrome/browser/ui/webui/settings/people_handler.cc",
+    "chrome/browser/ui/webui/settings/safety_hub_handler.cc",
+    "chrome/browser/ui/webui/settings/security_settings_provider.cc",
     "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc",
     "chrome/browser/ui/webui/settings/settings_ui.cc",
     "chrome/browser/ui/webui/signin/inline_login_handler.cc",
@@ -115,32 +247,115 @@
     "chrome/browser/ui/webui/signin/turn_sync_on_helper.cc",
     "chrome/browser/ui/webui/signin/turn_sync_on_helper_delegate_impl.cc",
     "chrome/browser/ui/webui/suggest_internals/suggest_internals_handler.cc",
+    "chrome/browser/unified_consent/unified_consent_service_factory.cc",
     "chrome/browser/webauthn/authenticator_request_dialog_controller.cc",
     "chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc",
+    "chrome/browser/webshare/BUILD.gn",
+    "chrome/common/extensions/api/privacy.json",
     "chrome/common/google_url_loader_throttle.cc",
+    "chrome/common/google_url_loader_throttle.h",
+    "chrome/common/webui_url_constants.cc",
+    "chrome/renderer/chrome_content_renderer_client.cc",
     "chrome/test/BUILD.gn",
     "chrome/test/base/BUILD.gn",
     "chrome/test/base/testing_browser_process.cc",
     "chrome/test/base/testing_browser_process.h",
+    "components/BUILD.gn",
     "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
     "components/affiliations/core/browser/hash_affiliation_fetcher.h",
-    "components/assist_ranker/ranker_url_fetcher.cc",
     "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc",
     "components/browser_sync/BUILD.gn",
     "components/collaboration/internal/collaboration_service_impl.cc",
     "components/commerce/core/shopping_service.cc",
     "components/commerce/core/subscriptions/subscriptions_server_proxy.cc",
+    "components/content_settings/core/browser/content_settings_pref_provider.cc",
+    "components/content_settings/core/common/pref_names.h",
+    "components/device_signals/core/browser/browser_utils.cc",
+    "components/device_signals/core/browser/browser_utils.h",
+    "components/device_signals/core/browser/signals_types.h",
+    "components/download/internal/common/base_file.cc",
+    "components/download/internal/common/download_item_impl.cc",
     "components/embedder_support/user_agent_utils.cc",
+    "components/enterprise/browser/reporting/chrome_profile_request_generator.cc",
+    "components/enterprise/browser/reporting/report_util.cc",
+    "components/enterprise/browser/reporting/report_util.h",
+    "components/enterprise/buildflags/buildflags.gni",
+    "components/enterprise/connectors/core/analysis_service_settings_base.cc",
+    "components/enterprise/connectors/core/cloud_content_scanning/files_request_handler_base.cc",
+    "components/enterprise/connectors/core/cloud_content_scanning/multipart_uploader.cc",
+    "components/enterprise/connectors/core/cloud_content_scanning/resumable_uploader.cc",
+    "components/enterprise/connectors/core/reporting_service_settings.cc",
+    "components/enterprise/device_trust/core/signals/decorators/common/signals_aggregator_decorator.cc",
     "components/feed/core/v2/feed_stream.cc",
     "components/feed/core/v2/public/feed_service.cc",
     "components/gcm_driver/gcm_client_impl.cc",
     "components/gcm_driver/gcm_driver_desktop.cc",
     "components/google/core/common/google_util.cc",
     "components/page_load_metrics/google/browser/google_url_util.cc",
+    "components/password_manager/core/browser/leak_detection/leak_detection_check_impl.cc",
+    "components/password_manager/core/browser/leak_detection_delegate.cc",
     "components/password_manager/core/browser/password_feature_manager_impl.cc",
     "components/password_manager/core/browser/password_manager.cc",
+    "components/password_manager/core/browser/password_reuse_detector_impl.cc",
+    "components/password_manager/core/browser/password_reuse_manager_impl.cc",
+    "components/password_manager/core/browser/password_sync_util.cc",
+    "components/password_manager/core/browser/store_metrics_reporter.cc",
     "components/password_manager/core/browser/sync_credentials_filter.cc",
+    "components/password_manager/core/browser/sync_credentials_filter_unittest.cc",
+    "components/safe_browsing/buildflags.gni",
+    "components/safe_browsing/content/browser/base_blocking_page.cc",
+    "components/safe_browsing/content/browser/client_side_detection_service.cc",
+    "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.cc",
+    "components/safe_browsing/content/browser/triggers/suspicious_site_trigger_unittest.cc",
+    "components/safe_browsing/content/browser/triggers/trigger_manager.cc",
+    "components/safe_browsing/content/browser/triggers/trigger_throttler.cc",
+    "components/safe_browsing/content/browser/triggers/trigger_throttler_unittest.cc",
+    "components/safe_browsing/content/browser/ui_manager.cc",
+    "components/safe_browsing/content/browser/ui_manager_unittest.cc",
+    "components/safe_browsing/content/common/safe_browsing.mojom",
+    "components/safe_browsing/core/browser/BUILD.gn",
+    "components/safe_browsing/core/browser/client_side_detection_service_base.cc",
+    "components/safe_browsing/core/browser/db/hash_prefix_map.h",
+    "components/safe_browsing/core/browser/db/sb_local_database_manager.cc",
+    "components/safe_browsing/core/browser/db/sb_local_database_manager.h",
+    "components/safe_browsing/core/browser/db/sb_protocol_manager_util.cc",
+    "components/safe_browsing/core/browser/db/sb_protocol_manager_util.h",
+    "components/safe_browsing/core/browser/db/util.h",
+    "components/safe_browsing/core/browser/db/v4_update_protocol_manager.cc",
+    "components/safe_browsing/core/browser/db/v4_update_protocol_manager.h",
+    "components/safe_browsing/core/browser/db/v5_update_protocol_manager.h",
+    "components/safe_browsing/core/browser/hashprefix_realtime/hash_realtime_service.h",
+    "components/safe_browsing/core/browser/hashprefix_realtime/ohttp_key_service.cc",
+    "components/safe_browsing/core/browser/password_protection/password_protection_service_base.h",
+    "components/safe_browsing/core/browser/ping_manager.cc",
+    "components/safe_browsing/core/browser/realtime/chrome_enterprise_url_lookup_service.cc",
+    "components/safe_browsing/core/browser/realtime/policy_engine.cc",
+    "components/safe_browsing/core/browser/realtime/url_lookup_service.cc",
+    "components/safe_browsing/core/browser/realtime/url_lookup_service_base.cc",
+    "components/safe_browsing/core/browser/safe_browsing_hats_delegate.h",
+    "components/safe_browsing/core/browser/safe_browsing_metrics_collector.cc",
+    "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service.cc",
+    "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service.h",
+    "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service_observer_util.cc",
+    "components/safe_browsing/core/browser/verdict_cache_manager.cc",
+    "components/safe_browsing/core/browser/web_ui/safe_browsing_ui_handler.cc",
+    "components/safe_browsing/core/common/BUILD.gn",
+    "components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.cc",
+    "components/safe_browsing/core/common/safe_browsing_policy_handler.cc",
+    "components/safe_browsing/core/common/safe_browsing_prefs.cc",
+    "components/safe_browsing/core/common/safe_browsing_prefs.h",
+    "components/safe_browsing/core/common/safe_browsing_prefs_unittest.cc",
+    "components/safe_browsing/core/common/visual_utils.h",
+    "components/safety_check/safety_check.cc",
     "components/search_engines/template_url.cc",
+    "components/security_interstitials/content/bad_clock_blocking_page.cc",
+    "components/security_interstitials/content/captive_portal_blocking_page.cc",
+    "components/security_interstitials/content/mitm_software_blocking_page.cc",
+    "components/security_interstitials/content/security_interstitial_controller_client.cc",
+    "components/security_interstitials/content/security_interstitial_page.cc",
+    "components/security_interstitials/content/ssl_blocking_page.cc",
+    "components/security_interstitials/content/ssl_blocking_page_base.cc",
+    "components/security_interstitials/core/safe_browsing_loud_error_ui.cc",
     "components/send_tab_to_self/entry_point_display_reason.cc",
     "components/signin/core/browser/BUILD.gn",
     "components/signin/core/browser/account_investigator.cc",
@@ -163,20 +378,36 @@
     "components/signin/public/identity_manager/identity_utils.cc",
     "components/supervised_user/core/browser/supervised_user_pref_store.cc",
     "components/sync/service/sync_prefs.cc",
+    "components/sync_preferences/common_syncable_prefs_database.cc",
+    "components/translate/core/browser/ranker_url_fetcher.cc",
     "components/translate/core/browser/translate_language_list.cc",
     "components/translate/core/browser/translate_manager.cc",
     "components/translate/core/browser/translate_ranker_impl.cc",
     "components/translate/core/browser/translate_script.cc",
+    "components/update_client/update_checker.cc",
     "components/variations/net/variations_http_headers.cc",
+    "content/browser/BUILD.gn",
+    "content/browser/file_system_access/file_system_access_safe_move_helper.cc",
+    "content/browser/file_system_access/file_system_access_safe_move_helper.h",
     "content/browser/gpu/gpu_data_manager_impl_private.cc",
     "content/browser/preloading/prefetch/prefetch_resource_request_utils.cc",
     "content/browser/speech/tts_win.cc",
     "device/fido/win/authenticator.cc",
     "device/fido/win/authenticator.h",
     "device/fido/win/authenticator_unittest.cc",
+    "extensions/browser/api/declarative_net_request/declarative_net_request_api.cc",
+    "extensions/browser/api/execute_code_function.cc",
+    "extensions/browser/api/web_request/extension_web_request_event_router.cc",
+    "extensions/browser/blocklist.cc",
+    "extensions/browser/blocklist_state_fetcher.cc",
+    "extensions/browser/blocklist_state_fetcher.h",
+    "extensions/browser/extension_allowlist.cc",
+    "extensions/browser/extension_host.cc",
+    "extensions/browser/extension_registrar.cc",
     "extensions/browser/extension_util.cc",
     "extensions/browser/extension_util.h",
     "extensions/browser/updater/extension_downloader.cc",
+    "extensions/browser/updater/update_service.cc",
     "extensions/browser/webstore_installer.cc",
     "extensions/common/extension_urls.cc",
     "google_apis/gaia/gaia_auth_fetcher.cc",
@@ -229,11 +460,15 @@
   "source_inputs": [
     {
       "path": "BUILD.gn",
-      "sha256": "e38b612778a41dd52c073f8633b3f22c6078e227baa892666e92ac29a9738391"
+      "sha256": "3ac1c40941ec13b48f3a855c6d5aef985b6bdf3cb7272d3940cf6cdf5f188617"
     },
     {
       "path": "base/BUILD.gn",
-      "sha256": "3983f3e3964b9e111bf4759b53168efb34ea533124f655a7288a328b2105343c"
+      "sha256": "ffce1d396d85f6856d8d4f613174f700e0df8d88d5558114cc5346afea3a5739"
+    },
+    {
+      "path": "chrome/app/BUILD.gn",
+      "sha256": "cd9b71928055a3c435614823920cd90948553351d7576660ef8489e28b5a9450"
     },
     {
       "path": "chrome/app/chrome_main.cc",
@@ -245,11 +480,15 @@
     },
     {
       "path": "chrome/app/settings_strings.grdp",
-      "sha256": "ff45194a6b8b6f7e9c6c0717065bb90cc4dcf9d1bee08ebf0700790ec9d7e3cb"
+      "sha256": "4eeea1ab52102de772a02e357ace060cd17cf8ae7d995f57cb804804d0f69e1f"
     },
     {
       "path": "chrome/browser/BUILD.gn",
-      "sha256": "5c9a66b731954d1d28c7f630071880f0a879bfef924338362004b9ad19f4444b"
+      "sha256": "3e9b2665405f5482dc04c3cc70d2ea6c12061334334b4d6a5ad2c51f80cd5096"
+    },
+    {
+      "path": "chrome/browser/browser_process_impl.cc",
+      "sha256": "122592a2009ac44209f402762327c287d6ec2be39fabe9bc2e7497f023a58c7e"
     },
     {
       "path": "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
@@ -257,15 +496,147 @@
     },
     {
       "path": "chrome/browser/chrome_browser_main.cc",
-      "sha256": "a4e11a49034ef40ceeab817ac38204a801426008cdf028534c1ee8770998dca7"
+      "sha256": "6386e69814d99b3ca0f3f5d778635f5225c8a4d0810b892f552170add01f0dc3"
+    },
+    {
+      "path": "chrome/browser/chrome_content_browser_client.cc",
+      "sha256": "b17feacbe58f8d000c40c8eb3b1d6ac8b98a2dd734466e9eee091de951f98522"
+    },
+    {
+      "path": "chrome/browser/chrome_content_browser_client_navigation_throttles.cc",
+      "sha256": "237b4a2da247cec3e975891137f52ec7d575231aea87554cb0db414fab29ed60"
+    },
+    {
+      "path": "chrome/browser/component_updater/file_type_policies_component_installer.cc",
+      "sha256": "8347c58e04355103271b156b60694169d393e133a1e87232d7c5c93f88b605a8"
+    },
+    {
+      "path": "chrome/browser/component_updater/registration.cc",
+      "sha256": "09ca87c810fe7d441f48cc1918ac036d01a57dc2ffb5fe61f8d33d32cc88fcdb"
+    },
+    {
+      "path": "chrome/browser/component_updater/widevine_cdm_component_installer.cc",
+      "sha256": "27c5e4c8468664357f01cab9cefb277a4c858b4597f4dc6a20a2c2cb5e0530ba"
+    },
+    {
+      "path": "chrome/browser/content_settings/generated_javascript_optimizer_pref.cc",
+      "sha256": "1d2e5f64a96549df38e8830260993a91b6f878c7e25ec05d74dc1f127efa4a49"
+    },
+    {
+      "path": "chrome/browser/content_settings/generated_javascript_optimizer_pref.h",
+      "sha256": "3dcce6d93d051cb23efafee107edd38d68b6c96612c29ac677193eea3a195b21"
+    },
+    {
+      "path": "chrome/browser/download/BUILD.gn",
+      "sha256": "5be203bde12276f95a8e387e66e9f1c35da97a085946181a332ca87b054b3109"
+    },
+    {
+      "path": "chrome/browser/download/bubble/download_bubble_ui_controller.cc",
+      "sha256": "a1f24ac1ffcd61947409d07182a3bffc4d77032a59792f604da1597e86ec8f40"
+    },
+    {
+      "path": "chrome/browser/download/chrome_download_manager_delegate.cc",
+      "sha256": "a66a3253543d161f95ef5ab8b070085fdee64c2bb3a5cc0bce205fcdb5bc3354"
+    },
+    {
+      "path": "chrome/browser/download/download_browsertest.cc",
+      "sha256": "1b0c317bec082070fe1d9fb6e40a5ae6c65122f291d1c1bef8aa0484d35ad32e"
+    },
+    {
+      "path": "chrome/browser/download/download_item_model.cc",
+      "sha256": "ea565f450d8db3e66074ca586ea6c5b1e587264fa4fb1533e6c4126bf551960b"
     },
     {
       "path": "chrome/browser/download/download_target_determiner.cc",
       "sha256": "20c460af6833a7c0a2e3ed1f09ae8999681840542ab915dbe75b395de1fdd71c"
     },
     {
+      "path": "chrome/browser/download/download_ui_model.cc",
+      "sha256": "ce9a786ffbe67997571223a1ae4dbbc15a392ac60cfe45026cfeef7da3984a11"
+    },
+    {
+      "path": "chrome/browser/download/download_ui_safe_browsing_util.cc",
+      "sha256": "42d2a619c2a9f47b6f25628fe52512cc22e0370d7c4fa0b36469b26dfb05c2ed"
+    },
+    {
+      "path": "chrome/browser/download/download_warning_desktop_hats_utils.cc",
+      "sha256": "3f1f55bdd808321c8b20f0b5a3171f74f5e9b406c30c4a1ba0ba6d9af190f60f"
+    },
+    {
       "path": "chrome/browser/enterprise/BUILD.gn",
-      "sha256": "e2eec0337555cd097cc11983d0e8a3805b65bacca0492306d81b79cc47e948c5"
+      "sha256": "9c1ae30ecfe55aa2c406838c6c43e973319d811653be2dfe584173a8807fbc5c"
+    },
+    {
+      "path": "chrome/browser/enterprise/connectors/analysis/content_analysis_delegate.cc",
+      "sha256": "30df8aad4c331b5480f2674380db0586fa9df2b38be3436357e6c647be93035a"
+    },
+    {
+      "path": "chrome/browser/enterprise/connectors/analysis/content_analysis_downloads_delegate.cc",
+      "sha256": "5734ab20175f5aee5f5a10399e9e2e979277eddd239f5463a8218391421f5546"
+    },
+    {
+      "path": "chrome/browser/enterprise/connectors/connectors_manager.cc",
+      "sha256": "4f6ff3237e28f70f2cabb74a48b5de3235d6d300f6c5b1321ab4a1cbfb853518"
+    },
+    {
+      "path": "chrome/browser/enterprise/connectors/device_trust/signals/decorators/common/context_signals_decorator.cc",
+      "sha256": "b802d149096e899097ee98e1f5f7c2e096b41fc669009ec408206934ed25f0c7"
+    },
+    {
+      "path": "chrome/browser/enterprise/connectors/referrer_cache_utils.cc",
+      "sha256": "abb3aaeecb43514c0622db7098f7ee5dd6474518ba96ca0a160ca9efce3b2151"
+    },
+    {
+      "path": "chrome/browser/enterprise/connectors/reporting/realtime_reporting_client.cc",
+      "sha256": "ca420189e341ce39c689c29af9eeb66b77bccd4dc8b1c0ff498470d99065b5e6"
+    },
+    {
+      "path": "chrome/browser/enterprise/connectors/reporting/telomere_reporting_context.cc",
+      "sha256": "f0a579da399f976fe141d3da197434a6d255ef07eb1dbf8bdba02ff5a254c418"
+    },
+    {
+      "path": "chrome/browser/enterprise/data_controls/chrome_clipboard_context.cc",
+      "sha256": "3cdb51ac870b7ae6ac9b81c045f4cf3b5047c735f043449d86ace09d6745bca2"
+    },
+    {
+      "path": "chrome/browser/enterprise/data_protection/BUILD.gn",
+      "sha256": "6b5f3edc509ed28a8f3de8ad774debf11e5d173135ded3e8c8188f101d6d1742"
+    },
+    {
+      "path": "chrome/browser/enterprise/data_protection/data_protection_navigation_observer.cc",
+      "sha256": "6881c55635a0d33fdf3c73ab96152d18a82976658b402dc48b3a750df2b9efd4"
+    },
+    {
+      "path": "chrome/browser/enterprise/data_protection/data_protection_url_lookup_service_factory.cc",
+      "sha256": "b24e5699a9e6c028841af263e5d9b2b561385861895c77b22b25206154796107"
+    },
+    {
+      "path": "chrome/browser/enterprise/data_protection/data_protection_url_lookup_service_factory.h",
+      "sha256": "dbeb8eb8dd8fa99a8091be6704f67972bd401c0f9ac561d19d1c3ae255fba8bb"
+    },
+    {
+      "path": "chrome/browser/enterprise/reporting/browser_launch/browser_launch_event_uploader_desktop.cc",
+      "sha256": "a5d4a7f1de44986bda1829bfc05b2e3be974d4351afd12c2c4fd4f7a3acbea52"
+    },
+    {
+      "path": "chrome/browser/enterprise/reporting/realtime_event_upload_helper.cc",
+      "sha256": "545a84269991fff43262ca6b174483e868da405d6318f6783a4e28f0a73886d8"
+    },
+    {
+      "path": "chrome/browser/enterprise/reporting/saas_usage/saas_usage_report_scheduler_delegate_impl.cc",
+      "sha256": "a3c73a2d30534fc32097da7796bc88ebbd7ccfce1510a17932a2d45f6507ffb5"
+    },
+    {
+      "path": "chrome/browser/enterprise/signals/context_info_fetcher.cc",
+      "sha256": "06a61b93c918233872d343496cc18414a8ba4d7812ccbe982095f27fd2f285e9"
+    },
+    {
+      "path": "chrome/browser/enterprise/signals/context_info_fetcher.h",
+      "sha256": "d379b5402c978d8227aeeac718552d31c8a9d336522ff68b8faa088f52b45d29"
+    },
+    {
+      "path": "chrome/browser/enterprise/signals/profile_signals_collector.cc",
+      "sha256": "65997f18b69fe9c9f9d7f3af488ad9a04f76908e38ac72de85dc65a5462cd20f"
     },
     {
       "path": "chrome/browser/enterprise/signin/managed_profile_creation_controller.cc",
@@ -281,7 +652,7 @@
     },
     {
       "path": "chrome/browser/enterprise/signin/profile_management_disclaimer_service.cc",
-      "sha256": "c83dfa6c138eaffedeef3a623a5e3390bb233fd8f822eb9060d9948ff7345182"
+      "sha256": "86a502c5b80c51a79f7c369a472648d9623abcab4a3e9016feed8ee0237e6d89"
     },
     {
       "path": "chrome/browser/enterprise/signin/token_managed_profile_creation_delegate.cc",
@@ -289,23 +660,59 @@
     },
     {
       "path": "chrome/browser/extensions/BUILD.gn",
-      "sha256": "bfbffb90bc6ba28f8e15a7bd6df77a25d265ca055dd637edfc76a83364fa18e2"
+      "sha256": "71208f99269c97574d1e66135d913bd7248568369732471224045e8336dc9b64"
+    },
+    {
+      "path": "chrome/browser/extensions/api/downloads/downloads_api.cc",
+      "sha256": "896cfc6af317b655843707c4ecf141ac139900bf811c9049f140a966c79ab3eb"
+    },
+    {
+      "path": "chrome/browser/extensions/api/enterprise_reporting_private/enterprise_reporting_private_api.cc",
+      "sha256": "6df12b5533172b837fd58463ebc96a82070da3eb672bb7241faba93c1f47164c"
     },
     {
       "path": "chrome/browser/extensions/api/identity/identity_get_auth_token_function.cc",
-      "sha256": "e6996b8878f88f8fe52f147139f896f4b2cef1e63c143fcdf63e50b3d117c968"
+      "sha256": "1a683ff315b04b1bf320b09eeb2880cd75a3d20044caac9778bb257464b58fb7"
+    },
+    {
+      "path": "chrome/browser/extensions/api/preference/preference_api.cc",
+      "sha256": "8e539d656899a42233deed8f3d8e3c3564bb2124fdaf0180315f5a3afe38f735"
+    },
+    {
+      "path": "chrome/browser/extensions/api/preference/preference_apitest.cc",
+      "sha256": "714251fba7b508a5606f268639a9e3cf1e3be70390cb0af4caa85c8e90647b2b"
+    },
+    {
+      "path": "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router.cc",
+      "sha256": "f77226145b756371132ad26e8a5433d9b328dba2c54c8da7ed5838e9aba8c809"
+    },
+    {
+      "path": "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router_unittest.cc",
+      "sha256": "64a181135b6ac12e456cdd77ec66c5a77f5717c3ff21ba3979e3e3b431eae356"
+    },
+    {
+      "path": "chrome/browser/extensions/api/settings_private/generated_prefs.cc",
+      "sha256": "a2cf129a3604789c7f191ac83e5766bd2f954bb1398f8cc749ef6f3e40478981"
     },
     {
       "path": "chrome/browser/extensions/api/settings_private/prefs_util.cc",
-      "sha256": "516fd7a9a10aeb47f9fbea4b913536c69925fbab948912f839d98b801c3c0bd4"
+      "sha256": "7cba276694a182edd6060fd075fdebe68c2780b8c0957a23a5fb85a2370ac278"
+    },
+    {
+      "path": "chrome/browser/extensions/api/webstore_private/webstore_private_apitest.cc",
+      "sha256": "f6fb9c29ce21e566c5a64b6e44bb2363db23f3dedadd07ca7ddf2638342e9520"
     },
     {
       "path": "chrome/browser/extensions/chrome_content_browser_client_extensions_part.cc",
-      "sha256": "d67b05e029a5827051a2ba4620192749973ffb9acb03030b70f8b6dbca9831d7"
+      "sha256": "2b06b7799d1db5a0713ecb200e20249a4d54147d836d56236a5f1f62e56c1394"
     },
     {
       "path": "chrome/browser/extensions/chrome_content_verifier_delegate.cc",
       "sha256": "4e766e7cfdf77d75d8f63e273128f42f7221ce2f0ab6aee486e8f6ef340b99e7"
+    },
+    {
+      "path": "chrome/browser/extensions/chrome_extension_system.cc",
+      "sha256": "047ac0c8ee4dfe66c2dfb045861140607a96e3dd676206c6a6ab470979cddde8"
     },
     {
       "path": "chrome/browser/extensions/component_extensions_allowlist/allowlist.cc",
@@ -313,11 +720,15 @@
     },
     {
       "path": "chrome/browser/extensions/component_loader.cc",
-      "sha256": "2f885d17e75792dac3c7deeb8f00850677b0a3bf82c3acebe65f18887edea04b"
+      "sha256": "d7b01c4cb7a1c25cb128b75022caaf678a189c006fb6d67da95634ffefb73267"
+    },
+    {
+      "path": "chrome/browser/extensions/extension_allowlist_factory.cc",
+      "sha256": "69fa3ee3d9c651054ca572fb415cddd317cd7d69939b6cc36d6ddf0303c431c2"
     },
     {
       "path": "chrome/browser/extensions/extension_management.cc",
-      "sha256": "067109e89fbbc669263f3bb181335b1b0821f9ce7e6cbc8b52a39f139cb51ad9"
+      "sha256": "5f6cf68dbf4277d6e8405cb1642382a02e557a5c9ebd405970752f845ba9130b"
     },
     {
       "path": "chrome/browser/extensions/extension_migrator.cc",
@@ -328,8 +739,52 @@
       "sha256": "37eacd293909acc7f11cbb9d86383e526ae96c0b766621ff39cf97771a5578a4"
     },
     {
+      "path": "chrome/browser/extensions/extension_safety_check_utils.cc",
+      "sha256": "4cc046184ff67337d686095db2e5d1a3b2e329ac417a4487f5a253ba24a1344a"
+    },
+    {
+      "path": "chrome/browser/extensions/extension_service.cc",
+      "sha256": "898945fe470116c3246e9c43f6bfee43d49c9fda179aeacc2d79cdd53f3457e0"
+    },
+    {
+      "path": "chrome/browser/extensions/extension_service.h",
+      "sha256": "6593b95656602ce21b123c85c638efd4e96af3325956186b9361bfd1711587fa"
+    },
+    {
+      "path": "chrome/browser/extensions/extension_telemetry_service_verdict_handler.cc",
+      "sha256": "8b8474994aef2be87bb0fc68152d80fbee9d9add240f2eb523bac3ad7b0196b5"
+    },
+    {
       "path": "chrome/browser/extensions/external_component_loader.cc",
       "sha256": "29e16523bc04630d27c813269d1503fb2d654dd11d97c1493b922e3b226848db"
+    },
+    {
+      "path": "chrome/browser/extensions/installed_loader.cc",
+      "sha256": "84a31614087a8f7e871be077a5e68b8e5d85679ccd85e225be02ddd51588f4bb"
+    },
+    {
+      "path": "chrome/browser/extensions/pref_mapping.cc",
+      "sha256": "7647e7f1a4178d4cb34a2ef64e6aece7b9159ac3b8393dd786b1322393e6a3ee"
+    },
+    {
+      "path": "chrome/browser/extensions/safe_browsing_verdict_handler.cc",
+      "sha256": "e4682649939f29addf79f39a2c915d20ab72175ccbb263a04a1232274fdd2b36"
+    },
+    {
+      "path": "chrome/browser/feedback/BUILD.gn",
+      "sha256": "b29a1d0edbee454a4cf2832141f8d43640c05e02588884490aa4a936a454a042"
+    },
+    {
+      "path": "chrome/browser/feedback/report_unsafe_site/BUILD.gn",
+      "sha256": "1f22b5f1a9221dc9a077060346b7ca9baab482e1fa242af6623a63c2f5ccddc3"
+    },
+    {
+      "path": "chrome/browser/feedback/report_unsafe_site/screenshot_taker.cc",
+      "sha256": "839ede5bd1d3811abfeabe1ab4ac4333c304b14e1b783ef0c3079653020ca65d"
+    },
+    {
+      "path": "chrome/browser/feedback/report_unsafe_site_dialog_views.cc",
+      "sha256": "c35dce43d635d92eeea6cf650fc3f270346b17f6628740c473d198d19829f716"
     },
     {
       "path": "chrome/browser/first_run/first_run.h",
@@ -340,20 +795,64 @@
       "sha256": "7e634afea97ec650ee72bc02952078029f089b29845ac883329066a8bfea48cb"
     },
     {
+      "path": "chrome/browser/glic/host/glic_web_client_handler.cc",
+      "sha256": "fb5fb7d963d31c7abcebacbb1d955708027d073aab0648d915320c79c401f272"
+    },
+    {
+      "path": "chrome/browser/lifetime/smart_restart_policy.cc",
+      "sha256": "d58492be8f1acd665a347bcbed0a4a46e9b0f1e964b968f1898b8ba4091a1ec6"
+    },
+    {
+      "path": "chrome/browser/metrics/chrome_metrics_service_client.cc",
+      "sha256": "330e164cec82cb546bb51646165789b7e45ee3c45aa8ea0df9a03a20c9649abb"
+    },
+    {
+      "path": "chrome/browser/notifications/platform_notification_service_impl.cc",
+      "sha256": "307f9a1f4b8a4d37a39f488615ba8d273b4f9a40e96b5125ccc6d6ccbf1c1a5b"
+    },
+    {
+      "path": "chrome/browser/password_manager/generated_password_leak_detection_pref.cc",
+      "sha256": "188db6ecc9aa190a6e778f68b84e58f15848ddffc37e73fb66f91875af6d2483"
+    },
+    {
+      "path": "chrome/browser/permissions/permission_revocation_request.cc",
+      "sha256": "d4d79f9d8b26dc69ba006081d5a9881e8a89e79d03be41e1fc9e326bb20f93cf"
+    },
+    {
+      "path": "chrome/browser/permissions/prediction_service/contextual_notification_permission_ui_selector.cc",
+      "sha256": "0d9b536f2b7bf5845973ee60f43eac8beb3cd01efc2e913f286d65d453c1591c"
+    },
+    {
+      "path": "chrome/browser/permissions/prediction_service/permissions_ai_ui_selector.cc",
+      "sha256": "0055823734f1c1050165f0af8a8a27d647b7ecfa8c2aae4fba1c5e826873e92f"
+    },
+    {
       "path": "chrome/browser/policy/browser_signin_policy_handler.cc",
       "sha256": "6d49daa792992ac38e13a489ce696a4f43c4b5065823e1b4b10153a650acc0eb"
     },
     {
       "path": "chrome/browser/policy/configuration_policy_handler_list_factory.cc",
-      "sha256": "283fbc88da06cfa22a65b5f9315c07f682f8b880795f60b7e1c1581804130d71"
+      "sha256": "e0194f7554913acab1ec3659a497e513023dfff959ee401e77e73a6eb0d0da82"
     },
     {
       "path": "chrome/browser/prefs/browser_prefs.cc",
-      "sha256": "6ca2cc2e690bd8da668bb18ea72dc20945e075a40e92da16f3058808d4e84fbc"
+      "sha256": "758e5727c98e59e423e8903527db456d44a10914c671f58ddc94b30667698078"
+    },
+    {
+      "path": "chrome/browser/prefs/chrome_command_line_pref_store.cc",
+      "sha256": "1f4df8de12fbf79629fc8ff45b289f2ef92806d4aaec283d6dc41eec7463b2d8"
     },
     {
       "path": "chrome/browser/prefs/chrome_pref_service_factory.cc",
       "sha256": "770ca6183f416ce1561ba7832793233a6f0b48ca99002f75606a7747e1915e12"
+    },
+    {
+      "path": "chrome/browser/prefs/pref_functional_browsertest.cc",
+      "sha256": "63085fdecfb956e668129506bd10648093dc47be1de70cfad8c35377c577866d"
+    },
+    {
+      "path": "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc",
+      "sha256": "e2a38a2d38bf560dc01ce3f0d51647c7a3ad226cb7e4613a5dcb42a70b518c85"
     },
     {
       "path": "chrome/browser/profiles/profile_attributes_entry.cc",
@@ -373,11 +872,11 @@
     },
     {
       "path": "chrome/browser/profiles/profile_manager.cc",
-      "sha256": "7bbb91ce3f1159b540666686b8cbc2e887a561978f9d7ebb7aa9230e42a7dec3"
+      "sha256": "9a5cdd3ba3a7ae2e89eed18e7a472e897db83dbd12c88b2964dcc52e612a3d41"
     },
     {
       "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
-      "sha256": "62fda4dd0463ca3b6c29c58d5f3024ff32c35f046f9c65ab52cb2d54b68a2333"
+      "sha256": "4e92c0d7cdefd5f4c0df76ec671c542f08c8e69eb710ebd21bd740fc551a4a37"
     },
     {
       "path": "chrome/browser/resources/extensions/item_list.html.ts",
@@ -385,7 +884,7 @@
     },
     {
       "path": "chrome/browser/resources/extensions/sidebar.html.ts",
-      "sha256": "53d92b997c91ab281f4627c5c3e09cdae91f81198bfc674a5c3d09a019068cea"
+      "sha256": "2cd16bf053f08759e4dc19a3990bbd1ac209a6fc61f06f730fa629d8bd5c4018"
     },
     {
       "path": "chrome/browser/resources/extensions/sidebar.ts",
@@ -406,6 +905,150 @@
     {
       "path": "chrome/browser/resources/settings/privacy_page/personalization_options.ts",
       "sha256": "0033ef1056c631b3a7bf53977f2300d19e97309616eb001ee11506a1133aeb82"
+    },
+    {
+      "path": "chrome/browser/resources/settings/privacy_page/privacy_page_index.ts",
+      "sha256": "1f2ea250906ae9d90763b30e736edcab28056f8f95d34965ebcd06c1e3a4b44d"
+    },
+    {
+      "path": "chrome/browser/resources/settings/privacy_page/security/security_page.html",
+      "sha256": "7a25c86d92a9c78c1806f4e5584f702cc2647f60a29ab897353e9f7ec65ebbc9"
+    },
+    {
+      "path": "chrome/browser/resources/settings/privacy_page/security/security_page.ts",
+      "sha256": "36e9fb18139f478d566339868258b412529b9f45745a1217f7e9e54d56d5ed83"
+    },
+    {
+      "path": "chrome/browser/resources/settings/site_settings/site_settings_page.ts",
+      "sha256": "29aef34ef0e675b402354e0c429fc81ade743a5c660f8eaa05db5ff47ca2f797"
+    },
+    {
+      "path": "chrome/browser/resources/settings/site_settings/v8_page.ts",
+      "sha256": "52aaa12e3d868952fc1533e5663a4fb05b55a032e3bff6dbc73f6d855ffcab4a"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/BUILD.gn",
+      "sha256": "a78cec9ea44e0a6ae57fa34842146826fca007b5b0a0e7af3dcbe81fb469030d"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/advanced_protection_status_manager_desktop.cc",
+      "sha256": "352415f2a633b21e823ecb718f4eb9b28d0a054529a5c46605159a054f5f62ba"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/advanced_protection_status_manager_unittest.cc",
+      "sha256": "6c53ad5587a59884ae6e8b3523a8e5f6de4b6546dfa003dde4c60ec92e6f3257"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/android/services_delegate_android.h",
+      "sha256": "0ac218fcf4e56d5008667be1fc7bf6c98664608794292e622c7c188f827b7a44"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/chrome_password_protection_service.cc",
+      "sha256": "b8d41a7c942a9c2d428ccd48c781a1f3c25b9db87ec4bb410f864e71976b1899"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/chrome_password_protection_service.h",
+      "sha256": "6c9ba34e8cc2fcbb89c6a67eea445ff5567bd161af4a7935d5a3e622daa12463"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/chrome_password_protection_service_browsertest.cc",
+      "sha256": "6828e8573608a2a72160a38dd213ff8783f96699029f361d652aae7a99867d16"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/chrome_password_protection_service_sync_browsertest.cc",
+      "sha256": "b1a883fe2eb6d81999af75a0b7c1341e8bbcdc19c2c2e66ac86321966404a38d"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/chrome_safe_browsing_blocking_page_factory.cc",
+      "sha256": "d1cb776ff54dea70b02cf6ffc04c6b71277766dc4acd42425f309a05492175b2"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/download_protection/check_client_download_request.cc",
+      "sha256": "0cc1042d81ce4b36f0251ba551c8af809602496a019df7bc4ca78f3fb4525ec0"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/download_protection/check_client_download_request_base.cc",
+      "sha256": "b03ba76743c0e9671a2d5a31c750fcf4ab59f272dc11bdfa19a5058d423d8211"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/download_protection/download_protection_service_unittest.cc",
+      "sha256": "78d66cf8011e28c82bab4f9faa3163ab0a10b94803ccc89b36f61600a35d2612"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/generated_safe_browsing_pref.cc",
+      "sha256": "5fe938ecf517138ebee0246781dbe3a7de83615a8d0bd14208c71632c6fe92fa"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/generated_safe_browsing_pref.h",
+      "sha256": "c4d4d519996b2d691f50f2099cd95021deb96915bab304839f0061e3506cc7bd"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/generated_security_settings_bundle_pref.cc",
+      "sha256": "e113048e5e992275d131bb010cbee469f7c05b5dc3e300681d77603033e7fc55"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/incident_reporting/extension_data_collection_unittest.cc",
+      "sha256": "fa8bf98d16bd222a584125524378933c907304d1b2f06534d8c9a740ad63b520"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/incident_reporting/incident_report_uploader_impl.cc",
+      "sha256": "64bd9f8d9cbed9d4086f5c41bdf30e797cbdd167f26c544560b10d2ffcdb1e75"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/incident_reporting/incident_reporting_service.cc",
+      "sha256": "ff15393dcd568c0b4040be7cbc54c3c971164e7f51e5a83a44b92090a44a979a"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/incident_reporting/incident_reporting_service_unittest.cc",
+      "sha256": "2767f8167f4e383d02e379be447b581757baf725ee30d35eec3f517dcdaaebaf"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/incident_reporting/last_download_finder_unittest.cc",
+      "sha256": "6e0cbefd2514aba253b09bdab0ebcf2ed2e5b3a7adcfdb46db98a273c2873eca"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/incident_reporting/state_store.cc",
+      "sha256": "19761884f8ee6da0efba4a02ebf3e63c8e676aaf941a3f3a2373d67289a22bfd"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/incident_reporting/state_store_unittest.cc",
+      "sha256": "64cd909b2ff28507d240372bfe54a5ce502360555780f8007c4b3f0ca8ac0dd9"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/metrics/safe_browsing_metrics_provider.cc",
+      "sha256": "5464b8530db2cfddc66aa652b2dabce971df1ce71cbd54b97f0efa76c1fe35a4"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/safe_browsing_blocking_page_test.cc",
+      "sha256": "b45eeded51c5b6c6ba018942ff3e7c7014d7b7e6046956ea16395204cd51a07e"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/safe_browsing_service.cc",
+      "sha256": "11162cd90a4565149e0b150dbb574750439688f32bc8e74a382896dcd427acf7"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/safe_browsing_service.h",
+      "sha256": "4522414a19003b2d659967a083b7b05a16c11d4a0339b0fb8b2b22f5bf419e34"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/services_delegate_desktop.cc",
+      "sha256": "05a11caa57850df8a1f491ffe6114500c61af3c0d5ffeaba927f84eb904ab1b7"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/telemetry/android/android_telemetry_service.cc",
+      "sha256": "7f609e01c39c5bf9b012442a7bf3a3edd49480f5b38de31efff4e27c89555fce"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/telemetry/android/android_telemetry_service_unittest.cc",
+      "sha256": "28306cea80c5bf707a93ae24a3eb1b2cb5f810482fd7312718684bd7e653f367"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/url_checker_delegate_impl.cc",
+      "sha256": "7464d65a2ff8bc36473693efb1a050263111274c7981bd5d4a4caaf4ed6be3d9"
+    },
+    {
+      "path": "chrome/browser/safe_browsing/url_lookup_service_factory.cc",
+      "sha256": "35bb9e24d946edf433f75e2c1a3561f7b416067fc22dc9608e560f81620c6bec"
     },
     {
       "path": "chrome/browser/security_events/BUILD.gn",
@@ -441,43 +1084,87 @@
     },
     {
       "path": "chrome/browser/signin/dice_web_signin_interceptor.cc",
-      "sha256": "f80371ce6d113e806ffb4e55e18665539dc916fe67163082a9249f3b0419c586"
+      "sha256": "4d18fb3a99020b07c875d933aced14a877b3acfec3e3ed65bed9c77d5e32b7aa"
     },
     {
       "path": "chrome/browser/signin/header_modification_delegate_impl.cc",
-      "sha256": "9728e5c9d2ac111fa0404451a0bc264fa3e38f841ef3f063d65ea508be37bff9"
+      "sha256": "8132ab32c098fb106dacfa1f9446430d4411a5c74329fd1cec829735058f8cfd"
     },
     {
       "path": "chrome/browser/signin/signin_promo.cc",
-      "sha256": "ee1fda089c46d1080de0c6a722d73c22ae395ec18e4093534e19faa1d24b581b"
+      "sha256": "62cccbe939125a8e14b00fecad4976a81d7b312d08bd0fc5c1a488aa8c94ea7b"
     },
     {
       "path": "chrome/browser/signin/signin_promo_util.cc",
-      "sha256": "6ded97f8805bef644312463206d56cc05883c28fc9c7ad135369ae9a6721cbc9"
+      "sha256": "9e7cab9347838c5d4ef73e956a53f4b2e7639f276ec3951f922013f1f293da40"
     },
     {
       "path": "chrome/browser/signin/signin_util.cc",
-      "sha256": "d102e70ae1ab238651b65276895b0496c8c3c58ba524353ca168a0bceddab673"
+      "sha256": "60dc09e017d61b28158d382c892c525ea97cdae1e610379877667947d9fbbe62"
     },
     {
       "path": "chrome/browser/signin/signin_util_win.cc",
       "sha256": "f0f93974979f653ccd18cdeab6e9faddc51f65311542b222d2b5e7c30437470d"
     },
     {
+      "path": "chrome/browser/site_protection/site_familiarity_fetcher.cc",
+      "sha256": "7c343d328a713695d7632541b81d89d51824158238970bba0f81261f46ded709"
+    },
+    {
+      "path": "chrome/browser/site_protection/site_familiarity_utils.cc",
+      "sha256": "6e7253d5799a1f9fd171cb4943af543d0cafa31832a89a5001c5bebf3b88838f"
+    },
+    {
+      "path": "chrome/browser/ssl/chrome_security_blocking_page_factory.cc",
+      "sha256": "13e3b136f068e1c528cb3e680bc3cbe5552713f94298f9a7e0527966e37c110c"
+    },
+    {
+      "path": "chrome/browser/ssl/generated_https_first_mode_pref.cc",
+      "sha256": "78b5e57c87f0cf180ad9e2cf3c772348a01d8a572adb6c64080f731942081ef4"
+    },
+    {
+      "path": "chrome/browser/ssl/https_first_mode_settings_tracker.cc",
+      "sha256": "6d128301beacb3a6057f8f88edaa55b2b02275c9ccaef76eb5269f70c09fc9f6"
+    },
+    {
+      "path": "chrome/browser/ssl/https_upgrades_util.cc",
+      "sha256": "399d0d85fe0247a7d2028b3d5a1916c02c4fd1a21c7597454736cb2fa64ba903"
+    },
+    {
+      "path": "chrome/browser/ssl/sct_reporting_service.cc",
+      "sha256": "72ab0eac64f072818979df9a855905e0b52e1da273acbff50e4b148d8a55626e"
+    },
+    {
+      "path": "chrome/browser/ssl/ssl_browsertest.cc",
+      "sha256": "001c5883a4964682ff15f63232958812820e9bd9bc8858cf0d7bd98fb2a6165b"
+    },
+    {
+      "path": "chrome/browser/ssl/ssl_error_controller_client.cc",
+      "sha256": "ec986321ea6fa060bb1549c9b42fbcd74db4509c6f87bc617bf1daf55f857dfc"
+    },
+    {
       "path": "chrome/browser/sync/sync_service_factory.cc",
-      "sha256": "2478720a177cc2ae4ed91656e7484c3e33d712ae7f378b62fdbac964f3eebed7"
+      "sha256": "2aa8e3c60c9efa1bf66aa61f77462b24c5dca994b9bcc7296158bee5a0531ce8"
+    },
+    {
+      "path": "chrome/browser/ui/autofill/BUILD.gn",
+      "sha256": "06e75ba512c744b5c0fa42a9a3976e55b9f8b13ef5472b8ebf1294ecd0cac96a"
+    },
+    {
+      "path": "chrome/browser/ui/autofill/chrome_autofill_client.cc",
+      "sha256": "d960101a1dfda9cfa9610af008dad6230e724d57f3fd344ae9247d2df202da87"
     },
     {
       "path": "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.cc",
-      "sha256": "96f3b100c1244992ce38181ca00ec076f963ce63a8aebfdde0f0892c61d43831"
+      "sha256": "5bc1bd0cd7589a873ca939af83d0a942502cd865153efb33c55ece0a7ca18733"
     },
     {
       "path": "chrome/browser/ui/browser_command_controller.cc",
-      "sha256": "cadfe36a3496322103af5aa758475ce7af38fe878b8f158c57f8146d70e93a1f"
+      "sha256": "3d8cec94dc857a7603eb052d23d618ebb84039bfe82c2b3d815819c555ce40da"
     },
     {
       "path": "chrome/browser/ui/chrome_pages.cc",
-      "sha256": "a2b88dc636b91c68adbe46a69095dffa325245b127420be378e3f8cabb64175c"
+      "sha256": "ded81e62e4171f577b70429609b4a7f093ee37b171c8efe5d058e2d8b5f5dff6"
     },
     {
       "path": "chrome/browser/ui/extensions/extension_post_install_dialog_model.cc",
@@ -485,11 +1172,27 @@
     },
     {
       "path": "chrome/browser/ui/hats/trust_safety_sentiment_service.cc",
-      "sha256": "beb04f8e4d750f6c7aa268ad7cfb365b1e2eada3d17631ccf6dbbf9266902c85"
+      "sha256": "c2f967e867c73f8ea519aa4d5a3781ca979fd09145312cfd37f3446dfb372dfd"
     },
     {
       "path": "chrome/browser/ui/profiles/profile_picker.cc",
       "sha256": "dd9780c3c3f497ae82f5ff840bc99cc37e7c548a46ccbeac3088ef731baedf55"
+    },
+    {
+      "path": "chrome/browser/ui/safety_hub/abusive_notification_permissions_manager.cc",
+      "sha256": "ee2487f86549751de10d31d291b44dbb30c7ac1c3d467df438a34936263e46a9"
+    },
+    {
+      "path": "chrome/browser/ui/safety_hub/menu_notification_service.cc",
+      "sha256": "2c2d712c34e125d3c7789b22f60874aaa08293d7d643d589cbcbf405405ffec7"
+    },
+    {
+      "path": "chrome/browser/ui/safety_hub/revoked_permissions_service.cc",
+      "sha256": "71003a25b0693a7c63932af3e73d7a0acb489c93c96c76ba26047c3cd22e69d2"
+    },
+    {
+      "path": "chrome/browser/ui/safety_hub/safe_browsing_result.cc",
+      "sha256": "7e81b32e03a3de5281a45de97bfb5bb3216066f5369325de4113f04fd56272dc"
     },
     {
       "path": "chrome/browser/ui/signin/dice_migration_service.cc",
@@ -497,59 +1200,131 @@
     },
     {
       "path": "chrome/browser/ui/signin/signin_view_controller.cc",
-      "sha256": "c50d5697a392e95b66bf13e5cb9081eb98118ba8e9f57f84b189d523dddeb5a1"
+      "sha256": "fcfff36500e981e91d7bb34f62fa2e8acec7ef5f667ed616199ad8a9393b3623"
+    },
+    {
+      "path": "chrome/browser/ui/tab_contents/BUILD.gn",
+      "sha256": "2a0b87bca4ae50111e8bae88bb8af5474131fbaa5db8804060d35dea29daf5d2"
     },
     {
       "path": "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc",
       "sha256": "e55739dd42b595f71542e0fc3af367b0fa67c4f71d347c28980690b69f0e9687"
     },
     {
+      "path": "chrome/browser/ui/toasts/toast_service.cc",
+      "sha256": "a818214daf0fa98194cd47ca8ad93ae5f07bad6e9850bae284153fce278cf0e3"
+    },
+    {
       "path": "chrome/browser/ui/toolbar/app_menu_model.cc",
-      "sha256": "5cb254d4614c5e99ad284212f5ce9734398422e8ead43fbdcfe732c99cae9c20"
+      "sha256": "8525a482a7b363245a9550546261c7439e022ffa1855920e0fec2f0778efcb57"
+    },
+    {
+      "path": "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc",
+      "sha256": "377c47e8a556d09ca0527bae49efc3ef1e639838356e08c6abeb9d104f8045e9"
+    },
+    {
+      "path": "chrome/browser/ui/views/file_system_access/BUILD.gn",
+      "sha256": "1ae61a40beda838ea54264f0a4f85dcf1615286206d39dec94674e10d9b421f3"
+    },
+    {
+      "path": "chrome/browser/ui/views/page_info/BUILD.gn",
+      "sha256": "ef268f2f4be6e25338605c5631391331962c157b1a4aad569cc4a928c09bcbdd"
     },
     {
       "path": "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc",
-      "sha256": "93de47cbb1cbc58608fcdcfc18695987f6606344ad94da0d9973256d66a89518"
+      "sha256": "b49d6691d22c8b9c14463b8855cb6c6335d17dcf54a3aca8ea9ba87e1e0118c7"
     },
     {
       "path": "chrome/browser/ui/views/profiles/profile_menu_view.cc",
-      "sha256": "037911f6cc56c2d50da445e0af5ed962c8e0b1c7e1d065c79af6fab970072746"
+      "sha256": "0716acd79dbc80436417df5b0349980d521c3663198649bcdd8373c6f36589fa"
+    },
+    {
+      "path": "chrome/browser/ui/views/safe_browsing/password_reuse_modal_warning_dialog.cc",
+      "sha256": "f6944c22670f050aa2c2b8d72ad4b373b5d9203e7fc17551e0dd5909da7904fd"
+    },
+    {
+      "path": "chrome/browser/ui/views/safe_browsing/password_reuse_modal_warning_dialog.h",
+      "sha256": "145750e712fa1a6f0787521d109c32dd3bf17ae8bd2a418c5c8c23ddf4356a7c"
+    },
+    {
+      "path": "chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views.cc",
+      "sha256": "cf7f23ad718e78525667524378078a3ab1f8ebf0534171d3bfaa7da08845f8f6"
+    },
+    {
+      "path": "chrome/browser/ui/views/tab_contents/chrome_web_contents_view_delegate_views_mac.mm",
+      "sha256": "aaa0c10718139088d534b765039300b7f3774dbdd27c1ddc5f827b916cbc5f76"
     },
     {
       "path": "chrome/browser/ui/views/toolbar/app_menu.cc",
-      "sha256": "4ea469b1d27b4a448e3cc722ef5709efcc7816e17e090930b939f731fae4083b"
+      "sha256": "a1ae686b91a6fe3ec26255fde3105f3edaefa1580884e8d5309918aa0ee48c79"
     },
     {
       "path": "chrome/browser/ui/views/user_education/browser_ntp_promos.cc",
       "sha256": "9c76db0ff0d1d03e45ca932fe7a0ad778a80f247314dc8965e0f6f8c9874a970"
     },
     {
+      "path": "chrome/browser/ui/webui/browser_command/browser_command_handler.cc",
+      "sha256": "064aa6581998c17867d1918f9b17476f0d99da01b3c7073ee32051ffe4dd9ef8"
+    },
+    {
       "path": "chrome/browser/ui/webui/cr_components/history/history_util.cc",
-      "sha256": "6137dad95759cc597edc838be0a6ad0c729e5b26e62e54a09924afe84d039246"
+      "sha256": "07ee5a0081c30922172f7f9f6fedb42793d391c4a423c865d434f8fc1954b5a6"
+    },
+    {
+      "path": "chrome/browser/ui/webui/downloads/downloads_dom_handler.cc",
+      "sha256": "4f961cb8bbd6ecf6ca33057f315493856ca6102f1e4a50876d355f10bff527ec"
+    },
+    {
+      "path": "chrome/browser/ui/webui/downloads/downloads_dom_handler.h",
+      "sha256": "d7002e390016365b63b8b1444cc167bed476a33f1f45bbbc0115782d0dbce44e"
+    },
+    {
+      "path": "chrome/browser/ui/webui/feedback/report_unsafe_site/BUILD.gn",
+      "sha256": "430e3148d21b007f025ea97b675dd3b794a31ab879aa00c08387bfeb6aba9b49"
+    },
+    {
+      "path": "chrome/browser/ui/webui/feedback/report_unsafe_site/report_unsafe_site_handler.cc",
+      "sha256": "3fdd22c76b6fa4f9d839f1d5a863f990b392783945c09473dc59c814c4485140"
     },
     {
       "path": "chrome/browser/ui/webui/history/browsing_history_handler.cc",
-      "sha256": "c7f8008d89207d8ead16bbab1b157c357ef224177beff29bf38cb8a87467be04"
+      "sha256": "19880e82c5e9681b7552014498f686c0e025dfd0008b296cb426f6e95d0c9e44"
     },
     {
-      "path": "chrome/browser/ui/webui/history/history_ui.cc",
-      "sha256": "0b5a5d1c1ba2c517ffb21429f848898d819fcbf36387c80c02696d3a20275847"
+      "path": "chrome/browser/ui/webui/management/management_ui_handler.cc",
+      "sha256": "718ac4a56d0f9b3e7bbd64b3d4c7db215c9f9b8b35622ac366dc1ca21c103ead"
     },
     {
       "path": "chrome/browser/ui/webui/policy/policy_ui_handler.cc",
-      "sha256": "f838a5485af2d51038ea886c974244ed4495feb393afdd6719fc8638c37a03d4"
+      "sha256": "1b0ac6eac7a0476776f7af1a2afdae4f375cabad7f67ef97c8d5e1cfab433beb"
+    },
+    {
+      "path": "chrome/browser/ui/webui/reset_password/reset_password_ui.cc",
+      "sha256": "b43959ec01f600af03e0ac59e5a9cba241c7a50b7c6a40b72f26e88a7d94ac86"
+    },
+    {
+      "path": "chrome/browser/ui/webui/settings/hats_handler.cc",
+      "sha256": "88733d801ad0e627d2100974d9491420091d867e2176e9986101fffb2ad2efac"
     },
     {
       "path": "chrome/browser/ui/webui/settings/people_handler.cc",
       "sha256": "1506c17c69c3f315b4c861a5ad69be5d295b785496c3cd5a9c0da1910d8ca69a"
     },
     {
+      "path": "chrome/browser/ui/webui/settings/safety_hub_handler.cc",
+      "sha256": "35cba6a9001df4be0dcc0d934993f27ae48291fc28282b3391152db569a94f52"
+    },
+    {
+      "path": "chrome/browser/ui/webui/settings/security_settings_provider.cc",
+      "sha256": "4349b41690f58a723d3324a086beb8b868d1dd9af568d62a860db39a23dec3e9"
+    },
+    {
       "path": "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc",
-      "sha256": "1b51f3398d3d74be79db67019bdf0b810f54ad80a47b267a5a707262f1217017"
+      "sha256": "03118015077506d5ac461a98ca74162bbdc6121a498d5753e72be121c41e95ab"
     },
     {
       "path": "chrome/browser/ui/webui/settings/settings_ui.cc",
-      "sha256": "f3191ed1e1e165c3a1de4d945210a2343e52f149553ecd534b29a5b730930f75"
+      "sha256": "34fcdcee59731fdf6e9d54299cedb7a216c218c63d93313a154b7fc609081c29"
     },
     {
       "path": "chrome/browser/ui/webui/signin/inline_login_handler.cc",
@@ -561,7 +1336,7 @@
     },
     {
       "path": "chrome/browser/ui/webui/signin/managed_user_profile_notice_ui.cc",
-      "sha256": "a1a46a27d1c2bc5a8fee4b79058f5f1c1adf264f88da9fdf9ad6763123aaebaa"
+      "sha256": "b5b13cd7101dbb5faf6c4698ac5dd3b23ff3237987c1b8f064d22ea8818d41a1"
     },
     {
       "path": "chrome/browser/ui/webui/signin/signin_utils_desktop.cc",
@@ -569,7 +1344,7 @@
     },
     {
       "path": "chrome/browser/ui/webui/signin/turn_sync_on_helper.cc",
-      "sha256": "d7fdb37136b9ec84871ccb2eebb9d85e83a7c581bd726e2c2a36faa8a41f9101"
+      "sha256": "10a15e88097fc78ac50333e6efa2fc068193f5b4aaac12bc4401d981fac56c49"
     },
     {
       "path": "chrome/browser/ui/webui/signin/turn_sync_on_helper_delegate_impl.cc",
@@ -580,24 +1355,48 @@
       "sha256": "c34f5545bc263c6b9ecbf4df3774a5daabbc99b7459140d79220298005920a58"
     },
     {
+      "path": "chrome/browser/unified_consent/unified_consent_service_factory.cc",
+      "sha256": "569ffbf0d2547e59d1660587ed6f018098ba49803bdb4274a8c04fc564b19902"
+    },
+    {
       "path": "chrome/browser/webauthn/authenticator_request_dialog_controller.cc",
-      "sha256": "627b880dd82f67480637fb9b5ac9646038b605a313dcf7711c4a7c084ec9285d"
+      "sha256": "9a467f3e995cad32a70ee240a373378a145ecbfb909354c6e3d506aef68672ba"
     },
     {
       "path": "chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc",
-      "sha256": "836c60bc38f960042a9d6ab471577efce359ae899d478e5ed26958dcdaaa24f5"
+      "sha256": "88673dcf06819664cc0dc4314b0fcb05ce8c660f42940e3b63fce61f4fdf8912"
+    },
+    {
+      "path": "chrome/browser/webshare/BUILD.gn",
+      "sha256": "85b631f2f7ca3376cae28a4a8a8da2e544aa42e9c343b1d28c5a9e46970d2468"
+    },
+    {
+      "path": "chrome/common/extensions/api/privacy.json",
+      "sha256": "540ed37792ef41d4440bc19704e23eba7ded3363f651bcb952717b066e3cef3a"
     },
     {
       "path": "chrome/common/google_url_loader_throttle.cc",
       "sha256": "6e48bc095f55697a5dd113fcfc36d4842a3c39a77d821c191878f4a98ecf6e01"
     },
     {
+      "path": "chrome/common/google_url_loader_throttle.h",
+      "sha256": "22bdc6b65cb2efc4cd19549455f59114da744eac494295e03c2dc1a12ddbde8f"
+    },
+    {
+      "path": "chrome/common/webui_url_constants.cc",
+      "sha256": "c2ac21117140d1a6b40e802bdd30bbe8aa52fb1aca2ae221ab06d72c6e021572"
+    },
+    {
+      "path": "chrome/renderer/chrome_content_renderer_client.cc",
+      "sha256": "f6bca3a5f240d6c30e2f14f0f4f8b616173d7f2d481dbcc02aa96c70acef2460"
+    },
+    {
       "path": "chrome/test/BUILD.gn",
-      "sha256": "4b1c4e75e9298e44953d57c11d3aeb12dee6b036b6f9071a887d3a7cc213e832"
+      "sha256": "c6ee1786182381e83e79cddde5d6d1e6d8c545dd64eb396869ebc370030dcf07"
     },
     {
       "path": "chrome/test/base/BUILD.gn",
-      "sha256": "3f7506fb4c68cd79c88663012cb2e9829a99a7df2513f6d6c8f4c94d0e61943b"
+      "sha256": "674743840692934254850056a3a1813bc804646bbc1b576b5632e2c739abe2ae"
     },
     {
       "path": "chrome/test/base/testing_browser_process.cc",
@@ -608,6 +1407,10 @@
       "sha256": "b11ca05a1bf31f5d3df9a1425f44c6a74bd58c3f1a3114f66cf8cf7b99ee9f27"
     },
     {
+      "path": "components/BUILD.gn",
+      "sha256": "62234ec9b6898c164f1b690d074aa1d1f39746ddaa830b33db9def04bd78e8f7"
+    },
+    {
       "path": "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
       "sha256": "41bed191f7abd224330f967c1cd14b3dde19e2939c6d9e3a4f438af7088a37bf"
     },
@@ -616,12 +1419,8 @@
       "sha256": "9ffcce1a81b60abf4e8747c565c24e1e1631da425a79a47d2f4b2cd1a8dc7327"
     },
     {
-      "path": "components/assist_ranker/ranker_url_fetcher.cc",
-      "sha256": "9e2dc566de20acb69732ca18cb052ca1ed25920c20a8a6c0bfdd9f81d4471828"
-    },
-    {
       "path": "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc",
-      "sha256": "f3abdb8791a542be8af550f67247445c665aee1cb720eb378b7de1a50df72b4b"
+      "sha256": "074013e23a62faaa9916e37787234988e1071e5ec15bb98912d937d132b3f9ea"
     },
     {
       "path": "components/browser_sync/BUILD.gn",
@@ -644,8 +1443,80 @@
       "sha256": "cbdec3221e105768537e61466663508deb2ef0f182e488ac288910126dadea4d"
     },
     {
+      "path": "components/content_settings/core/browser/content_settings_pref_provider.cc",
+      "sha256": "3d9132b3651caa19278c6c3790857867752dc1f98936823dd059059f6f8412b8"
+    },
+    {
+      "path": "components/content_settings/core/browser/cookie_settings.cc",
+      "sha256": "640bea5dd862f7b7e9f8ae48315d9277c8e409aeea85097a51d009aa1a8f784f"
+    },
+    {
+      "path": "components/content_settings/core/common/pref_names.h",
+      "sha256": "5c401c85cfde28f0ce4c9f044238c89aa890b1cc2366e5fee502ac05663b8f3e"
+    },
+    {
+      "path": "components/device_signals/core/browser/browser_utils.cc",
+      "sha256": "ceaab9a413bf5cb0728f688a849abd143bd830c6098b915d438bed9e9aab74e2"
+    },
+    {
+      "path": "components/device_signals/core/browser/browser_utils.h",
+      "sha256": "295105532a358aa45f5a4eb2c7be1d663a1fbf0151d05b965755a3cf22d148bc"
+    },
+    {
+      "path": "components/device_signals/core/browser/signals_types.h",
+      "sha256": "492a6f6f4a66f83e0c24bf62ced99d1f2293b46bf403d964e7eec48922c7b8cd"
+    },
+    {
+      "path": "components/download/internal/common/base_file.cc",
+      "sha256": "983612da3c4b9467e3068fe1c0f43f71515c54718e7379f1e46755829f59dc46"
+    },
+    {
+      "path": "components/download/internal/common/download_item_impl.cc",
+      "sha256": "fa2265d7925e20f5861a0b8776897c90c6947c31d8d4314e6aaf43ded6e34c6f"
+    },
+    {
       "path": "components/embedder_support/user_agent_utils.cc",
-      "sha256": "21d06edd8f0b76a0bfef8c7aab2448e4f046f788e24da5591713c3561ea54708"
+      "sha256": "0e3acc91465a072ec95505443a641ae60666d84beabe35107ccd3e084313a094"
+    },
+    {
+      "path": "components/enterprise/browser/reporting/chrome_profile_request_generator.cc",
+      "sha256": "2b41d972d0ae166b2b50bedf4436a1c3669a654ac616bf247236b94ed20bba8b"
+    },
+    {
+      "path": "components/enterprise/browser/reporting/report_util.cc",
+      "sha256": "48e91d92ae25d4107e991150ada6ee381503b4812281a7119a81e3922d6f1251"
+    },
+    {
+      "path": "components/enterprise/browser/reporting/report_util.h",
+      "sha256": "1ec17cb567e29cd3859e66cfad1061e2cbf3c555440ef9f099c9fe17d71ea301"
+    },
+    {
+      "path": "components/enterprise/buildflags/buildflags.gni",
+      "sha256": "fb3bfbc224ac9f827f30ceb3f74f6a07bf8c9752957cccbe8d81494c0b421eeb"
+    },
+    {
+      "path": "components/enterprise/connectors/core/analysis_service_settings_base.cc",
+      "sha256": "6b08822d35b79eb215f16ecab69e903791e042d0f8e99db27d34dfa6846907b9"
+    },
+    {
+      "path": "components/enterprise/connectors/core/cloud_content_scanning/files_request_handler_base.cc",
+      "sha256": "09ccdb0d38de0b807f8fc0aeee95bb862a055bb9a15ec82df40571c84afb54a8"
+    },
+    {
+      "path": "components/enterprise/connectors/core/cloud_content_scanning/multipart_uploader.cc",
+      "sha256": "8089c34ec2e522705b8794af690b63d36d5ee9f865fe7916a31a7d653405767b"
+    },
+    {
+      "path": "components/enterprise/connectors/core/cloud_content_scanning/resumable_uploader.cc",
+      "sha256": "8ea7de140b9b33491da7d82a74c76d1aa8266cc5b337e4764b6e3c188c73a22e"
+    },
+    {
+      "path": "components/enterprise/connectors/core/reporting_service_settings.cc",
+      "sha256": "be8ee71ac565f1418f94806934fed1a297e10538edc5713d2540e40e10dc34ce"
+    },
+    {
+      "path": "components/enterprise/device_trust/core/signals/decorators/common/signals_aggregator_decorator.cc",
+      "sha256": "f67bd8b66ce76f49be7a77ed53912687ca8395850ae7c6009cfd62b7f142fdef"
     },
     {
       "path": "components/feed/core/v2/feed_stream.cc",
@@ -661,15 +1532,23 @@
     },
     {
       "path": "components/gcm_driver/gcm_driver_desktop.cc",
-      "sha256": "a1c2da223e741ae20329d4a1d2b1594b38029f0c9b991900db7da7451f867e32"
+      "sha256": "439cabf445e79c840e4d7308ef75b1023a94d4c179c3126b0759b16b3ccd8d24"
     },
     {
       "path": "components/google/core/common/google_util.cc",
-      "sha256": "8ab18780c9567942b9469ebea5b9f3f1fcc477493e23b50ad7eaaaad7f9ee3a4"
+      "sha256": "1e6dfc9e2a53a9bc0e548aec7cf85706692a1c7851ad6d3828dc87bbb8f8538e"
     },
     {
       "path": "components/page_load_metrics/google/browser/google_url_util.cc",
       "sha256": "11cc44bca601f2a80d538ce826efccaa842b906ddeef96a032ceb5dceaa3b830"
+    },
+    {
+      "path": "components/password_manager/core/browser/leak_detection/leak_detection_check_impl.cc",
+      "sha256": "7c462f711209bcf2e8f751e760fe1e6842508aaaff287fab2f4aabed36c5133f"
+    },
+    {
+      "path": "components/password_manager/core/browser/leak_detection_delegate.cc",
+      "sha256": "eb3c62bf66070a9bd6e74211d0d04224e7019851a0cc41990c4d84498028f0d0"
     },
     {
       "path": "components/password_manager/core/browser/password_feature_manager_impl.cc",
@@ -677,19 +1556,267 @@
     },
     {
       "path": "components/password_manager/core/browser/password_manager.cc",
-      "sha256": "c998594a3e9ab58cab8ce460b695b48a75c7139e34594443f0f3c6fe5af898a7"
+      "sha256": "476a028d4c3decd58d71c917f3874031f5803c4eee6b3ae406bc86007ddc2ee6"
+    },
+    {
+      "path": "components/password_manager/core/browser/password_reuse_detector_impl.cc",
+      "sha256": "def579c9e68f2fc09d62cc2303ecc605e75505dc8f98e6950890db36391cdff6"
+    },
+    {
+      "path": "components/password_manager/core/browser/password_reuse_manager_impl.cc",
+      "sha256": "a3a99d7b34991fd1b51b996693a8ab78b41c807987d44db40f871145dcdf6cf1"
+    },
+    {
+      "path": "components/password_manager/core/browser/password_sync_util.cc",
+      "sha256": "5fe0c2588b7f6e19a2b01ddbfe971fb176300090c8c93b0e7c179182082fc2f9"
+    },
+    {
+      "path": "components/password_manager/core/browser/store_metrics_reporter.cc",
+      "sha256": "3f45c9c1b36ab80f94fbbf9a8955a3590bdec4f67d04c93d06a404b64717216f"
     },
     {
       "path": "components/password_manager/core/browser/sync_credentials_filter.cc",
       "sha256": "8a7cc68c5038a243a6a1dc9c38de55fe7681a59adf87c774f49bca71641218f5"
     },
     {
+      "path": "components/password_manager/core/browser/sync_credentials_filter_unittest.cc",
+      "sha256": "3d7e56b4f736706ff4212c3c563dcb4ebed5d97e84faf9de9a05ebb82233f580"
+    },
+    {
+      "path": "components/resources/safe_browsing_resources.grdp",
+      "sha256": "ea0b8a27b84e668241e4c6aed4ab158721b33aa3daa0395b1a31f9ba0c0bcbca"
+    },
+    {
+      "path": "components/safe_browsing/buildflags.gni",
+      "sha256": "56424bb8ee729ef28aa8f9a7672b04faadbc1c49dfa302df622f7017306ec147"
+    },
+    {
+      "path": "components/safe_browsing/content/browser/base_blocking_page.cc",
+      "sha256": "8ac9f587c842aeb734bac513b0414f3bbc84ea27ae053e6c08701a79c90f41a1"
+    },
+    {
+      "path": "components/safe_browsing/content/browser/client_side_detection_service.cc",
+      "sha256": "2da15cc3846b9a5d1958055439823a1dfc9ab8c0e0ced45aeacafa2749c76d56"
+    },
+    {
+      "path": "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.cc",
+      "sha256": "5e6a6bfd3fbcd926f5953f0d3540697e6488406d324257fd44f0f7c87ad464a5"
+    },
+    {
+      "path": "components/safe_browsing/content/browser/triggers/suspicious_site_trigger_unittest.cc",
+      "sha256": "2c222a0e86ac881a1e401a7a51396244847fb831ce1a8f66d129910da84e0662"
+    },
+    {
+      "path": "components/safe_browsing/content/browser/triggers/trigger_manager.cc",
+      "sha256": "d77b7843cb15e7f02680f2a9637382861938ea30ea3a8c13a7aa2e716a1c803f"
+    },
+    {
+      "path": "components/safe_browsing/content/browser/triggers/trigger_throttler.cc",
+      "sha256": "594666158ee872f9e6fbeced67d8b3953c7d2155065e8c29fa1e281fb186076e"
+    },
+    {
+      "path": "components/safe_browsing/content/browser/triggers/trigger_throttler_unittest.cc",
+      "sha256": "a26eda0bb07f2ad264e7d48750489f035b5f2451d6e363dbf072adb0969dc1fe"
+    },
+    {
+      "path": "components/safe_browsing/content/browser/ui_manager.cc",
+      "sha256": "82579aabe82aaafca10727556459aa1094512d8544706286b956c704a6c692d4"
+    },
+    {
+      "path": "components/safe_browsing/content/browser/ui_manager_unittest.cc",
+      "sha256": "42868672e46eb6904bc0f0a9cbbc24d9f648b5c9983696e655c9cebf197c3712"
+    },
+    {
+      "path": "components/safe_browsing/content/common/safe_browsing.mojom",
+      "sha256": "d2a539ac6cd5d6b8f0acdd9d804c282baf365ed7d658f25911cd17a05393541f"
+    },
+    {
+      "path": "components/safe_browsing/content/resources/BUILD.gn",
+      "sha256": "e99503fa6d78fc547d5b1e8f0b7be1437c2d84979da6ed4d84be581dff3a70d8"
+    },
+    {
+      "path": "components/safe_browsing/content/resources/download_file_types.asciipb",
+      "sha256": "9982acff1e9b5c7359772ac85a3dc24571428b9559bf15f1d2707ad042547105"
+    },
+    {
+      "path": "components/safe_browsing/content/resources/empty_file_type_policy.pb",
+      "sha256": "98ebc9403565619b3aa2f71f64f5f54adea01d4c4b54d873b2b91c2ac5544112"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/BUILD.gn",
+      "sha256": "486e05df517adf7450516b411ceb8911c92af111d246f924cbdbf8704a3fd9f7"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/client_side_detection_service_base.cc",
+      "sha256": "251077021e546f4b44a045e4b777a913c991697c1f203ca3f1acf181a47de393"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/db/hash_prefix_map.h",
+      "sha256": "85223e1d7c54c9e9475b93ffe078a6bd5bea723887b709dbba2390ac26d35a85"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/db/sb_local_database_manager.cc",
+      "sha256": "2ff09c25303c90034b8e18a83bd264eb43371d9502e12673f07876d19bb93a46"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/db/sb_local_database_manager.h",
+      "sha256": "5fafbd0649a87dbc86fcb5ae510708ad59903ee9945ffdbfafdefa1121078945"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/db/sb_protocol_manager_util.cc",
+      "sha256": "6cf794825d6edc3df0d6386ac4093fbf1f839aff3c05d138a71f6535efdafdeb"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/db/sb_protocol_manager_util.h",
+      "sha256": "430dd17d5e6f2a594415e1c0173232c7ba72785948f87dd79c3ecb1972d3fa6e"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/db/util.h",
+      "sha256": "66f232db124675e5761d3ce07451f352a62faf6737f32737db6591da87dcb7d8"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/db/v4_update_protocol_manager.cc",
+      "sha256": "6e5adbfecf96db052a0aee2302dcc923aa97aaab26193a9b8a7fd79fe93c89f4"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/db/v4_update_protocol_manager.h",
+      "sha256": "94001dacae07e142946b969ad32942b49473a5d7c5123e286409d54332e59c69"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/db/v5_update_protocol_manager.h",
+      "sha256": "8022c83dc16c0b14cb53afefded1fd20f8b8688331b2d0d561bfd9e1f639a6ca"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/hashprefix_realtime/hash_realtime_service.h",
+      "sha256": "ccbd793f2e8370ed614a3786d0b3fbd0c88c113200acc26776c3b452595c0873"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/hashprefix_realtime/ohttp_key_service.cc",
+      "sha256": "8e38bc1bc6412cf57868473b99f975b9a22e3004d768c415111d9cd29b6c936a"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/password_protection/password_protection_service_base.h",
+      "sha256": "e6f50bdeea54ee05ebaf4eba980f3d1be9d1b697eb80f200a4553b7298a5d356"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/ping_manager.cc",
+      "sha256": "0a2cd5c6efd1ada54405f5fc95353cffe9c8283a7e39703c394e138f8c51291e"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/realtime/chrome_enterprise_url_lookup_service.cc",
+      "sha256": "3da5e5603ee24fb10574989fcdbf05f8a7183d773f3381fa88c01bd7428fa384"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/realtime/policy_engine.cc",
+      "sha256": "e4d31a9d42fd0f353c1af70028914d1988e9df96b34a801657f1dfac613119a8"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/realtime/url_lookup_service.cc",
+      "sha256": "927b79e48dea202da6301575553992a8eeadb558521fcb035e40ea89e02ab9ea"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/realtime/url_lookup_service_base.cc",
+      "sha256": "2bb3c920894a04dd137d3e00c2273513e331f0b9cb5d939d42cd1ac00ed4823a"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/safe_browsing_hats_delegate.h",
+      "sha256": "bba5bf89281c213bd3fd07f1a5fea0f1827e7dfd4cade84e1290a31cf1dce2e2"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/safe_browsing_metrics_collector.cc",
+      "sha256": "0fb5c5042241de7dddc49f7befcff939b38877212f36f495785290fe57f8e3fe"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service.cc",
+      "sha256": "627db44bc2a01970a9dc1acc444323f60f4f214598f263111802c7edbc964308"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service.h",
+      "sha256": "3f434ed698c401d82b5608f00a871d01b28f49267709d26991c874e58f3744cc"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service_observer_util.cc",
+      "sha256": "a045a94f7855c5dbb56f23e19688b4eb0940c95e4aefc5ab8df1cf45095d5694"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/verdict_cache_manager.cc",
+      "sha256": "efbb355aa702348db36de277bc34d6fe2861e74efe8ad43195aae6bbf5968d47"
+    },
+    {
+      "path": "components/safe_browsing/core/browser/web_ui/safe_browsing_ui_handler.cc",
+      "sha256": "8fb91a0bcbd2f4cd719e9f50f846407807907c1b15b07f54384448b77e1863e1"
+    },
+    {
+      "path": "components/safe_browsing/core/common/BUILD.gn",
+      "sha256": "9572a2f8ce92610b975bf5e10d3dd186cd96542669ee09fbbfe0744dbf9c59be"
+    },
+    {
+      "path": "components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.cc",
+      "sha256": "e970528089f4e1fdf402b69dd36e915428aea37db7420a52a9e48f0f5746cd4f"
+    },
+    {
+      "path": "components/safe_browsing/core/common/safe_browsing_policy_handler.cc",
+      "sha256": "e6ca65e87a7d7fe4b6441b5aeeb4f5bbc0931eccaa8f7258d357e87b0e06cde6"
+    },
+    {
+      "path": "components/safe_browsing/core/common/safe_browsing_prefs.cc",
+      "sha256": "c2be8d1d71e51804c47ca8848ba87cafd061d96bcad0a27653d11324c3561403"
+    },
+    {
+      "path": "components/safe_browsing/core/common/safe_browsing_prefs.h",
+      "sha256": "0fe705912d95457f512c91681c5b447ed209123c377606cb0b6e94c37a9d913e"
+    },
+    {
+      "path": "components/safe_browsing/core/common/safe_browsing_prefs_unittest.cc",
+      "sha256": "691e61c5b0c19442b66db5d053460678e6188d3e270cce1fbb289202636720f0"
+    },
+    {
+      "path": "components/safe_browsing/core/common/visual_utils.h",
+      "sha256": "ed8720e9e606d1503a1eb1de97faf2f37998140a120ebc1d7b73cde561d53d89"
+    },
+    {
+      "path": "components/safety_check/safety_check.cc",
+      "sha256": "68212e097f36ba392ce92762241e4bd4950f457bda7aee9362abf3c4a50b74e8"
+    },
+    {
       "path": "components/search_engines/template_url.cc",
-      "sha256": "7c41dd1407cce63af55a6720a93f1651a2ac00ec1d37fe37f40025e83ee72d1c"
+      "sha256": "dbfc72d3372db99df1d5dc040e847b5bd20ed9e03c5a73687b38f87aecd086da"
+    },
+    {
+      "path": "components/security_interstitials/content/bad_clock_blocking_page.cc",
+      "sha256": "27a99e8bd2ac87d333e71e0dd06abeeade951b2374386b67b095b6ebbcdb8e96"
+    },
+    {
+      "path": "components/security_interstitials/content/captive_portal_blocking_page.cc",
+      "sha256": "df3f1771c4c523a5cc03540afe28891b1500e2a1788b29a25b2ba1d3937ffc8f"
+    },
+    {
+      "path": "components/security_interstitials/content/mitm_software_blocking_page.cc",
+      "sha256": "4dc45dbfb5b8fdec7edaf7723644b50ee72a7ee727af0e2934b8f4568826c989"
+    },
+    {
+      "path": "components/security_interstitials/content/security_interstitial_controller_client.cc",
+      "sha256": "b9105dfaa37e0bce2db16d361ca01043be011f8658cac7f5d16f3865429debf8"
+    },
+    {
+      "path": "components/security_interstitials/content/security_interstitial_page.cc",
+      "sha256": "b16d9c8ad44143dea51d6cce80109c2232e6722774a79534c79382106aa21cf3"
+    },
+    {
+      "path": "components/security_interstitials/content/ssl_blocking_page.cc",
+      "sha256": "c9111d49bae0604fa660564bce3bf291699207274bea8c37cb32abb5375850a8"
+    },
+    {
+      "path": "components/security_interstitials/content/ssl_blocking_page_base.cc",
+      "sha256": "fa5d8eeb3f34a7e3502ba970131cebb81b3373e58df96019c82d52a493920079"
+    },
+    {
+      "path": "components/security_interstitials/core/safe_browsing_loud_error_ui.cc",
+      "sha256": "1484c94d6dbdf6e3f5641a76410c2865a73806f4a930e621c51a75e3ed48df31"
     },
     {
       "path": "components/send_tab_to_self/entry_point_display_reason.cc",
-      "sha256": "dbe16eb70d82ca1ced474a0790525b28282a358a7d2ceff64f752b6a3256b41e"
+      "sha256": "694d783b67263b72a7b783ebf9df159402b9de4085b1ab9b5e13689668969c71"
     },
     {
       "path": "components/signin/core/browser/BUILD.gn",
@@ -705,19 +1832,19 @@
     },
     {
       "path": "components/signin/core/browser/account_preview_data_service.cc",
-      "sha256": "d7a14a4108387dce018d0e065e74ff451fb30897c6900182c6887da91bf2a399"
+      "sha256": "193252342ba6fb7bd92b48c83e76fac9794d8489849a8c2fab6444df88b25817"
     },
     {
       "path": "components/signin/core/browser/account_preview_data_service_impl.cc",
-      "sha256": "f5a39173f77b390f13a689b4f6d248c3f0367c3565be1aef6f67efa51285fbe7"
+      "sha256": "e49655c2155e62be8f3505298d9d9926b9559e164b19e57ebc4c855035d84ee7"
     },
     {
       "path": "components/signin/core/browser/account_preview_metrics_recorder.cc",
-      "sha256": "936e3f8d4158fd214efa1edd28ae1a2e1bdb0dc3ecab537c037943b2a1b76fd8"
+      "sha256": "73ef33b78f3dfdc1168df50d6b1cabee4cc84442742ec224507eef0626067410"
     },
     {
       "path": "components/signin/core/browser/signin_metrics_service.cc",
-      "sha256": "cddbfabb3d22c1df0aedaab64dfaf80acc59edfd287c834d59a5722d2bf85ae3"
+      "sha256": "73a96b0f0f4a9f2b963c14521bfd7016e8955e23e6fe2877dd069a4a8d3d7ffd"
     },
     {
       "path": "components/signin/internal/identity_manager/account_tracker_service.cc",
@@ -741,7 +1868,7 @@
     },
     {
       "path": "components/signin/public/base/BUILD.gn",
-      "sha256": "8b957950a7c26261b5d3a57ef22f2952fb83f5a0ddb552ccbd836c2119d5bac0"
+      "sha256": "1ff3ead0ffe338a3b1841e1639a008db0963c2a5acdff9df83ed6cc86cabacfe"
     },
     {
       "path": "components/signin/public/base/device_id_helper.cc",
@@ -749,19 +1876,19 @@
     },
     {
       "path": "components/signin/public/base/signin_pref_names.cc",
-      "sha256": "e77940299b11aac74f06f3a75e154754d2b181ac2883e3de95a380eed32ada96"
+      "sha256": "1a73423c98f5f2c8158a510d797efefd301a40029c1b4f94fca194a1a676ef66"
     },
     {
       "path": "components/signin/public/base/signin_pref_names.h",
-      "sha256": "0a804bc27dd6016198be4408436ef212bf872066107802bac1eff5846d918496"
+      "sha256": "95ae2f3b261ec485fd3142128fb0b7d2cab55f66fc99bffee38a0d6e784c62f0"
     },
     {
       "path": "components/signin/public/base/signin_prefs.cc",
-      "sha256": "68795d2e58da7e09647ce65b6f43f657617c0d784c0e816f110856b5d431b549"
+      "sha256": "d037bf88ad767afad27d651bccd433ee2847363b243d524c31932a74e006d9f9"
     },
     {
       "path": "components/signin/public/base/signin_switches.cc",
-      "sha256": "c0907ac5a84ef8bffff292700c2f323af01389c0d6680190fd44dafaf65d7d0f"
+      "sha256": "97498837367c5db1b50c04b54ceafb9984de0575f311dda14318f904ba9e0fb4"
     },
     {
       "path": "components/signin/public/identity_manager/identity_utils.cc",
@@ -773,7 +1900,15 @@
     },
     {
       "path": "components/sync/service/sync_prefs.cc",
-      "sha256": "2d2d975cdf415a641d5471039d9008be1236f870a172649a1774d62c4075939a"
+      "sha256": "455e8a905b20ba55c249b526a78cd95be5ddc43819c788b3a6a07afde0734649"
+    },
+    {
+      "path": "components/sync_preferences/common_syncable_prefs_database.cc",
+      "sha256": "ac318513ada5d01d0a295a7641bf120d87ff6bdc08654395c852866af5bdfe84"
+    },
+    {
+      "path": "components/translate/core/browser/ranker_url_fetcher.cc",
+      "sha256": "ca357c7c24c536db89ebba447f62e255ab3c30eed591f382de4b1af5ccd6c56f"
     },
     {
       "path": "components/translate/core/browser/translate_language_list.cc",
@@ -781,27 +1916,67 @@
     },
     {
       "path": "components/translate/core/browser/translate_manager.cc",
-      "sha256": "cf970511d67a1c53991f14bc7a7f9aacfeb66f41a78fc2a778bd3649abca2687"
+      "sha256": "28546e0ebfd33d90cdc68160a5010ac8c5db547711bfb706fea81f9e755bcde6"
     },
     {
       "path": "components/translate/core/browser/translate_ranker_impl.cc",
-      "sha256": "c42e990048bcb28822ece1f3992c2228591b6a3fb8b5cb35b62c63ed26e40093"
+      "sha256": "7af32cd97baa0776e1dccdb142734e87dd8bc85b493fd1ab2b07fa13ba9e3cc6"
     },
     {
       "path": "components/translate/core/browser/translate_script.cc",
       "sha256": "c864de384cf3a144f255db892be582239fbebcb393dc3e08c7c5a43dc328145d"
     },
     {
+      "path": "components/update_client/update_checker.cc",
+      "sha256": "d7ca74322338e89dc7a72c4ac7bd6415f09d10705da6ff19746f261f6673fc5b"
+    },
+    {
       "path": "components/variations/net/variations_http_headers.cc",
       "sha256": "f1b8c95333f33b3b4c8ed96f863e10570be9fa59ccf9b8a194259a182d19b98c"
     },
     {
+      "path": "content/browser/BUILD.gn",
+      "sha256": "9419aa1fbfc0f5e2e80f1391e13ac919cd1e2dd97053d50f78353a8fb206f1d3"
+    },
+    {
+      "path": "content/browser/devtools/protocol/input_handler.cc",
+      "sha256": "5008fb8d8eb67bb584c99e304eb8f2456c1d8c07b6afeed8214e215df77671f7"
+    },
+    {
+      "path": "content/browser/devtools/protocol/network_handler.cc",
+      "sha256": "515754d556dcf768bf91e71ae81d8a9be03126f4d293f68797196fa6b2865e0f"
+    },
+    {
+      "path": "content/browser/file_system_access/file_system_access_safe_move_helper.cc",
+      "sha256": "f9ea3de26675ff84a8e1ad01a44d4b8ad50235b29c6a8afafbda265f202f21b5"
+    },
+    {
+      "path": "content/browser/file_system_access/file_system_access_safe_move_helper.h",
+      "sha256": "eab441c176948d9265529de92ddf945bb2cd14ee8ac1a2e74baffe68aa64964b"
+    },
+    {
       "path": "content/browser/gpu/gpu_data_manager_impl_private.cc",
-      "sha256": "b969ab70b11d27d01a2d409a9215694483a499c2b2aba1390e4a94d16ed8c673"
+      "sha256": "afaeb9a4b3be862319bd57aefb81723f55170c1c3eddbc255cbc8d5a030f67d0"
     },
     {
       "path": "content/browser/preloading/prefetch/prefetch_resource_request_utils.cc",
       "sha256": "f435761e367522629912e59ffa0b7e3d4608fb25e873c9831934ea4536899ac8"
+    },
+    {
+      "path": "content/browser/renderer_host/cross_process_frame_connector.cc",
+      "sha256": "1c885ea810782a6f9b42f0834667f83b79d0505f276da67e0ee697f4bea31333"
+    },
+    {
+      "path": "content/browser/renderer_host/render_process_host_impl.cc",
+      "sha256": "d168f6d921877c499312337c9ee9cfa42201ae497c5a54616acb4c3f5d11f792"
+    },
+    {
+      "path": "content/browser/renderer_host/render_widget_host_impl.cc",
+      "sha256": "20e6b9c92046d35223b5b0e870b9f9aa67d99aa1b9b460a0a229cc80344a6ee1"
+    },
+    {
+      "path": "content/browser/renderer_host/render_widget_host_impl.h",
+      "sha256": "a8e9d644b7209cd6153d55df125ef491fc31a25ff1786d61684cbded2dc4216a"
     },
     {
       "path": "content/browser/speech/tts_win.cc",
@@ -809,11 +1984,27 @@
     },
     {
       "path": "content/browser/webauth/webauth_request_security_checker_impl.cc",
-      "sha256": "3c4859e53d9198feb51f5cdba399b76b9c706cc408604ad2c20da7da2d24bcd5"
+      "sha256": "116f389c761f48d0e2c427fcf9818a632635d05358c5301f3b6674c905a962a6"
     },
     {
       "path": "content/browser/webauth/webauth_request_security_checker_impl.h",
-      "sha256": "0bf4aad26027195bdf2a3f9b0c93ebed79569730384eb50ba150ed30676ee1ee"
+      "sha256": "a977bf89fe127ac408a00bd2db84eca171f9235b3dd51ebd2c29e1baab7dc6e7"
+    },
+    {
+      "path": "content/common/renderer.mojom",
+      "sha256": "a0ec5938399e15cffdb16f5dc70f2dda42ae5b5dfbe70dd5aac84b4f121b7d90"
+    },
+    {
+      "path": "content/renderer/render_thread_impl.cc",
+      "sha256": "9e115df5e7486b5eb7a56d58376f991b69793d95eb2ec52ddb7b9e39c47969c3"
+    },
+    {
+      "path": "content/renderer/render_thread_impl.h",
+      "sha256": "0294c2e644db560fd53ab2ca7f2f50f8f3c33fa3ce3eb5e4e83ece1e6f9d679d"
+    },
+    {
+      "path": "content/renderer/renderer_main.cc",
+      "sha256": "68f076ef228aad9d74643fb24181f3aa0433c4b9c49e6bffd490b07b4138c283"
     },
     {
       "path": "device/fido/win/authenticator.cc",
@@ -825,7 +2016,43 @@
     },
     {
       "path": "device/fido/win/authenticator_unittest.cc",
-      "sha256": "fb39a8825da6633ebaf2a830a9fefcf5138667ce3622a4a0340c871d5071f1c0"
+      "sha256": "6e880940d05174efb3dfbb8f3a41df1e5cbb361a7db8352dab4119e13d9d437c"
+    },
+    {
+      "path": "extensions/browser/api/declarative_net_request/declarative_net_request_api.cc",
+      "sha256": "8f711e872c80161af63f9643fba0bfc395b7b3bd81c2aa852217558a1a71620a"
+    },
+    {
+      "path": "extensions/browser/api/execute_code_function.cc",
+      "sha256": "a897851e09d6a8a2b828e628a16b4660e1f95c773e8a8d95ca03d8f7b965257e"
+    },
+    {
+      "path": "extensions/browser/api/web_request/extension_web_request_event_router.cc",
+      "sha256": "6ec497e8a9b459348b5a81ca0d0351b4af1615e026cf479a03adfcc32d89bc6d"
+    },
+    {
+      "path": "extensions/browser/blocklist.cc",
+      "sha256": "9aad4f07be7393d680c557b4580b2ae8471e3706852355c36f5b6ce107fd4228"
+    },
+    {
+      "path": "extensions/browser/blocklist_state_fetcher.cc",
+      "sha256": "25de5df79b1c365d70a434eecac828445cade0ed3f31b0108665d089869fca78"
+    },
+    {
+      "path": "extensions/browser/blocklist_state_fetcher.h",
+      "sha256": "08a7b42f9d9a19d3c2ab92dd8a51841d7a656a5672f8a9b7df4f6d109f49d6c8"
+    },
+    {
+      "path": "extensions/browser/extension_allowlist.cc",
+      "sha256": "2ed197d6002dc257390d972465d89235a9d939fac6454fa3c2c46348f3014334"
+    },
+    {
+      "path": "extensions/browser/extension_host.cc",
+      "sha256": "84de72c62c9e778697c2a15f6600aae6f5642c3f792bcb945b2b6911bbe25c98"
+    },
+    {
+      "path": "extensions/browser/extension_registrar.cc",
+      "sha256": "4d7e77dfe16fb7e28194ed8ecfe3050e60d11a477a2bb79f2c663a3de568952b"
     },
     {
       "path": "extensions/browser/extension_util.cc",
@@ -840,6 +2067,10 @@
       "sha256": "2a7a698df07ff1c4236d4d89e173db6a347949493ce1538e0c84f06555c2209f"
     },
     {
+      "path": "extensions/browser/updater/update_service.cc",
+      "sha256": "593bd4bbd22cdaee35af3e890647f8b842ea8cd167794c01128b8a458e8acbfd"
+    },
+    {
       "path": "extensions/browser/webstore_installer.cc",
       "sha256": "a68dd374a2e5141f37e904b781720f6b03ac4124f7576379bb3761c72f504cb8"
     },
@@ -848,36 +2079,140 @@
       "sha256": "23267c51724e35d4e665ede0dc0e4ed3df87bba075dfd1994263c2785fd65137"
     },
     {
+      "path": "gin/v8_platform.cc",
+      "sha256": "8a846e174627d0d9ea452acd085468c09836bbd893ecd25dcd2e51df46f4abbf"
+    },
+    {
       "path": "google_apis/gaia/gaia_auth_fetcher.cc",
       "sha256": "8dec1909a6040d488ae7fd40f6be3cd698b6555cf300cb68c7a292222d791ab7"
     },
     {
       "path": "gpu/command_buffer/client/gles2_implementation.cc",
-      "sha256": "e7d9d0012890d4c1ff44b728665b3553760d35468cd89549bf226169a07ec637"
+      "sha256": "40f84935012ccafe0eb85ecd3fe25e0310c13f413cace0bbeceb2a3e050dec44"
     },
     {
       "path": "gpu/command_buffer/client/gles2_implementation.h",
-      "sha256": "a363e49843e26b8697ab66cf6f05bc40df38240d02fa8c10e21b6af44bf6e952"
+      "sha256": "7ad34020ce65805d82c294eaf09fd466fea1dd39a07e67f39c0616b1c434f884"
     },
     {
       "path": "gpu/command_buffer/client/gles2_interface.h",
-      "sha256": "59bf19e183037e06f10733027820e0858efe37a1e3817057637131a3509cf3b2"
+      "sha256": "44de9f965813ac788c502b9f04915efb04420b4896b1bd59f647632c67d42ea0"
     },
     {
       "path": "gpu/command_buffer/client/gles2_trace_implementation.h",
       "sha256": "0c419611f7cd58a571a1527498ffdb17715a28e21544a9261f0d544bdd6949fa"
     },
     {
+      "path": "media/base/supported_types.cc",
+      "sha256": "5977e7a088795b5fc1040c8fa65d88ddfe6f7395e5ebcdfa384a3446113fc4c1"
+    },
+    {
+      "path": "media/base/supported_types.h",
+      "sha256": "b642f514434ee7f9558c30fd36957351214179916db2e4f61d24fb59d5eab9a3"
+    },
+    {
+      "path": "media/filters/decoder_selector.cc",
+      "sha256": "cac614722e69f150f019ca2aa442ad9d5c93e5637a8cdf64bc1486695dd59968"
+    },
+    {
       "path": "net/base/url_util.cc",
       "sha256": "dc31de78a9a9b03fe24ea42e8876aa95bba86a3a30da17429397bae403db6e3f"
+    },
+    {
+      "path": "net/socket/socks5_client_socket.cc",
+      "sha256": "1c9cce1820cedd40675aae9097bcbd832f7bd18984c7e5abc6ba5a4b07a00f14"
+    },
+    {
+      "path": "net/socket/socks5_client_socket.h",
+      "sha256": "8499da6562771d8de8cd782f30324dec2d43cee2aa1b486c5ec568f3e6dacc33"
+    },
+    {
+      "path": "net/socket/socks5_client_socket_unittest.cc",
+      "sha256": "0286f01cf81d358144e1d8a1446f1914655afa3410cd0d4d005ca186bb6570fb"
+    },
+    {
+      "path": "net/socket/socks_connect_job.cc",
+      "sha256": "51dd1df07f0b04e50db182804d4db0396d1f00da01679cd7d2bebeac1c47bd09"
+    },
+    {
+      "path": "storage/browser/quota/quota_manager_impl.cc",
+      "sha256": "d05685fe4c6ff9eecca85133d7a5ead5dbb187c6aab485c7143fe955ff31dc40"
     },
     {
       "path": "third_party/blink/common/device_memory/approximated_device_memory.cc",
       "sha256": "2a3bd1c5250808355b6eea60fb13f15db565b8eba0a78f7fd0ea3ad718da4d8a"
     },
     {
+      "path": "third_party/blink/common/frame/frame_visual_properties_mojom_traits.cc",
+      "sha256": "2114a11131c98b80f2a66ffb25e38eaf8a3f62abc4c81c1bf3b98db69de2e34a"
+    },
+    {
+      "path": "third_party/blink/common/widget/visual_properties.cc",
+      "sha256": "d38ef8311467a31366b84bdba43472f56f1bce91fb71e3b1f00d5c18d0dc80d1"
+    },
+    {
+      "path": "third_party/blink/common/widget/visual_properties_mojom_traits.cc",
+      "sha256": "ea95d1bc353ea203f1bbaeb48de93c648b433a0e876af7cb93c9edf8413d87df"
+    },
+    {
+      "path": "third_party/blink/public/common/frame/frame_visual_properties.h",
+      "sha256": "aa74a9969706161e8b0c24633e3e42a93ff799ccd235a6be81af9293a41ae0bb"
+    },
+    {
+      "path": "third_party/blink/public/common/frame/frame_visual_properties_mojom_traits.h",
+      "sha256": "7a80024115fbd155f999d3bdbd7ba2d55c11b78b59c618aca16803402b2c8b9e"
+    },
+    {
+      "path": "third_party/blink/public/common/widget/visual_properties.h",
+      "sha256": "d1d68691da95ba5909c53228a179cbfc85fb2944d2a7e90646bbc5f6fbf06a13"
+    },
+    {
+      "path": "third_party/blink/public/common/widget/visual_properties_mojom_traits.h",
+      "sha256": "afb7e544b77ec4b935378b474400ae73b352a4efd681b623865ec84cb530d6aa"
+    },
+    {
+      "path": "third_party/blink/public/devtools_protocol/domains/CSS.pdl",
+      "sha256": "be7724f102548c0bf5054d11e47a5663b1776e18012e887159222e09a0692e07"
+    },
+    {
+      "path": "third_party/blink/public/mojom/frame/frame_visual_properties.mojom",
+      "sha256": "6120519609d609a829efffd3229ec555807376dfb03ec71e94f6f89261fdbc4f"
+    },
+    {
+      "path": "third_party/blink/public/mojom/widget/visual_properties.mojom",
+      "sha256": "b8c5478c2c24d4647d2496ed44237b40ad928fec108c81fba1fe3a15d3a243a9"
+    },
+    {
+      "path": "third_party/blink/public/web/blink.h",
+      "sha256": "ffed54ff8db84309a8237d0c20289f3747a4ad7d47e8a1b8292d74f42467f685"
+    },
+    {
+      "path": "third_party/blink/renderer/controller/blink_initializer.cc",
+      "sha256": "0aae2c064facca71147a517d41212e7d6d1b50d539a78a1d66ca0dcd536e2edc"
+    },
+    {
+      "path": "third_party/blink/renderer/core/animation/animation_clock.cc",
+      "sha256": "f3290008c81dab4f17c7ae8439de25c1c95d0204be6dbb16dada0fd1a8e584eb"
+    },
+    {
+      "path": "third_party/blink/renderer/core/animation/document_timeline.cc",
+      "sha256": "72c46881f4cb35f9eaa97307ff54af3cadadb3a08877067a1676d9bbd29cb5cb"
+    },
+    {
+      "path": "third_party/blink/renderer/core/css/media_values.cc",
+      "sha256": "92f60cddfa313d0d334ddc8add812489c26d11d77cd496cb925fb60849c1634a"
+    },
+    {
       "path": "third_party/blink/renderer/core/dom/element.cc",
-      "sha256": "25e710bcfe7d5e12c60a9865df51f2639a3432562f8902dfa6b8d002bbf7e6c5"
+      "sha256": "4b0a17a68d29cbb509726c8f8ed78c0516e13e8ddaa2b601f90ce4b1f521425d"
+    },
+    {
+      "path": "third_party/blink/renderer/core/dom/element.h",
+      "sha256": "4e345d1eb9e4e813de1ca0568a25070c0e10921329aa93847a16fb3f609e6641"
+    },
+    {
+      "path": "third_party/blink/renderer/core/dom/element.idl",
+      "sha256": "e688f875b2440371085605099bf12deb92d1e70bb78c08bd06e4e0f805887257"
     },
     {
       "path": "third_party/blink/renderer/core/dom/range.cc",
@@ -888,12 +2223,68 @@
       "sha256": "64b29bb294db26511bd68cb304837bca69fd13b16daf318eae6efbe0565d944b"
     },
     {
+      "path": "third_party/blink/renderer/core/exported/web_view_impl.cc",
+      "sha256": "908c834c6db510e9d7c72383b7930236e86819f04d1c8ced0107ed8e940fa034"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/local_dom_window.cc",
+      "sha256": "7e9ff1d20107a394b16908b3c52e0c592c6c4e1cfaf1c6a741aac6e8659e26b7"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/navigator.cc",
+      "sha256": "df8ed975407e288da7b276c3db97f92dfaf796f9e2b4e6e13679ee508713d904"
+    },
+    {
       "path": "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc",
       "sha256": "7b689c17f7007b7e342412cb27165111fe6b5db8672ac27b8b9fc1ea0f432928"
     },
     {
       "path": "third_party/blink/renderer/core/frame/navigator_device_memory.cc",
       "sha256": "69c4a6d2796ecefbb8ebeab82f866da33b5eda285612f9125d7242ed4a6bc993"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/navigator_id.cc",
+      "sha256": "1517cd353f12b12344c8506388882fecd99c958d29fb41276dcde1ffc12b8243"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/navigator_language.cc",
+      "sha256": "a9b17a04400764a34a7605c62621afea4166e00db31d016c2f0aef54981ef3aa"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/remote_frame.cc",
+      "sha256": "261f4e51efda384596b0e665e0bc7ff177b0a84918d7e88b69c061fbd1327522"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/remote_frame.h",
+      "sha256": "da9cebaf7dd3f179311e330f23a146b63ae944aa841c21b25f0c10ff0865debd"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/screen.cc",
+      "sha256": "7e272d8a476850413211b684b2e6bc25bf54cf42b39544ae9cb3f4716c3e2c70"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/screen_metrics_emulator.cc",
+      "sha256": "e4c05835bab1e93b14ca7920d3744ce9918ac3dde031962d542e4974a7ecb36e"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/web_frame_widget_impl.cc",
+      "sha256": "fc7f2035ad48120dfbb05910f51898f2e23b6c4f8837361fc2009cc4cc768d5b"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/web_frame_widget_impl.h",
+      "sha256": "32265c60867e1f881f1e40cdf39f3dbdd7e829751e365d4e1844111feb7cbee7"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/web_frame_widget_test.cc",
+      "sha256": "14e66271258af8d23a73f199e51ae12eccf1c948211a3b61edc86f7ff8347a1a"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/web_remote_frame_impl.cc",
+      "sha256": "3c65be94d419069bfc348d2732d3c526108731bab62dfd800bf11fbc87f1f526"
+    },
+    {
+      "path": "third_party/blink/renderer/core/geolocation/geolocation.cc",
+      "sha256": "eec10bf2de6cd41a3d7d9464a8b86dded6cf4df74858a71f3ac1f09669ed1ddc"
     },
     {
       "path": "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc",
@@ -904,8 +2295,12 @@
       "sha256": "05e25b00c82e88d54c8c43a6eb4bd7fa6e8d9ec8de68535e75e4d5aa7cb60a93"
     },
     {
+      "path": "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h",
+      "sha256": "367d2dee24900243a071a6a405ff26565185a467a77e17dc6dfcd390107fbba5"
+    },
+    {
       "path": "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc",
-      "sha256": "1139828ae23f13795abc6834147e0d09a1877a76ab02abefc85397d373eac532"
+      "sha256": "32d08cf9c9fb5ef2574507578d445bb940d1b2d14ae9b1e55a97c04e8fbd94f0"
     },
     {
       "path": "third_party/blink/renderer/core/html/canvas/text_metrics.cc",
@@ -917,23 +2312,175 @@
     },
     {
       "path": "third_party/blink/renderer/core/html/html_element.cc",
-      "sha256": "6f5fe46e88811afcafca42a50921ed727479a37318fea331cd3027a265dddfb0"
+      "sha256": "91f59b7839f486c19d187e60c345b3f7fcc3d45bcf729c9c75919b26dad548ea"
+    },
+    {
+      "path": "third_party/blink/renderer/core/input/pointer_event_manager.cc",
+      "sha256": "e450c11c4fc6093ea62ae2d68eb78ab22995279da2de1e070454307febc59780"
+    },
+    {
+      "path": "third_party/blink/renderer/core/inspector/inspector_css_agent.cc",
+      "sha256": "c5d184fb3ace0686369a3c970fc86cd62ade5a892743411ea8992dfb48788b93"
+    },
+    {
+      "path": "third_party/blink/renderer/core/inspector/inspector_css_agent.h",
+      "sha256": "f35f93c4f4c7a75886839bfbb27465dd9d838b5fd759f91a95142ed2f478a131"
+    },
+    {
+      "path": "third_party/blink/renderer/core/layout/layout_theme_font_provider_default.cc",
+      "sha256": "9ad0222c1b88020879caa047a006656d622101b4b67b8fea0b008786a06df289"
     },
     {
       "path": "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc",
-      "sha256": "f9ca66537fd6fd801cf42bcd44e6d792d7be9925aa5dde56cab883eaa649ce78"
+      "sha256": "cdb79d71a3ad97724494ccca79b32dbfa42a20dfd3bbf0cb9a04560ea953baec"
+    },
+    {
+      "path": "third_party/blink/renderer/core/timezone/timezone_controller.cc",
+      "sha256": "c378fecb1cd84682c73ac7ec7122dff402f4a1c9afc4156803f53ccb2db1ea3b"
+    },
+    {
+      "path": "third_party/blink/renderer/core/timezone/timezone_controller.h",
+      "sha256": "ce117c893d79e4c4e61ea4d2c5d7cc752f4de294337b10100c2652cfca149e02"
+    },
+    {
+      "path": "third_party/blink/renderer/core/timing/memory_info.h",
+      "sha256": "8871c18bdc551cfe283a7a3e239be7db8face7d0b6a0dbbf1bb96d8550fa934e"
+    },
+    {
+      "path": "third_party/blink/renderer/core/timing/performance_resource_timing.cc",
+      "sha256": "ed6bac91bba42d9e279e77016482ebf4d10af6796e71751a7b8233fc19781d03"
+    },
+    {
+      "path": "third_party/blink/renderer/core/timing/time_clamper.cc",
+      "sha256": "2491cb64f50a54ccd10f778c058f0960ad4d9fa0861e39212bc27b8343bd103c"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/BUILD.gn",
+      "sha256": "d7692873504f1c1571966ac5aecba1207b168c72ddc3000e216641a1fa4a8d1a"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/battery/battery_manager.cc",
+      "sha256": "0ef6692c7d411d80100876949d71499bf0eea75682bf1963771bf3e8163bac10"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/buckets/storage_bucket.cc",
+      "sha256": "28d9b4858591500829179b4dfbf22b1549107b2dbb355ceac536b35c5d825618"
     },
     {
       "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
-      "sha256": "b1a585af7d42fd00bce4c88b3f1740357b1403347533c0781818035a9dac44e8"
+      "sha256": "1505f168a9323c8601278e0ebf0d797c0af301382097d9c0e2de2e5600eb0085"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h",
+      "sha256": "b2d1ff0a0367933ec43ba9317ac7f434edba4e07ef60cf426ceeb353135262ef"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/canvas/canvas2d/canvas_2d_recorder_context.cc",
+      "sha256": "2d8276cd3ff7610b2a6a27058134df406394327e03875b7b327afa026dcadedd"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.cc",
+      "sha256": "333cca8226f081c36b47e390c543c4857b14e891d674fae61a5fa27234ece7cf"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.h",
+      "sha256": "f6724d0ab95c02f66fd62a73162b18a05c141c2f2a645b32e648545595452a15"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/credentialmanagement/public_key_credential.cc",
+      "sha256": "f3df8427875010b2c97dd6aefa1cc4c750b78de24046ca8bde29a5797ab73498"
     },
     {
       "path": "third_party/blink/renderer/modules/font_access/font_access.cc",
       "sha256": "203279ea03fcdbed64d51e221c101dc423d640fbb92b3eb7f767b80117b16bb8"
     },
     {
+      "path": "third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.cc",
+      "sha256": "5c01f2047d9f6da536cac7f95ab26317ebbce34e7a42c9ec8628aefb7146c1cf"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/keyboard/keyboard_layout.cc",
+      "sha256": "1cec88d8fb4bda32b632285293abb0e6c329f2c8e8142e35b61b5c6ce738d1a9"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/media_capabilities/media_capabilities.cc",
+      "sha256": "31deb598eb56995fafbe96c1eebd1376a0eae40c6376a21632ce3506e9986b71"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/media_capabilities/media_capabilities.h",
+      "sha256": "41bf7b32953488a3745bb42b6e2990a1150f5c0a0d6c3dda99df18999458ba70"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/mediarecorder/media_recorder.cc",
+      "sha256": "842b0eb5dbc02714a68bd6e43b9a4af6627864cb53c8b125c1b020c2890e7493"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.cc",
+      "sha256": "5caf8d17e7e7f46a3f37ccba1a8dfc5222862d4cf44071b561b3d9771a0f6310"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/mediarecorder/video_track_recorder.cc",
+      "sha256": "dd0a743682bb5bc06d47eac4eaac070b479f38759b2813bf0ae55835a51bf004"
+    },
+    {
       "path": "third_party/blink/renderer/modules/mediastream/media_devices.cc",
       "sha256": "97924ee855f139c8910f6bca97336fd8b94a948c9cc80763ba5783ce64b581af"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/netinfo/network_information.cc",
+      "sha256": "faa7782a89a9fb6cfd5d3916d559683a5b3e669b4ffb06741ebbf3abf68b303e"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/notifications/notification.cc",
+      "sha256": "94572838a190f3391f6c0f8b613b2c25a2df48e376961872b59bdf2fcdf46e28"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.cc",
+      "sha256": "60a2a74e23a1f205534921878047423613dd317f104ac6845a0418b380ffa9a9"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.cc",
+      "sha256": "12841e22e0c67433b761e06159c5f0705e0a00057e423229b02197f49a9d7ba0"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.h",
+      "sha256": "c3b843a75ef77febc3d922cbbf9f505379f64a56d2754df606c757a162fafae1"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/peerconnection/rtc_session_description_request_impl.cc",
+      "sha256": "9af93a215efb37c112fb536ff9f412e7f547b567558a863a6268f1db881a7f10"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/peerconnection/rtc_session_description_request_promise_impl.cc",
+      "sha256": "df91590a202c2adf2f97ec95830734e547aadefd0a34b5edc51fa59ae99b9407"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/peerconnection/rtc_stats_report.cc",
+      "sha256": "88421b8fe748b3a47146754ad84baf7222eef1a3d428c7dc50805d7138bc5030"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/permissions/permissions.cc",
+      "sha256": "a0011c530f24a2f26f5337e5a625d11922aed9c53cb6dd35096e2371c1d4e807"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/plugins/dom_plugin_array.cc",
+      "sha256": "7f09b4cea5de5e1ffa3f201a5725e661dd92500a1e04384539d61bd7a6dc115d"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/quota/storage_manager.cc",
+      "sha256": "5289cebb75c1eeb36d5c284c5ab7ed6f861e6fdc90a12c5f9513a5bb60aa371a"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/screen_details/screen_detailed.cc",
+      "sha256": "60e137df7865f568348ba35983302f2539460b41b5e73da853c8673ffe8d49b2"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/screen_orientation/screen_orientation.cc",
+      "sha256": "8d58973e69062cb904c7aff498a96a434cd4eadcb24c5c85cf51276db2e264f6"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/screen_orientation/screen_orientation_controller.cc",
+      "sha256": "07c80c4ae1102b9f48970c87104bb88c324b26f8863945f55f95fd14c8e7cb5c"
     },
     {
       "path": "third_party/blink/renderer/modules/sensor/accelerometer.cc",
@@ -948,12 +2495,24 @@
       "sha256": "0bcbb8f5b03f4a82130e11d25f2086e0a7ad69ef6e80536ed209029422179e25"
     },
     {
+      "path": "third_party/blink/renderer/modules/webaudio/audio_buffer.h",
+      "sha256": "7695aaaa41e5e2bb329ffc483a4ede420df376f86a2f2b24fdb27fb4b19b7938"
+    },
+    {
       "path": "third_party/blink/renderer/modules/webaudio/audio_context.cc",
-      "sha256": "75a05b4e37281c254a07c4ed5df19ec3fc244db895127250bba494570c9f2317"
+      "sha256": "980f46243fb40b306fb49ef18408716ad65723b6adf39ed801c0f30d0c266ad3"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/audio_handler.cc",
+      "sha256": "7b1d1f545444db1bf51a701b6134ec67d2a25f2c496336518e5fc7fd4ba337e1"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/base_audio_context.h",
+      "sha256": "d8565a3b0a3b11a4a7b69918b07692f7d90401738356a546d863627a6383ecda"
     },
     {
       "path": "third_party/blink/renderer/modules/webaudio/offline_audio_context.cc",
-      "sha256": "9a3f187234fa65e608e6ef607a66d264b9e0348a1677dca7cad94f8ba2e1180e"
+      "sha256": "4db4eb28062e27a57dae23bc3f687455fd281779329b2343725e4c853eeb16f3"
     },
     {
       "path": "third_party/blink/renderer/modules/webaudio/realtime_analyser.cc",
@@ -961,19 +2520,47 @@
     },
     {
       "path": "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.cc",
-      "sha256": "8b2a30ca6eee49295983b831e023cc30f3f20d0e68a892d1000bc8e2b3b72c15"
+      "sha256": "736ffc8352d6e47ee866f0cb02616aac235a078a9b3f9802458d4b96c90ac9af"
     },
     {
       "path": "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.h",
       "sha256": "5ea0211359c95ce980e90907db74013f06764ffb0b0284a1b32818b5428a0320"
     },
     {
+      "path": "third_party/blink/renderer/modules/webcodecs/video_encoder.cc",
+      "sha256": "84f8b73960fed9c093965a9d8569e7fcf51c3cb30ce073d7ea918f9ac12ad05d"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgl/BUILD.gn",
+      "sha256": "7b7331a0593d02f933cf7b5cd3d0a09d1121547e555e7fdd8b64a47eec56fa7f"
+    },
+    {
       "path": "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
-      "sha256": "9a8353bb01de09cd3ebc4f77ca5c370eca50116d7e41fb4f14580aac78ccfb0c"
+      "sha256": "30289da234726ac9e03c91e1139ee89003cf9dc22e937a17f8bc6f21d78f3fa6"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgl/webgl_debug_shaders.cc",
+      "sha256": "10088aafbdbf48563484368a82fef6aa41309c6100af1118ee800268e4ef2031"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgl/webgl_object.h",
+      "sha256": "88cd2e5379b69b484b604eb2463f8db82c0d4447e9163364e54a967659e454f1"
     },
     {
       "path": "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
-      "sha256": "14563edf0e6c7afb72c65aa4ec2e2e29b02efce92ac117c574de6c2184b7bb01"
+      "sha256": "cdd4ad854c1af086de7b9dc7d5850b8a20e50490aa39a8b56be87fc4251b8d57"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h",
+      "sha256": "f16314b3aa39a1f4d190c1c47b8b6edef5c29b7c2b23d4d4320b62e06f30b628"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgl/webgl_uniform_location.h",
+      "sha256": "ac9e6d0de21526573a258533b048b2a3be2013aaf002c7765fa4fad53ad1302e"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webgpu/gpu.cc",
+      "sha256": "9b1a5e84a67c56472fad5f9b13132ac2bd26fc22f8eed0d3fbc4e4b15947287e"
     },
     {
       "path": "third_party/blink/renderer/modules/webgpu/gpu_adapter.cc",
@@ -993,19 +2580,39 @@
     },
     {
       "path": "third_party/blink/renderer/platform/BUILD.gn",
-      "sha256": "5efc0784d4167a251ba5c206c9b6492ca4a6f9aa3f5f01d7cc19256eaa62118b"
+      "sha256": "8a53b1e5684c309c0960942556ca59d5d5cbba416c5c891b6e4a612a3de19d6d"
     },
     {
       "path": "third_party/blink/renderer/platform/fonts/font_cache.cc",
-      "sha256": "2abe24f0e33a953222bc5dea8c2d43015124a2b87353216aa2cfd4092c4f7410"
+      "sha256": "110e59e7d86fbe2d2711e14706b31573a974b0cfc3556c3d66de239380ccc504"
     },
     {
       "path": "third_party/blink/renderer/platform/fonts/font_cache.h",
-      "sha256": "ce23838b223e37fc2a1e3933b3da5ed9478e07f0c9c2fef956ff28c95fa0248e"
+      "sha256": "dc0ac30cc2bf9d119da7cbe09ee08a1736a04097f26a2d31d525cccda5d7be0e"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/fonts/font_metrics.cc",
+      "sha256": "6bd1064eb60f5ac81f15d8f454d0bc10fa68718bf4590bf788bfe2c8fc62435d"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/fonts/mac/font_cache_mac.mm",
+      "sha256": "5bd070fba9cd7ed1120de89bdf8c3fdbdb2e170ab536b521138bbc5107b5d360"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/fonts/simple_font_data.cc",
+      "sha256": "9c986ecb53e232243d0d28ad8b9c45e0835a3e62cfded1f359e01f7a9284adc4"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/fonts/skia/font_cache_skia.cc",
+      "sha256": "0cb194205dcc35be816824cb3a6f460b2850e34d17df509434ed2b622b5b898e"
     },
     {
       "path": "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc",
       "sha256": "dc50ccb8cf8351d32d83cb50099b2e2cfd24a0f94b5109875b406c5cce03de12"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.h",
+      "sha256": "060b56439628023e88f794c770c5ec984347e794dd1e5e4eeff2c2d62aee7e3f"
     },
     {
       "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.cc",
@@ -1014,31 +2621,353 @@
     {
       "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.h",
       "sha256": "ed326c9490b60d86715f932f7a74c0bf7572fec674e9b8fa33957a16a6c1df91"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/graphics/mailbox_texture_backing.cc",
+      "sha256": "ead32e09310ffd97136af476255fd14733c8e35d460c8d3bfc14be6c2029ef1c"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/image-encoders/image_encoder.cc",
+      "sha256": "3e3e0f7f7b61c762e8661377d04810114a9aca9358a49d52b7474a308eb713db"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/peerconnection/rtc_ice_candidate_platform.cc",
+      "sha256": "ba20140b11900d0e6cd4c5ebae61d25280039eb78748d83761377b119daf27f2"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/peerconnection/video_codec_factory.cc",
+      "sha256": "045c3cc869c4109ffd04b549a36ab3cc21a46a1987d72238bcc81b93c47de635"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/runtime_enabled_features.json5",
+      "sha256": "b838570f94fe95e0f465b7a82723d1fd9a61e3c9ef1c5dfc65196313781f93d7"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/widget/widget_base.cc",
+      "sha256": "e946a1d1b15ef36c1f6a98d97edffce4ef42b7627892a8a237d64e4dfca15dfa"
+    },
+    {
+      "path": "third_party/webrtc/p2p/base/port.cc",
+      "sha256": "c4700fada74c0ea194b9a94570e43a1db6716f6f0031500f84501e3edde57ef0",
+      "upstream_repository": "https://webrtc.googlesource.com/src",
+      "upstream_revision": "19576e37870bfe5a0a910a32f98ff411f722f43a"
+    },
+    {
+      "path": "third_party/webrtc/p2p/base/port.h",
+      "sha256": "337d3adb265c9e72bb5b6289d4719d6d048ec1761f1af2d75a76bf035a99dee7",
+      "upstream_repository": "https://webrtc.googlesource.com/src",
+      "upstream_revision": "19576e37870bfe5a0a910a32f98ff411f722f43a"
+    },
+    {
+      "path": "third_party/webrtc/p2p/base/stun_port.cc",
+      "sha256": "7de6df24721eab57cc47d5c4d2eb750d46bf56309dd3bafcb7066e32158dcdf0",
+      "upstream_repository": "https://webrtc.googlesource.com/src",
+      "upstream_revision": "19576e37870bfe5a0a910a32f98ff411f722f43a"
+    },
+    {
+      "path": "tools/metrics/BUILD.gn",
+      "sha256": "2ded8e3243ef86a913d4c3bbc21f900442f3945245fd088bcf911722a36aa672"
+    },
+    {
+      "path": "v8/src/flags/flag-definitions.h",
+      "sha256": "dc3d9a60f424540ec1658ef823dc095456e006dfb64ce56ff41fbb2945cf01c4",
+      "upstream_repository": "https://chromium.googlesource.com/v8/v8",
+      "upstream_revision": "c9b3cfcab30ace06c21f9b48a0f0a34805e81e9d"
+    },
+    {
+      "path": "v8/src/inspector/v8-runtime-agent-impl.cc",
+      "sha256": "f277421c9e3ec7f211a1f6919756854b9f3f5fe40425d8a4aec17412dccd891f",
+      "upstream_repository": "https://chromium.googlesource.com/v8/v8",
+      "upstream_revision": "c9b3cfcab30ace06c21f9b48a0f0a34805e81e9d"
+    },
+    {
+      "path": "v8/src/inspector/v8-runtime-agent-impl.h",
+      "sha256": "0111eb9aeef7f912fb0468fd854cc529d18e8d73f790570ad1e0990906ed008b",
+      "upstream_repository": "https://chromium.googlesource.com/v8/v8",
+      "upstream_revision": "c9b3cfcab30ace06c21f9b48a0f0a34805e81e9d"
     }
   ],
-  "pruning_list_sha256": "13d91cb1bc89f8aae1d7b54b519accbcbf7a5fa087562977f265b4d641568a01",
+  "external_source_pins": {
+    "third_party/webrtc": {
+      "repository": "https://webrtc.googlesource.com/src",
+      "revision": "19576e37870bfe5a0a910a32f98ff411f722f43a",
+      "chromium_deps_sha256": "c4d60cae7b46d4ae476e3409226d89bf72c1fd61e1d97d64027ebae4356f23ae"
+    },
+    "v8": {
+      "repository": "https://chromium.googlesource.com/v8/v8",
+      "revision": "c9b3cfcab30ace06c21f9b48a0f0a34805e81e9d",
+      "chromium_deps_sha256": "c4d60cae7b46d4ae476e3409226d89bf72c1fd61e1d97d64027ebae4356f23ae"
+    }
+  },
+  "pruning_list_sha256": "e34fbb1809f86f00501b6b77f272e457aa7f9dbe97eb2ce3f02827e920a61354",
   "baseline_pruned_sources": [
+    "components/safe_browsing/content/resources/empty_file_type_policy.pb",
+    "components/safe_browsing/core/common/safe_browsing_prefs.cc",
+    "components/safe_browsing/core/common/safe_browsing_prefs.h",
     "components/signin/public/base/signin_pref_names.cc",
     "components/signin/public/base/signin_pref_names.h"
   ],
   "restored_pruned_sources": [
+    "components/safe_browsing/content/resources/empty_file_type_policy.pb",
+    "components/safe_browsing/core/common/safe_browsing_prefs.cc",
+    "components/safe_browsing/core/common/safe_browsing_prefs.h",
     "components/signin/public/base/signin_pref_names.cc",
     "components/signin/public/base/signin_pref_names.h"
   ],
-  "removed_pruned_includes": {
-    "chrome/browser/extensions/api/settings_private/prefs_util.cc": [
-      "components/safe_browsing/core/common/safe_browsing_prefs.h"
-    ],
-    "chrome/browser/policy/configuration_policy_handler_list_factory.cc": [
-      "components/safe_browsing/core/common/safe_browsing_prefs.h"
-    ],
-    "chrome/browser/prefs/chrome_pref_service_factory.cc": [
-      "components/safe_browsing/core/common/safe_browsing_prefs.h"
-    ],
-    "chrome/browser/ui/hats/trust_safety_sentiment_service.cc": [
-      "components/safe_browsing/core/common/safe_browsing_prefs.h"
-    ]
+  "restored_pruned_resources": {
+    "components/safe_browsing/content/resources/empty_file_type_policy.pb": {
+      "repository_path": "build/security-resources/empty_file_type_policy.pb",
+      "sha256": "98ebc9403565619b3aa2f71f64f5f54adea01d4c4b54d873b2b91c2ac5544112",
+      "size": 14
+    }
   },
-  "patch_sha256": "b5c000a228c74087535c94bd9366a6470317e831a701534451b0f869d7b0f2fa",
-  "qualification": "Source replay only; requires native build and actual account tests"
+  "removed_pruned_includes": {},
+  "verify_all_baseline": true,
+  "replay_counts": {
+    "baseline": {
+      "core": 38,
+      "windows": 5,
+      "chromix": 231
+    },
+    "restored": {
+      "core": 21,
+      "windows": 2,
+      "chromix": 231
+    }
+  },
+  "selected_baseline_inputs": {
+    "patches/0001-base-BUILD-gn.patch": "ece0c2c9de957f62dc51fed105894ff8cbeec3515c196a8fe4f42bbaad9c507d",
+    "patches/0002-base-uxr_config-cc.patch": "3af589d8f9bd04215730a8001c01175a6ebda29c7b133aad40850df2c80c5e2d",
+    "patches/0003-base-uxr_config-h.patch": "b0e4423aa3c65947e74718e293e0fd98f4a3c2625c7e48ff393998fdf9d745d1",
+    "patches/0004-components-embedder_support-user_agent_utils-cc.patch": "ceae3ac82abf8806d681ba219f2c414ff2a594fdebd5739ddc3f8478eac318c3",
+    "patches/0005-content-browser-renderer_host-render_process_host_impl-cc.patch": "874031b6ec48d0ad2385ff0fe10db36f1f0132a4608d604e4d85fd19e291ff47",
+    "patches/0006-content-common-renderer-mojom.patch": "07d1b5c3df614582cfdfc04ca2115c7da90dad8e0359d187cdfc4922a50a5208",
+    "patches/0007-content-renderer-render_thread_impl-cc.patch": "ed7424df86074d5be5ace0821b9cc974e4eb2bbc8f925250ff04a16b595b4d09",
+    "patches/0008-content-renderer-render_thread_impl-h.patch": "9f25b219091353b04db38e9363ba62045a8f1cb812adf62cb5fe2b5b9250c82f",
+    "patches/0009-content-renderer-renderer_main-cc.patch": "182b54e3451cbb4295d1a5493ff49df5ca092d03e376433d33eaab9d53fdcde4",
+    "patches/0010-third_party-blink-renderer-core-dom-element-cc.patch": "0f1863f1e5cc97049dc660cff8458a675101e48c4cca7f49fa8979725c946037",
+    "patches/0011-third_party-blink-renderer-core-execution_context-navigator_base-cc.patch": "d4e59a56f4369a2094510c7ef82cfedb2d5a1e76b902fd12b79c63e841500715",
+    "patches/0012-third_party-blink-renderer-core-frame-local_dom_window-cc.patch": "818bef89830ded6a99bd392c2a51da1ff334fffb62d048cc12bf91ec7181d788",
+    "patches/0013-third_party-blink-renderer-core-frame-navigator-cc.patch": "04973984764f5bf6c5fcd375e9478c7be4221058516ec34062625cac0d2eff17",
+    "patches/0014-third_party-blink-renderer-core-frame-navigator_concurrent_hardware-cc.patch": "45b93e386106ce9b3e0cf747a92ac6bd65774c7257e6d385f24da9e9190e4fac",
+    "patches/0015-third_party-blink-renderer-core-frame-navigator_device_memory-cc.patch": "a84af59674e77e4db806c0de79e06e5b41956d59ca19db7012ad5d1630337bcd",
+    "patches/0016-third_party-blink-renderer-core-frame-navigator_id-cc.patch": "d1c8de5acaf179cde1befce8a20b4e44552154941e15f96dae9674e607132db6",
+    "patches/0017-third_party-blink-renderer-core-frame-navigator_language-cc.patch": "6cd7e8791a590e2f2f255e94cb4e416487ee183e808d0260f0b0b5541bd94a54",
+    "patches/0018-third_party-blink-renderer-core-frame-screen-cc.patch": "3664b50ec355fa9415ed6384f99d9f1107d97c109e494c41adcf322140fef7dc",
+    "patches/0019-third_party-blink-renderer-core-timezone-timezone_controller-cc.patch": "5ce5bcca5cc6e17625712ee9d3989f705bec2eebd9932d3f3b0976250116586e",
+    "patches/chromium156-windows/0020-third_party-blink-renderer-modules-canvas-canvas2d-base_rendering_context_2d-cc.patch": "0b017e9d1dca855042637076698908996b846ed4f18001867e3cc9e0b93d4f19",
+    "patches/0021-third_party-blink-renderer-modules-keyboard-keyboard_layout-cc.patch": "cf00bf340f15469788b6918420f6d4d9b25ebdf9d36d8e128759bfda9f3bb91d",
+    "patches/0022-third_party-blink-renderer-modules-mediastream-media_devices-cc.patch": "600e3daf6cd1e60727cfd564e25a235bee039343b11e8af011633ffa89286517",
+    "patches/0023-third_party-blink-renderer-modules-netinfo-network_information-cc.patch": "fdc578d700a8c41fe00fca1528f830a46cf0c4f7d60112a1445cec135e69f22e",
+    "patches/chromium156-windows/0024-third_party-blink-renderer-modules-peerconnection-peer_connection_dependency_factory-cc.patch": "4f926e2df631e74eb7bbd51597adbb11dd20e31f0362a25696a1951b808b71de",
+    "patches/0025-third_party-blink-renderer-modules-speech-speech_synthesis-cc.patch": "0c1964ec2960df0add8404f175e9b23333aad6aa1882408d5d107cccfd0f41bb",
+    "patches/0026-third_party-blink-renderer-modules-webaudio-audio_buffer-cc.patch": "ce1e7e72ffff04bf08773b1d06df40a1f949cdd6f17cd041f830a45c0938306d",
+    "patches/0027-third_party-blink-renderer-modules-webaudio-audio_buffer-h.patch": "b3f6261cdcb79b5030e68aeaad93f2498eb2826c9d3e671d44fc2e9708c79e52",
+    "patches/0028-third_party-blink-renderer-modules-webaudio-realtime_analyser-cc.patch": "fa57b8005cb72f1b640e4cca7b374d2d8c2be6bab3a634b7dfab875aa48df895",
+    "patches/0029-third_party-blink-renderer-modules-webgl-webgl_rendering_context_base-cc.patch": "3a2d7128a50c1462c737df8b8e6b7fe566d20cfd42f2be2f7ad7d5dbc17cf813",
+    "patches/0030-third_party-blink-renderer-modules-webgpu-gpu_adapter_info-cc.patch": "eb3ed113b6d63f8e835ef49342ef602936d07d4b307a64561128c445df29251c",
+    "patches/chromium155/0031-third_party-blink-renderer-platform-graphics-image_data_buffer-cc.patch": "4f6d2c1d7286d226361af69443810c2cf539a42b622dc4a8bec3910dbf065fd5",
+    "patches/0032-third_party-blink-renderer-core-input-pointer_event_manager-cc.patch": "9ef76388405f1e0fda04a3c1739bd433fae4a0f3e9c0315ae89734fb5ea6c6e9",
+    "patches/0033-third_party-blink-renderer-core-html-canvas-text_metrics-cc.patch": "dbb6ebe2581de310d90014c9da08f09039a81fb281862c7487ba24602897d1f0",
+    "patches/0034-third_party-blink-renderer-modules-quota-storage_manager-cc.patch": "31f9b575c57beb2c7b2bcc2c181c6913c271e6df46b52c949ab8c648020dad6e",
+    "patches/0035-webgl2-getparameter-version-normalize.patch": "2d17f086ae6775659afa5b863dfd3dc9e0199701563a4b72032f43908ed6f072",
+    "patches/0036-chrome-app-chrome_main-fingerprint-normalize.patch": "692c20d3ade411474ea5fef6b6b672c0dfcba4cc995501c8b2e783bbc4009646",
+    "patches/0037-third_party-blink-renderer-core-frame-local_dom_window-cc.patch": "a035af33d9ee0982a2a4655910242e676df52ad09abee4616f7818a4f6a446fd",
+    "patches/0038-third_party-blink-renderer-modules-credentialmanagement-public_key_credential-cc.patch": "1a88b224287ff2e02b2b4639fcddbda6f21d245eec9605687f7afaa4776f39b9",
+    "patches/0039-third_party-blink-renderer-modules-buckets-storage_bucket-cc.patch": "aa03e4e5fb01e93d53d052e83c8142e6e83024e2fbf73048407156b0b73782a9",
+    "patches/0040-third_party-blink-renderer-modules-mediarecorder-media_recorder-cc.patch": "f10bab3165637b214f86753c49c904806955a8a6760bae29ef6e285365d8fce1",
+    "patches/0041-third_party-blink-renderer-modules-webgpu-gpu_adapter-cc.patch": "ad929e252a898e3525f561d03291d9eddb8ba04b6540aa2335c4ad307aad7653",
+    "patches/0042-third_party-blink-renderer-modules-webgpu-gpu_supported_limits-cc.patch": "a32ced20da1a5c58613c0685882bb2c501fb8c739ddcbf12590ce1b4e584d70e",
+    "patches/0043-third_party-blink-renderer-platform-peerconnection-rtc_ice_candidate_platform-cc.patch": "c04c5000236b4d99d29c392c07b4cb931c217796621f06aa696b4200dbbbda66",
+    "patches/chromium156-windows/0044-third_party-blink-renderer-modules-peerconnection-rtc_peer_connection-cc.patch": "136af4eb147a983157a1ba48fd8217ea5e53bdd0effeac0b78c9f1ad72611427",
+    "patches/0045-third_party-blink-renderer-core-timing-performance_resource_timing-cc.patch": "7d2a2dcee8c8ecc3c3db47dbb7467663434980c11744c6afc15de0a47e000ccc",
+    "patches/0046-content-browser-devtools-protocol-input_handler-cc.patch": "2c12983938340b735b9f2971cbd33bb496b09acc705b74152c15fae9a5705d87",
+    "patches/0047-third_party-blink-renderer-platform-fonts-font_cache-cc.patch": "e98e4b20c3829aa570dfa40a1c9c0c9924148673d6e01cc3cf3b750a5c7061a3",
+    "patches/0048-chrome-browser-component_updater-widevine_cdm_component_installer-cc.patch": "fd4c0727868e7b14a5dfc54422cc762a2e0251525eff0e9c4cb343f809528ce7",
+    "patches/chromium155/0049-third_party-blink-renderer-modules-plugins-dom_plugin_array-cc.patch": "3799f3cf3e8c143da3675789b3431e6ba6151d58be9c2d348b95b3ffcb4969f0",
+    "patches/0050-third_party-blink-renderer-modules-notifications-notification-cc.patch": "cbfb56b36e45d148319ac54dba1f78f2e74b52efb52a8125da22d07b106b561f",
+    "patches/0051-third_party-blink-renderer-modules-permissions-permissions-cc.patch": "458f6067fbcc75d6ddd5f7fd92d01201c16fa5b7e1701f102228e017c782df44",
+    "patches/0052-third_party-blink-renderer-core-css-media_values-cc.patch": "823b66bb12ceab33b1471e97be3b453fb99727d32a927df02384f8ab692464fa",
+    "patches/0053-third_party-blink-renderer-modules-webaudio-base_audio_context-h.patch": "30842ae3d4b0d7ca487ae294328bfc55913c3bd84e84c097b0bde664c52542f5",
+    "patches/0054-third_party-blink-renderer-core-timing-memory_info-h.patch": "df909f9e6f0f49c4067cc6bf83daca23538f6a167bf70c482a4c2050b392a47b",
+    "patches/0055-third_party-blink-renderer-modules-screen_orientation-screen_orientation-cc.patch": "acb0341eaa73dd11101607c2c3fa70227b6fa5e4ac3a49dca5aec7b8a2ea200a",
+    "patches/0056-third_party-blink-renderer-core-frame-screen-cc.patch": "53f26a4c0630382010e161a1bf0d33cbe872aaac6bdd6179d601d0392be06a93",
+    "patches/0057-content-browser-devtools-protocol-network_handler-cc.patch": "4634c05ef2703a40429cd651fc17e407548899198b186c8470e5be32aae964ba",
+    "patches/0058-third_party-blink-renderer-modules-screen_details-screen_detailed-cc.patch": "12dbcf63b862768c170ba7975d538149f01ff76cf14c09cb74dd02a8e7406649",
+    "patches/0059-third_party-blink-renderer-core-geolocation-geolocation-cc.patch": "c9598e23180fadb154175475c2518cd4c0e05c4e29313c1a6f4e989074de8eee",
+    "patches/chromium155/0060-third_party-blink-renderer-modules-media_capabilities-media_capabilities-cc.patch": "f03940003568f0568c5b81b9fe94f4fce02209b55e6b7492bd7d8589927c5f28",
+    "patches/chromium155/0061-third_party-blink-renderer-modules-media_capabilities-media_capabilities-h.patch": "a939e7968448ee4179589a1653d921b38a6968026d8c150519a5575cf117ada9",
+    "patches/0062-content-browser-renderer_host-render_process_host_impl-cc.patch": "8c6246c716ab266d89680fc75b957f807f0d10c851a4130066d26014b52d2e9c",
+    "patches/0063-v8-src-flags-flag-definitions-h.patch": "0a3e5631b7b7f5a0fbb17dc50274af331eb3de8e7af1ff09d6c5bc827f20f135",
+    "patches/0064-v8-src-inspector-v8-runtime-agent-impl-cc.patch": "4705a8b679153787d8a90d49936915d69d837f2c6e3979f2cc4703f3f900b770",
+    "patches/0065-v8-src-inspector-v8-runtime-agent-impl-h.patch": "c4240bfe54e24b3fd24411e9e4ebc6df2baf837bd8a2b917717914be2ca321f9",
+    "patches/0066-content-browser-renderer_host-render_process_host_impl-cc.patch": "de1d1aac83365d6ebdcf391b44d8d5f92a61cfbaa350aef880265dd4c51e2522",
+    "patches/0067-third_party-blink-renderer-platform-BUILD-gn.patch": "26c3cc834f7082c1adb2984d20a638437137603c4ad02d172e4a630ef87073c6",
+    "patches/0068-third_party-blink-renderer-platform-canvas_bridge-BUILD-gn.patch": "fab6d976320cec89f489cd7693aadaf05d2ddea564705d6455679d276e73ba18",
+    "patches/0069-third_party-blink-renderer-platform-canvas_bridge-canvas_bridge_client-cc.patch": "1acddccf0a394a5d4be9f614a4080f7678f08086e033b491791b5a685276f10e",
+    "patches/0070-third_party-blink-renderer-platform-canvas_bridge-canvas_bridge_client-h.patch": "8887cba678dc7ceb26a9d4168865422f172d6bb9c4f5d60e9d8fb35f3af143ce",
+    "patches/0071-third_party-blink-renderer-platform-canvas_bridge-canvas_bridge_codec-cc.patch": "9f626e2cada0580ba0f279f21474e33f28ed0a09ad350c2db3fb0a0077cf7788",
+    "patches/0072-third_party-blink-renderer-platform-canvas_bridge-canvas_bridge_codec-h.patch": "e5dae7b196a81ff196edd62fb09b6c287415efb66740ed06dc6fa9cec389782e",
+    "patches/0073-third_party-blink-renderer-core-html-canvas-canvas_rendering_context-h.patch": "507cfc81932cd5f45aef6ef7096b62e684090165bd615561e3da31118519f6f3",
+    "patches/chromium156-windows/0074-third_party-blink-renderer-core-html-canvas-html_canvas_element-cc.patch": "ed5d96a264e4da4cc2112bc5b355393a5ca003a8849e64b6856c41f3d100b4d6",
+    "patches/0075-third_party-blink-renderer-core-html-canvas-text_metrics-h.patch": "79317bb7adc28fe86bdc871fe75f0692c8ece46f7e4bbe48af2f4630c223a09e",
+    "patches/0076-third_party-blink-renderer-modules-canvas-canvas2d-base_rendering_context_2d-cc.patch": "f18f6e5e22be6541eef925774ac2055443f2c836627de7ac25b2fdfb7c3d9a3d",
+    "patches/chromium156-windows/0077-third_party-blink-renderer-modules-canvas-canvas2d-base_rendering_context_2d-h.patch": "781fabe2a5b5860a5a05b70e16cfbeea7415cec608110ee26f24b84633f7e036",
+    "patches/0078-third_party-blink-renderer-modules-canvas-canvas2d-canvas_2d_recorder_context-cc.patch": "6135ae8235cbdf4038fffeed516655a667110cd05a704c94128245da12d8c0a3",
+    "patches/0079-third_party-blink-renderer-modules-canvas-canvas2d-canvas_path-cc.patch": "9754842c6f6da28520ad17683ff022e334b39e0d98679387fda56141af0e5ad2",
+    "patches/0080-third_party-blink-renderer-modules-canvas-canvas2d-canvas_path-h.patch": "5782132543076795438b8cbc6cdd08256912384c47cfa8f73b393cb70b7fb1a8",
+    "patches/0081-third_party-blink-renderer-modules-webgl-webgl_object-h.patch": "6eaa38a54723d0a1fb0c6572ddce2c01ae218e2282704b2cea270a60b296fd08",
+    "patches/chromium155/0082-third_party-blink-renderer-modules-webgl-webgl_rendering_context_base-cc.patch": "785ca10a8d8eda8847a4183af0ed97d059b3212cbd22804329a4f96b91088212",
+    "patches/0083-third_party-blink-renderer-modules-webgl-webgl_rendering_context_base-h.patch": "e78ee0849e9a7c32de3ef3f16251f153a5c2797cf7afa7aaa9a8ca5e5b788e78",
+    "patches/0084-third_party-blink-renderer-modules-webgl-webgl_uniform_location-h.patch": "dce166ca681b9721b6cad59b30aa9cedb2f309d8afd22a0b71f90074c1d75782",
+    "patches/0085-third_party-blink-renderer-modules-peerconnection-peer_connection_dependency_factory-cc.patch": "bcac06bcd8546ee4b8f446d6b2844c46d7e1e26cab9b182cf9d3e7a3258eb91a",
+    "patches/0086-third_party-webrtc-p2p-base-port-h.patch": "b10d30077bdd66f60928e221bed5970ea9aff5d9b8ac514c7b9dc2ba26b76a86",
+    "patches/0087-third_party-webrtc-p2p-base-port-cc.patch": "1b575038297514b6f102c1cb6b8dd62160ddec9482b1a59caca958b34360c9ad",
+    "patches/0088-third_party-webrtc-p2p-base-stun_port-cc.patch": "e1506c617ef8b82dd9851502fbacc64189aae9c78a3342e598fca3cecc7d6fbc",
+    "patches/0089-tools-metrics-BUILD-gn.patch": "b15f667b6786bd05649c4abab1f5380b96ddf93a743c499d8c6fcde5f9e33d74",
+    "patches/0090-components-ungoogled-persona-profile.patch": "9d9ff5815c11c6859bbdbd3cb1da144b38a46ec9a6d8a3bf6c28b6ab5dee1689",
+    "patches/0091-components-ungoogled-persona-profile-h.patch": "6ca58082046b8e26205e026817d3c3733436386940699f331186f1322dbcd148",
+    "patches/0092-components-ungoogled-persona-profile-cc.patch": "682f2e0d01a545284e0a1bf78e96fbd14ae8fcce442c5b7e21f055ee4be9c940",
+    "patches/0093-webgl1-persona-complete.patch": "05399ca58b7254785566098e1a6594071ca63a2d4963f28a070f722c6a91f086",
+    "patches/0094-webgl2-persona-complete.patch": "961b0b0834f909a9a1152b1c4e2f93e5b9cfc3069de212330c0fcedfb009e10e",
+    "patches/0095-webgl-precision-extensions.patch": "148bea69ffc756b0cd6c8c33ca8d89e33950edc0653de09878b0d5757f89dcb4",
+    "patches/0096-webgl-bridge-policy-h.patch": "b4961afdf9fbe6f96bc378669ed02d9e95251b532e4b0069f6bdd2e92e6dda8e",
+    "patches/0097-webgl-bridge-policy-cc.patch": "603df17bf57ae1415c946f866ca8477f68c4d5927178cbb32295f4660683cbc1",
+    "patches/0098-third_party-blink-renderer-modules-BUILD-gn.patch": "eccbede6ea18bc19f86a82fe3c7ea345739c264554071c1b490ae00c2c1f4678",
+    "patches/0099-webgl-bridge-lifecycle-cc.patch": "c4055bc41b661fca6170a3b1b823c845e84d4f0caeabe267fb862ae285284374",
+    "patches/0100-webgl-readback-noise.patch": "2ae3c59783f71297c854daca107b8e9eff27dfa619767c83ee86d43518251265",
+    "patches/0101-webgl-gpu_fingerprint-cc.patch": "03978b671e4f6cda5c6065953029a138fe2b6a139a8272e552322aca304a7022",
+    "patches/0102-webgl-gpu_fingerprint-h.patch": "46e9350b4aded51bc5b9da18af1badbdf34dc4d02bbc2908d40224aa2f85e8e2",
+    "patches/0103-webgl-gpu_info-cc.patch": "b68967221071055e4083fdf28a87619721400c582b444e3d9873f6ba46b468b4",
+    "patches/0104-webgl-gpu_info-h.patch": "55921b3d873bc2384135e5949aed398089d7ea2a45dd08fb4019ff28dcda2f5d",
+    "patches/0105-components-ungoogled-farble_seed.patch": "8070c6a45ca838d66ced4d7fd7e189583d7ee61acc6393fba4080b981ea88ebb",
+    "patches/0106-components-ungoogled-farble_seed.patch": "73153a9dfbcacaf1e43d29c5c281271dc6c6486e528625f5b6dd09b2156e39cf",
+    "patches/0107-components-ungoogled-fingerprint_data.patch": "e98bf1dbf4fb92a2a031d4af85fc0b6fd6453e85c5b4fb57ed5c002194df3acd",
+    "patches/0108-webgl-gpu-fingerprint-integration.patch": "3aac86fa2225daf8e7e4cb42232782c592168f815f50689eabd73b687e208397",
+    "patches/0109-webgl-BUILD-gpu-files.patch": "f285134b918a7cc2e83dc255048aac454417f9bfd38ae2e58fe77507e300d34f",
+    "patches/0110-webgl-query-hot-path.patch": "03bf637afe5bab501b818c670de4e404c46e0a9eb284f331d319c47fba60c33d",
+    "patches/chromium155/0111-global-privacy-control.patch": "0a7ef68eef8a51ebfbfb84ffd7775e56a43b8694feb7052b562ce3397e936040",
+    "patches/0112-layout-theme-system-fonts.patch": "07bb338e3b50426b9d096b0de06500f4a40bdac4ae0edac8e5e0434d4f962eaa",
+    "patches/0113-webgl-translated-source.patch": "818a38dcc50c8a14a2e592262925fcf0a4ebc61f07ab8caab921e443660b5304",
+    "patches/0114-webgpu-preferred-canvas-format.patch": "448bf0f0438ba83279056a4a5db9b5083ac6a7452fca992a333e8755724a01a3",
+    "patches/0115-battery-persona.patch": "ca7cb1d9ecf0f296e348d243bdf195b89e4214518b8770cfb3e05fe24b2b85b4",
+    "patches/0116-audio-persona.patch": "1d2934baad0d6d8cb327a0fedae131e9e00402c7750aae0f21c61aff101ac24a",
+    "patches/0117-realtime-persona.patch": "1a1406a5b1798c5004b554c25136cb65092d158081a5a604c326e0a40b6e28f0",
+    "patches/0118-font-fallback-persona.patch": "682433dc136855cc1ed3626311494bbcd77d46ecdf7db5c173e41b73263339d0",
+    "patches/0119-time-clamper-persona.patch": "fb8199dc85e5e4cbe3cb583bdcb186b338f766d4cd3397a16a911d8c5411ebc5",
+    "patches/0120-media-devices-persona.patch": "6ada9a1ab6ace435d648f6158aae3132602746f665720cc25fb1bc4127c1ea2b",
+    "patches/0121-third_party-blink-renderer-platform-graphics-image_data_buffer-h.patch": "e265c02eb9135e9510a8c3986325b1e3d49a87ee2c91a4561d4410d79ae897af",
+    "patches/0122-third_party-blink-renderer-core-html-canvas-canvas_async_blob_creator-h.patch": "38df5f2189bbfcbc8ad2c4aa648c9dbee9e1d98eebc28ec2c25a4f6b3082f35d",
+    "patches/0123-third_party-blink-renderer-core-html-canvas-canvas_async_blob_creator-cc.patch": "ba0c9e73ac757dfb4e74c3a36779894e885e4de8ca7c4acaf38e6025177c04d2",
+    "patches/chromium156-windows/0124-third_party-blink-renderer-platform-image-encoders-image_encoder-cc.patch": "d3d16b5fc59b9ae0941737e051d9b5ed0205fea6f141b006a326e184f459c5b9",
+    "patches/0125-display-emulation-backend.patch": "b94b134b5fd4d83bf33472de9e86dfc63445b9fb4fef898f0e37032da9ce11d4",
+    "patches/0126-display-widget-initialization.patch": "2e9e71bb24a6c0a1046dc93b9dd7b2a610930d0c059c03f581ca0c79e92c2686",
+    "patches/0127-display-widget-state.patch": "6d0ef69f69098f29e57c7956eeb30c7917df7d02f0e46558d5d0eccce6b36867",
+    "patches/0128-display-oopif-initialization.patch": "cf09ba9c4b42a45c355c8031948c0fe0826bd74191698ceb280943ed51af8452",
+    "patches/0129-storage-quota-backend.patch": "3cc7c291455bc3d520e578a4431c624882c9c116fb60ebea1e67781ddffc83d6",
+    "patches/0130-third-party-cookie-opt-in.patch": "1e5690ae53f30af8a37dd44698cbc2361f433fa238c36ad55961862caa4e6f56",
+    "patches/0131-fake-shadow-root-feature.patch": "228aba3a4c2b57d0f88407467180abf3c8a433e3aa6f0630492741cc0ea248cb",
+    "patches/0132-fake-shadow-root-bindings.patch": "0abff7b0f6af843d9b24f13aa609b5227f013b700e10a4978a3d2f3c5d990395",
+    "patches/0133-fake-shadow-root-declaration.patch": "b52f8782ceb79e0b98852d3af3aa233f1ad953cd17f6c925d2433a652547d8f4",
+    "patches/0134-fake-shadow-root-access.patch": "5f5a3316d4a753bc899cedb060d16482bf91bc1accf00a2a36764e47f11957bd",
+    "patches/0135-windows-font-metrics-declaration.patch": "40f8ca025735cc602aa373ce948241e3d7049f3eeba2c4da3a8bce0fa2cb48e6",
+    "patches/0136-windows-font-metrics-tables.patch": "255c1ea3f1649293e097003d4e272dd2b113e9aef9ec182ca047ff3088900a4b",
+    "patches/0137-windows-font-metrics-rounding.patch": "07436e3f5359c622a92b600d52952d029a612c7c81b87873cda76eafa89c45b1",
+    "patches/0138-windows-font-metrics-layout.patch": "3de1c57d7607b78ccceaee59fbe309c07da07819f720348684f68a7ffad1656e",
+    "patches/0139-webrtc-ip-presentation.patch": "8464a188b67d4972d4b2c18b7a24f940cb12182f9a2c1b57e15b862eab76cc75",
+    "patches/chromium156-windows/0140-webrtc-ip-stats.patch": "4e3ed1ca9a6cb67dde9c02c683d14558a812c51781dc56656270917df3d83fc8",
+    "patches/chromium156-windows/0141-webrtc-ip-offer-promises.patch": "96fefe6f37fa0c191a5a36bc35cc076badc5a2fb6eba1d34a4428558bff35bd6",
+    "patches/chromium156-windows/0142-webrtc-ip-offer-callbacks.patch": "daa67441458db4878e3409c7dc51999bf236d06395c62eacb4b317e5820bfa8f",
+    "patches/0143-webrtc-ip-build.patch": "752db40a93cd18a5ec3bbccf35dfff9216681008f3afe5de6c60727568987303",
+    "patches/0144-webrtc-auto-startup.patch": "8b3940c0d87f14d3d9c157b8bb2328e9b00a086a33f99074a8a42f1af795f9cb",
+    "patches/0145-webrtc-local-sdp-roundtrip.patch": "18174e9b14f896c29d42a3a84e4f022a7a08b0754a51453974e602dfd2ccea9e",
+    "patches/0146-canvas-text-noise-policy.patch": "c9d423336591b000dd6d9a0dfec2d33745caeb2a7d7e33edb58338bf2a83d3ba",
+    "patches/0147-webgl-context-backend-identity.patch": "2f84b030367feac787ea12cacd11062249774926ec4e4549c435204c1a4199b2",
+    "patches/0148-webgpu-native-adapter-identity.patch": "053310606ef198883d9251d838f4cfa59a53fd7a5bffafbc5ec29b199c534c9d",
+    "patches/0149-canvas-opaque-image-data-upload.patch": "c1f76135e662408f5e070bef43e745eaf28af00c74d8c895aee6a16f4e29fec6",
+    "patches/chromium156-windows/0150-canvas-mailbox-readback-geometry.patch": "9419f201bcfa87729d8f9a2c04ae308a9eac2e5533bc5256cc1f8af79ba3d658",
+    "patches/0151-devtools-font-provenance-declaration.patch": "4203eeede191d50b9a06974f9c4ce7d786c5f561b952afa59c205796ed8783e3",
+    "patches/chromium156-windows/0152-devtools-font-provenance-implementation.patch": "6f721f63afed92d5962b9876bde266285a2ba636b4994606adcd4b3d71331e7a",
+    "patches/0153-devtools-font-provenance-protocol.patch": "e628550b98173b0d29174ba99cfa4afe26c522dd50e6452bd243770ec2ad9b6b",
+    "patches/0154-socks5-auth-declaration.patch": "3d4cb5d7958c654fe59657ebc4a50dde5454c7d4c55b7d95e86ba8ad5e9fb865",
+    "patches/0155-socks5-auth-handshake.patch": "fc97fd9615ae5a70de6388e2640fb53adc97aacd9a445d8cce0fddce6847d95e",
+    "patches/0156-socks5-auth-network-service.patch": "30abfb871cfef419bfeec3e6d865bc204c4096f46c71a438f0520234edef3011",
+    "patches/0157-socks5-auth-native-tests.patch": "1fc93ce730030f387b7881ea2264644371d70c50def9ed0ac307bdf6a185597c",
+    "patches/0158-gpu-backend-policy-declaration.patch": "32f3481ecfcf62d7c5654e9b408bb94fa69fb55d6ae69ad52ebe7ccc1d765b94",
+    "patches/0159-gpu-backend-policy-snapshot.patch": "d1446dde51b3afa5f33e092a2c2b82012bada71e7b1d73159ad1449bc0a4f491",
+    "patches/chromium156-windows/0160-canvas-shared-backend-policy.patch": "448fede880c3acbce793f088fec662d3e07e70761e6e9a221874bf1b1ba3c3e8",
+    "patches/0161-canvas-export-backend-policy.patch": "b581c054fcbef76f5973ec32cadee3d6660382a05a37aeda4eb79d748ba058df",
+    "patches/0162-canvas-bridge-backend-policy.patch": "964ebe7228bd0304346a3be57aa060bbf433a964678993dfb1020649defd8054",
+    "patches/0163-webgl-shared-backend-policy.patch": "f2120deab05be58b920b9191bb6c79b2ab96c3bdbd0c8921cedba8a30472a389",
+    "patches/0164-webgpu-device-backend-policy.patch": "e9a48705903f8b26c9a9c6deb4ad4fd40e2a6e59e65b0c28c5cf61be070883c7",
+    "patches/0165-canvas-lazy-opaque-readback.patch": "0abe15824152def979db3bb71d61d03fbbdbeb072a77318f8f47773b990baaa8",
+    "patches/0166-webauthn-backend-capability.patch": "11a2d0dbf7bbb97b105e6dc41f34533945b5633273df0f1916013833b122056e",
+    "patches/chromium155/0167-pdf-backend-capability.patch": "fa05702f631f2bcdfe5783b0d0c8163a755ade728cc81d8e438f0e52575d476d",
+    "patches/0168-speech-backend-inventory.patch": "7577c3e1534b075acfcd7777ac698b7e5d05a17dc19e2efef59f1cdc328f5993",
+    "patches/0169-keyboard-backend-layout.patch": "3b89dcde0f81f385386d758ef2d0ec2b028f187294467c7d450b6fc9ec9f3866",
+    "patches/0170-css-effective-preferences.patch": "7b53c265b61e3f1fe741cc735c96d4a35829c7e110a9bf420c822e6ad326c9e8",
+    "patches/0171-css-native-media-queries.patch": "39de04981e8d2d72709daf09cec0e261fec979cd7bf4d9429abb4d79b838ca87",
+    "patches/0172-clock-policy-declaration.patch": "3375ac29215f5556bdafd833d342a23234047816773ff219b55046eb984324ca",
+    "patches/0173-input-and-clock-policy.patch": "3286b7843058d61265b8886a0d2c552d88fc8be584960bb0aa5930d3cff7313d",
+    "patches/0174-v8-clock-quantization.patch": "d9985bf40d5a046c9c0985facf41306dcfc547d2a78d568db72c9e301e42b54b",
+    "patches/0175-blink-clock-quantization.patch": "f83b09efcb1d8b9f940beb8d4e448d385e0d7ae318431ba3e79e8a857d153006",
+    "patches/0176-launch-input-clock-aliases.patch": "07c713d6b126a19e61aaf501257afc6efdfce32e3cdba5cf0b491be2846fc138",
+    "patches/chromium155/0177-audio-graph-isolation.patch": "0a79069deaeda83a20945f393a156c66de1b73ee54ae261f6c8661132bffd068",
+    "patches/0178-shared-codec-policy-declaration.patch": "ce1f5659cac948f8462c761b7b6add6ca907375571664a0dd649d8cda3606f25",
+    "patches/0179-shared-codec-capabilities.patch": "17c323a92e97fed8f023e70e8dd6f81ea3e69d73807a426b6e911933b27819ec",
+    "patches/0180-decoder-selection-policy.patch": "6249f02f2a3faf0b3ebdf3c2133359833ec6258e1ff44fd1b9c62c421ddb5350",
+    "patches/0181-webcodecs-encoder-policy.patch": "b4d2072cd94e91e75bd6bc76a351102599636393e385badbb82cc2e9c5598cbc",
+    "patches/0182-mediarecorder-codec-policy.patch": "46be432629788905aa3a700b8b8ee31a5741ce52217f70cdc8d264bf39f9a19f",
+    "patches/0183-mediarecorder-allowed-codec-selection.patch": "f190fca2f1e2152120b7b8f7baff19ad9b53d47897d5adc784497f9714e8a9d6",
+    "patches/chromium156-windows/0184-webrtc-codec-negotiation-policy.patch": "1cd7e674612c57b6260b250f8649a078ebf898c8c41ba040fc34028276bc45f4",
+    "patches/0185-media-capabilities-native-codec-policy.patch": "4af6b383d56ab8e77898f800f4ff49be4056dcbe519f8d4a4fedd206f7fe74c0",
+    "patches/0186-restricted-font-pool-declaration.patch": "4aa0dd12bbb52f393dc50d6981d6cb022873945acbed88c75a4be37b37df7fbe",
+    "patches/0187-restricted-font-resolution-and-fallback.patch": "8fae05587064190809186a89b0fc9b57d71705ee7b145e84dca5c9d260f79f03",
+    "patches/0188-restricted-font-last-resort-skia.patch": "5b6f05be99be7e9450db218f8f1329e4bb665eb1816eefacc7b0dab47ad17811",
+    "patches/0189-restricted-font-last-resort-mac.patch": "b81e65eed9bac2304f77ac67749b3a17faa82d6174f46cb900bfea06e9959430",
+    "patches/0190-restricted-local-font-enumeration.patch": "0d1d72ebc003643c0bdcab0dbae7f8ca3d9dd3cbda7e202c4d34ef476ee4dfa6",
+    "patches/0191-snapshot-utf8-font-families.patch": "5135e40905d1044778c139fff67158587d99491aed697dc9562e11baf2ae58d7",
+    "patches/0192-display-frame-properties.patch": "0343f03c359d4dd332165b9d6f08f73b2cac2d42e88bf6b3172efac1a4da392d",
+    "patches/0193-display-frame-mojo.patch": "35df3b1c21dcab8dd0d3b5cd421d19e582d38c2a74a1d6ac6b0787e84f5f8e72",
+    "patches/0194-display-frame-traits-header.patch": "af88ee82e448d6d41e5ab75af29e46f6b7bb3d82e58004f19f429408a287067f",
+    "patches/0195-display-frame-traits-read.patch": "caddb0b8030a145f829f6b465d9444252eb5adde18fd4d2928c5d087e42ad097",
+    "patches/0196-display-widget-properties.patch": "2bbaa467e4ad1ec750d2a76e33017a3c0131968bc0059aee816df028e4cf0744",
+    "patches/0197-display-widget-mojo.patch": "c209138ee8a6325845b90cf6ad7b52aa7975c8af2b18c3948aedf33604e89034",
+    "patches/0198-display-widget-traits-header.patch": "b722b5e6022f408246a757ae7256b74b48f49816817871facbbe20fda28866b7",
+    "patches/0199-display-widget-traits-read.patch": "87529a0e6d9726786854132362716e4568ce4c8d8bd0ba6394d9ff8970d32d53",
+    "patches/0200-display-widget-properties-equality.patch": "a2889bac2f8ae7bf29fbcb3b60afd955871dc16ba26728847941b9df1d1fb0df",
+    "patches/0201-display-remote-frame-header.patch": "8b71f61a18fe3d3c0523011adfa87cde07fa2e0d19cdcf4d8cc1a735b80657c2",
+    "patches/0202-display-remote-frame-propagation.patch": "32200d2f82c72d1f2f6bd1c3855c76a61e7ed3337d795a76276c8e156cf149d4",
+    "patches/0203-display-browser-widget-header.patch": "182c90a6ed9699ce549544f51d3ff7a7214062c2f5a0246e0ef9e8b6a86c0f36",
+    "patches/0204-display-browser-widget-propagation.patch": "e8230e14eb4342cf469bcba762e338a599c78513b38c3e2121b26e771b340a48",
+    "patches/0205-display-frame-connector-propagation.patch": "c4c7026ab182b6fa91adc9bed90babed43978af9c00e6f4d1dc006d7ed2802d5",
+    "patches/0206-display-widget-emulated-screen-state.patch": "5e2cdb9e7838cf98d74400ad280404bdac8a816334f275c46bf27686d0f47ea6",
+    "patches/0207-display-widget-native-scale.patch": "0d6befc725c4424e4bc33028de33847d1936ba00ba09ba949cb79a3865fa1383",
+    "patches/0208-display-remote-initial-screen.patch": "a50b52c2b22096c47aaa07f7cd6d142071e70a05f4bbbc17358ad321a2fa1af9",
+    "patches/chromium156-windows/0209-display-native-screen-regressions.patch": "5bbab689723fc75f5501e042076821d09ea6917df05fb21ec599629da3606126",
+    "patches/0210-display-widget-orientation-dispatch.patch": "95e3de540ef71768650b89ec202fec34311c82d4e468c46106d384961e43b54d",
+    "patches/0211-display-testing-orientation-refresh.patch": "7eb7180a82608acd68488deba3d278040fac385e9b1b1ac5f84094b557fa4d55",
+    "patches/0212-display-orientation-local-root.patch": "fe673d77075e499d00af3eebe7305941c5099a20e99061903f441cf3409390b9",
+    "patches/0213-display-emulator-reentry.patch": "a79fa0dfc43d96d644f471cd1d4ed1f5e0976c599281879522163e866f8a0492",
+    "patches/0214-animation-clock-quantization.patch": "c73e00852ee41f01478fe5bb07fdfa32abc32c97e64f894de6cea63d2e8b0968",
+    "patches/0215-document-timeline-clock-origin.patch": "f0f735178f8fbeb988fb972809a076bea1f1514ceaa0baace3b0f42fc71830d6",
+    "patches/0216-display-native-emulated-regressions.patch": "8eb4ec197f5badbd8faac09d3b8e57d48abac2c404125b2e8886c70a48098368",
+    "patches/0217-pixel-noise-helper-build.patch": "35f78f673b4368db48a5d16af3a5e8f6944ff5876ca4fce158578c425801ce12",
+    "patches/0218-pixel-noise-policy-declaration.patch": "0b802b7918d2a2d52bd4b4c43fb94f9e480225614bf2e35bcad9ae72cf1f138d",
+    "patches/0219-pixel-noise-policy-snapshot.patch": "7420a82d443b3def5466100ee0f93203fb40609ce0f6ec5df3f955933072f5cc",
+    "patches/0220-pixel-noise-launch-alias.patch": "663c85e57102a46ca29857c1d849cbe28925707452b5d63854da891c5a1df107",
+    "patches/0221-pixel-noise-shared-helper.patch": "79dedc11a302c0f297407ba7720952a47e2d5293b9b67f4825770b57ba6b9cd7",
+    "patches/chromium155/0222-canvas-readback-shared-noise.patch": "3260831685393468941ba4fb8869ac7ec9441c8ef4033c6c80ee360ddc8a0045",
+    "patches/0223-canvas-export-shared-noise.patch": "5871f21512afe6e7f3708e53c966e5038dacf49a4ef612c751257997a02f273e",
+    "patches/0224-webgl-seeded-readback-noise.patch": "93ab543cff78bc0008aeb93bd48287d7988fa1f247a2e9f1684b2cac5ef303ee",
+    "patches/chromium155-windows/0227-opaque-png-export-consistency.patch": "4c048a50930c3541a3bb9e4442ad7f18e94c04ebccf86c0cfbfc286b15a70751",
+    "patches/chromium155-windows/0228-timezone-default-declaration.patch": "c750f8888d986d6fbbaea16f3ca37d1543625a1281f5bd1562563d496f0daf7d",
+    "patches/chromium155-windows/0229-timezone-default-implementation.patch": "3d6dd6aa4d02ff005886f27e3312c083d5385511d3303b0184a520ca3e3f3006",
+    "patches/chromium155-windows/0230-blink-default-timezone-api.patch": "0495c11554fc2dd6b2e1b0e2d058ee2e9995ba6f8ccec64c149b6fe62ebcbd43",
+    "patches/chromium155-windows/0231-blink-default-timezone-bridge.patch": "00274260ba64724d5cae1222ff981dd45c177bad07a9ad7fbd675c7b08426836",
+    "patches/chromium155-windows/0232-renderer-launch-timezone-install.patch": "345ef39c9cc6d987f59c44f3f4a46099391d6c629058f10c1151e02a654796a7",
+    "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch": "7f7f691f2d744715e0d48a25dab5ff1e8ac793122657beacd0f99a3e7e8ba908"
+  },
+  "patch_sha256": "4606a8f5dee6bca03d1e04001d8f08b07b6d9c9345eb73a1415bb5d53e181a9d",
+  "qualification": "Source replay only; requires native build and actual account/security tests"
 }
