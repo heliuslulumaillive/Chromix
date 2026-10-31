@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 $tokens = $null; $parseErrors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile($env:PHASE_TEST_SOURCE,[ref]$tokens,[ref]$parseErrors)
 if ($parseErrors.Count) { throw ($parseErrors.Message -join '; ') }
-$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Invoke-Owned','Read-State')
+$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Get-OwnedCommandStatus','Invoke-Owned','Read-State')
 $definitions = $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in $allowed}, $false)
 if (@($definitions).Count -ne $allowed.Count) { throw 'Guard function inventory mismatch' }
 . ([scriptblock]::Create(($definitions.Extent.Text -join "`n")))
@@ -43,6 +43,7 @@ try {
       $result=Read-State
     }
     'disk' { $result=Get-CheckpointDiskBudget $request }
+    'command-status' { $result=@{status=(Get-OwnedCommandStatus $request.exit_code $request.receipt)} }
     default { throw 'Unknown test mode' }
   }
   $result | ConvertTo-Json -Depth 15 -Compress
@@ -118,6 +119,21 @@ class PhaseGuardTests(unittest.TestCase):
 
     def test_expired_budget_cannot_start_a_command(self):
         self.assertEqual(self.run_guard('budget', {})['error'], 'SECURITY_BUDGET_STOP')
+
+    def test_native_exit_124_is_not_a_timeout_and_cleanup_failure_is_unsafe(self):
+        cases = [
+            (124, {'timed_out': True, 'exit_code': None, 'cleanup_errors': []}, 'budget-stop'),
+            (124, {'timed_out': False, 'exit_code': 124, 'cleanup_errors': []}, 'failed'),
+            (124, {'timed_out': True, 'exit_code': None, 'cleanup_errors': ['still running']}, 'unsafe'),
+            (0, {'timed_out': False, 'exit_code': 0, 'cleanup_errors': []}, 'success'),
+            (1, {'timed_out': False, 'exit_code': 1, 'cleanup_errors': []}, 'failed'),
+            (0, {'timed_out': True, 'exit_code': None, 'cleanup_errors': []}, 'unsafe'),
+            (124, {}, 'unsafe'),
+        ]
+        for rc, receipt, expected in cases:
+            with self.subTest(rc=rc, receipt=receipt):
+                result = self.run_guard('command-status', {'exit_code': rc, 'receipt': receipt})
+                self.assertEqual(result['status'], expected)
 
     def test_state_from_another_stage_run_or_checkout_is_rejected(self):
         path = Path(self.temp.name) / 'state.json'

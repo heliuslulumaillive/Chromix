@@ -50,7 +50,8 @@ def readiness(repo, plan):
         raise ValueError('The named donor job has a different source/run')
     if job.get('status') != 'completed':
         return {'status': 'waiting-for-donor-job', 'job_status': job.get('status')}
-    if job.get('conclusion') != 'success':
+    reviewed_budget_stop = job.get('conclusion') == 'failure' and plan.get('reviewed_budget_stop') is not None
+    if job.get('conclusion') != 'success' and not reviewed_budget_stop:
         return {'status': 'review-required', 'reason': 'Donor job did not succeed; inspect retained failure evidence first'}
     remote = gh_json(f'repos/{repository}/git/ref/heads/{plan["target_branch"]}')
     if remote.get('object', {}).get('sha') != plan['target_commit']:
@@ -80,7 +81,15 @@ def readiness(repo, plan):
     created = preflight['manifest_artifact'].get('created_at')
     if not created or not (stamp(job['started_at']) <= stamp(created) <= stamp(job['completed_at'])):
         return {'status': 'review-required', 'reason': 'Checkpoint was not published within the named producer job'}
-    return {'status': 'ready', 'preflight': preflight, 'large_transfer_started': False}
+    evidence = None
+    if reviewed_budget_stop:
+        try:
+            from .security_budget_review import verify
+        except ImportError:
+            from security_budget_review import verify
+        evidence = verify(repository, str(plan['donor_run']), job, preflight, plan['reviewed_budget_stop'])
+    return {'status': 'ready', 'preflight': preflight, 'large_transfer_started': False,
+            'reviewed_budget_stop': evidence}
 
 
 def find_dispatch(plan, state):
@@ -154,6 +163,7 @@ def handoff(repo, plan, state_path):
                      'donor_manifest': ready['preflight']['manifest_artifact'],
                      'donor_volumes': ready['preflight']['volume_artifacts'],
                      'donor_run_attempt': ready['preflight']['run_attempt'],
+                     'reviewed_budget_stop': ready.get('reviewed_budget_stop'),
                      'producer_job_completed_before_dispatch': True}
             write_json(state_path, state)
             args = ['workflow', 'run', plan['workflow'], '--repo', plan['repository'],

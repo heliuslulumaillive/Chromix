@@ -2,6 +2,11 @@
 
 ## Unreleased — Windows 156 Lite continuation
 
+Correct PowerShell's residual native exit status after a handled stage-budget
+pause. A failed donor badge is still rejected unless explicitly pinned,
+reviewed timeout evidence and a complete matching checkpoint establish this
+specific misclassification; actual compiler failures are not admitted.
+
 The follow-up functional review removes a leftover matrix copy whose Bridge
 consumer had been retired, preserving native GL call order and arguments.
 Candidate acceptance now binds the main harness, oracle and complete collector

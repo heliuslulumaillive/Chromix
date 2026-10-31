@@ -167,6 +167,15 @@ if ($Phase -in @('Build','Acquire')) {
 }
 Output finished 'false'
 Output proceed 'false'
+function Get-OwnedCommandStatus([int]$ExitCode,[System.Collections.IDictionary]$Receipt) {
+  if (-not $Receipt -or -not $Receipt.Contains('cleanup_errors') -or
+      $Receipt.cleanup_errors -isnot [array] -or $Receipt.timed_out -isnot [bool]) { return 'unsafe' }
+  if (@($Receipt.cleanup_errors).Count -gt 0) { return 'unsafe' }
+  if ($ExitCode -eq 124 -and $Receipt.timed_out -eq $true -and $null -eq $Receipt.exit_code) { return 'budget-stop' }
+  if ($Receipt.timed_out -eq $true) { return 'unsafe' }
+  if ($ExitCode -eq 0 -and $Receipt.exit_code -eq 0) { return 'success' }
+  return 'failed'
+}
 function Invoke-Owned([string]$Label,[string[]]$Command,[int]$LimitSeconds=18000,[string]$WorkingDirectory=$repo,[switch]$GitHubReadToken) {
   $remaining = [int]($deadline - [DateTimeOffset]::UtcNow).TotalSeconds
   if ($remaining -lt 30) { throw 'SECURITY_BUDGET_STOP' }
@@ -180,9 +189,17 @@ function Invoke-Owned([string]$Label,[string[]]$Command,[int]$LimitSeconds=18000
   if ($GitHubReadToken) { $tokenOption += '--github-read-token' }
   & $python -B -X utf8 (Join-Path $repo 'tools\security_run.py') --cwd $WorkingDirectory --timeout $limit --log $log --report $report @tokenOption -- @Command
   $rc = $LASTEXITCODE
-  if ($rc -eq 124) { throw 'SECURITY_BUDGET_STOP' }
-  if ($rc -ne 0) {
-    Get-Content -LiteralPath $log -Tail 35
+  $receipt = $null
+  try { $receipt = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json -AsHashtable } catch { }
+  $commandStatus = Get-OwnedCommandStatus $rc $receipt
+  if ($commandStatus -eq 'unsafe') {
+    $state.resume_safe = $false
+    Save-State
+    throw "Owned command cleanup or receipt is unverified: $Label"
+  }
+  if ($commandStatus -eq 'budget-stop') { throw 'SECURITY_BUDGET_STOP' }
+  if ($commandStatus -ne 'success') {
+    if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Tail 35 }
     throw "Security stage command failed: $Label ($rc)"
   }
 }
@@ -418,4 +435,7 @@ try {
   Output resume_safe ($state.resume_safe.ToString().ToLowerInvariant())
   if ($state.status -ne 'budget-stop') { throw }
   Write-Host 'Stage budget reached; later phases are skipped and the prepared state is preserved.'
+  # The Actions pwsh wrapper observes the native exit code even after this
+  # timeout has been handled. Only the deliberate budget stop is successful.
+  $global:LASTEXITCODE = 0
 }

@@ -105,6 +105,27 @@ class HandoffTests(unittest.TestCase):
             h.handoff(self.root, self.plan, self.state)
         gh.assert_not_called()
 
+    def test_failed_donor_still_requires_review_and_cannot_start_transfer(self):
+        job = {'run_id': 123, 'head_sha': 'a' * 40, 'status': 'completed', 'conclusion': 'failure'}
+        with patch.object(h, 'gh_json', return_value=job), patch.object(h.checkpoint, 'preflight') as preflight:
+            result = h.readiness(self.root, self.plan)
+        self.assertEqual(result['status'], 'review-required')
+        preflight.assert_not_called()
+
+    def test_explicit_budget_review_runs_before_readiness(self):
+        from tools import security_budget_review as budget
+        plan = {**self.plan, 'reviewed_budget_stop': {'version': 1, 'test': 'validated separately'}}
+        job = {'run_id': 123, 'head_sha': 'a' * 40, 'status': 'completed', 'conclusion': 'failure',
+               'run_attempt': 1, 'started_at': '2026-10-31T06:00:00Z', 'completed_at': '2026-10-31T12:00:00Z'}
+        pre = {'run_attempt': 1, 'manifest_artifact': {'created_at': '2026-10-31T11:59:00Z'}}
+        with patch.object(h, 'gh_json', side_effect=[job, {'object': {'sha': 'b' * 40}}]), \
+                patch.object(h.subprocess, 'check_output', side_effect=['b' * 40, '']), \
+                patch.object(h.checkpoint, 'preflight', return_value=pre), \
+                patch.object(budget, 'verify', return_value={'status': 'reviewed-budget-stop'}) as proof:
+            result = h.readiness(self.root, plan)
+        proof.assert_called_once_with('owner/repo', '123', job, pre, plan['reviewed_budget_stop'])
+        self.assertEqual(result['status'], 'ready')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -5,6 +5,14 @@ Splitting the visible Actions steps does not transfer the source tree or
 `out/Default` between jobs. The running historical job is immutable; these
 changes apply only to a new run at this source commit.
 
+A handled `SECURITY_BUDGET_STOP` explicitly clears the surviving PowerShell
+native exit status; real compilation failures still throw. The named original
+donor misreported this planned pause as failure. It may be admitted only with a
+separately reviewed evidence artifact and exact file hashes, consistent safe
+checkpoint/build inputs, a cleanly terminated timeout and no compiler errors.
+The exception is opt-in for that evidence, not permission to resume failed jobs
+generally. No large transfer occurs during the review.
+
 | Phase | Work | Reuse boundary |
 | --- | --- | --- |
 | Acquire | Validate the small checkpoint manifest and pinned donor first, then download its exact volumes; or fetch the pinned upstream snapshot | No SDK installation or compilation before donor admission. A preflight record pins the selected artifact IDs. Credentials are forwarded only to acquisition helpers. |

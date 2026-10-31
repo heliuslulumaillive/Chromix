@@ -13,9 +13,29 @@ except ImportError:
     from fingerprint_subprocess import WindowsJob
 
 
+def github_read_command_allowed(command):
+    """Only canonical invocations of the reviewed read-only transfer helpers."""
+    if (len(command) < 5 or not all(isinstance(part, str) for part in command)
+            or command[1:4] != ['-B', '-X', 'utf8']):
+        return False
+    try:
+        if Path(command[0]).resolve() != Path(sys.executable).resolve():
+            return False
+        script = Path(command[4]).resolve()
+        directory = Path(__file__).resolve().parent
+        if script == directory / 'fetch_upstream_cache.py':
+            return True
+        return (script == directory / 'security_checkpoint.py' and len(command) >= 6
+                and command[5] in ('preflight', 'restore'))
+    except (OSError, ValueError):
+        return False
+
+
 def run(command, cwd, timeout, log, github_read_token=False):
     if os.name != 'nt' or not 0 < timeout <= 21000:
         raise ValueError('A bounded Windows command is required')
+    if github_read_token and not github_read_command_allowed(command):
+        raise ValueError('GitHub read token is restricted to reviewed source acquisition commands')
     started = time.monotonic()
     result = {'timed_out': False, 'exit_code': None, 'cleanup_errors': []}
     job = WindowsJob()
@@ -65,15 +85,14 @@ def main():
     p.add_argument('--timeout', type=int, required=True)
     p.add_argument('--log', type=Path, required=True)
     p.add_argument('--report', type=Path, required=True)
-    p.add_argument('--github-read-token', action='store_true', help='For the reviewed GitHub archive downloader only')
+    p.add_argument('--github-read-token', action='store_true', help='For reviewed upstream/checkpoint acquisition only')
     p.add_argument('command', nargs=argparse.REMAINDER)
     a = p.parse_args()
     command = a.command[1:] if a.command[:1] == ['--'] else a.command
     if not command:
         p.error('command required')
-    if a.github_read_token and (len(command) < 5 or
-            Path(command[4]).resolve() != Path(__file__).resolve().with_name('fetch_upstream_cache.py')):
-        p.error('GitHub read token may only be forwarded to the reviewed archive downloader')
+    if a.github_read_token and not github_read_command_allowed(command):
+        p.error('GitHub read token may only be forwarded to reviewed source acquisition commands')
     a.log.parent.mkdir(parents=True, exist_ok=True)
     result = run(command, a.cwd, a.timeout, a.log, a.github_read_token)
     a.report.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
