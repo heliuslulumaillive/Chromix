@@ -6,7 +6,7 @@
   "donor_aggregate_sha256": "4606a8f5dee6bca03d1e04001d8f08b07b6d9c9345eb73a1415bb5d53e181a9d",
   "baseline_patch_count": 231,
   "overlay": "patches/lite-win156/0001-retire-bridge-runtime-synthetic.patch",
-  "overlay_sha256": "4d40bd9d69111eafbb13145754cfdfe4df9e9f7746cc69a9fed2db9b16e05b11",
+  "overlay_sha256": "f6ce9873dbaecb4d6f313becc05627da027fb1e13d5e2dda78303a88b1b62132",
   "retired_features": [
     "external-canvas-bridge-network-and-drawing-hooks",
     "devtools-runtime-suppression",
@@ -288,7 +288,7 @@
     {
       "path": "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
       "before_sha256": "49a0a06144923c18a39b8f57ff0b564f7fa8612b210b75d0ccd4e32d114f1007",
-      "after_sha256": "9c4267976224d3b1945e4d14d21141842e569a793c02b5ea8e9bd59977c93fcb"
+      "after_sha256": "1694ad4a1724f2b150f52bf556f168fc55c7f2f6577bd161673ffda15aaef93b"
     },
     {
       "path": "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h",
@@ -383,5 +383,5 @@
   ],
   "native_build_accepted": false,
   "runtime_accepted": false,
-  "aggregate_sha256": "9b6ed26159909f4e8dc2c55e740bff05d5ef9496f342092f4077c6c58e45ed96"
+  "aggregate_sha256": "5d3d29cf2592a9ec04f5753c6ce842a279ed82b93094b9f5ededc886d5c62f4a"
 }

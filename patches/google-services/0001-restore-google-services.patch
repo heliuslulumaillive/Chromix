@@ -41825,17 +41825,21 @@
    ContextGL()->Uniform4f(location->Location(), x, y, z, w);
  }
  
-@@ -8087,9 +7998,6 @@
-   matrix.reserve(static_cast<size_t>(length) * 16);
-   for (GLuint index = 0; index < length * 16; ++index)
-     matrix.push_back(data[index]);
+@@ -8083,13 +7994,6 @@
+                                        v, 16, 0, v.size(), &data, &length)) {
+     return;
+   }
+-  std::vector<double> matrix;
+-  matrix.reserve(static_cast<size_t>(length) * 16);
+-  for (GLuint index = 0; index < length * 16; ++index)
+-    matrix.push_back(data[index]);
 -  RecordWebGLOp(50u, {static_cast<int32_t>(location->BridgeId()),
 -                      transpose ? 1 : 0}, std::move(matrix), bridge_canvas_id_,
 -                drawingBufferWidth(), drawingBufferHeight());
    ContextGL()->UniformMatrix4fv(location->Location(), length, transpose, data);
  }
  
-@@ -8104,9 +8012,6 @@
+@@ -8104,9 +8008,6 @@
      return;
    }
  
@@ -41845,7 +41849,7 @@
    if (current_program_ != program) {
      if (current_program_)
        current_program_->OnDetached(ContextGL());
-@@ -8236,10 +8141,6 @@
+@@ -8236,10 +8137,6 @@
      return;
    }
  
@@ -41856,7 +41860,7 @@
    bound_vertex_array_object_->SetArrayBufferForAttrib(
        index, bound_array_buffer_.Get());
    ContextGL()->VertexAttribPointer(
-@@ -8267,8 +8168,6 @@
+@@ -8267,8 +8164,6 @@
                                           GLsizei height) {
    if (isContextLost())
      return;
@@ -41865,7 +41869,7 @@
    ContextGL()->Viewport(x, y, width, height);
  }
  
-@@ -9622,9 +9521,6 @@
+@@ -9622,9 +9517,6 @@
  }
  
  void WebGLRenderingContextBase::DispatchContextLostEvent(TimerBase*) {

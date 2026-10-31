@@ -186,6 +186,13 @@ def transform(sources):
     for name in (b2 + 'base_rendering_context_2d.cc', b2 + 'canvas_2d_recorder_context.cc', b2 + 'canvas_path.cc', wg + 'webgl_rendering_context_base.cc'):
         for function in ('RecordBridgeOp', 'RecordWebGLOp', 'RecordWebGLCreate'):
             edit(name, lambda t, f=function: remove_calls(t, f))
+    # uniformMatrix4fv staged doubles exclusively for the removed Bridge
+    # message. Native GL already consumes the validated original float span.
+    sub(wg + 'webgl_rendering_context_base.cc',
+        '  std::vector<double> matrix;\n'
+        '  matrix.reserve(static_cast<size_t>(length) * 16);\n'
+        '  for (GLuint index = 0; index < length * 16; ++index)\n'
+        '    matrix.push_back(data[index]);\n', '')
     name = 'third_party/blink/renderer/core/html/canvas/html_canvas_element.cc'
     edit(name, lambda t: remove_ifs(t, 'context->ReadBridgePixels('))
     sub(name, '    std::vector<uint8_t> bridge_pixels;\n', '')
@@ -530,7 +537,7 @@ def main(argv=None):
     args.output.write_text(''.join(differences), encoding='utf-8', newline='\n')
     args.output.with_suffix('.json').write_text(json.dumps({
         'schema': 1, 'kind': 'lite-win156-final-source-retirement',
-        'changes': changes, 'source_tree': str(source), 'result_tree': str(target),
+        'changes': changes, 'source_tree': 'prepared-donor', 'result_tree': 'lite-retirement-target',
         'patch_sha256': hashlib.sha256(args.output.read_bytes()).hexdigest(),
         'native_build_accepted': False, 'runtime_accepted': False,
     }, indent=2) + '\n', encoding='utf-8', newline='\n')

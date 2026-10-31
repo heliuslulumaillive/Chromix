@@ -33,6 +33,14 @@ ARTIFACT_NAMES = {
     SECURITY_VARIANT: 'security-win156-x64',
 }
 FINGERPRINT_REPORTS = ('modes-native.json', 'modes-runtime.json', 'fingerprint-modes-capabilities.json')
+FINGERPRINT_COLLECTOR_MODULES = (
+    'fingerprint_audio_acceptance.mjs', 'fingerprint_font_acceptance.mjs',
+    'fingerprint_reference_acceptance.mjs', 'fingerprint_renderbuffer_acceptance.mjs',
+    'pixel_semantic_acceptance.mjs',
+)
+FINGERPRINT_RUNTIME_HARNESS = 'tools/verify_fingerprint_modes_runtime.mjs'
+FINGERPRINT_RUNTIME_ORACLE = 'tools/tests/fixtures/fingerprint-runtime-v1/positive-oracles.json'
+RETIREMENT_MANIFEST_INPUT = 'patches/lite-win156/retirement-manifest.json'
 MASK_FIRST_ORACLE_REVISION = '9a06334258ed6039c597360038183f8693347e45'
 MASK_FIRST_ORACLE_SHA256 = '2bcefcc4b7b8ab34b070b964a4fdd81c643e88052b48fd0c3a75cf18d8965465'
 MASK_FIRST_COUNTS = {
@@ -553,8 +561,22 @@ def validate_retirement_rejections(value):
     return len(expected)
 
 
+def validate_runtime_collector_identity(report):
+    for key, relative in (('harness_sha256', FINGERPRINT_RUNTIME_HARNESS),
+                          ('oracle_sha256', FINGERPRINT_RUNTIME_ORACLE)):
+        if report.get(key) != sha256(REPO / relative):
+            raise ValueError('Fingerprint runtime collector source identity differs: ' + key)
+    modules = report.get('collector_modules_sha256')
+    if not isinstance(modules, dict) or set(modules) != set(FINGERPRINT_COLLECTOR_MODULES):
+        raise ValueError('Fingerprint runtime collector module inventory differs from the selected source')
+    for name in FINGERPRINT_COLLECTOR_MODULES:
+        if modules[name] != sha256(REPO / 'tools' / name):
+            raise ValueError('Fingerprint runtime collector module identity differs: ' + name)
+
+
 def validate_mode_runtime(report, payload):
     validate_retirement_rejections(report.get("retirement_rejections"))
+    validate_runtime_collector_identity(report)
     checks, scenarios = report.get('checks'), report.get('scenarios')
     if (report.get('status') != 'passed' or report.get('baseline_only') is not False
             or report.get('browser_sha256') != payload['chrome.exe']
@@ -565,10 +587,6 @@ def validate_mode_runtime(report, payload):
             or not isinstance(report.get('not_tested'), list)
             or not isinstance(report.get('coverage_limits'), list) or not report['coverage_limits']):
         raise ValueError('Runtime mode evidence is failed, empty, partial, or bound to another payload')
-    module_hashes = report.get('collector_modules_sha256', {})
-    if (not isinstance(module_hashes, dict)
-            or module_hashes.get('pixel_semantic_acceptance.mjs') != sha256(REPO / 'tools/pixel_semantic_acceptance.mjs')):
-        raise ValueError('Pixel/headless collector identity differs from the selected source')
     executed = set()
     for check in checks:
         if (not isinstance(check, dict) or check.get('passed') is not True
@@ -674,6 +692,34 @@ def validate_mode_runtime(report, payload):
     return len(checks)
 
 
+def validate_packaged_retirement_contract(bundle, capabilities):
+    declaration = capabilities.get('lite_retirement')
+    if (not isinstance(declaration, dict) or type(declaration.get('version')) is not int
+            or declaration['version'] != 1
+            or declaration.get('manifest') != 'retirement-manifest.json'
+            or declaration.get('requires_new_exact_dll_acceptance') is not True):
+        raise ValueError('Windows 156 candidate lacks the required retirement contract declaration')
+    path = bundle / declaration['manifest']
+    source_path = bundle / 'google-services-source.json'
+    for required in (path, source_path):
+        if required.is_symlink() or not required.is_file():
+            raise ValueError('Required packaged retirement/source receipt is missing or linked')
+    expected = sha256(REPO / RETIREMENT_MANIFEST_INPUT)
+    if sha256(path) != expected:
+        raise ValueError('Packaged retirement manifest differs from the selected source')
+    source = read_object(source_path)
+    inputs = source.get('preparation_inputs')
+    if (source.get('variant') != 'google-services-self-use'
+            or source.get('build_variant') != SECURITY_VARIANT
+            or source.get('chromium_version') != variant_version(SECURITY_VARIANT)
+            or not isinstance(inputs, dict)
+            or inputs.get(RETIREMENT_MANIFEST_INPUT) != expected
+            or inputs.get('build/fingerprint-modes-capabilities.json') !=
+                sha256(bundle / 'fingerprint-modes-capabilities.json')):
+        raise ValueError('Packaged retirement contract is not bound to the prepared source receipt')
+    return {'manifest_sha256': expected, 'source_receipt_sha256': sha256(source_path)}
+
+
 def validate_fingerprint_tests(report_path, bundle, payload_hashes=None, *, build_variant=FINGERPRINT_VARIANT):
     """Validate executed evidence, without rerunning an unavailable native exe."""
     version = variant_version(build_variant)
@@ -704,8 +750,12 @@ def validate_fingerprint_tests(report_path, bundle, payload_hashes=None, *, buil
             or capabilities.get('chromium_version') != version
             or packaged_capabilities.is_symlink() or not packaged_capabilities.is_file()
             or sha256(packaged_capabilities) != files['fingerprint-modes-capabilities.json']
+            or (build_variant == SECURITY_VARIANT and sha256(packaged_capabilities) !=
+                sha256(REPO / 'build/fingerprint-modes-capabilities.json'))
             or runtime.get('capabilities_sha256') != files['fingerprint-modes-capabilities.json']):
         raise ValueError('Fingerprint capabilities identity differs from the packaged contract')
+    retirement = (validate_packaged_retirement_contract(bundle, capabilities)
+                  if build_variant == SECURITY_VARIANT else None)
     if (report.get('required_runtime_checks') != runtime_checks
             or report.get('not_tested') != runtime['not_tested']
             or report.get('coverage_limits') != runtime['coverage_limits']
@@ -714,6 +764,7 @@ def validate_fingerprint_tests(report_path, bundle, payload_hashes=None, *, buil
             or report.get('partial') is not runtime['partial']):
         raise ValueError('Fingerprint summary does not preserve actual runtime coverage')
     return {'status': 'passed', 'report_sha256': sha256(report_path), 'files': files,
+            'retirement_contract': retirement,
             'native_executed_counts': native_counts, 'runtime_checks': runtime_checks,
             'not_tested': runtime['not_tested'],
             'positive_acceptance': runtime['positive_acceptance'],

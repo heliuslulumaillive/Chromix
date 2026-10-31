@@ -278,13 +278,30 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
     for group in coverage:
         actual=[c for c in checks if c.get('acceptance_group')==group]
         coverage[group].update(eligible_count=len(actual),passed_count=len(actual),evidence=[{'scenario':c['scenario'],'name':c['name']} for c in actual])
-    capability = json.loads((ROOT / 'build/fingerprint-modes-capabilities.json').read_bytes())
+    source_capability_bytes = (ROOT / 'build/fingerprint-modes-capabilities.json').read_bytes()
+    capability = json.loads(source_capability_bytes)
     capability.update(build_variant=build_variant, chromium_version=candidate.variant_version(build_variant))
-    cap = json.dumps(capability).encode()
+    if build_variant != candidate.SECURITY_VARIANT:
+        capability.pop('lite_retirement', None)
+    cap = source_capability_bytes if build_variant == candidate.SECURITY_VARIANT else json.dumps(capability).encode()
     (root / 'fingerprint-modes-capabilities.json').write_bytes(cap)
     (bundle / 'fingerprint-modes-capabilities.json').write_bytes(cap)
+    if build_variant == candidate.SECURITY_VARIANT:
+        retirement = (ROOT / candidate.RETIREMENT_MANIFEST_INPUT).read_bytes()
+        (bundle / 'retirement-manifest.json').write_bytes(retirement)
+        source_path = bundle / 'google-services-source.json'
+        source = json.loads(source_path.read_text()) if source_path.exists() else {
+            'variant': 'google-services-self-use', 'build_variant': build_variant,
+            'chromium_version': candidate.variant_version(build_variant)}
+        inputs = source.setdefault('preparation_inputs', {})
+        inputs[candidate.RETIREMENT_MANIFEST_INPUT] = hashlib.sha256(retirement).hexdigest()
+        inputs['build/fingerprint-modes-capabilities.json'] = hashlib.sha256(cap).hexdigest()
+        source_path.write_text(json.dumps(source))
     runtime = {'schema_version': 1, 'status': 'passed', **payload, 'baseline_only': False,
-               'collector_modules_sha256': {'pixel_semantic_acceptance.mjs':candidate.sha256(ROOT/'tools/pixel_semantic_acceptance.mjs')},
+               'harness_sha256': candidate.sha256(ROOT / candidate.FINGERPRINT_RUNTIME_HARNESS),
+               'oracle_sha256': candidate.sha256(ROOT / candidate.FINGERPRINT_RUNTIME_ORACLE),
+               'collector_modules_sha256': {name: candidate.sha256(ROOT / 'tools' / name)
+                                           for name in candidate.FINGERPRINT_COLLECTOR_MODULES},
                'capabilities_sha256': hashlib.sha256(cap).hexdigest(),
                'expected_scenarios': len(cases), 'scenarios': scenarios, 'checks': checks, 'failed': [],
                'not_tested': missing, 'positive_acceptance': coverage,

@@ -65,7 +65,7 @@ jobs:
           "FINGERPRINT_TEST_NODE=$((Get-Command node).Source)" | Add-Content $env:GITHUB_ENV
       - name: Check checkpoint and build-record invariants before any large transfer
         shell: pwsh
-        run: python -B -X utf8 -m unittest tools.tests.test_security_build tools.tests.test_security_upstream tools.tests.test_security_candidate tools.tests.test_security_runtime tools.tests.test_security_phases tools.tests.test_security_checkpoint_transfer tools.tests.test_security_migration tools.tests.test_security_handoff tools.tests.test_windows_metagen_bindings tools.tests.test_fetch_upstream_cache_arm64
+        run: python -B -X utf8 -m unittest tools.tests.test_security_build tools.tests.test_security_upstream tools.tests.test_security_candidate tools.tests.test_security_runtime tools.tests.test_security_phases tools.tests.test_security_checkpoint_transfer tools.tests.test_security_migration tools.tests.test_security_handoff tools.tests.test_fingerprint_evidence_identity tools.tests.test_windows_metagen_bindings tools.tests.test_fetch_upstream_cache_arm64
       - name: Admit the donor and download verified source volumes
         id: acquire
         shell: pwsh

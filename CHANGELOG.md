@@ -2,6 +2,12 @@
 
 ## Unreleased — Windows 156 Lite continuation
 
+The follow-up functional review removes a leftover matrix copy whose Bridge
+consumer had been retired, preserving native GL call order and arguments.
+Candidate acceptance now binds the main harness, oracle and complete collector
+set to current source bytes, and requires the packaged retirement contract and
+capability declaration to match their prepared-source inputs.
+
 Remove unused external Canvas Bridge, Runtime suppression, FakeShadowRoot and
 synthetic backend implementations from the final Chromium source. Restrict
 fonts, audio and media modes to Native/ShardX while preserving current GPU,

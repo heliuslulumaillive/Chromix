@@ -7,7 +7,7 @@
   "kind": "source_contract",
   "acceptance": "Build/native/runtime results are separate hash-bound reports; this contract alone is not acceptance.",
   "legacy": {
-    "new_key_absent": "Retain the original branch, formula, defaults and old flags.",
+    "new_key_absent": "Fonts, audio and media default to Native. Other retained surfaces keep their declared per-surface defaults. Retired switches and modes are rejected; this is not old-environment compatibility.",
     "existing_user_data_or_seed_migration": false,
     "automatic_activation": false,
     "global_off": "Existing fingerprint=off behavior is preserved."
@@ -448,13 +448,13 @@
       "surface": "fonts/shardx",
       "policy": "resolved-family-compatible-v1",
       "change": "Hash/filter the canonical resolved native family rather than caller spelling; src:local and CSS case variants cannot bypass the same family. Local Font Access uses the same family filter. Preserve mandatory last-resort fallback.",
-      "original_preserved": "Original FNV/protected-name math retained and verified independently; no change to legacy/Chromix paths."
+      "original_preserved": "ShardX FNV/protected-name math and actual-font fallback remain. The former Chromix/Cloak font modes are retired."
     },
     {
       "surface": "audio/shardx",
       "policy": "bounded-readback-compatible-v1",
       "change": "Analyser transforms only the native written prefix, preserving caller suffix. AudioBuffer copyFrom first performs the native overlap-safe copy then transforms only the copied destination prefix, avoiding source-alias writes into caller tails. copyTo only transforms its native destination write range; getChannelData retains the measured shared-PCM fixed-point rule.",
-      "original_preserved": "Float mantissa and byte LSB formulas/salts unchanged; graph isolation remains the separate old Chromix path."
+      "original_preserved": "ShardX float mantissa and byte LSB formulas/salts remain unchanged. The former graph-isolation and Cloak PCM-replacement paths are retired."
     },
     {
       "surface": "text/cloak",

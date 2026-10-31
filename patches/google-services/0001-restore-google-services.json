@@ -2995,6 +2995,6 @@
     "patches/chromium155-windows/0232-renderer-launch-timezone-install.patch": "345ef39c9cc6d987f59c44f3f4a46099391d6c629058f10c1151e02a654796a7",
     "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch": "7f7f691f2d744715e0d48a25dab5ff1e8ac793122657beacd0f99a3e7e8ba908"
   },
-  "patch_sha256": "9b6ed26159909f4e8dc2c55e740bff05d5ef9496f342092f4077c6c58e45ed96",
+  "patch_sha256": "5d3d29cf2592a9ec04f5753c6ce842a279ed82b93094b9f5ededc886d5c62f4a",
   "qualification": "Source replay only; requires native build and actual account/security tests"
 }

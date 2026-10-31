@@ -105,6 +105,45 @@ class EffectiveSourceTests(unittest.TestCase):
         self.assertEqual(before.count('DeleteObject('), after.count('DeleteObject('))
         self.assertNotIn('RecordWebGLOp', after)
 
+    def test_uniform_matrix_native_arguments_and_error_paths_survive_without_staging(self):
+        name = 'third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc'
+        function = extract_function((self.source / name).read_text(), 'WebGLRenderingContextBase::uniformMatrix4fv')
+        self.assertNotIn('std::vector', function)
+        self.assertNotIn('matrix.reserve', function)
+        self.assertNotIn('matrix.push_back', function)
+        self.assertIn('ValidateUniformMatrixParameters(', function)
+        self.assertIn('ContextGL()->UniformMatrix4fv(location->Location(), length, transpose, data);', function)
+        with tempfile.TemporaryDirectory(dir=os.environ.get('CHROMIX_LITE_RETIREMENT_TEST_ROOT')) as temp:
+            root = Path(temp)
+            cpp, binary = root / 'uniform.cc', root / ('uniform.exe' if os.name == 'nt' else 'uniform')
+            code = r"""#include <array>
+#include <cassert>
+#include <cstddef>
+#include <span>
+using GLfloat=float;using GLuint=unsigned;using GLboolean=bool;
+namespace base {template<class T>using span=std::span<T>;}
+struct WebGLUniformLocation {int Location()const{return 7;}};
+struct GL {int calls=0,location=0;GLuint count=0;GLboolean transpose=false;const GLfloat* data=nullptr;
+void UniformMatrix4fv(int l,GLuint n,GLboolean t,const GLfloat* p){++calls;location=l;count=n;transpose=t;data=p;}};
+struct WebGLRenderingContextBase {GL gl;bool lost=false,valid=true;int validations=0;
+bool isContextLost()const{return lost;}GL* ContextGL(){return &gl;}
+bool ValidateUniformMatrixParameters(const char*,const WebGLUniformLocation*,GLboolean,base::span<const GLfloat> v,unsigned,std::size_t,std::size_t,const GLfloat** p,GLuint* n){++validations;if(!valid)return false;*p=v.data();*n=static_cast<GLuint>(v.size()/16);return true;}
+void uniformMatrix4fv(const WebGLUniformLocation*,GLboolean,base::span<const GLfloat>);
+};
+""" + function + r"""
+int main(){WebGLUniformLocation location;std::array<float,32> values{};for(unsigned i=0;i<values.size();++i)values[i]=float(i)+.5f;const auto before=values;
+WebGLRenderingContextBase current;current.uniformMatrix4fv(&location,false,values);assert(current.gl.calls==1&&current.gl.location==7&&current.gl.count==2&&!current.gl.transpose&&current.gl.data==values.data()&&values==before);
+WebGLRenderingContextBase lost;lost.lost=true;lost.uniformMatrix4fv(&location,false,values);assert(lost.gl.calls==0&&lost.validations==0);
+WebGLRenderingContextBase invalid;invalid.valid=false;invalid.uniformMatrix4fv(&location,false,values);assert(invalid.gl.calls==0&&invalid.validations==1);}
+"""
+            cpp.write_text(code, encoding='utf-8')
+            compiler = shutil.which('clang++') or 'C:/Program Files/LLVM/bin/clang++.exe'
+            built = subprocess.run([compiler,'-std=c++20','-Wall','-Wextra','-Werror',str(cpp),'-o',str(binary)],
+                                   env=compiler_environment(root),capture_output=True,text=True,timeout=90)
+            self.assertEqual(built.returncode,0,built.stdout+built.stderr)
+            run = subprocess.run([str(binary)],capture_output=True,text=True,timeout=20)
+            self.assertEqual(run.returncode,0,run.stdout+run.stderr)
+
     def test_native_authorities_are_retained_after_synthetic_removal(self):
         files = {
             'third_party/blink/renderer/modules/keyboard/keyboard_layout.cc': 'result->layout_map',

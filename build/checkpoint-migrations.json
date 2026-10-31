@@ -11,9 +11,9 @@
       "source_recipe_sha256": "0cf90d83f69f7e28bf19f1bd4568669027c155af201034253d7030b75f7ec856",
       "source_preparation_sha256": "9fc3b0dd81899dc39f2eddaced0b5ba5d37ce692a1b59aec38ba4563a00edb9b",
       "source_aggregate_sha256": "4606a8f5dee6bca03d1e04001d8f08b07b6d9c9345eb73a1415bb5d53e181a9d",
-      "target_recipe_sha256": "3ce12615b9a353b7106048d4287134e9af6313821f57722a6eb5760fd06c593a",
-      "target_preparation_sha256": "dd5688838b16f59985b0b52d175c736391a1ebd956548dc6fe9aea5521a7b850",
-      "target_aggregate_sha256": "9b6ed26159909f4e8dc2c55e740bff05d5ef9496f342092f4077c6c58e45ed96",
+      "target_recipe_sha256": "b77991ef1dde25fe156d51fa74a9a3574961f6b9343e61309fba96a3851dc2bc",
+      "target_preparation_sha256": "2ba62167a1f19d5bfa26e88fa9efad89073b7a410969cec17207466f0434cc07",
+      "target_aggregate_sha256": "5d3d29cf2592a9ec04f5753c6ce842a279ed82b93094b9f5ededc886d5c62f4a",
       "scope": "Reviewed same Chromium/core/Windows source transition; preserve existing objects and unchanged file mtimes, then regenerate GN and let Ninja invalidate changed inputs. No acceptance is inherited."
     }
   ]
