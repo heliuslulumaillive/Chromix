@@ -53,6 +53,9 @@ def validate_manifest(manifest, *, source_commit, repository, source_run, expect
             raise ValueError('Invalid or incomplete checkpoint volume identity')
     if type(manifest.get('stage')) is not int or not 1 <= manifest['stage'] <= 99:
         raise ValueError('Invalid checkpoint stage')
+    if 'tree_bytes' in manifest and (type(manifest['tree_bytes']) is not int
+                                     or not 0 < manifest['tree_bytes'] <= 1024**4):
+        raise ValueError('Invalid uncompressed checkpoint size')
     return parts
 
 
@@ -62,7 +65,7 @@ def verify_volume(path, part):
         raise ValueError('Checkpoint volume content mismatch: ' + part['name'])
 
 
-def make_manifest(repo, work, parts, stage, output, resume_safe):
+def make_manifest(repo, work, parts, stage, output, resume_safe, tree_bytes=None):
     volumes = sorted(parts.glob('tree.7z.*'))
     if not 1 <= len(volumes) <= 4:
         raise ValueError('Invalid checkpoint volume count')
@@ -81,6 +84,8 @@ def make_manifest(repo, work, parts, stage, output, resume_safe):
                 'gn_args_sha256': sha256(gn) if gn.is_file() else None,
                 'source_receipt_sha256': sha256(receipt) if receipt.is_file() else None,
                 'parts': entries}
+    if tree_bytes is not None:
+        manifest['tree_bytes'] = tree_bytes
     if resume_safe:
         validate_manifest(manifest, source_commit=manifest['source_commit'],
                           repository=manifest['repository'], source_run=manifest['run_id'],
@@ -88,7 +93,59 @@ def make_manifest(repo, work, parts, stage, output, resume_safe):
     output.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
 
 
-def restore(repo, destination, source_run, current_stage):
+def artifact_identity(artifact):
+    if (type(artifact.get('id')) is not int or artifact['id'] <= 0
+            or artifact.get('expired') is not False
+            or type(artifact.get('size_in_bytes')) is not int or artifact['size_in_bytes'] <= 0):
+        raise ValueError('Expired or invalid checkpoint artifact')
+    return {key: artifact.get(key) for key in ('id', 'name', 'size_in_bytes', 'digest', 'created_at')}
+
+
+def artifact_inventory(base):
+    result = []
+    for page in range(1, 21):
+        response = json.loads(gh(['api', base + f'/artifacts?per_page=100&page={page}']))
+        result.extend(response['artifacts'])
+        if len(response['artifacts']) < 100:
+            return result
+    raise ValueError('Unexpectedly large checkpoint artifact inventory')
+
+
+def validated_parts(repo, manifest, run, repository, source_run, allow_migration):
+    expected = recipe(repo)
+    if allow_migration and manifest.get('recipe_sha256') == expected:
+        raise ValueError('Identical source recipes must use resume, not upgrade')
+    if manifest.get('recipe_sha256') != expected:
+        if not allow_migration:
+            raise ValueError('Checkpoint source recipe differs; use an explicitly reviewed upgrade')
+        try:
+            from .security_migration import registered_rule
+        except ImportError:
+            from security_migration import registered_rule
+        rule = registered_rule(repo, manifest)
+        expected = rule['source_recipe_sha256']
+    parts = validate_manifest(manifest, source_commit=run['head_sha'], repository=repository,
+                              source_run=source_run, expected_recipe=expected)
+    if str(manifest.get('run_attempt')) != str(run.get('run_attempt')):
+        raise ValueError('Checkpoint belongs to a different run attempt')
+    return parts
+
+
+def read_small_manifest(repository, source_run, name):
+    with tempfile.TemporaryDirectory(prefix='security-manifest-') as temporary:
+        directory = Path(temporary)
+        gh(['run', 'download', source_run, '--repo', repository, '--name', name,
+            '--dir', str(directory)])
+        if {p.name for p in directory.iterdir()} != {'checkpoint.json'}:
+            raise ValueError('Unexpected checkpoint manifest inventory')
+        path = plain(directory / 'checkpoint.json')
+        if path.stat().st_size > 65536:
+            raise ValueError('Oversized checkpoint manifest')
+        return json.loads(path.read_text(encoding='utf-8-sig'))
+
+
+def preflight(repo, source_run, current_stage, source_stage=0, allow_migration=False):
+    """Read the tiny manifest and reject mismatches before downloading any volumes."""
     repository = os.environ['GITHUB_REPOSITORY']
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository):
         raise ValueError('Invalid repository')
@@ -98,10 +155,11 @@ def restore(repo, destination, source_run, current_stage):
     run = json.loads(gh(['api', base]))
     if str(run.get('id')) != source_run:
         raise ValueError('Run identity mismatch')
-    artifacts = json.loads(gh(['api', base + '/artifacts?per_page=100']))['artifacts']
+    artifacts = artifact_inventory(base)
     pattern = re.compile(re.escape(VARIANT) + r'-checkpoint-s([1-9][0-9]*)\Z')
     candidates = [(int(m[1]), a) for a in artifacts
                   if not a.get('expired') and (m := pattern.fullmatch(a['name']))
+                  and (not source_stage or int(m[1]) == source_stage)
                   and (source_run != os.environ.get('GITHUB_RUN_ID') or int(m[1]) < current_stage)]
     if not candidates:
         raise ValueError('No complete preceding Windows 156 checkpoint; never substitute a 155 donor')
@@ -109,37 +167,106 @@ def restore(repo, destination, source_run, current_stage):
     selected = [a for n, a in candidates if n == stage]
     if len(selected) != 1:
         raise ValueError('Ambiguous checkpoint manifest')
-    plain(destination)
-    destination.mkdir(parents=True, exist_ok=False)
-    manifest_dir = destination / 'manifest'
-    gh(['run', 'download', source_run, '--repo', repository, '--name', selected[0]['name'],
-        '--dir', str(manifest_dir)])
-    if {p.name for p in manifest_dir.iterdir()} != {'checkpoint.json'}:
-        raise ValueError('Unexpected checkpoint manifest inventory')
-    manifest = json.loads(plain(manifest_dir / 'checkpoint.json').read_text(encoding='utf-8-sig'))
-    parts = validate_manifest(manifest, source_commit=run['head_sha'], repository=repository,
-                              source_run=source_run, expected_recipe=recipe(repo))
+    manifest = read_small_manifest(repository, source_run, selected[0]['name'])
+    parts = validated_parts(repo, manifest, run, repository, source_run, allow_migration)
     if manifest['stage'] != stage:
         raise ValueError('Manifest artifact/stage mismatch')
-
-    def download(pair):
-        index, part = pair
+    volumes = []
+    for index, part in enumerate(parts, 1):
         name = f'{VARIANT}-s{stage}-part{index}'
         matching = [a for a in artifacts if a['name'] == name and not a.get('expired')]
         if len(matching) != 1:
             raise ValueError('Missing or ambiguous checkpoint volume: ' + name)
-        directory = destination / f'part{index}'
-        gh(['run', 'download', source_run, '--repo', repository, '--name', name, '--dir', str(directory)])
-        if {p.name for p in directory.iterdir()} != {part['name']}:
-            raise ValueError('Unexpected volume artifact inventory')
-        path = directory / part['name']
-        verify_volume(path, part)
+        volumes.append(artifact_identity(matching[0]))
+    return {'schema_version': 1, 'repository': repository, 'source_run': source_run,
+            'source_commit': run['head_sha'], 'run_attempt': run['run_attempt'],
+            'stage': stage, 'manifest': manifest, 'manifest_artifact': artifact_identity(selected[0]),
+            'volume_artifacts': volumes, 'target_recipe_sha256': recipe(repo),
+            'allow_migration': allow_migration}
+
+
+def validate_preflight(repo, record, source_run, current_stage, source_stage, allow_migration,
+                       *, check_manifest=True):
+    repository = os.environ['GITHUB_REPOSITORY']
+    if (not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository)
+            or not re.fullmatch(r'[1-9][0-9]*', source_run)):
+        raise ValueError('Invalid donor repository/run')
+    if (record.get('schema_version') != 1 or record.get('repository') != repository
+            or record.get('source_run') != source_run
+            or record.get('allow_migration') is not allow_migration
+            or record.get('target_recipe_sha256') != recipe(repo)):
+        raise ValueError('Checkpoint preflight does not belong to this request/recipe')
+    stage = record.get('stage')
+    if (type(stage) is not int or not 1 <= stage <= 99
+            or source_stage and stage != source_stage
+            or source_run == os.environ.get('GITHUB_RUN_ID') and stage >= current_stage):
+        raise ValueError('Checkpoint stage changed after preflight')
+    base = f'repos/{repository}/actions/runs/{source_run}'
+    run = json.loads(gh(['api', base]))
+    if (str(run.get('id')) != source_run or run.get('head_sha') != record.get('source_commit')
+            or run.get('run_attempt') != record.get('run_attempt')):
+        raise ValueError('Donor run changed after preflight')
+    parts = validated_parts(repo, record['manifest'], run, repository, source_run, allow_migration)
+    if record['manifest'].get('stage') != stage or len(record.get('volume_artifacts', [])) != len(parts):
+        raise ValueError('Preflight volume/stage inventory mismatch')
+    if record.get('manifest_artifact', {}).get('name') != f'{VARIANT}-checkpoint-s{stage}':
+        raise ValueError('Unexpected manifest artifact name')
+    for index, entry in enumerate(record['volume_artifacts'], 1):
+        if entry.get('name') != f'{VARIANT}-s{stage}-part{index}':
+            raise ValueError('Unexpected volume artifact name/order')
+    artifacts = artifact_inventory(base)
+    for expected in [record['manifest_artifact'], *record['volume_artifacts']]:
+        matches = [a for a in artifacts if a['name'] == expected.get('name') and not a.get('expired')]
+        if len(matches) != 1 or artifact_identity(matches[0]) != expected:
+            raise ValueError('Donor artifact replaced/removed after preflight')
+    if check_manifest and read_small_manifest(repository, source_run,
+                                              record['manifest_artifact']['name']) != record['manifest']:
+        raise ValueError('Local preflight manifest differs from the authenticated donor artifact')
+    return parts
+
+
+def restore(repo, destination, source_run, current_stage, source_stage=0,
+            allow_migration=False, preflight_file=None):
+    record = (json.loads(plain(preflight_file).read_text(encoding='utf-8')) if preflight_file
+              else preflight(repo, source_run, current_stage, source_stage, allow_migration))
+    parts = validate_preflight(repo, record, source_run, current_stage, source_stage, allow_migration)
+    manifest = record['manifest']
+    repository = record['repository']
+    stage = record['stage']
+    plain(destination)
+    destination.mkdir(parents=True, exist_ok=True)
+    owner = destination / '.security-transfer.json'
+    identity = json.dumps(record, sort_keys=True, separators=(',', ':'))
+    if owner.exists():
+        if plain(owner).read_text(encoding='utf-8') != identity:
+            raise ValueError('Transfer directory belongs to another checkpoint')
+    elif any(destination.iterdir()):
+        raise ValueError('Nonempty transfer directory has no matching ownership record')
+    else:
+        owner.write_text(identity, encoding='utf-8')
+
+    def download(pair):
+        index, part = pair
         target = destination / part['name']
-        if path.resolve().parent != directory.resolve() or target.resolve().parent != destination.resolve():
-            raise ValueError('Volume move escapes exact transfer root')
-        path.rename(target)
+        if target.exists():
+            verify_volume(target, part)
+            return  # A retried transfer reuses completed, reverified volumes.
+        with tempfile.TemporaryDirectory(prefix=f'part{index}-', dir=destination) as temporary:
+            directory = Path(temporary)
+            name = record['volume_artifacts'][index - 1]['name']
+            gh(['run', 'download', source_run, '--repo', repository, '--name', name, '--dir', str(directory)])
+            if {p.name for p in directory.iterdir()} != {part['name']}:
+                raise ValueError('Unexpected volume artifact inventory')
+            path = directory / part['name']
+            verify_volume(path, part)
+            if path.resolve().parent != directory.resolve() or target.resolve().parent != destination.resolve():
+                raise ValueError('Volume move escapes exact transfer root')
+            path.rename(target)
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         list(pool.map(download, enumerate(parts, 1)))
+    # gh downloads by name; bind the immutable IDs before AND after transfer.
+    validate_preflight(repo, record, source_run, current_stage, source_stage, allow_migration,
+                       check_manifest=False)
     (destination / 'checkpoint.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
     return manifest
 
@@ -155,8 +282,9 @@ def verify_tree(work, manifest):
         raise ValueError('Extracted source is not Windows 156 target')
 
 
-def validate_archive_listing(lines):
+def inspect_archive_listing(lines):
     entries = 0
+    uncompressed_bytes = 0
     contents = False
     for line in lines:
         line = line.rstrip('\r\n')
@@ -173,14 +301,26 @@ def validate_archive_listing(lines):
                     or path.parts[0] != 'chromix' or any(ord(c) < 32 for c in name)):
                 raise ValueError('Archive entry escapes the owned work directory')
             entries += 1
+        if line.startswith('Size = '):
+            size = line[7:]
+            if not size.isdecimal() or int(size) > 1024**4:
+                raise ValueError('Invalid archive member size')
+            uncompressed_bytes += int(size)
+            if uncompressed_bytes > 1024**4:
+                raise ValueError('Archive exceeds the bounded Windows source workspace')
     if not entries:
         raise ValueError('Archive has no validated work-tree entries')
-    return entries
+    return {'entries': entries, 'uncompressed_bytes': uncompressed_bytes,
+            'method': '7z directory listing only; no test decompression'}
+
+
+def validate_archive_listing(lines):
+    return inspect_archive_listing(lines)['entries']
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('operation', choices=['create', 'restore', 'verify-tree', 'verify-archive'])
+    p.add_argument('operation', choices=['create', 'preflight', 'restore', 'verify-tree', 'verify-archive'])
     p.add_argument('--repo', type=Path)
     p.add_argument('--work', type=Path)
     p.add_argument('--parts', type=Path)
@@ -192,11 +332,25 @@ def main():
     p.add_argument('--manifest', type=Path)
     p.add_argument('--archive', type=Path)
     p.add_argument('--sevenzip')
+    p.add_argument('--source-stage', type=int, default=0)
+    p.add_argument('--allow-migration', action='store_true')
+    p.add_argument('--preflight-file', type=Path)
+    p.add_argument('--tree-bytes', type=int)
     a = p.parse_args()
+    if not 0 <= a.source_stage <= 99:
+        p.error('--source-stage must be 0 (latest) or 1..99')
     if a.operation == 'create':
-        make_manifest(a.repo, a.work, a.parts, a.stage, a.output, a.resume_safe)
+        make_manifest(a.repo, a.work, a.parts, a.stage, a.output, a.resume_safe, a.tree_bytes)
     elif a.operation == 'restore':
-        restore(a.repo, a.destination, a.run, a.stage)
+        restore(a.repo, a.destination, a.run, a.stage, a.source_stage,
+                a.allow_migration, a.preflight_file)
+    elif a.operation == 'preflight':
+        result = preflight(a.repo, a.run, a.stage, a.source_stage, a.allow_migration)
+        if a.output:
+            plain(a.output).parent.mkdir(parents=True, exist_ok=True)
+            a.output.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+        print(json.dumps({'source_run': a.run, 'stage': result['stage'],
+                          'volumes': len(result['volume_artifacts']), 'large_transfer_started': False}))
     elif a.operation == 'verify-tree':
         verify_tree(a.work, json.loads(a.manifest.read_text(encoding='utf-8-sig')))
     else:
@@ -207,7 +361,10 @@ def main():
             if result.returncode:
                 raise ValueError('Cannot inspect checkpoint archive')
             listing.seek(0)
-            validate_archive_listing(line.decode('utf-8', errors='strict') for line in listing)
+            summary = inspect_archive_listing(line.decode('utf-8', errors='strict') for line in listing)
+            if a.output:
+                plain(a.output).parent.mkdir(parents=True, exist_ok=True)
+                a.output.write_text(json.dumps(summary, indent=2) + '\n', encoding='utf-8')
     print('Windows 156 checkpoint operation passed: ' + a.operation)
 
 

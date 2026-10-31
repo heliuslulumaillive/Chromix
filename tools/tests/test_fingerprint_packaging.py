@@ -38,6 +38,16 @@ class FingerprintPackagingTest(unittest.TestCase):
                     source["build_variant"] = variant
                 (work / "google-services-source.json").write_text(json.dumps(source))
                 capability = json.loads((ROOT / "build/fingerprint-modes-capabilities.json").read_bytes())
+                retirement_bytes = None
+                if variant == 'fingerprint-modes-win156':
+                    key = 'patches/lite-win156/retirement-manifest.json'
+                    retirement_bytes = (ROOT / key).read_bytes()
+                    (repo / key).parent.mkdir(parents=True, exist_ok=True)
+                    (repo / key).write_bytes(retirement_bytes)
+                    source['preparation_inputs'] = {key: hashlib.sha256(retirement_bytes).hexdigest()}
+                    (work / 'google-services-source.json').write_text(json.dumps(source))
+                else:
+                    capability.pop('lite_retirement', None)
                 if fingerprint:
                     capability.update(build_variant=variant, chromium_version=version)
                 capability_bytes = json.dumps(capability).encode()
@@ -75,6 +85,14 @@ class FingerprintPackagingTest(unittest.TestCase):
                 name = "fingerprint-modes-capabilities.json"
                 self.assertEqual((bundle / name).exists(), fingerprint)
                 self.assertEqual(name in record["files"], fingerprint)
+                if retirement_bytes:
+                    self.assertEqual((bundle / 'retirement-manifest.json').read_bytes(), retirement_bytes)
+                    self.assertEqual(record['files']['retirement-manifest.json'], hashlib.sha256(retirement_bytes).hexdigest())
+                    (bundle / 'retirement-manifest.json').write_bytes(retirement_bytes + b'\n')
+                    tampered = invoke('-ArchiveOnly', '-ExpectedBuildRecordSHA256', receipt_hash)
+                    self.assertNotEqual(tampered.returncode, 0)
+                    self.assertFalse((dest / 'chromix-win-x64.zip').exists())
+                    (bundle / 'retirement-manifest.json').write_bytes(retirement_bytes)
                 if fingerprint:
                     self.assertEqual((bundle / name).read_bytes(), capability_bytes)
                     self.assertEqual(record["files"][name], hashlib.sha256(capability_bytes).hexdigest())

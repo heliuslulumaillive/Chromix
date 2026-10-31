@@ -91,14 +91,14 @@ test("offset bounds and actual unchanged layout are required", () => {
   assert.equal(validateReferenceAcceptance(record, oracle).positive_acceptance.cloak_offset.status, "failed");
 });
 test("a partial report cannot become full by counting an unrelated positive", () => {
-  const actual = [{ scenario: "cloak_audio_positive", name: "reference_5000_full_pcm", passed: true, acceptance_group: "cloak_audio" }];
-  const missing = [{ scenario: "cloak_audio_positive", name: "reference_1000_full_pcm", reason: "Native PCM mismatch", acceptance_group: "cloak_audio" }];
+  const actual = [{ scenario: "audio_native_macos", name: "match_5000_native_reference_bytes", passed: true, acceptance_group: "native_audio" }];
+  const missing = [{ scenario: "audio_native_macos", name: "match_1000_native_reference_bytes", reason: "Native PCM mismatch", acceptance_group: "native_audio" }];
   const result = summarizePositiveAcceptance(actual, missing);
-  assert.equal(result.positive_acceptance.cloak_audio.status, "not_tested");
+  assert.equal(result.positive_acceptance.native_audio.status, "not_tested");
   assert.equal(result.full_strategy_acceptance, false);
   assert.equal(result.partial, true);
   actual[0].passed = false;
-  assert.equal(summarizePositiveAcceptance(actual, missing).positive_acceptance.cloak_audio.status, "failed");
+  assert.equal(summarizePositiveAcceptance(actual, missing).positive_acceptance.native_audio.status, "failed");
 });
 test("optional text candidates do not erase a genuine distinguishable hit", () => {
   const actual = [{ scenario: "cloak_text_positive", name: "text_reference_100_eligible_replacement", passed: true, acceptance_group: "cloak_text" }];
@@ -163,4 +163,19 @@ test("repaired Shard WebGL requires positive sparse noise, stable coordinates an
   target.probe.webgl.webgl.crop = crop.toString("base64");
   target.probe.webgl.webgl.full = native.toString("base64");
   assert.equal(verifyResults([base, target], false, oracle).positive_acceptance.shard_webgl.status, "failed");
+});
+
+test("native retirement replacements require real matching observations",async()=>{
+  const {validateNativeSurfaceResults,retirementCases,scenarios}=await import('../verify_fingerprint_modes_runtime.mjs');
+  const local={supported:true,entries:[{family:'Arial',loaded:true,status:'loaded'},{family:'DefinitelyAbsentFontXYZ',loaded:false,error:{name:'NetworkError'}}]};
+  const fonts={version:1,windowLocal:structuredClone(local),workerLocal:structuredClone(local),localFonts:{supported:true,records:[{family:'Arial',postscriptName:'ArialMT',fullName:'Arial',style:'Regular'}]},cssNodes:[{nodeId:'font1',family:'Arial',width:12,downloaded:false}],cssPlatformFonts:{font1:{fonts:[{familyName:'Arial',glyphCount:3}]}},ownedFont:{loaded:true,width:16,cssWidth:16}};
+  const audio={version:1,referenceCases:[['match_5000',5000],['match_1000',1000],['match_44100',44100]].map(([id,length])=>({id,spec:{id,length},sampleRate:44100,numberOfChannels:1,length,byteLength:length*4,sha256:'a'.repeat(64),copySha256:'a'.repeat(64),state:'closed'}))};
+  const fixture=()=>({all_native:{extra:{fonts:structuredClone(fonts),audio:structuredClone(audio)}},fonts_native10026:{extra:{fonts:structuredClone(fonts)}},audio_native_macos:{extra:{audio:structuredClone(audio)}}});
+  const valid=validateNativeSurfaceResults(fixture());assert.equal(valid.not_tested.length,0);assert.ok(valid.checks.length>=10&&valid.checks.every(row=>row.passed));
+  for(const mutate of [r=>delete r.fonts_native10026.extra.fonts,r=>r.fonts_native10026.extra.fonts.workerLocal.entries[0].loaded=false,r=>r.fonts_native10026.extra.fonts.localFonts.records.pop(),r=>r.audio_native_macos.extra.audio.referenceCases[0].sha256='b'.repeat(64),r=>r.audio_native_macos.extra.audio.referenceCases.pop()]){
+    const records=fixture();mutate(records);assert.ok(validateNativeSurfaceResults(records).checks.some(row=>!row.passed));
+  }
+  const rejected=retirementCases();assert.equal(rejected.length,31);assert.equal(new Set(rejected.map(row=>row.id)).size,31);
+  assert.ok(rejected.some(row=>row.argument==='--uxr-canvas-bridge-unsafe=false'));
+  assert.ok(scenarios().every(row=>!row.flags.some(flag=>/^--(?:fingerprint|uxr)-(?:fonts|audio|media)-mode=(?:chromix|cloak)$/.test(flag))));
 });

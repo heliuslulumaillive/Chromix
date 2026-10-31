@@ -171,8 +171,8 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
     native = {'schema_version': 1, 'status': 'passed', **payload, 'processes': processes, 'groups': groups}
     cases = ['native_off_control', 'all_native', 'legacy_seeded', 'canvas_shardx',
              'webgl_cloak', 'shard_surfaces', 'memory_custom', 'hardware_cloak', 'gpu_custom',
-             'webgl_shardx', 'fonts_shard42', 'fonts_shard43', 'fonts_cloak10026', 'fonts_allowlists', 'fonts_empty',
-             'cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive', 'cloak_audio_positive',
+             'webgl_shardx', 'fonts_shard42', 'fonts_shard43', 'fonts_native10026', 'fonts_allowlists', 'fonts_empty',
+             'cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive', 'audio_native_macos',
              'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono', 'audio_default_stereo',
              'audio_default_32', 'gpu_masked_custom',
              'headless_custom_dpr2','headless_custom_fractional','headless_explicit_info','headless_force_scale','headless_native_ignored','headless_off_ignored']
@@ -182,6 +182,7 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
     checks = [{'scenario': case, 'name': name, 'passed': True} for case in cases
               for name in common + ([] if case in candidate.FINGERPRINT_BASIC_SCENARIOS else full)]
     specific = {
+        'audio_native_macos':[name+'_native_reference_bytes' for name in ('match_5000','match_1000','match_44100')],
         'webgl_shardx': [kind + '_v2_' + name for kind in ('webgl', 'webgl2')
                          for name in ('sparse_positive', 'repeat', 'absolute_crop', 'export_matches_readback')],
         'all_native': ['native_cpu_matches_off_control', 'native_memory_matches_off_control',
@@ -215,12 +216,12 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
         'webgpu_capabilities': ('gpu_custom', 'webgpu_compute_readback'),
         'hardware_gpu_identity': ('hardware_cloak', 'webgl_hardware_identity_positive'),
         'shard_fonts': ('fonts_shard42', 'windowLocal:Comic Sans MS:blocked'),
-        'cloak_fonts': ('fonts_cloak10026', 'windowLocal:Gabriola:blocked'),
+        'native_fonts': ('fonts_native10026', 'windowLocal_native_parity'),
         'font_allowlists': ('fonts_allowlists', 'windowLocal:Consolas:blocked'),
         'cloak_voices': ('cloak_voices', 'native_voice_intersection_and_metadata'),
         'cloak_offset': ('cloak_offset', 'offset_120_captured_oracle'),
         'cloak_text': ('cloak_text_positive', 'text_reference_100_eligible_replacement'),
-        'cloak_audio': ('cloak_audio_positive', 'reference_5000_full_pcm'),
+        'native_audio': ('audio_native_macos', 'match_5000_native_reference_bytes'),
         'audio_defaults': ('audio_defaults_44100', 'default_sample_rate'),
         'audio_channels': ('audio_defaults_44100', 'backend_bounded_capacity_and_initial_count'),
         'headless_screen': ('headless_custom_dpr2', 'headless_raster_scale'),
@@ -257,6 +258,11 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
     next(s for s in scenarios if s['id'] == 'webgl_shardx')['probe']['webgl'] = {
         kind: {'supported': True} for kind in ('webgl', 'webgl2')}
     for scenario in scenarios:
+        if scenario['id'] in ('all_native','audio_native_macos'):
+            scenario['extra']['audio']['referenceCases']=[{
+                'id':name,'spec':{'id':name,'length':length},'sampleRate':44100,'numberOfChannels':1,
+                'length':length,'byteLength':length*4,'sha256':'a'*64,'copySha256':'a'*64,'state':'closed'}
+                for name,length in (('match_5000',5000),('match_1000',1000),('match_44100',44100))]
         if scenario['id'] in ('all_native','canvas_shardx','webgl_shardx'):
             scenario['extra']['pixel_semantics']=pixel_fixture(scenario['id'])
         if scenario['id'] in candidate.FINGERPRINT_POSITIVE_SCENARIOS['headless_screen']:
@@ -284,6 +290,9 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
                'not_tested': missing, 'positive_acceptance': coverage,
                'full_strategy_acceptance': False, 'partial': True,
                'coverage_limits': ['Synthetic fixture of the receipt schema; no test execution claimed']}
+    runtime['retirement_rejections']={'version':1,'status':'passed','expected_cases':len(candidate.retirement_cases()),
+        'cases':[{**row,'exit_code':1,'signal':None,'timed_out':False,'spawn_error':None,
+                  'stderr':row['diagnostic'],'passed':True,'cleanup':None} for row in candidate.retirement_cases()]}
     for name, value in [('modes-native.json', native), ('modes-runtime.json', runtime)]:
         (root / name).write_text(json.dumps(value))
     files = {name: candidate.sha256(root / name) for name in candidate.FINGERPRINT_REPORTS}
@@ -669,15 +678,15 @@ if (@($results | Where-Object { -not $_.passed }).Count) { exit 1 }
             ('runtime_remaining_process', lambda n, r, c: r['scenarios'][0]['cleanup'].update(known_owned_processes_remaining=[{'pid': 100}])),
             ('runtime_extra_missing', lambda n, r, c: r['scenarios'][1]['extra'].pop('audio')),
             ('positive_missing', lambda n, r, c: r.pop('positive_acceptance')),
-            ('positive_strategy_missing', lambda n, r, c: r['positive_acceptance'].pop('cloak_audio')),
-            ('positive_count_zero', lambda n, r, c: r['positive_acceptance']['cloak_audio'].update(eligible_count=0)),
-            ('positive_count_boolean', lambda n, r, c: r['positive_acceptance']['cloak_audio'].update(passed_count=True)),
-            ('positive_orphan_evidence', lambda n, r, c: r['positive_acceptance']['cloak_audio']['evidence'].clear()),
+            ('positive_strategy_missing', lambda n, r, c: r['positive_acceptance'].pop('native_audio')),
+            ('positive_count_zero', lambda n, r, c: r['positive_acceptance']['native_audio'].update(eligible_count=0)),
+            ('positive_count_boolean', lambda n, r, c: r['positive_acceptance']['native_audio'].update(passed_count=True)),
+            ('positive_orphan_evidence', lambda n, r, c: r['positive_acceptance']['native_audio']['evidence'].clear()),
             ('positive_unsupported_as_pass', lambda n, r, c: r['positive_acceptance']['masked_webgl'].update(status='observed_pass')),
             ('positive_claim_full', lambda n, r, c: r.update(full_strategy_acceptance=True, partial=False)),
             ('positive_partial_string', lambda n, r, c: r.update(partial='true')),
             ('positive_skip_without_reason', lambda n, r, c: r['not_tested'][0].update(reason='')),
-            ('positive_skip_wrong_strategy', lambda n, r, c: r['not_tested'][0].update(acceptance_group='cloak_audio')),
+            ('positive_skip_wrong_strategy', lambda n, r, c: r['not_tested'][0].update(acceptance_group='native_audio')),
             ('positive_skip_hidden_optional', lambda n, r, c: r['not_tested'][0].update(optional_candidate=True)),
             ('cap_schema', lambda n, r, c: c.update(schema_version=2)),
             ('cap_boolean_schema', lambda n, r, c: c.update(schema_version=True)),
@@ -725,7 +734,7 @@ if (@($results | Where-Object { -not $_.passed }).Count) { exit 1 }
             self.assertTrue(result['partial'])
             self.assertFalse(result['full_strategy_acceptance'])
             self.assertEqual(result['positive_acceptance']['masked_webgl']['status'], 'not_tested')
-            self.assertEqual(result['positive_acceptance']['cloak_audio']['status'], 'observed_pass')
+            self.assertEqual(result['positive_acceptance']['native_audio']['status'], 'observed_pass')
             self.assertGreater(result['native_executed_counts']['production.font_allowlist_checks'], 0)
             self.assertGreater(result['native_executed_counts']['production.audio_default_checks'], 0)
             self.assertGreater(result['native_executed_counts']['production.voice_compat_checks'], 0)
@@ -923,9 +932,10 @@ class WorkflowIsolationTest(unittest.TestCase):
         self.assertEqual(route['uses'], './.github/workflows/build-fingerprint-modes-win155.yml')
         self.assertIn("inputs.build_variant == 'fingerprint-modes-win155'", route['if'])
         self.assertEqual(route['with']['allow_bootstrap_donor'], '${{ inputs.allow_bootstrap_donor }}')
-        for name, job in old['jobs'].items():
-            if name != 'fingerprint-modes':
-                self.assertIn("inputs.build_variant != 'fingerprint-modes-win155'", job['if'])
+        # Shared validation and the explicit 156 route are not historical 155 jobs.
+        for name in ('verify-candidate', 'build-1', 'build-2', 'build-3', 'build-4', 'require-candidate'):
+            self.assertIn("inputs.build_variant != 'fingerprint-modes-win155'", old['jobs'][name]['if'])
+        self.assertIn("inputs.build_variant == 'fingerprint-modes-win156'", old['jobs']['security-win156']['if'])
 
     def test_worker_retains_native_tests_and_delivery_guard_with_new_artifacts(self):
         worker = self.workflow('fingerprint-modes-win155-worker.yml')

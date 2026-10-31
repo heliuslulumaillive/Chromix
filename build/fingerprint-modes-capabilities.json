@@ -18,9 +18,7 @@
       "internal_key": "uxr-audio-mode",
       "modes": [
         "native",
-        "chromix",
-        "shardx",
-        "cloak"
+        "shardx"
       ],
       "seed_flag": "fingerprint-audio-mode-seed",
       "version": 1
@@ -42,9 +40,7 @@
       "internal_key": "uxr-fonts-mode",
       "modes": [
         "native",
-        "chromix",
-        "shardx",
-        "cloak"
+        "shardx"
       ],
       "seed_flag": "fingerprint-fonts-mode-seed",
       "version": 1
@@ -54,7 +50,6 @@
       "internal_key": "uxr-media-mode",
       "modes": [
         "native",
-        "chromix",
         "shardx"
       ],
       "seed_flag": "fingerprint-media-mode-seed",
@@ -255,7 +250,7 @@
     "new_mode_flavor": "compatible-v1",
     "legacy": {
       "selection": "No new surface mode switch",
-      "behavior": "Preserved original policy, seeds, helper formulas, Bridge and backend gates",
+      "behavior": "Preserved original local policy, seeds and helper formulas; external Canvas Bridge and synthetic-only backend fixtures are retired in the Lite build",
       "old_pixel_noise_aliases_changed": false
     },
     "canvas": {
@@ -333,7 +328,7 @@
       "transport": "Immutable value object through ImageDataBuffer and both CanvasAsyncBlobCreator constructors",
       "async_processing": "Once-prepared image buffer retained across idle, worker and encoder-thread paths",
       "unknown_source": "Retain legacy behavior; never guess Canvas2D",
-      "bridge": "New explicit pixel modes bypass that surface's legacy Bridge pixel substitution; unrelated text/Bridge behavior is unchanged"
+      "bridge": "External Canvas Bridge, its network client, drawing-record hooks, remote pixel/text substitutions and unsafe sandbox switch are removed"
     },
     "seeds": {
       "chromix": "Nonzero uint64, old fold unchanged",
@@ -415,7 +410,7 @@
     ],
     "channel_scope": "Cap the real destination capacity and validate actual channel changes. Default channels create the corresponding output bus; never expand physical capacity.",
     "unsupported_default_channels": "An explicitly configured initial count beyond the real/capped destination capacity raises NotSupportedError on context creation.",
-    "absent": "Keep the original native defaults and all existing audio modes.",
+    "absent": "Keep native defaults and the separately selected Native/ShardX readback mode.",
     "not_provided": "Physical device replacement, arbitrary DSP emulation, capture-track settings rewriting."
   },
   "font_allowlists": {
@@ -456,22 +451,10 @@
       "original_preserved": "Original FNV/protected-name math retained and verified independently; no change to legacy/Chromix paths."
     },
     {
-      "surface": "fonts/cloak",
-      "policy": "candidate-filter-compatible-v1",
-      "change": "Use recovered Windows 30/138/149/231/232 buckets and Mac562/Linux47 candidate arrays at resolved-family lookup. Preserve native generic and glyph/last-resort fallback; no nonexistent typeface assets or undocumented alias mapping.",
-      "limits": "Candidate count is not an installed/enumerable font count. Original coverage gates and full alias substitution are deliberately not reproduced."
-    },
-    {
       "surface": "audio/shardx",
       "policy": "bounded-readback-compatible-v1",
       "change": "Analyser transforms only the native written prefix, preserving caller suffix. AudioBuffer copyFrom first performs the native overlap-safe copy then transforms only the copied destination prefix, avoiding source-alias writes into caller tails. copyTo only transforms its native destination write range; getChannelData retains the measured shared-PCM fixed-point rule.",
       "original_preserved": "Float mantissa and byte LSB formulas/salts unchanged; graph isolation remains the separate old Chromix path."
-    },
-    {
-      "surface": "audio/cloak",
-      "policy": "exact-native-pcm-compatible-v1",
-      "change": "Mac persona + mono +44100Hz + complete bitwise native PCM match to one of three captured source buffers before reference replacement at completion.",
-      "limits": "Not general Mac DSP. Reject double destination, stereo, other rates, decoy/unconnected compressor output, altered/unknown samples. No guessed native counter or object-only match. Both false/raw retain this selected reference policy."
     },
     {
       "surface": "text/cloak",
@@ -500,9 +483,7 @@
   ],
   "surface_activation_scope": {
     "text_cloak": "false preserves references; raw bypasses; strict glyph guard additionally applies.",
-    "offset_cloak": "Explicit mode is the v1 opt-in; false/raw bypass; fixed >50 and hash%81-30 algorithm; no amplitude scaling.",
-    "audio_cloak": "Selected mode and actual-buffer eligibility; false/raw do not override this independent policy.",
-    "fonts_cloak": "Candidate selection remains independent of noise false/raw, matching identity-selection separation."
+    "offset_cloak": "Explicit mode is the v1 opt-in; false/raw bypass; fixed >50 and hash%81-30 algorithm; no amplitude scaling."
   },
   "voice_scope": "Native inventory intersection and ordering only; preserves original URI/local/default fields and native synthesis/backend. Full reference-list assembly remains a research/golden input, not the production returned inventory.",
   "unsupported_modes": {
@@ -512,7 +493,7 @@
     "media/cloak": "Original empty-list fake input has no capture backend; deliberately omitted rather than add a no-op mode.",
     "voices/shardx": "No separately established strategy in the audited target."
   },
-  "data_policy": "Four header-only resources/algorithms contain decoded numeric/string metadata. No opaque ciphertext, licensing material, keys or remote runtime loads. Dataset build validates counts, uniqueness and captured hashes.",
+  "data_policy": "Active resources contain numeric/string metadata for current text, voice, GPU and ShardX behavior; retired Cloak font pools and complete-PCM audio replacement data are removed.",
   "windows_native_voice_compatibility": {
     "version": 1,
     "catalog": "Chromium 155 network speech names and languages",
@@ -539,5 +520,15 @@
     ],
     "headed_changed": false,
     "new_user_option": false
+  },
+  "lite_retirement": {
+    "version": 1,
+    "manifest": "retirement-manifest.json",
+    "surfaces_native_by_default": [
+      "fonts",
+      "audio",
+      "media"
+    ],
+    "requires_new_exact_dll_acceptance": true
   }
 }

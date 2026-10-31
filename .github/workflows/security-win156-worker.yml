@@ -14,11 +14,19 @@ on:
       source_run:
         type: string
         default: ''
+      source_stage:
+        type: number
+        default: 0
+      retain_checkpoint:
+        type: boolean
+        default: true
     outputs:
       finished:
         value: ${{ jobs.build.outputs.finished }}
       resume_needed:
         value: ${{ jobs.build.outputs.resume_needed }}
+      checkpoint_ready:
+        value: ${{ jobs.build.outputs.checkpoint_ready }}
 jobs:
   build:
     runs-on: windows-2022
@@ -26,9 +34,16 @@ jobs:
     permissions:
       contents: read
       actions: read
+    env:
+      SECURITY_STAGE: ${{ inputs.stage }}
+      SECURITY_OPERATION: ${{ inputs.operation }}
+      SECURITY_SOURCE_RUN: ${{ inputs.source_run }}
+      SECURITY_SOURCE_STAGE: ${{ inputs.source_stage }}
+      CHROMIX_JOBS: auto
     outputs:
       finished: ${{ steps.result.outputs.finished }}
       resume_needed: ${{ steps.result.outputs.resume_needed }}
+      checkpoint_ready: ${{ steps.result.outputs.checkpoint_ready }}
     steps:
       - name: Start the total job budget
         shell: pwsh
@@ -50,20 +65,51 @@ jobs:
           "FINGERPRINT_TEST_NODE=$((Get-Command node).Source)" | Add-Content $env:GITHUB_ENV
       - name: Check checkpoint and build-record invariants before any large transfer
         shell: pwsh
-        run: python -B -X utf8 -m unittest tools.tests.test_security_build tools.tests.test_security_upstream tools.tests.test_security_candidate tools.tests.test_security_runtime tools.tests.test_windows_metagen_bindings tools.tests.test_fetch_upstream_cache_arm64
-      - name: Prepare or restore, compile and verify Windows 156
-        id: stage
+        run: python -B -X utf8 -m unittest tools.tests.test_security_build tools.tests.test_security_upstream tools.tests.test_security_candidate tools.tests.test_security_runtime tools.tests.test_security_phases tools.tests.test_security_checkpoint_transfer tools.tests.test_security_migration tools.tests.test_security_handoff tools.tests.test_windows_metagen_bindings tools.tests.test_fetch_upstream_cache_arm64
+      - name: Admit the donor and download verified source volumes
+        id: acquire
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.UPSTREAM_ACTIONS_TOKEN || github.token }}
-          SECURITY_STAGE: ${{ inputs.stage }}
-          SECURITY_OPERATION: ${{ inputs.operation }}
-          SECURITY_SOURCE_RUN: ${{ inputs.source_run }}
-          CHROMIX_JOBS: auto
-        run: build/windows/security-stage.ps1 -Stage $env:SECURITY_STAGE -Operation $env:SECURITY_OPERATION -SourceRun $env:SECURITY_SOURCE_RUN
+        run: build/windows/security-stage.ps1 -Phase Acquire -Stage $env:SECURITY_STAGE -Operation $env:SECURITY_OPERATION -SourceRun $env:SECURITY_SOURCE_RUN -SourceStage $env:SECURITY_SOURCE_STAGE
+      - name: Extract once and validate the restored source and Ninja state
+        id: extract
+        if: ${{ steps.acquire.outputs.proceed == 'true' }}
+        shell: pwsh
+        run: build/windows/security-stage.ps1 -Phase Extract -Stage $env:SECURITY_STAGE -Operation $env:SECURITY_OPERATION -SourceRun $env:SECURITY_SOURCE_RUN -SourceStage $env:SECURITY_SOURCE_STAGE
+      - name: Prepare the native SDK and source migration while retaining unchanged timestamps
+        id: prepare
+        if: ${{ steps.extract.outputs.proceed == 'true' }}
+        shell: pwsh
+        run: build/windows/security-stage.ps1 -Phase Prepare -Stage $env:SECURITY_STAGE -Operation $env:SECURITY_OPERATION -SourceRun $env:SECURITY_SOURCE_RUN -SourceStage $env:SECURITY_SOURCE_STAGE
+      - name: Configure the toolchain and record actual GN arguments and pending work
+        id: configure
+        if: ${{ steps.prepare.outputs.proceed == 'true' }}
+        shell: pwsh
+        run: build/windows/security-stage.ps1 -Phase Configure -Stage $env:SECURITY_STAGE -Operation $env:SECURITY_OPERATION -SourceRun $env:SECURITY_SOURCE_RUN -SourceStage $env:SECURITY_SOURCE_STAGE
+      - name: Incrementally compile only Ninja's remaining work
+        id: compile
+        if: ${{ steps.configure.outputs.proceed == 'true' }}
+        shell: pwsh
+        run: build/windows/security-stage.ps1 -Phase Compile -Stage $env:SECURITY_STAGE -Operation $env:SECURITY_OPERATION -SourceRun $env:SECURITY_SOURCE_RUN -SourceStage $env:SECURITY_SOURCE_STAGE
+      - name: Stage the immutable runtime bundle without creating an archive
+        id: bundle
+        if: ${{ steps.compile.outputs.proceed == 'true' }}
+        shell: pwsh
+        run: build/windows/security-stage.ps1 -Phase Bundle -Stage $env:SECURITY_STAGE -Operation $env:SECURITY_OPERATION -SourceRun $env:SECURITY_SOURCE_RUN -SourceStage $env:SECURITY_SOURCE_STAGE
+      - name: Verify native passkey, security, Google service and fingerprint gates
+        id: verify
+        if: ${{ steps.bundle.outputs.proceed == 'true' }}
+        shell: pwsh
+        run: build/windows/security-stage.ps1 -Phase Verify -Stage $env:SECURITY_STAGE -Operation $env:SECURITY_OPERATION -SourceRun $env:SECURITY_SOURCE_RUN -SourceStage $env:SECURITY_SOURCE_STAGE
+      - name: Archive the verified runtime once and retain matching receipts
+        id: archive
+        if: ${{ steps.verify.outputs.proceed == 'true' }}
+        shell: pwsh
+        run: build/windows/security-stage.ps1 -Phase Archive -Stage $env:SECURITY_STAGE -Operation $env:SECURITY_OPERATION -SourceRun $env:SECURITY_SOURCE_RUN -SourceStage $env:SECURITY_SOURCE_STAGE
       - name: Deliver the accepted candidate
         id: candidate
-        if: ${{ !cancelled() && steps.stage.outcome == 'success' && steps.stage.outputs.finished == 'true' }}
+        if: ${{ !cancelled() && steps.archive.outcome == 'success' && steps.archive.outputs.finished == 'true' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: security-win156-x64
@@ -74,9 +120,9 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
-      - name: Preserve unfinished or failed build state; skip giant archive after delivered success
+      - name: Preserve one complete resumable checkpoint when needed or requested
         id: checkpoint
-        if: ${{ !cancelled() && steps.candidate.outcome != 'success' }}
+        if: ${{ !cancelled() && (steps.candidate.outcome != 'success' || inputs.retain_checkpoint) }}
         shell: pwsh
         env:
           SECURITY_STAGE: ${{ inputs.stage }}
@@ -147,12 +193,8 @@ jobs:
         if: always()
         shell: pwsh
         env:
-          BUILD_OUTCOME: ${{ steps.stage.outcome }}
           CANDIDATE_OUTCOME: ${{ steps.candidate.outcome }}
           MANIFEST_OUTCOME: ${{ steps.manifest.outcome }}
-          RESUME_SAFE: ${{ steps.checkpoint.outputs.resume_safe }}
+          RETAIN_CHECKPOINT: ${{ inputs.retain_checkpoint }}
         run: |
-          $finished = $env:CANDIDATE_OUTCOME -eq 'success'
-          $resume = -not $finished -and $env:BUILD_OUTCOME -eq 'success' -and $env:MANIFEST_OUTCOME -eq 'success' -and $env:RESUME_SAFE -eq 'true'
-          "finished=$($finished.ToString().ToLowerInvariant())" | Add-Content $env:GITHUB_OUTPUT
-          "resume_needed=$($resume.ToString().ToLowerInvariant())" | Add-Content $env:GITHUB_OUTPUT
+          build/windows/security-stage.ps1 -Phase Result -Stage $env:SECURITY_STAGE

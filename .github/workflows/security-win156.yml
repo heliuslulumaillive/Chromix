@@ -11,6 +11,12 @@ on:
       source_run:
         type: string
         default: ''
+      source_stage:
+        type: string
+        default: '0'
+      retain_checkpoint:
+        type: boolean
+        default: true
       max_stages:
         type: string
         default: '4'
@@ -18,12 +24,20 @@ on:
     inputs:
       operation:
         type: choice
-        options: [fresh, resume, upstream]
+        options: [fresh, resume, upstream, upgrade]
         default: fresh
       source_run:
         type: string
         default: ''
         description: 'Only a completed security-win156 checkpoint run; never a Windows 155 donor'
+      source_stage:
+        type: string
+        default: '0'
+        description: 'Exact donor checkpoint stage, or 0 for latest complete'
+      retain_checkpoint:
+        type: boolean
+        default: true
+        description: 'Retain one complete source/object checkpoint for a later incremental change'
       max_stages:
         type: choice
         options: ['1', '2', '3', '4']
@@ -42,6 +56,8 @@ jobs:
       stage: 1
       operation: ${{ inputs.operation }}
       source_run: ${{ inputs.source_run }}
+      source_stage: ${{ fromJSON(inputs.source_stage) }}
+      retain_checkpoint: ${{ inputs.retain_checkpoint }}
   stage2:
     needs: stage1
     if: ${{ always() && !cancelled() && needs.stage1.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages) >= 2 }}
@@ -51,6 +67,7 @@ jobs:
       stage: 2
       operation: resume
       source_run: ${{ github.run_id }}
+      retain_checkpoint: ${{ inputs.retain_checkpoint }}
   stage3:
     needs: stage2
     if: ${{ always() && !cancelled() && needs.stage2.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages) >= 3 }}
@@ -60,6 +77,7 @@ jobs:
       stage: 3
       operation: resume
       source_run: ${{ github.run_id }}
+      retain_checkpoint: ${{ inputs.retain_checkpoint }}
   stage4:
     needs: stage3
     if: ${{ always() && !cancelled() && needs.stage3.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages) >= 4 }}
@@ -69,6 +87,7 @@ jobs:
       stage: 4
       operation: resume
       source_run: ${{ github.run_id }}
+      retain_checkpoint: ${{ inputs.retain_checkpoint }}
   result:
     needs: [stage1, stage2, stage3, stage4]
     if: ${{ always() && !cancelled() }}

@@ -11,8 +11,8 @@
       "files": 16
     },
     {
-      "path": "patches/fingerprint-modes/0002-graphics.patch",
-      "sha256": "0e315464dec8e302ea2b3c698f25c53a7c56640ced21fd9eb0750a9789d5b241",
+      "path": "patches/fingerprint-modes-win156/0002-graphics.patch",
+      "sha256": "38d4634adaf7bbcb5f368709c2a80f887dcceca56aa1704a91abd9e95c7b8b95",
       "files": 12
     },
     {
@@ -46,8 +46,8 @@
       "files": 2
     },
     {
-      "path": "patches/fingerprint-modes/0009-shardx-webgl-consistent-readback.patch",
-      "sha256": "372c30b9d8e32efd0c1003e1fc177139f582634ee08b1c2c7138e9304f59dd94",
+      "path": "patches/fingerprint-modes-win156/0009-shardx-webgl-consistent-readback.patch",
+      "sha256": "58d763254894a4a0ac47a97e41cd57ffa9de9f2ea9e6eae6b816434a263003dc",
       "files": 15
     },
     {
@@ -90,8 +90,8 @@
       "0009-shardx-webgl-consistent-readback.patch"
     ]
   },
-  "combined_patch_sha256": "b5c000a228c74087535c94bd9366a6470317e831a701534451b0f869d7b0f2fa",
-  "combined_patch_changed_files": 224,
+  "combined_patch_sha256": "9b6ed26159909f4e8dc2c55e740bff05d5ef9496f342092f4077c6c58e45ed96",
+  "combined_patch_changed_files": 482,
   "source_upgrade": {
     "from_run": 39498745053,
     "from_commit": "4c5f53ca8efef6acca5c8037aaf18ab609550651",

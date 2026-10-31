@@ -1,5 +1,5 @@
 name: Google services Windows x64
-run-name: ${{ inputs.build_variant == 'fingerprint-modes-win156' && 'Security restoration / Windows 156' || inputs.build_variant == 'fingerprint-modes-win155' && 'Compatible fingerprint modes / Windows 155' || github.workflow }}
+run-name: ${{ inputs.build_variant == 'fingerprint-modes-win156' && format('Windows 156 / {0} / {1}', inputs.operation, inputs.handoff_id || 'manual') || inputs.build_variant == 'fingerprint-modes-win155' && 'Compatible fingerprint modes / Windows 155' || github.workflow }}
 on:
   push:
     branches: [codex/google-services-win155]
@@ -39,7 +39,7 @@ on:
       operation:
         description: 'Verify an existing candidate, or explicitly resume a completed checkpoint'
         type: choice
-        options: [verify, resume, fresh, upstream]
+        options: [verify, resume, fresh, upstream, upgrade]
         default: verify
       source_run:
         description: 'Run containing the candidate to verify or the complete checkpoint to resume'
@@ -51,6 +51,18 @@ on:
         type: choice
         options: ['1', '2', '3', '4']
         default: '4'
+      source_stage:
+        description: 'Exact checkpoint stage for a reviewed Windows 156 upgrade; 0 selects latest complete'
+        type: string
+        default: '0'
+      retain_checkpoint:
+        description: 'Retain the completed Windows 156 source/object checkpoint for later incremental work'
+        type: boolean
+        default: true
+      handoff_id:
+        description: 'Unique continuation identifier; prevents duplicate scheduled dispatch'
+        type: string
+        default: ''
 concurrency:
   group: google-services-win155-${{ github.ref }}
   cancel-in-progress: false
@@ -67,17 +79,23 @@ jobs:
           BUILD_VARIANT: ${{ inputs.build_variant || 'google-services-self-use' }}
           OPERATION: ${{ inputs.operation || 'verify' }}
           SOURCE_RUN: ${{ inputs.source_run }}
+          SOURCE_STAGE: ${{ inputs.source_stage || '0' }}
+          HANDOFF_ID: ${{ inputs.handoff_id }}
         run: |
           python3 - <<'PY'
           import os, re
           variant, operation = os.environ['BUILD_VARIANT'], os.environ['OPERATION']
           allowed = {'google-services-self-use': {'verify', 'resume'},
                      'fingerprint-modes-win155': {'verify', 'resume'},
-                     'fingerprint-modes-win156': {'fresh', 'resume', 'upstream'}}
+                     'fingerprint-modes-win156': {'fresh', 'resume', 'upstream', 'upgrade'}}
           if operation not in allowed.get(variant, set()):
               raise SystemExit('Unsupported build variant/operation pair')
-          if operation in {'verify', 'resume'} and not re.fullmatch(r'[1-9][0-9]*', os.environ['SOURCE_RUN'] or '39264722604'):
+          if operation in {'verify', 'resume', 'upgrade'} and not re.fullmatch(r'[1-9][0-9]*', os.environ['SOURCE_RUN'] or '39264722604'):
               raise SystemExit('Select a numeric source run')
+          if not re.fullmatch(r'(?:0|[1-9][0-9]?)', os.environ['SOURCE_STAGE']):
+              raise SystemExit('Select source stage 0..99')
+          if os.environ['HANDOFF_ID'] and not re.fullmatch(r'[a-z0-9_-]{8,64}', os.environ['HANDOFF_ID']):
+              raise SystemExit('Invalid handoff identity')
           PY
   security-win156:
     needs: validate-inputs
@@ -85,7 +103,9 @@ jobs:
     uses: ./.github/workflows/security-win156.yml
     with:
       operation: ${{ inputs.operation }}
-      source_run: ${{ inputs.operation == 'resume' && inputs.source_run || '' }}
+      source_run: ${{ (inputs.operation == 'resume' || inputs.operation == 'upgrade') && inputs.source_run || '' }}
+      source_stage: ${{ inputs.source_stage || '0' }}
+      retain_checkpoint: ${{ inputs.retain_checkpoint }}
       max_stages: ${{ inputs.max_stages }}
     secrets: inherit
   fingerprint-modes:

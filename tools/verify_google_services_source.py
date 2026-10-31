@@ -256,7 +256,7 @@ def function_body(source: str, name: str) -> str:
     raise ValueError('Incomplete security implementation: ' + name)
 
 
-def verify(src: Path, *, require_security=False):
+def verify(src: Path, *, require_security=False, require_lite_retirement=False):
     errors = []
     requirements = {name: list(required) for name, required in REQUIRED.items()}
     if require_security:
@@ -296,6 +296,15 @@ def verify(src: Path, *, require_security=False):
         for text in FORBIDDEN.get(name, []):
             if re.sub(r'\s+', '', text) in source:
                 errors.append(name + ': Google-service implementation remains disabled or substituted')
+    if require_lite_retirement:
+        try:
+            from .lite_retirement import verify_retirement
+        except ImportError:
+            from lite_retirement import verify_retirement
+        try:
+            verify_retirement(src)
+        except ValueError as error:
+            errors.append(str(error))
     if errors:
         raise ValueError('\n'.join(errors))
     return list(requirements)
@@ -305,6 +314,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('src', type=Path)
     parser.add_argument('--security', action='store_true')
+    parser.add_argument('--lite-retirement', action='store_true')
     args = parser.parse_args()
-    checked = verify(args.src, require_security=args.security)
+    checked = verify(args.src, require_security=args.security,
+                     require_lite_retirement=args.lite_retirement)
     print(f'Sign-in and persistence source checks passed ({len(checked)} files; cloud access not tested)')

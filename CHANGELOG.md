@@ -1,6 +1,25 @@
 # Changelog
 
-## Unreleased
+## Unreleased — Windows 156 Lite continuation
+
+Remove unused external Canvas Bridge, Runtime suppression, FakeShadowRoot and
+synthetic backend implementations from the final Chromium source. Restrict
+fonts, audio and media modes to Native/ShardX while preserving current GPU,
+pixel export, native voice, text/offset and passkey dependencies. Rejected
+retired inputs require actual native negative-test evidence before acceptance.
+
+Split Windows acquisition, extraction, source preparation, GN configuration,
+incremental compilation, staging, verification and archiving into visible
+steps on one runner. Add an explicit reviewed same-156 source transition,
+verified transfer reuse, disk budgets, source timestamp preservation and
+complete checkpoint retention. A named completed donor job may hand off to
+one uniquely identified continuation; ordinary resume remains strict.
+
+Source replay, source/fixture tests and bounded C++ helper tests are separate
+from a complete Chromium build and exact-DLL runtime acceptance. The existing
+running job and installed production route are not changed by this commit.
+
+## Earlier Google-services work
 
 - Default pushes verify an existing source-run candidate without installing the
   SDK or restoring/rebuilding Chromium. Explicit resume requires a completed

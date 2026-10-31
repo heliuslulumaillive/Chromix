@@ -33,7 +33,7 @@ class WindowsVoiceCompatibilityTest(unittest.TestCase):
         config = json.loads((ROOT / 'build/google-services-win155.json').read_text(encoding='utf-8'))
         manifest = json.loads((ROOT / 'patches/fingerprint-modes/manifest.json').read_text(encoding='utf-8'))
         active = [name for name in config['restoration_overlays']
-                  if name.startswith('patches/fingerprint-modes/')]
+                  if name.startswith(('patches/fingerprint-modes/', 'patches/fingerprint-modes-win156/'))]
         self.assertEqual([entry['path'] for entry in manifest['ordered_overlays']], active)
         for entry in manifest['ordered_overlays']:
             self.assertEqual(entry['sha256'], hashlib.sha256((ROOT / entry['path']).read_bytes()).hexdigest())
@@ -46,7 +46,7 @@ class WindowsVoiceCompatibilityTest(unittest.TestCase):
         # Later semantic repairs must not drop, duplicate, or move the native
         # provider ahead of the existing prerequisite overlays.
         active = [name for name in config['restoration_overlays']
-                  if name.startswith('patches/fingerprint-modes/')]
+                  if name.startswith(('patches/fingerprint-modes/', 'patches/fingerprint-modes-win156/'))]
         expected = [
             '0001-independent-mode-contract.patch', '0002-graphics.patch',
             '0003-surfaces.patch', '0004-gpu-compatible-modes-v1.patch',

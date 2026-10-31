@@ -113,10 +113,12 @@ def reverse_map(cache: Path, rules: Path):
     return mapping, paths
 
 
-def restore_domains(src: Path, cache: Path | None, rules: Path, filelist: Path, full_files=(), *, pinned=False):
+def restore_domains(src: Path, cache: Path | None, rules: Path, filelist: Path, full_files=(), *, pinned=False,
+                    include_domain_list=True):
     inverses = pinned_inverse_rules(rules) if pinned else None
     mapping, names = ({}, set()) if pinned else reverse_map(cache, rules)
-    names.update(x.strip() for x in filelist.read_text().splitlines() if x.strip() and not x.startswith("#"))
+    if include_domain_list:
+        names.update(x.strip() for x in filelist.read_text().splitlines() if x.strip() and not x.startswith("#"))
     names.update(full_files)
     names.update(WEBAUTHN_VALIDATION_FILES)
     pattern = re.compile("|".join(re.escape(x) for x in sorted(mapping, key=len, reverse=True))) if mapping else None
@@ -153,7 +155,9 @@ def restore_domains(src: Path, cache: Path | None, rules: Path, filelist: Path, 
             path.write_bytes(updated)
             changed += 1
             occurrences += count
-    return {"files_changed": changed, "replacements": occurrences, "mapping_entries": len(inverses or mapping)}
+    return {"files_changed": changed, "replacements": occurrences, "mapping_entries": len(inverses or mapping),
+            "candidate_paths": len(names),
+            "strategy": "full-pinned-list" if include_domain_list else "verified-prepared-targets-only"}
 
 
 def apply_patch(src: Path, executable: str, patch: Path, *, reverse=False):
@@ -181,6 +185,9 @@ def recipe_identity(repo: Path):
     files.extend(spec['repository_path'] for spec in config.get('restore_pruned_resources', {}).values())
     if config.get('security_restoration'):
         files.append('build/args.security.gn')
+    if config.get('lite_retirement'):
+        files.extend(('tools/lite_retirement.py',
+                      'patches/lite-win156/retirement-manifest.json'))
     for name in config.get("restoration_overlays", []):
         candidate = (repo / name).resolve()
         if not candidate.is_relative_to(repo.resolve()) or not candidate.is_file():
@@ -212,10 +219,15 @@ def main():
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--repo", type=Path, required=True)
     parser.add_argument("--patch-bin", required=True)
+    parser.add_argument('--reuse-prepared-domains', action='store_true',
+                        help='Only after a registered same-version migration admits the old prepared receipt')
     args = parser.parse_args()
     src = args.work / "src"
     config = json.loads((args.repo / 'build/google-services-win155.json').read_text(encoding='utf-8'))
     require_security = bool(config.get('security_restoration'))
+    source_checks = {'require_security': require_security}
+    if config.get('lite_retirement'):
+        source_checks['require_lite_retirement'] = True
     expected_version = config['chromium_version']
     if not re.fullmatch(r'\d+\.\d+\.\d+\.\d+', expected_version):
         raise ValueError('Restoration Chromium version is malformed')
@@ -256,9 +268,19 @@ def main():
                 raise ValueError('Previous service patch is unavailable; restore its matching checkpoint or patch history')
         elif saved.get('preparation_sha256') == recipe and saved.get('build_variant') == expected_build_variant:
             verify_resources(src, args.repo, config)
-            verify_signin_source(src, require_security=require_security)
+            verify_signin_source(src, **source_checks)
             print("Google-service source is already prepared and source checks passed")
             return
+    if args.reuse_prepared_domains:
+        from security_migration import registered_rule, check_receipt
+        origin = json.loads((args.work / '.security-origin/checkpoint.json').read_text(encoding='utf-8'))
+        transition = json.loads((args.work / 'security-migration.json').read_text(encoding='utf-8'))
+        rule = registered_rule(args.repo, origin)
+        if (saved is None or old_patch is None or transition.get('status') != 'source-admitted'
+                or hashlib.sha256(marker.read_bytes()).hexdigest() != origin['source_receipt_sha256']
+                or transition.get('policy_sha256') != hashlib.sha256((args.repo / 'build/checkpoint-migrations.json').read_bytes()).hexdigest()):
+            raise ValueError('Only an admitted prepared-source transition may skip the full domain scan')
+        check_receipt(saved, rule, 'source')
     cache = next((args.work / n for n in ["domain_substitution_cache.tar.gz", "domain_substitution_cache.tar"] if (args.work / n).is_file()), None)
     blocker.write_text(digest)
     affected = set(patch_record['changed_files'])
@@ -272,7 +294,8 @@ def main():
             before[name] = (path.read_bytes(), info.st_atime_ns, info.st_mtime_ns)
     # Imported upstream snapshots need not retain the original substitution
     # archive. The pinned reversible rules also cover strings added afterward.
-    domains = restore_domains(src, cache, args.work / "tooling/ungoogled-chromium/domain_regex.list", args.work / "tooling/ungoogled-chromium-windows/domain_substitution.list", affected, pinned=True)
+    domains = restore_domains(src, cache, args.work / "tooling/ungoogled-chromium/domain_regex.list", args.work / "tooling/ungoogled-chromium-windows/domain_substitution.list", affected, pinned=True,
+                              include_domain_list=not args.reuse_prepared_domains)
     print(json.dumps({"domain_restoration": domains}), flush=True)
     renderer = src / "content/renderer/render_thread_impl.cc"
     if "blink::WebString::FromUTF8(timezone)" in renderer.read_text():
@@ -282,7 +305,7 @@ def main():
     if not saved or old_patch:
         apply_patch(src, args.patch_bin, patch)
     restored_resources = restore_resources(src, args.repo, config)
-    checked = verify_signin_source(src, require_security=require_security)
+    checked = verify_signin_source(src, **source_checks)
     preserved = 0
     for name, (content, access_ns, modification_ns) in before.items():
         path = inside(src, name)

@@ -45,8 +45,8 @@ MASK_FIRST_COUNTS = {
 FINGERPRINT_RUNTIME_SCENARIOS = {
     'native_off_control', 'all_native', 'legacy_seeded', 'canvas_shardx',
     'webgl_cloak', 'shard_surfaces', 'memory_custom', 'hardware_cloak', 'gpu_custom',
-    'webgl_shardx', 'fonts_shard42', 'fonts_shard43', 'fonts_cloak10026', 'fonts_allowlists', 'fonts_empty',
-    'cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive', 'cloak_audio_positive',
+    'webgl_shardx', 'fonts_shard42', 'fonts_shard43', 'fonts_native10026', 'fonts_allowlists', 'fonts_empty',
+    'cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive', 'audio_native_macos',
     'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono', 'audio_default_stereo',
     'audio_default_32', 'gpu_masked_custom',
     'headless_custom_dpr2', 'headless_custom_fractional', 'headless_explicit_info',
@@ -59,10 +59,10 @@ FINGERPRINT_POSITIVE_SCENARIOS = {
     'shard_media': {'shard_surfaces'}, 'memory_custom': {'memory_custom'}, 'hardware_profile': {'hardware_cloak'},
     'webgl_resource_limits': {'all_native', 'gpu_custom'}, 'webgpu_capabilities': {'gpu_custom', 'hardware_cloak'},
     'hardware_gpu_identity': {'hardware_cloak'}, 'masked_webgl': {'gpu_masked_custom'},
-    'shard_fonts': {'fonts_shard42', 'fonts_shard43'}, 'cloak_fonts': {'fonts_cloak10026'},
+    'shard_fonts': {'fonts_shard42', 'fonts_shard43'}, 'native_fonts': {'fonts_native10026'},
     'font_allowlists': {'fonts_allowlists', 'fonts_empty'},
     'cloak_voices': {'cloak_voices', 'cloak_voices_no_local'}, 'cloak_offset': {'cloak_offset'},
-    'cloak_text': {'cloak_text_positive'}, 'cloak_audio': {'cloak_audio_positive'},
+    'cloak_text': {'cloak_text_positive'}, 'native_audio': {'audio_native_macos'},
     'audio_defaults': {'audio_defaults_44100', 'audio_defaults_32000'},
     'audio_channels': {'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono',
                        'audio_default_stereo', 'audio_default_32'},
@@ -74,9 +74,9 @@ FINGERPRINT_EXTRA_SCOPES = {
     'gpu_custom': ('renderbuffer',),
     'canvas_shardx': ('pixel_semantics',), 'webgl_shardx': ('pixel_semantics',),
     **{name: ('headless_screen',) for name in FINGERPRINT_POSITIVE_SCENARIOS['headless_screen']},
-    **{name: ('fonts',) for name in ('fonts_shard42', 'fonts_shard43', 'fonts_cloak10026', 'fonts_allowlists', 'fonts_empty')},
+    **{name: ('fonts',) for name in ('fonts_shard42', 'fonts_shard43', 'fonts_native10026', 'fonts_allowlists', 'fonts_empty')},
     **{name: ('reference',) for name in ('cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive')},
-    **{name: ('audio',) for name in ('cloak_audio_positive', 'audio_defaults_44100', 'audio_defaults_32000',
+    **{name: ('audio',) for name in ('audio_native_macos', 'audio_defaults_44100', 'audio_defaults_32000',
                                    'audio_default_mono', 'audio_default_stereo', 'audio_default_32')},
 }
 FINGERPRINT_BASIC_SCENARIOS = set(FINGERPRINT_EXTRA_SCOPES) - {'all_native', 'gpu_custom', 'canvas_shardx', 'webgl_shardx'}
@@ -150,6 +150,9 @@ def validate_source_recipe(inner, outer, repo=REPO, *, build_variant=GOOGLE_VARI
             names.extend(('tools/prepare_google_services.py', 'tools/verify_google_services_source.py',
                           'tools/restored_source_resources.py', 'build/args.security.gn',
                           'patches/google-services/0001-restore-google-services.patch'))
+            if config.get('lite_retirement'):
+                names.extend(('tools/lite_retirement.py',
+                              'patches/lite-win156/retirement-manifest.json'))
             for spec in config.get('restore_pruned_resources', {}).values():
                 name = spec.get('repository_path') if isinstance(spec, dict) else None
                 if not isinstance(name, str):
@@ -267,7 +270,7 @@ def validate_positive_coverage(report, checks):
                 or not isinstance(record.get('reason'), str) or not record['reason']
                 or (record.get('optional_candidate') is not None and
                     (record.get('optional_candidate') is not True or
-                     record.get('acceptance_group') not in {'cloak_text', 'shard_fonts', 'cloak_fonts', 'font_allowlists'}))):
+                     record.get('acceptance_group') not in {'cloak_text', 'shard_fonts', 'native_fonts', 'font_allowlists'}))):
             raise ValueError('Unavailable positive condition has no concrete reason')
     full = True
     for group, value in coverage.items():
@@ -512,7 +515,46 @@ def validate_headless_screens(scenarios):
     return required
 
 
+def retirement_cases():
+    cases=[]
+    for prefix in ('fingerprint','uxr'):
+        for surface in ('fonts','audio','media'):
+            for value in ('chromix','cloak'):
+                key=f'{prefix}-{surface}-mode'
+                cases.append({'id':f'{prefix}_{surface}_{value}','argument':f'--{key}={value}',
+                              'diagnostic':f'Unsupported Lite surface mode: {key}={value}'})
+        for name,value in (('audio-render','native'),('font-policy','native'),('font-whitelist','Arial'),
+                           ('windows-font-metrics','false'),('canvas-bridge','ws://127.0.0.1:65534'),
+                           ('canvas-bridge-unsafe','false'),('devtools-runtime-suppression','false'),('keyboard-layout','native')):
+            key=f'{prefix}-{name}'
+            cases.append({'id':f"{prefix}_{name.replace('-', '_')}",'argument':f'--{key}={value}',
+                          'diagnostic':f'Retired Lite kernel switch: {key}'})
+    for name in ('synthetic-device-tests','webauthn-uvpaa','plugins'):
+        key=f'uxr-{name}'
+        cases.append({'id':key.replace('-','_'),'argument':f'--{key}=false',
+                      'diagnostic':f'Retired Lite kernel switch: {key}'})
+    return cases
+
+
+def validate_retirement_rejections(value):
+    expected=retirement_cases()
+    if (not isinstance(value,dict) or value.get('version')!=1 or value.get('status')!='passed'
+            or value.get('expected_cases')!=len(expected) or not isinstance(value.get('cases'),list)
+            or len(value['cases'])!=len(expected)):
+        raise ValueError('Native retired-input rejection matrix is missing or incomplete')
+    for actual,wanted in zip(value['cases'],expected):
+        if (not isinstance(actual,dict) or any(actual.get(k)!=v for k,v in wanted.items())
+                or actual.get('passed') is not True or type(actual.get('exit_code')) is not int
+                or actual['exit_code']!=1 or actual.get('signal') is not None
+                or actual.get('timed_out') is not False or actual.get('spawn_error') is not None
+                or not isinstance(actual.get('stderr'),str) or wanted['diagnostic'] not in actual['stderr']
+                or actual.get('cleanup') is not None):
+            raise ValueError('Retired input did not receive an explicit native rejection: '+wanted['id'])
+    return len(expected)
+
+
 def validate_mode_runtime(report, payload):
+    validate_retirement_rejections(report.get("retirement_rejections"))
     checks, scenarios = report.get('checks'), report.get('scenarios')
     if (report.get('status') != 'passed' or report.get('baseline_only') is not False
             or report.get('browser_sha256') != payload['chrome.exe']
@@ -602,6 +644,26 @@ def validate_mode_runtime(report, payload):
             if unavailable:
                 raise ValueError('ShardX WebGL unavailable evidence contradicts the probe: ' + kind)
             required.update(names)
+    baseline_audio=next(row for row in scenarios if row['id']=='all_native')['extra']['audio'].get('referenceCases')
+    current_audio=next(row for row in scenarios if row['id']=='audio_native_macos')['extra']['audio'].get('referenceCases')
+    if not isinstance(baseline_audio,list) or not isinstance(current_audio,list):
+        raise ValueError('Native audio reference samples are missing')
+    for name,length in (('match_5000',5000),('match_1000',1000),('match_44100',44100)):
+        pairs=[[row for row in values if isinstance(row,dict) and row.get('id')==name]
+               for values in (baseline_audio,current_audio)]
+        if any(len(rows)!=1 for rows in pairs): raise ValueError('Native audio reference identity is missing or duplicated')
+        a,b=pairs[0][0],pairs[1][0]
+        for row in (a,b):
+            digest=row.get('sha256')
+            if (row.get('error') or row.get('sampleRate')!=44100 or row.get('numberOfChannels')!=1
+                    or row.get('length')!=length or row.get('byteLength')!=length*4
+                    or row.get('state')!='closed' or not isinstance(digest,str)
+                    or len(digest)!=64 or any(c not in '0123456789abcdef' for c in digest)
+                    or row.get('copySha256')!=digest or not isinstance(row.get('spec'),dict)):
+                raise ValueError('Native audio reference samples are malformed')
+        if a['sha256']!=b['sha256'] or a['spec']!=b['spec']:
+            raise ValueError('Native audio changed after selecting native mode')
+        required.add(('audio_native_macos',name+'_native_reference_bytes'))
     required.update(validate_pixel_semantics(scenarios, report))
     required.update(validate_headless_screens(scenarios))
     if not required.issubset(executed):

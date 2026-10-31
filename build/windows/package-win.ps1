@@ -71,6 +71,17 @@ if (Test-Path -LiteralPath $serviceMetadata -PathType Leaf) {
       throw 'Fingerprint-mode capability contract does not match this build'
     }
     Copy-Item -LiteralPath $capabilities -Destination (Join-Path $Bundle 'fingerprint-modes-capabilities.json')
+    if ($contract.lite_retirement) {
+      if ($contract.lite_retirement.manifest -cne 'retirement-manifest.json') { throw 'Unexpected retirement manifest path' }
+      $retirementKey = 'patches/lite-win156/retirement-manifest.json'
+      $retirement = Join-Path $Repo $retirementKey
+      $expectedRetirement = $serviceVariant.preparation_inputs.$retirementKey
+      if ($expectedRetirement -notmatch '^[0-9a-f]{64}$' -or
+          (Get-FileHash -LiteralPath $retirement -Algorithm SHA256).Hash.ToLowerInvariant() -cne $expectedRetirement) {
+        throw 'Retirement contract does not match the prepared source receipt'
+      }
+      Copy-Item -LiteralPath $retirement -Destination (Join-Path $Bundle 'retirement-manifest.json')
+    }
     $gpuBinding = Join-Path $Repo 'build/gpu-binding-capabilities.json'
     if (Test-Path -LiteralPath $gpuBinding -PathType Leaf) {
       Copy-Item -LiteralPath $gpuBinding -Destination (Join-Path $Bundle 'gpu-binding-capabilities.json')
