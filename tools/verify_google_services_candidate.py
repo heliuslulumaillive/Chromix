@@ -824,7 +824,7 @@ def validate_security_runtime(report_path, source_record_path, bundle, payload_h
             raise ValueError('Mandatory Windows 156 security report/source record is missing')
     report = read_object(report_path, max_bytes=4 * 1024**2)
     checks = report.get('checks')
-    if (type(report.get('schema_version')) is not int or report['schema_version'] != 1
+    if (type(report.get('schema_version')) is not int or report['schema_version'] != security.REPORT_SCHEMA
             or report.get('status') != 'passed' or not isinstance(checks, list)
             or len(checks) != len(security.REQUIRED_CHECKS)
             or any(not isinstance(row, dict) or not isinstance(row.get('name'), str)
@@ -836,12 +836,14 @@ def validate_security_runtime(report_path, source_record_path, bundle, payload_h
         raise ValueError('Mandatory security runtime check inventory must be exact and unique')
     version = variant_version(SECURITY_VARIANT)
     if (report.get('browser_version') != 'Chrome/' + version
-            or report.get('preferences_changed') is not False
+            or report.get('security_preferences_changed') is not False
             or report.get('trust_store_changed') is not False):
-        raise ValueError('Security runtime version or read-only scope differs')
+        raise ValueError('Security runtime version or security preference scope differs')
     if any(row['passed'] is not True for row in security.assess_pages(
             report.get('pages', {}), report.get('preferences', {}))):
         raise ValueError('Security page/default preference evidence contradicts its passed checks')
+    if any(row['passed'] is not True for row in security.assess_diagnostics(report)):
+        raise ValueError('Security diagnostic opt-in/default-state evidence contradicts its passed checks')
     payload = payload_hashes or {name: sha256(bundle / name) for name in ('chrome.exe', 'chrome.dll')}
     binding = report.get('binding')
     expected_binding = {

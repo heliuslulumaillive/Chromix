@@ -2,6 +2,11 @@
 
 ## Unreleased — Windows 156 Lite continuation
 
+Probe the default internal-WebUI access gate before testing the Safe Browsing
+diagnostic page in a separate disposable profile with only the documented
+diagnostic Local State opt-in. Keep security defaults, sandbox and network denial
+unchanged; require both contexts and current verifier-bound schema-2 receipts.
+
 Link the existing Windows C++ signature-payload encoder into its web-package
 library. The upstream adaptation disconnected its former source set while test
 support still used the function. Keep the encoder bytes, signature checks and

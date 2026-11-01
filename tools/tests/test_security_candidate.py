@@ -17,6 +17,7 @@ with mock.patch.object(sys, 'path', [str(ROOT / 'tools'), *sys.path]):
     from tools import prepare_google_services as preparation
 from tools import write_google_services_build_record as writer
 from tools import security_build_record, verify_security_runtime
+from tools.tests.test_security_runtime import diagnostic_fixture
 from tools.tests.test_fingerprint_build_pipeline import write_fingerprint_evidence, rebind_fingerprint_fixture
 
 FP156 = 'fingerprint-modes-win156'
@@ -46,8 +47,8 @@ def write_security_evidence(root, bundle):
               'assignments':dict(security_build_record.REQUIRED_FLAGS)}}
     source_record=root/'build-inputs.json';source_record.write_text(json.dumps(source))
     build['gn_args_sha256']=gn_sha;build_path.write_text(json.dumps(build))
-    report={'schema_version':1,'status':'passed','browser_version':'Chrome/'+V156,
-        'preferences_changed':False,'trust_store_changed':False,
+    report={'schema_version':verify_security_runtime.REPORT_SCHEMA,'status':'passed','browser_version':'Chrome/'+V156,
+        'security_preferences_changed':False,'trust_store_changed':False,
         'checks':[{'name':name,'passed':True} for name in sorted(verify_security_runtime.REQUIRED_CHECKS)],
         'binding':{'browser_sha256':candidate.sha256(bundle/'chrome.exe'),'chrome_dll_sha256':candidate.sha256(bundle/'chrome.dll'),
             'verifier_sha256':candidate.sha256(ROOT/'tools/verify_security_runtime.py'),
@@ -61,6 +62,7 @@ def write_security_evidence(root, bundle):
                  for name,url in verify_security_runtime.URLS.items()},
         'preferences':{'available':True,'values':{key:{'error':None,'pref':{'key':key,'type':'BOOLEAN','value':value}}
                        for key,value in verify_security_runtime.EXPECTED_PREFS.items()}}}
+    report.update(diagnostic_fixture(bundle/'chrome.exe', root/'security-runtime-fixture'))
     report_path=root/'security-runtime.json';report_path.write_text(json.dumps(report))
     return report_path,source_record,report
 
@@ -217,6 +219,19 @@ class SecurityCandidateTests(unittest.TestCase):
         mutations=[lambda d:d['checks'].pop(),lambda d:d['checks'].__setitem__(0,d['checks'][-1]),
             lambda d:d['checks'].append({'name':'unrequested','passed':True}),
             lambda d:d['checks'][0].update(passed=1),lambda d:d['checks'][0].update(passed='true')]
+        for mutate in mutations:
+            changed=copy.deepcopy(valid);mutate(changed);path.write_text(json.dumps(changed))
+            with self.assertRaises(ValueError):candidate.validate_security_runtime(path,record,self.bundle)
+
+    def test_security_report_rejects_legacy_schema_and_unaudited_diagnostic_changes(self):
+        path,record,valid=write_security_evidence(self.root,self.bundle)
+        mutations=[lambda d:d.update(schema_version=1),
+            lambda d:d.update(security_preferences_changed=True),
+            lambda d:d['diagnostic_setup']['values'].update({'safebrowsing.enabled':True}),
+            lambda d:d['diagnostic_setup'].update(initial_sha256='0'*64),
+            lambda d:d['diagnostic_actual_arguments'].append('--disable-web-security'),
+            lambda d:d['diagnostic_pages']['safe_browsing'].update(url=verify_security_runtime.BLOCKED_DIAGNOSTIC_URL),
+            lambda d:d['default_pages']['safe_browsing'].update(url=verify_security_runtime.URLS['safe_browsing'])]
         for mutate in mutations:
             changed=copy.deepcopy(valid);mutate(changed);path.write_text(json.dumps(changed))
             with self.assertRaises(ValueError):candidate.validate_security_runtime(path,record,self.bundle)

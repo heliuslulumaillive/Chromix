@@ -4,6 +4,8 @@ from __future__ import annotations
 from contextlib import redirect_stdout, redirect_stderr
 from http.client import HTTPConnection
 from http.server import ThreadingHTTPServer
+import copy
+import hashlib
 import json
 import io
 import os
@@ -27,6 +29,28 @@ def pref_fixture():
         for key, value in runtime.EXPECTED_PREFS.items()}}
 
 
+def diagnostic_fixture(browser=None, root=None):
+    browser = browser or Path('chrome.exe').absolute()
+    root = root or Path('security-runtime-fixture').absolute()
+    default = runtime.launch_options(browser, root / 'profile', 12345, {})
+    diagnostic = runtime.launch_options(browser, root / 'diagnostic-profile', 12345, {})
+    default_pages = page_fixture()
+    default_pages['safe_browsing'] = {'url': runtime.BLOCKED_DIAGNOSTIC_URL, 'ready': True}
+    return {'temporary_root': str(root), 'default_pages': default_pages,
+            'pages': page_fixture(), 'diagnostic_pages': page_fixture(),
+            'diagnostic_preferences': pref_fixture(), 'network': {'proxy': '127.0.0.1:12345'},
+            'launch_policy': {k: v for k, v in default.items() if k != 'env'},
+            'diagnostic_launch_policy': {k: v for k, v in diagnostic.items() if k != 'env'},
+            'actual_arguments': [str(browser), *default['args']],
+            'diagnostic_actual_arguments': [str(browser), *diagnostic['args']],
+            'diagnostic_browser_version': 'Chrome/' + runtime.VERSION,
+            'diagnostic_local_state_seeded': True,
+            'diagnostic_setup': {'profile': str(root / 'diagnostic-profile'),
+                'local_state': str(root / 'diagnostic-profile/Local State'),
+                'values': {runtime.DIAGNOSTIC_PREF: True}, 'created_from_empty_profile': True,
+                'initial_sha256': hashlib.sha256(runtime.DIAGNOSTIC_LOCAL_STATE).hexdigest()}}
+
+
 def source_fixture():
     return {'schema_version': 1, 'build_variant': 'security-win156',
             'chromium_version': runtime.VERSION, 'recipe_sha256': 'a' * 64,
@@ -35,6 +59,43 @@ def source_fixture():
 
 
 class RuntimeContractTests(unittest.TestCase):
+    def test_diagnostic_setup_is_one_exact_local_state_key_in_a_new_owned_profile(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / 'security-runtime-fixture'
+            root.mkdir()
+            (root / '.security-runtime-owner').write_text('a' * 64)
+            profile, setup = runtime.seed_diagnostic_profile(root)
+            self.assertEqual(json.loads((profile / 'Local State').read_text()), {runtime.DIAGNOSTIC_PREF: True})
+            self.assertEqual(setup['initial_sha256'], hashlib.sha256(runtime.DIAGNOSTIC_LOCAL_STATE).hexdigest())
+            self.assertFalse((root / 'profile').exists())
+            with self.assertRaises(FileExistsError):
+                runtime.seed_diagnostic_profile(root)
+            (root / '.security-runtime-owner').write_text('foreign')
+            with self.assertRaises(ValueError):
+                runtime.seed_diagnostic_profile(root)
+            self.assertEqual((profile / 'Local State').read_bytes(), runtime.DIAGNOSTIC_LOCAL_STATE)
+
+    def test_default_gate_and_diagnostic_opt_in_are_independent_requirements(self):
+        valid = diagnostic_fixture()
+        self.assertTrue(all(row['passed'] for row in runtime.assess_diagnostics(valid)))
+        mutations = [
+            lambda d: d['default_pages']['safe_browsing'].update(url=runtime.URLS['safe_browsing']),
+            lambda d: d['diagnostic_setup']['values'].update({'safebrowsing.enabled': True}),
+            lambda d: d['diagnostic_setup']['values'].update({runtime.DIAGNOSTIC_PREF: 1}),
+            lambda d: d['diagnostic_setup'].update(profile=str(Path('existing-profile').absolute())),
+            lambda d: d['diagnostic_setup'].update(initial_sha256='0' * 64),
+            lambda d: d['diagnostic_setup'].update(created_from_empty_profile=False),
+            lambda d: d['diagnostic_actual_arguments'].append('--no-sandbox'),
+            lambda d: d['actual_arguments'].append('--disable-background-networking'),
+            lambda d: d.update(diagnostic_browser_version='Chrome/155.0.0.0'),
+            lambda d: d['diagnostic_pages']['safe_browsing'].update(url=runtime.BLOCKED_DIAGNOSTIC_URL),
+            lambda d: d['diagnostic_preferences']['values']['safebrowsing.enabled']['pref'].update(value=False),
+        ]
+        for mutate in mutations:
+            changed = copy.deepcopy(valid)
+            mutate(changed)
+            self.assertFalse(all(row['passed'] for row in runtime.assess_diagnostics(changed)))
+
     def test_exact_underlying_defaults_not_generated_or_ui_labels(self):
         self.assertEqual(runtime.EXPECTED_PREFS, {
             'safebrowsing.enabled': True, 'safebrowsing.enhanced': False,

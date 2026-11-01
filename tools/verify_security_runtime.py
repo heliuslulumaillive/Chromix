@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Mandatory Windows 156 product probe; fresh profile and read-only WebUI APIs.
 
-This gate verifies compiled pages and registered preference defaults, not an
-online threat verdict. A loopback proxy rejects every external request. It
-never opens an existing profile, changes preferences, or trusts a certificate.
+This gate verifies compiled pages and registered security defaults, not an
+online threat verdict. A loopback proxy rejects every external request. The
+default profile is unseeded; a separate disposable Local State opts into the
+internal diagnostic UI. No security preference or certificate trust is changed.
 """
 from __future__ import annotations
 
@@ -31,6 +32,9 @@ except ImportError:
 
 REPO = Path(__file__).resolve().parents[1]
 VERSION = build_record.VERSION
+REPORT_SCHEMA = 2
+DIAGNOSTIC_PREF = 'internal_only_uis_enabled'
+DIAGNOSTIC_LOCAL_STATE = (json.dumps({DIAGNOSTIC_PREF: True}, sort_keys=True) + '\n').encode('utf-8')
 # Chromium 156: safe_browsing_prefs.h/.cc; password_manager_pref_names.h
 # (kPasswordLeakDetectionEnabled), PasswordManager::RegisterProfilePrefs;
 # all four are allowed by chrome/.../settings_private/prefs_util.cc.
@@ -43,11 +47,15 @@ EXPECTED_PREFS = {
 }
 URLS = {'safe_browsing': 'chrome://safe-browsing/',
         'settings_security': 'chrome://settings/security'}
+BLOCKED_DIAGNOSTIC_URL = 'chrome://debug-webuis-disabled/?host=' + URLS['safe_browsing']
 REQUIRED_CHECKS = {'exact_browser_version', 'exact_safe_launch_arguments',
     'safe_browsing_page_available', 'settings_security_page_available',
     'safe_browsing_section_visible', 'owned_processes_closed', 'deny_proxy_closed',
     'bindings_unchanged', 'owned_profile_removed',
-    *('default_pref/' + key for key in EXPECTED_PREFS)}
+    *('default_pref/' + key for key in EXPECTED_PREFS),
+    'default_debug_page_blocked', 'diagnostic_opt_in_scoped',
+    'diagnostic_exact_browser_version', 'diagnostic_safe_launch_arguments',
+    *('diagnostic_default_pref/' + key for key in EXPECTED_PREFS)}
 # Chromium/Chromix may append these exact non-weakening arguments itself.
 # The WebRTC value comes from retained patch 0176; flags markers must be empty.
 KERNEL_ADDED_ARGS = {'--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
@@ -145,6 +153,11 @@ def assess_pages(pages: dict, preferences: dict) -> list[dict]:
         checks.append({'name': name + '_page_available', 'passed': passed})
     checks.append({'name': 'safe_browsing_section_visible',
                    'passed': pages.get('settings_security', {}).get('safeBrowsingSectionVisible') is True})
+    return checks + assess_preferences(preferences)
+
+
+def assess_preferences(preferences: dict, prefix='default_pref/') -> list[dict]:
+    checks = []
     for key, expected in EXPECTED_PREFS.items():
         row = preferences.get('values', {}).get(key, {})
         pref = row.get('pref') or {}
@@ -152,8 +165,63 @@ def assess_pages(pages: dict, preferences: dict) -> list[dict]:
                   and pref.get('key') == key and pref.get('type') == 'BOOLEAN'
                   and type(pref.get('value')) is bool and pref['value'] is expected
                   and not pref.get('controlledBy') and not pref.get('enforcement'))
-        checks.append({'name': 'default_pref/' + key, 'passed': passed})
+        checks.append({'name': prefix + key, 'passed': passed})
     return checks
+
+
+def seed_diagnostic_profile(root: Path) -> tuple[Path, dict]:
+    root = plain(root)
+    owner = root / '.security-runtime-owner'
+    if not root.name.startswith('security-runtime-') or not re.fullmatch('[a-f0-9]{64}', owner.read_text()):
+        raise ValueError('Diagnostic setup requires the owned disposable root')
+    profile = plain(root / 'diagnostic-profile')
+    profile.mkdir()  # Never reuse an existing profile, even if it looks empty.
+    local_state = profile / 'Local State'
+    with local_state.open('xb') as output:
+        output.write(DIAGNOSTIC_LOCAL_STATE)
+    return profile, {'profile': str(profile), 'local_state': str(local_state),
+                     'values': {DIAGNOSTIC_PREF: True}, 'created_from_empty_profile': True,
+                     'initial_sha256': digest(local_state)}
+
+
+def assess_diagnostics(report: dict) -> list[dict]:
+    page = report.get('default_pages', {}).get('safe_browsing', {})
+    blocked = (not page.get('error') and page.get('url') == BLOCKED_DIAGNOSTIC_URL
+               and page.get('ready') is True)
+    scoped = safe_arguments = False
+    try:
+        root = Path(report['temporary_root'])
+        profile = root / 'diagnostic-profile'
+        setup = report['diagnostic_setup']
+        values = setup['values']
+        scoped = (root.name.startswith('security-runtime-')
+                  and setup['profile'] == str(profile)
+                  and setup['local_state'] == str(profile / 'Local State')
+                  and set(values) == {DIAGNOSTIC_PREF} and values[DIAGNOSTIC_PREF] is True
+                  and setup['created_from_empty_profile'] is True
+                  and setup['initial_sha256'] == hashlib.sha256(DIAGNOSTIC_LOCAL_STATE).hexdigest()
+                  and report.get('diagnostic_local_state_seeded') is True
+                  and report.get('pages', {}).get('safe_browsing') == report.get('diagnostic_pages', {}).get('safe_browsing')
+                  and report.get('pages', {}).get('settings_security') == report.get('default_pages', {}).get('settings_security'))
+        proxy = urlsplit('http://' + report['network']['proxy'])
+        if proxy.hostname != '127.0.0.1' or not proxy.port:
+            raise ValueError('Diagnostic proxy is not the owned loopback proxy')
+        browser = Path(report['launch_policy']['executable_path'])
+        default = launch_options(browser, root / 'profile', proxy.port, {})
+        diagnostic = launch_options(browser, profile, proxy.port, {})
+        safe_arguments = (report['launch_policy'] == {k: v for k, v in default.items() if k != 'env'}
+                          and report['diagnostic_launch_policy'] == {k: v for k, v in diagnostic.items() if k != 'env'}
+                          and arguments_match(report['actual_arguments'], default['args'], browser)
+                          and arguments_match(report['diagnostic_actual_arguments'], diagnostic['args'], browser))
+    except (KeyError, TypeError, ValueError):
+        pass
+    return [
+        {'name': 'default_debug_page_blocked', 'passed': blocked},
+        {'name': 'diagnostic_opt_in_scoped', 'passed': scoped},
+        {'name': 'diagnostic_exact_browser_version', 'passed': report.get('diagnostic_browser_version') == 'Chrome/' + VERSION},
+        {'name': 'diagnostic_safe_launch_arguments', 'passed': safe_arguments},
+        *assess_preferences(report.get('diagnostic_preferences', {}), 'diagnostic_default_pref/'),
+    ]
 
 
 def report_passed(report: dict) -> bool:
@@ -239,47 +307,61 @@ def probe(browser: Path, root: Path, report: dict):
     environment = {key: value for key, value in os.environ.items() if not re.search(
         r'TOKEN|SECRET|PASSWORD|API_KEY|CREDENTIAL|SSLKEYLOGFILE|^PWDEBUG$|^DEBUG$|^(GOOGLE_|GH_|GITHUB_|CHROMIX_|UXR_|CLOAK_|CODEX_|OPENAI_|ANTHROPIC_|AWS_|AZURE_)', key, re.I)}
     environment.update(TEMP=str(root), TMP=str(root), TMPDIR=str(root))
-    profile = root / 'profile'
-    profile.mkdir()
-    options = launch_options(browser, profile, server.server_port, environment)
-    report['launch_policy'] = {key: value for key, value in options.items() if key != 'env'}
     report['reviewed_kernel_added_arguments'] = sorted(KERNEL_ADDED_ARGS)
     report['pages'], report['preferences'] = {}, {'available': False, 'values': {}}
+    report['network'] = {'proxy': '127.0.0.1:' + str(server.server_port)}
     previous_environment = dict(os.environ)
     os.environ.clear()
     os.environ.update(environment)  # The Playwright driver inherits this too.
     try:
         with sync_playwright() as playwright:
             try:
-                context = playwright.chromium.launch_persistent_context(str(profile), **options)
-                retain_children()
-                session = context.browser.new_browser_cdp_session()
-                actual = session.send('Browser.getBrowserCommandLine')['arguments']
-                version = session.send('Browser.getVersion')['product']
-                report['actual_arguments'], report['browser_version'] = actual, version
-                checks.append({'name': 'exact_browser_version', 'passed': version.split('/')[-1] == VERSION})
-                # No default security-disable argument, hidden debug port or
-                # extra profile path can be accepted behind the explicit list.
-                checks.append({'name': 'exact_safe_launch_arguments', 'passed':
-                    arguments_match(actual, options['args'], browser)})
-                for name, url in URLS.items():
-                    page = context.new_page()
-                    try:
-                        page.goto(url, wait_until='domcontentloaded', timeout=15000)
-                        page.wait_for_timeout(400)
-                        if name == 'settings_security':
-                            report['preferences'] = page.evaluate(READ_PREFS, list(EXPECTED_PREFS))
-                            try:
-                                page.wait_for_function(
-                                    '(' + READ_PAGE + ')().safeBrowsingSectionVisible', timeout=4000)
-                            except Exception:
-                                pass
-                        report['pages'][name] = page.evaluate(READ_PAGE)
-                    except Exception as error:
-                        report['pages'][name] = {'url': page.url, 'error': str(error)}
-                    finally:
-                        page.close()
+                for diagnostic in (False, True):
+                    if diagnostic:
+                        profile, report['diagnostic_setup'] = seed_diagnostic_profile(root)
+                        report['diagnostic_local_state_seeded'] = True
+                    else:
+                        profile = plain(root / 'profile')
+                        profile.mkdir()
+                    prefix = 'diagnostic_' if diagnostic else ''
+                    options = launch_options(browser, profile, server.server_port, environment)
+                    report[prefix + 'launch_policy'] = {k: v for k, v in options.items() if k != 'env'}
+                    context = playwright.chromium.launch_persistent_context(str(profile), **options)
+                    retain_children()
+                    session = context.browser.new_browser_cdp_session()
+                    actual = session.send('Browser.getBrowserCommandLine')['arguments']
+                    version = session.send('Browser.getVersion')['product']
+                    report[prefix + 'actual_arguments'], report[prefix + 'browser_version'] = actual, version
+                    if not diagnostic:
+                        checks.append({'name': 'exact_browser_version', 'passed': version.split('/')[-1] == VERSION})
+                        checks.append({'name': 'exact_safe_launch_arguments', 'passed':
+                            arguments_match(actual, options['args'], browser)})
+                    pages = {}
+                    for name, url in URLS.items():
+                        page = context.new_page()
+                        try:
+                            page.goto(url, wait_until='domcontentloaded', timeout=15000)
+                            page.wait_for_timeout(400)
+                            if name == 'settings_security':
+                                report[prefix + 'preferences'] = page.evaluate(READ_PREFS, list(EXPECTED_PREFS))
+                                try:
+                                    page.wait_for_function(
+                                        '(' + READ_PAGE + ')().safeBrowsingSectionVisible', timeout=4000)
+                                except Exception:
+                                    pass
+                            pages[name] = page.evaluate(READ_PAGE)
+                        except Exception as error:
+                            pages[name] = {'url': page.url, 'error': str(error)}
+                        finally:
+                            page.close()
+                    report['diagnostic_pages' if diagnostic else 'default_pages'] = pages
+                    retain_children()
+                    context.close()
+                    context = None
+                report['pages'] = {'safe_browsing': report['diagnostic_pages']['safe_browsing'],
+                                   'settings_security': report['default_pages']['settings_security']}
                 checks.extend(assess_pages(report['pages'], report['preferences']))
+                checks.extend(assess_diagnostics(report))
             finally:
                 retain_children()
                 if context:
@@ -322,10 +404,11 @@ def main(argv=None) -> int:
     if destination.exists():
         parser.error('Use a new report path; prior failures are retained')
     destination.parent.mkdir(parents=True, exist_ok=True)
-    report = {'schema_version': 1, 'status': 'failed', 'checks': [],
+    report = {'schema_version': REPORT_SCHEMA, 'status': 'failed', 'checks': [],
               'scope': 'Fresh account-free Windows 156 security restoration runtime gate',
               'online_safe_browsing_verdict': 'not_tested', 'real_accounts': 'not_tested',
-              'preferences_changed': False, 'trust_store_changed': False}
+              'security_preferences_changed': False, 'diagnostic_local_state_seeded': False,
+              'trust_store_changed': False}
     root = None
     try:
         if os.name != 'nt':
