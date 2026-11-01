@@ -165,6 +165,22 @@ FORBIDDEN = {
 }
 
 SECURITY_REQUIRED = {
+    'components/security_interstitials/content/security_interstitial_controller_client.h': [
+        'const std::string GetExtendedReportingPrefName() const override;',
+    ],
+    'components/security_interstitials/content/security_interstitial_controller_client.cc': [
+        'SecurityInterstitialControllerClient::GetExtendedReportingPrefName() const',
+        'return prefs::kSafeBrowsingScoutReportingEnabled;',
+    ],
+    'components/security_interstitials/core/controller_client.h': [
+        'virtual const std::string GetExtendedReportingPrefName() const = 0;',
+    ],
+    'components/security_interstitials/core/controller_client.cc': [
+        'GetPrefService()->SetBoolean(GetExtendedReportingPrefName(), report);',
+        'metrics_helper_->RecordUserInteraction(',
+        'MetricsHelper::SET_EXTENDED_REPORTING_ENABLED',
+        'MetricsHelper::SET_EXTENDED_REPORTING_DISABLED',
+    ],
     'chrome/browser/BUILD.gn': ['"//chrome/browser/safe_browsing"'],
     'chrome/browser/safe_browsing/BUILD.gn': [
         'static_library("safe_browsing")', '"safe_browsing_service.cc"',
@@ -289,6 +305,10 @@ def verify(src: Path, *, require_security=False, require_lite_retirement=False):
                 body = function_body(source, 'UpdateCheckerImpl::CheckForUpdates')
                 if re.match(r'\s*(?:if\s*\(\s*\(?\s*true\s*\)?\s*\)\s*)?return\s*;', body):
                     errors.append(name + ': security component update requests are disabled')
+            if name == 'components/security_interstitials/core/controller_client.cc':
+                body = function_body(source, 'ControllerClient::SetReportingPreference')
+                if re.search(r'\b(?:return|if)\b', body):
+                    errors.append(name + ': native reporting preference write is bypassed or guarded')
         source = re.sub(r'\s+', '', source)
         for text in required:
             if re.sub(r'\s+', '', text) not in source:

@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 $tokens = $null; $parseErrors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile($env:PHASE_TEST_SOURCE,[ref]$tokens,[ref]$parseErrors)
 if ($parseErrors.Count) { throw ($parseErrors.Message -join '; ') }
-$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Get-OwnedCommandStatus','Invoke-Owned','Read-State')
+$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Get-OwnedCommandStatus','Get-NinjaFailureSummary','Invoke-Owned','Read-State')
 $definitions = $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in $allowed}, $false)
 if (@($definitions).Count -ne $allowed.Count) { throw 'Guard function inventory mismatch' }
 . ([scriptblock]::Create(($definitions.Extent.Text -join "`n")))
@@ -44,6 +44,19 @@ try {
     }
     'disk' { $result=Get-CheckpointDiskBudget $request }
     'command-status' { $result=@{status=(Get-OwnedCommandStatus $request.exit_code $request.receipt)} }
+    'ninja-failures' { $result=Get-NinjaFailureSummary $request.path }
+    'ninja-timeout' {
+      $repo=$request.repo; $evidence=$request.repo; $python=$request.python
+      $deadline=[DateTimeOffset]::UtcNow.AddMinutes(1)
+      $state=@{command_number=0;resume_safe=$true}
+      $env:SYNTHETIC_NINJA_LOG=$request.log
+      function Save-State {}
+      function Json([string]$Path,$Data) { [IO.File]::WriteAllText($Path,($Data|ConvertTo-Json -Depth 10)) }
+      try { Invoke-Owned 'ninja' @('synthetic-not-executed') | Out-Null; $errorName='unexpected-success' }
+      catch { $errorName=$_.Exception.Message }
+      $result=@{error=$errorName;resume_safe=$state.resume_safe;needs_source_fix=($state.needs_source_fix -eq $true)}
+      $global:LASTEXITCODE=0
+    }
     default { throw 'Unknown test mode' }
   }
   $result | ConvertTo-Json -Depth 15 -Compress
@@ -119,6 +132,40 @@ class PhaseGuardTests(unittest.TestCase):
 
     def test_expired_budget_cannot_start_a_command(self):
         self.assertEqual(self.run_guard('budget', {})['error'], 'SECURITY_BUDGET_STOP')
+
+    def test_failed_ninja_edges_are_preserved_even_when_other_targets_continue(self):
+        path = Path(self.temp.name) / 'ninja.log'
+        path.write_text('[1/9] CXX good.obj\nFAILED: obj/broken.obj\n'
+                        'file.cc: error: missing declaration\n[3/9] CXX useful.obj\n', encoding='utf-8')
+        result = self.run_guard('ninja-failures', {'path': str(path)})
+        self.assertTrue(result['needs_source_fix'])
+        self.assertEqual(result['count'], 1)
+        self.assertEqual(result['failures'][0], {'line': 2, 'target': 'obj/broken.obj'})
+        self.assertRegex(result['log_sha256'], r'^[a-f0-9]{64}$')
+        path.write_text('\x1b[31mFAILED:\x1b[0m obj/color.obj\n[2/9] CXX useful.obj\n', encoding='utf-8')
+        self.assertEqual(self.run_guard('ninja-failures', {'path': str(path)})['count'], 1)
+        path.write_text('[1/9] CXX good.obj\nwarning: example contains FAILED: as text\n', encoding='utf-8')
+        self.assertFalse(self.run_guard('ninja-failures', {'path': str(path)})['needs_source_fix'])
+
+    def test_actual_invoker_prioritizes_recorded_failure_over_later_timeout(self):
+        import sys
+        for name, log, expected in [('failed', 'FAILED: obj/broken.obj\n[3/9] CXX useful.obj\n', True),
+                                    ('budget', '[3/9] CXX useful.obj\n', False)]:
+            repo = Path(self.temp.name) / ('invoker-' + name)
+            (repo / 'tools').mkdir(parents=True)
+            (repo / 'tools/security_run.py').write_text(
+                "import json,os,sys\nfrom pathlib import Path\na=sys.argv\n"
+                "Path(a[a.index('--log')+1]).write_text(os.environ['SYNTHETIC_NINJA_LOG'])\n"
+                "Path(a[a.index('--report')+1]).write_text(json.dumps({'timed_out':True,'exit_code':None,'cleanup_errors':[]}))\n"
+                "raise SystemExit(124)\n", encoding='utf-8')
+            result = self.run_guard('ninja-timeout', {'repo': str(repo), 'python': sys.executable, 'log': log})
+            self.assertEqual(result['needs_source_fix'], expected)
+            self.assertTrue(result['resume_safe'])
+            if expected:
+                self.assertIn('Security stage command failed: ninja', result['error'])
+                self.assertNotEqual(result['error'], 'SECURITY_BUDGET_STOP')
+            else:
+                self.assertEqual(result['error'], 'SECURITY_BUDGET_STOP')
 
     def test_native_exit_124_is_not_a_timeout_and_cleanup_failure_is_unsafe(self):
         cases = [

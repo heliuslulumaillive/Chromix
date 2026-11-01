@@ -176,6 +176,20 @@ function Get-OwnedCommandStatus([int]$ExitCode,[System.Collections.IDictionary]$
   if ($ExitCode -eq 0 -and $Receipt.exit_code -eq 0) { return 'success' }
   return 'failed'
 }
+function Get-NinjaFailureSummary([string]$Log) {
+  $failures = [Collections.Generic.List[object]]::new()
+  $lineNumber = 0
+  foreach ($line in [IO.File]::ReadLines($Log)) {
+    $lineNumber++
+    $plainLine = [regex]::Replace($line, '\x1b\[[0-?]*[ -/]*[@-~]', '')
+    if ($plainLine.StartsWith('FAILED:')) {
+      $failures.Add(@{ line=$lineNumber; target=$plainLine.Substring(7).Trim() })
+    }
+  }
+  return @{ count=$failures.Count; failures=@($failures.ToArray());
+    log_sha256=(Get-FileHash -LiteralPath $Log -Algorithm SHA256).Hash.ToLowerInvariant();
+    needs_source_fix=($failures.Count -gt 0) }
+}
 function Invoke-Owned([string]$Label,[string[]]$Command,[int]$LimitSeconds=18000,[string]$WorkingDirectory=$repo,[switch]$GitHubReadToken) {
   $remaining = [int]($deadline - [DateTimeOffset]::UtcNow).TotalSeconds
   if ($remaining -lt 30) { throw 'SECURITY_BUDGET_STOP' }
@@ -196,6 +210,18 @@ function Invoke-Owned([string]$Label,[string[]]$Command,[int]$LimitSeconds=18000
     $state.resume_safe = $false
     Save-State
     throw "Owned command cleanup or receipt is unverified: $Label"
+  }
+  if ($Label -ceq 'ninja') {
+    # -k20 deliberately compiles other useful targets after a failed edge.
+    # A later timeout must not hide that failure and loop the same source.
+    $ninjaFailures = Get-NinjaFailureSummary $log
+    Json (Join-Path $evidence 'ninja-failures.json') $ninjaFailures
+    if ($ninjaFailures.needs_source_fix) {
+      $state.needs_source_fix = $true
+      $state.failed_targets = $ninjaFailures.failures
+      Save-State
+      $commandStatus = 'failed'
+    }
   }
   if ($commandStatus -eq 'budget-stop') { throw 'SECURITY_BUDGET_STOP' }
   if ($commandStatus -ne 'success') {

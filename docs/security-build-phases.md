@@ -13,6 +13,12 @@ checkpoint/build inputs, a cleanly terminated timeout and no compiler errors.
 The exception is opt-in for that evidence, not permission to resume failed jobs
 generally. No large transfer occurs during the review.
 
+Ninja `-k20` may complete other useful targets after an edge fails. A later
+timeout does not erase those errors: the closed Ninja log is scanned for failed
+edges before classifying a budget stop. Such a stage retains its safe complete
+checkpoint but does not automatically resume the same source. A reviewed source
+repair must establish a new exact recipe before reusing that checkpoint.
+
 | Phase | Work | Reuse boundary |
 | --- | --- | --- |
 | Acquire | Validate the small checkpoint manifest and pinned donor first, then download its exact volumes; or fetch the pinned upstream snapshot | No SDK installation or compilation before donor admission. A preflight record pins the selected artifact IDs. Credentials are forwarded only to acquisition helpers. |

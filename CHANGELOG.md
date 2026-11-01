@@ -2,6 +2,12 @@
 
 ## Unreleased — Windows 156 Lite continuation
 
+Restore the Safe Browsing reporting getter declarations and native preference
+write as one interface, fixing the observed Windows compiler mismatch without
+changing protection defaults. Preserve useful partial compilation when an edge
+fails, but do not let a later stage timeout hide the failure or automatically
+retry the unchanged source.
+
 Correct PowerShell's residual native exit status after a handled stage-budget
 pause. A failed donor badge is still rejected unless explicitly pinned,
 reviewed timeout evidence and a complete matching checkpoint establish this

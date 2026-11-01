@@ -83,6 +83,10 @@ class SecuritySourceGateTest(unittest.TestCase):
         updater = src / 'components/update_client/update_checker.cc'
         updater.write_text(updater.read_text() + '\nvoid UpdateCheckerImpl::CheckForUpdates() {\n'
                            'update_check_callback_ = std::move(update_check_callback);\n}\n')
+        interstitial = src / 'components/security_interstitials/core/controller_client.cc'
+        interstitial.write_text(interstitial.read_text() + '\nvoid ControllerClient::SetReportingPreference(bool report) {\n'
+                                'GetPrefService()->SetBoolean(GetExtendedReportingPrefName(), report);\n'
+                                'metrics_helper_->RecordUserInteraction(report ? MetricsHelper::SET_EXTENDED_REPORTING_ENABLED : MetricsHelper::SET_EXTENDED_REPORTING_DISABLED);\n}\n')
         return leak, download
 
     def test_real_source_paths_and_defaults_required_not_only_ui(self):

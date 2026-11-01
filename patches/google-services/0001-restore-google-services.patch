@@ -34967,6 +34967,17 @@
  bool SecurityInterstitialControllerClient::CanLaunchDateAndTimeSettings() {
    NOTREACHED();
  }
+--- a/components/security_interstitials/content/security_interstitial_controller_client.h
++++ b/components/security_interstitials/content/security_interstitial_controller_client.h
+@@ -62,6 +62,8 @@
+   bool CanGoBackBeforeNavigation() override;
+ 
+  protected:
++  // security_interstitials::ControllerClient overrides.
++  const std::string GetExtendedReportingPrefName() const override;
+   content::WebContents* web_contents() { return &*web_contents_; }
+   content::RenderFrameHost* InterstitialRenderFrameHost() const;
+ 
 --- a/components/security_interstitials/content/security_interstitial_page.cc
 +++ b/components/security_interstitials/content/security_interstitial_page.cc
 @@ -10,6 +10,7 @@
@@ -35070,6 +35081,28 @@
  }
  
  void SSLBlockingPageBase::PopulateEnhancedProtectionMessage(
+--- a/components/security_interstitials/core/controller_client.cc
++++ b/components/security_interstitials/core/controller_client.cc
+@@ -36,6 +36,7 @@
+ 
+ void ControllerClient::SetReportingPreference(bool report) {
+   DCHECK(GetPrefService());
++  GetPrefService()->SetBoolean(GetExtendedReportingPrefName(), report);
+   metrics_helper_->RecordUserInteraction(
+       report ? MetricsHelper::SET_EXTENDED_REPORTING_ENABLED
+              : MetricsHelper::SET_EXTENDED_REPORTING_DISABLED);
+--- a/components/security_interstitials/core/controller_client.h
++++ b/components/security_interstitials/core/controller_client.h
+@@ -149,6 +149,9 @@
+   virtual void OpenReportingPrivacyInNewTab() {}
+   virtual void OpenWhitepaperInNewTab() {}
+ 
++ protected:
++  virtual const std::string GetExtendedReportingPrefName() const = 0;
++
+  private:
+   std::unique_ptr<MetricsHelper> metrics_helper_;
+   // Link to the help center.
 --- a/components/security_interstitials/core/safe_browsing_loud_error_ui.cc
 +++ b/components/security_interstitials/core/safe_browsing_loud_error_ui.cc
 @@ -27,11 +27,11 @@

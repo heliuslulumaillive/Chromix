@@ -499,11 +499,20 @@
         "safe_browsing",
         "SafeBrowsing"
       ],
+      "components/security_interstitials/content/security_interstitial_controller_client.h": [
+        "GetExtendedReportingPrefName"
+      ],
       "components/security_interstitials/content/security_interstitial_page.cc": [
         "safe_browsing"
       ],
       "components/security_interstitials/content/ssl_blocking_page.cc": [
         "safe_browsing"
+      ],
+      "components/security_interstitials/core/controller_client.cc": [
+        "GetExtendedReportingPrefName"
+      ],
+      "components/security_interstitials/core/controller_client.h": [
+        "GetExtendedReportingPrefName"
       ],
       "components/sync_preferences/common_syncable_prefs_database.cc": [
         "safe_browsing",

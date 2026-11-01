@@ -118,10 +118,13 @@ class MigrationTests(unittest.TestCase):
 class RegisteredCheckoutTest(unittest.TestCase):
     def test_current_checkout_matches_the_explicit_transition(self):
         root = Path(__file__).resolve().parents[2]
-        rule = json.loads((root / m.POLICY).read_text(encoding='utf-8'))['migrations'][0]
-        donor = {**c.IDENTITY, 'source_commit': rule['source_commit'],
-                 'recipe_sha256': rule['source_recipe_sha256']}
-        self.assertEqual(m.registered_rule(root, donor)['id'], rule['id'])
+        rules = json.loads((root / m.POLICY).read_text(encoding='utf-8'))['migrations']
+        for rule in rules:
+            with self.subTest(migration=rule['id']):
+                donor = {**c.IDENTITY, 'source_commit': rule['source_commit'],
+                         'recipe_sha256': rule['source_recipe_sha256']}
+                self.assertEqual(m.registered_rule(root, donor)['id'], rule['id'])
+                self.assertEqual(rule['target_preparation_sha256'], preparation.recipe_identity(root)[0])
 
 
 if __name__ == '__main__':

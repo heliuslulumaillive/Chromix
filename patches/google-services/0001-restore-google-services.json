@@ -351,9 +351,12 @@
     "components/security_interstitials/content/captive_portal_blocking_page.cc",
     "components/security_interstitials/content/mitm_software_blocking_page.cc",
     "components/security_interstitials/content/security_interstitial_controller_client.cc",
+    "components/security_interstitials/content/security_interstitial_controller_client.h",
     "components/security_interstitials/content/security_interstitial_page.cc",
     "components/security_interstitials/content/ssl_blocking_page.cc",
     "components/security_interstitials/content/ssl_blocking_page_base.cc",
+    "components/security_interstitials/core/controller_client.cc",
+    "components/security_interstitials/core/controller_client.h",
     "components/security_interstitials/core/safe_browsing_loud_error_ui.cc",
     "components/send_tab_to_self/entry_point_display_reason.cc",
     "components/signin/core/browser/BUILD.gn",
@@ -1826,6 +1829,10 @@
       "sha256": "b9105dfaa37e0bce2db16d361ca01043be011f8658cac7f5d16f3865429debf8"
     },
     {
+      "path": "components/security_interstitials/content/security_interstitial_controller_client.h",
+      "sha256": "cd488893fb52804d508c19d52fbfe710407f11fbc41e73ac538b8ed24640ba15"
+    },
+    {
       "path": "components/security_interstitials/content/security_interstitial_page.cc",
       "sha256": "b16d9c8ad44143dea51d6cce80109c2232e6722774a79534c79382106aa21cf3"
     },
@@ -1836,6 +1843,14 @@
     {
       "path": "components/security_interstitials/content/ssl_blocking_page_base.cc",
       "sha256": "fa5d8eeb3f34a7e3502ba970131cebb81b3373e58df96019c82d52a493920079"
+    },
+    {
+      "path": "components/security_interstitials/core/controller_client.cc",
+      "sha256": "35d3ee58bb98e6384d5e5e25e11df37e3c84f0f0aaef9c4df6c278431a610608"
+    },
+    {
+      "path": "components/security_interstitials/core/controller_client.h",
+      "sha256": "738d32bd3a0ffbd4288c0e7b07c190740bcdd147202bae122a0d3eab59d918c0"
     },
     {
       "path": "components/security_interstitials/core/safe_browsing_loud_error_ui.cc",
@@ -2995,6 +3010,6 @@
     "patches/chromium155-windows/0232-renderer-launch-timezone-install.patch": "345ef39c9cc6d987f59c44f3f4a46099391d6c629058f10c1151e02a654796a7",
     "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch": "7f7f691f2d744715e0d48a25dab5ff1e8ac793122657beacd0f99a3e7e8ba908"
   },
-  "patch_sha256": "5d3d29cf2592a9ec04f5753c6ce842a279ed82b93094b9f5ededc886d5c62f4a",
+  "patch_sha256": "f444eae62e2700b5e65352788700357b52279b5ddefff77a1168c5f2149f0c9e",
   "qualification": "Source replay only; requires native build and actual account/security tests"
 }
