@@ -165,6 +165,18 @@ FORBIDDEN = {
 }
 
 SECURITY_REQUIRED = {
+    'chrome/app/etw_events/chrome_events_win.rc': [
+        'LANGUAGE 0x9,0x1',
+        '1 11 "MSG00001.bin"',
+        '1 WEVT_TEMPLATE "chrome_events_winTEMP.BIN"',
+    ],
+    'chrome/browser/enterprise/signals/context_info_fetcher.cc': [
+        'Profile* profile = Profile::FromBrowserContext(browser_context_);',
+        'info.safe_browsing_protection_level = device_signals::GetSafeBrowsingProtectionLevel(profile->GetPrefs());',
+        'info.password_protection_warning_trigger = device_signals::GetPasswordProtectionWarningTrigger(profile->GetPrefs());',
+        'base::BindOnce(&ContextInfoFetcher::FetchAsyncSignals,',
+        'std::move(callback)',
+    ],
     'components/security_interstitials/content/security_interstitial_controller_client.h': [
         'const std::string GetExtendedReportingPrefName() const override;',
     ],
@@ -290,6 +302,9 @@ def verify(src: Path, *, require_security=False, require_lite_retirement=False):
             text = re.sub(r'(?m)^\s*#.*$', '', text)
         source = CPP_TOKENS.sub(lambda token: '' if token.group('comment') else token[0], text)
         if require_security:
+            if name == 'chrome/browser/enterprise/signals/context_info_fetcher.cc':
+                if re.search(r'\bGetEnterpriseProfileId\s*\(|\benterprise_profile_id\s*=|\bProfileIdServiceFactory::GetForProfile\s*\(', source):
+                    errors.append(name + ': enterprise profile identifier collection was unintentionally restored')
             if name in ('chrome/browser/safe_browsing/BUILD.gn',
                         'components/safe_browsing/core/common/BUILD.gn') and re.search(r'\bif\s*\(\s*false\s*\)', source):
                 errors.append(name + ': security build target is disabled')

@@ -1,0 +1,35 @@
+{
+  "chromium_version": "156.0.8078.79",
+  "directory_url": "https://chromium.googlesource.com/chromium/src/+/156.0.8078.79/chrome/app/etw_events/?format=JSON",
+  "directory_tree": "629a19ca9b5da41416c2e93a261a141215614f2e",
+  "files": [
+    {
+      "path": "chrome/app/etw_events/MSG00001.bin",
+      "url": "https://chromium.googlesource.com/chromium/src/+/156.0.8078.79/chrome/app/etw_events/MSG00001.bin?format=TEXT",
+      "gitiles_blob": "bcedca53bb0df2af00e1cf5234d07d546aa18c81",
+      "bytes": 180,
+      "sha256": "51b3d8c734d307af13984bb2c2abde79c859a5acb6386fd233f3e9338f2a7dc5",
+      "repository_path": "build/security-resources/etw_events/MSG00001.bin"
+    },
+    {
+      "path": "chrome/app/etw_events/chrome_events_winTEMP.BIN",
+      "url": "https://chromium.googlesource.com/chromium/src/+/156.0.8078.79/chrome/app/etw_events/chrome_events_winTEMP.BIN?format=TEXT",
+      "gitiles_blob": "1bec89083be6a1519f39beec0c4f4b2fe4fbcf56",
+      "bytes": 1402,
+      "sha256": "1de7329c900e3e367a04ea99c1169cde528754c408de077628f5be856cfe0926",
+      "repository_path": "build/security-resources/etw_events/chrome_events_winTEMP.BIN"
+    },
+    {
+      "path": "chrome/app/etw_events/chrome_events_win.rc",
+      "url": "https://chromium.googlesource.com/chromium/src/+/156.0.8078.79/chrome/app/etw_events/chrome_events_win.rc?format=TEXT",
+      "gitiles_blob": "3dba33dbcc97e93d748c98772a4786850c8ca959",
+      "bytes": 84,
+      "sha256": "4194adfb5e759f7bead4a3a9bf6068404353f6aa717a9be26416ffeaccb904e1",
+      "fixture_path": "tools/tests/fixtures/windows156-etw/chrome_events_win.rc.bin"
+    }
+  ],
+  "schema_version": 1,
+  "ungoogled_core_commit": "28a211ab4ab6b83d919966a4f58a6df23cf4fb29",
+  "pruning_list_sha256": "e34fbb1809f86f00501b6b77f272e457aa7f9dbe97eb2ce3f02827e920a61354",
+  "resources_are_original_checked_in_etw_data": true
+}

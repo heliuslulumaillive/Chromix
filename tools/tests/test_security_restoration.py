@@ -153,7 +153,11 @@ class SecuritySourceGateTest(unittest.TestCase):
         self.assertEqual(config['security_restoration']['safe_browsing_mode'], 1)
         self.assertIn('safe_browsing_mode = 1', (repo / 'build/args.security.gn').read_text())
         payloads = resource.resources(repo, config)
-        self.assertEqual(set(payloads), {'components/safe_browsing/content/resources/empty_file_type_policy.pb'})
+        self.assertEqual(set(payloads), {
+            'components/safe_browsing/content/resources/empty_file_type_policy.pb',
+            'chrome/app/etw_events/MSG00001.bin',
+            'chrome/app/etw_events/chrome_events_winTEMP.BIN',
+        })
         self.assertTrue(set(payloads).issubset(config['restore_pruned_sources']))
         self.assertIn('ungoogled-chromium/windows/windows-disable-download-warning-prompt.patch',
                       config['restore_windows_sections'])

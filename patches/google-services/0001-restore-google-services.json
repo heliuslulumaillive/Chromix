@@ -505,6 +505,18 @@
       "sha256": "9bca15fa0892300b0696f4fab3d4d6559bd62abaab746be00512a674fc2a1d43"
     },
     {
+      "path": "chrome/app/etw_events/MSG00001.bin",
+      "sha256": "51b3d8c734d307af13984bb2c2abde79c859a5acb6386fd233f3e9338f2a7dc5"
+    },
+    {
+      "path": "chrome/app/etw_events/chrome_events_win.rc",
+      "sha256": "4194adfb5e759f7bead4a3a9bf6068404353f6aa717a9be26416ffeaccb904e1"
+    },
+    {
+      "path": "chrome/app/etw_events/chrome_events_winTEMP.BIN",
+      "sha256": "1de7329c900e3e367a04ea99c1169cde528754c408de077628f5be856cfe0926"
+    },
+    {
       "path": "chrome/app/settings_chromium_strings.grdp",
       "sha256": "9fb3a5d1020f25121dbc59df33031554bd9f8498c74aa5c220a26364ee0d2b57"
     },
@@ -2743,6 +2755,8 @@
   },
   "pruning_list_sha256": "e34fbb1809f86f00501b6b77f272e457aa7f9dbe97eb2ce3f02827e920a61354",
   "baseline_pruned_sources": [
+    "chrome/app/etw_events/MSG00001.bin",
+    "chrome/app/etw_events/chrome_events_winTEMP.BIN",
     "components/safe_browsing/content/resources/empty_file_type_policy.pb",
     "components/safe_browsing/core/common/safe_browsing_prefs.cc",
     "components/safe_browsing/core/common/safe_browsing_prefs.h",
@@ -2750,6 +2764,8 @@
     "components/signin/public/base/signin_pref_names.h"
   ],
   "restored_pruned_sources": [
+    "chrome/app/etw_events/MSG00001.bin",
+    "chrome/app/etw_events/chrome_events_winTEMP.BIN",
     "components/safe_browsing/content/resources/empty_file_type_policy.pb",
     "components/safe_browsing/core/common/safe_browsing_prefs.cc",
     "components/safe_browsing/core/common/safe_browsing_prefs.h",
@@ -2761,6 +2777,16 @@
       "repository_path": "build/security-resources/empty_file_type_policy.pb",
       "sha256": "98ebc9403565619b3aa2f71f64f5f54adea01d4c4b54d873b2b91c2ac5544112",
       "size": 14
+    },
+    "chrome/app/etw_events/MSG00001.bin": {
+      "repository_path": "build/security-resources/etw_events/MSG00001.bin",
+      "sha256": "51b3d8c734d307af13984bb2c2abde79c859a5acb6386fd233f3e9338f2a7dc5",
+      "size": 180
+    },
+    "chrome/app/etw_events/chrome_events_winTEMP.BIN": {
+      "repository_path": "build/security-resources/etw_events/chrome_events_winTEMP.BIN",
+      "sha256": "1de7329c900e3e367a04ea99c1169cde528754c408de077628f5be856cfe0926",
+      "size": 1402
     }
   },
   "removed_pruned_includes": {},
@@ -3010,6 +3036,6 @@
     "patches/chromium155-windows/0232-renderer-launch-timezone-install.patch": "345ef39c9cc6d987f59c44f3f4a46099391d6c629058f10c1151e02a654796a7",
     "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch": "7f7f691f2d744715e0d48a25dab5ff1e8ac793122657beacd0f99a3e7e8ba908"
   },
-  "patch_sha256": "f444eae62e2700b5e65352788700357b52279b5ddefff77a1168c5f2149f0c9e",
+  "patch_sha256": "913cdcfa50ea11aa4e3ae7d9529448c5a272740ea7a6ab6ff43972c7479b51c7",
   "qualification": "Source replay only; requires native build and actual account/security tests"
 }

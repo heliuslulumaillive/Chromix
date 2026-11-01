@@ -2,6 +2,12 @@
 
 ## Unreleased — Windows 156 Lite continuation
 
+Keep enterprise profile ID collection disabled when restoring the adjacent
+Safe Browsing and password-protection signals. Restore the exact pinned Windows
+ETW message resources removed by binary pruning; retain the original RC source
+and resource target. Reuse the complete stage3 checkpoint through the reviewed
+source migration instead of rebuilding unrelated objects.
+
 Restore the Safe Browsing reporting getter declarations and native preference
 write as one interface, fixing the observed Windows compiler mismatch without
 changing protection defaults. Preserve useful partial compilation when an edge

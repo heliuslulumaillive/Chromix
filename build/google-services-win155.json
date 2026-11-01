@@ -183,6 +183,7 @@
     "patches/fingerprint-modes/0014-headless-screen-synchronization.patch",
     "patches/fingerprint-modes/0015-pixel-mask-first.patch",
     "patches/security/0001-restore-safety-hub-entry.patch",
+    "patches/security/0002-preserve-disabled-enterprise-profile-id.patch",
     "patches/lite-win156/0001-retire-bridge-runtime-synthetic.patch"
   ],
   "extra_sources": [
@@ -212,7 +213,8 @@
     "chrome/browser/component_updater/registration.cc",
     "chrome/browser/component_updater/file_type_policies_component_installer.cc",
     "components/update_client/update_checker.cc",
-    "chrome/browser/resources/settings/privacy_page/privacy_page_index.ts"
+    "chrome/browser/resources/settings/privacy_page/privacy_page_index.ts",
+    "chrome/app/etw_events/chrome_events_win.rc"
   ],
   "restore_hunks": {
     "core/ungoogled-chromium/remove-unused-preferences-fields.patch": {
@@ -547,13 +549,25 @@
     "components/signin/public/base/signin_pref_names.h",
     "components/safe_browsing/core/common/safe_browsing_prefs.cc",
     "components/safe_browsing/core/common/safe_browsing_prefs.h",
-    "components/safe_browsing/content/resources/empty_file_type_policy.pb"
+    "components/safe_browsing/content/resources/empty_file_type_policy.pb",
+    "chrome/app/etw_events/MSG00001.bin",
+    "chrome/app/etw_events/chrome_events_winTEMP.BIN"
   ],
   "restore_pruned_resources": {
     "components/safe_browsing/content/resources/empty_file_type_policy.pb": {
       "repository_path": "build/security-resources/empty_file_type_policy.pb",
       "sha256": "98ebc9403565619b3aa2f71f64f5f54adea01d4c4b54d873b2b91c2ac5544112",
       "size": 14
+    },
+    "chrome/app/etw_events/MSG00001.bin": {
+      "repository_path": "build/security-resources/etw_events/MSG00001.bin",
+      "sha256": "51b3d8c734d307af13984bb2c2abde79c859a5acb6386fd233f3e9338f2a7dc5",
+      "size": 180
+    },
+    "chrome/app/etw_events/chrome_events_winTEMP.BIN": {
+      "repository_path": "build/security-resources/etw_events/chrome_events_winTEMP.BIN",
+      "sha256": "1de7329c900e3e367a04ea99c1169cde528754c408de077628f5be856cfe0926",
+      "size": 1402
     }
   },
   "security_restoration": {
