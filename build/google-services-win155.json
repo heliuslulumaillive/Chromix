@@ -184,6 +184,7 @@
     "patches/fingerprint-modes/0015-pixel-mask-first.patch",
     "patches/security/0001-restore-safety-hub-entry.patch",
     "patches/security/0002-preserve-disabled-enterprise-profile-id.patch",
+    "patches/security/0003-link-signed-web-bundle-payload.patch",
     "patches/lite-win156/0001-retire-bridge-runtime-synthetic.patch"
   ],
   "extra_sources": [
@@ -214,7 +215,10 @@
     "chrome/browser/component_updater/file_type_policies_component_installer.cc",
     "components/update_client/update_checker.cc",
     "chrome/browser/resources/settings/privacy_page/privacy_page_index.ts",
-    "chrome/app/etw_events/chrome_events_win.rc"
+    "chrome/app/etw_events/chrome_events_win.rc",
+    "components/web_package/BUILD.gn",
+    "components/web_package/signed_web_bundles/signed_web_bundle_utils.cc",
+    "components/web_package/signed_web_bundles/signed_web_bundle_utils.h"
   ],
   "restore_hunks": {
     "core/ungoogled-chromium/remove-unused-preferences-fields.patch": {

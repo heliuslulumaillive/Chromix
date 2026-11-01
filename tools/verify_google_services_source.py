@@ -165,6 +165,20 @@ FORBIDDEN = {
 }
 
 SECURITY_REQUIRED = {
+    'components/web_package/BUILD.gn': [
+        'static_library("web_package")',
+        '"signed_web_bundles/signed_web_bundle_utils.cc"',
+    ],
+    'components/web_package/signed_web_bundles/signed_web_bundle_utils.cc': [
+        'std::vector<uint8_t> CreateSignaturePayload(const SignedWebBundleSignatureData& data)',
+        'CHECK(writer.WriteU64BigEndian(item.size()));',
+        'AddItemToPayload(payload, data.unsigned_web_bundle_hash);',
+        'AddItemToPayload(payload, data.integrity_block_cbor);',
+        'AddItemToPayload(payload, data.attributes_cbor);',
+    ],
+    'components/web_package/signed_web_bundles/signed_web_bundle_utils.h': [
+        'std::vector<uint8_t> CreateSignaturePayload(const SignedWebBundleSignatureData& data);',
+    ],
     'chrome/app/etw_events/chrome_events_win.rc': [
         'LANGUAGE 0x9,0x1',
         '1 11 "MSG00001.bin"',
@@ -302,6 +316,14 @@ def verify(src: Path, *, require_security=False, require_lite_retirement=False):
             text = re.sub(r'(?m)^\s*#.*$', '', text)
         source = CPP_TOKENS.sub(lambda token: '' if token.group('comment') else token[0], text)
         if require_security:
+            if name == 'components/web_package/BUILD.gn':
+                # The upstream Windows adaptation leaves a disconnected Rust
+                # source set containing this filename. Require the C++ fallback
+                # in the library actually consumed by the native test harness.
+                library = re.search(r'(?ms)^static_library\("web_package"\)\s*\{(.*?)^\}', source)
+                sources = re.search(r'\bsources\s*=\s*\[([^\]]*)\]', library[1]) if library else None
+                if not sources or sources[1].count('"signed_web_bundles/signed_web_bundle_utils.cc"') != 1:
+                    errors.append(name + ': signature payload implementation is not linked exactly once in web_package')
             if name == 'chrome/browser/enterprise/signals/context_info_fetcher.cc':
                 if re.search(r'\bGetEnterpriseProfileId\s*\(|\benterprise_profile_id\s*=|\bProfileIdServiceFactory::GetForProfile\s*\(', source):
                     errors.append(name + ': enterprise profile identifier collection was unintentionally restored')

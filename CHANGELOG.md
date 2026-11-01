@@ -2,6 +2,11 @@
 
 ## Unreleased — Windows 156 Lite continuation
 
+Link the existing Windows C++ signature-payload encoder into its web-package
+library. The upstream adaptation disconnected its former source set while test
+support still used the function. Keep the encoder bytes, signature checks and
+native Passkey test suites unchanged, and reuse the latest complete checkpoint.
+
 Keep enterprise profile ID collection disabled when restoring the adjacent
 Safe Browsing and password-protection signals. Restore the exact pinned Windows
 ETW message resources removed by binary pruning; retain the original RC source

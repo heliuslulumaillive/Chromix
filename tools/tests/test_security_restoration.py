@@ -73,6 +73,9 @@ class SecuritySourceGateTest(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text('\n'.join('"' + value + '";' if value.startswith('https://') else value
                                       for value in fragments), encoding='utf-8')
+        (src / 'components/web_package/BUILD.gn').write_text(
+            'static_library("web_package") {\n  sources = [\n'
+            '    "signed_web_bundles/signed_web_bundle_utils.cc",\n  ]\n}\n')
         leak = src / 'components/password_manager/core/browser/leak_detection/leak_detection_check_impl.cc'
         leak.write_text(leak.read_text() + '\nbool LeakDetectionCheck::CanStartLeakCheck() {\n'
                         'const bool enabled = prefs.GetBoolean(prefs::kPasswordLeakDetectionEnabled);\n'

@@ -37198,6 +37198,16 @@
  }
  
  }  // namespace variations
+--- a/components/web_package/BUILD.gn
++++ b/components/web_package/BUILD.gn
+@@ -64,6 +64,7 @@
+     "signed_web_bundles/signed_web_bundle_integrity_block.cc",
+     "signed_web_bundles/signed_web_bundle_signature_stack.cc",
+     "signed_web_bundles/signed_web_bundle_signature_stack_entry.cc",
++    "signed_web_bundles/signed_web_bundle_utils.cc",
+     "web_bundle_builder.cc",
+     "web_bundle_utils.cc",
+   ]
 --- a/content/browser/BUILD.gn
 +++ b/content/browser/BUILD.gn
 @@ -179,6 +179,7 @@

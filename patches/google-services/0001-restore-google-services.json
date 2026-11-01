@@ -389,6 +389,7 @@
     "components/ungoogled/persona_profile.cc",
     "components/update_client/update_checker.cc",
     "components/variations/net/variations_http_headers.cc",
+    "components/web_package/BUILD.gn",
     "content/browser/BUILD.gn",
     "content/browser/file_system_access/file_system_access_safe_move_helper.cc",
     "content/browser/file_system_access/file_system_access_safe_move_helper.h",
@@ -1989,6 +1990,18 @@
       "sha256": "f1b8c95333f33b3b4c8ed96f863e10570be9fa59ccf9b8a194259a182d19b98c"
     },
     {
+      "path": "components/web_package/BUILD.gn",
+      "sha256": "743d34a6a451cd7f8696a85b963c7cd304baa2fd12f8316b4f70299f8f5f452b"
+    },
+    {
+      "path": "components/web_package/signed_web_bundles/signed_web_bundle_utils.cc",
+      "sha256": "c8f1a1c40544282921cb7ddb3aeb42608e20af399ce9acd11118e8b35c5712e3"
+    },
+    {
+      "path": "components/web_package/signed_web_bundles/signed_web_bundle_utils.h",
+      "sha256": "e6c5aec4726f900d9f17e9d79432935ae804810cf72d2d9dced379d21eb62400"
+    },
+    {
       "path": "content/browser/BUILD.gn",
       "sha256": "9419aa1fbfc0f5e2e80f1391e13ac919cd1e2dd97053d50f78353a8fb206f1d3"
     },
@@ -3036,6 +3049,6 @@
     "patches/chromium155-windows/0232-renderer-launch-timezone-install.patch": "345ef39c9cc6d987f59c44f3f4a46099391d6c629058f10c1151e02a654796a7",
     "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch": "7f7f691f2d744715e0d48a25dab5ff1e8ac793122657beacd0f99a3e7e8ba908"
   },
-  "patch_sha256": "913cdcfa50ea11aa4e3ae7d9529448c5a272740ea7a6ab6ff43972c7479b51c7",
+  "patch_sha256": "1eb245065d8fe8910c1a9646b6ab247a860529f7d6dcd886e10302ec5fefc892",
   "qualification": "Source replay only; requires native build and actual account/security tests"
 }
