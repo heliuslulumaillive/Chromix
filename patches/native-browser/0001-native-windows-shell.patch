@@ -310,7 +310,7 @@
  
 --- a/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
 +++ b/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
-@@ -3,6 +3,13 @@
+@@ -3,6 +3,14 @@
  // found in the LICENSE file.
  
  #include "chrome/browser/ui/views/frame/browser_window_property_manager_win.h"
@@ -319,12 +319,13 @@
 +#include <shlobj.h>  // Must precede propkey.h.
 +// clang-format on
 +#include <propkey.h>
++#include <shellapi.h>
 +#include <wrl/client.h>
 +#include <initializer_list>
  
  #include "base/command_line.h"
  #include "base/functional/bind.h"
-@@ -25,6 +32,21 @@
+@@ -25,6 +33,21 @@
  #include "ui/views/win/hwnd_util.h"
  
  using extensions::ExtensionRegistry;
@@ -346,7 +347,7 @@
  
  BrowserWindowPropertyManager::BrowserWindowPropertyManager(
      const BrowserView* view,
-@@ -71,6 +93,15 @@
+@@ -71,6 +94,15 @@
                  profile->GetPath())
            : shell_integration::win::GetAppUserModelIdForBrowser(
                  profile->GetPath());

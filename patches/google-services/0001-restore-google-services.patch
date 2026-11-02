@@ -28722,7 +28722,7 @@
  
 --- a/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
 +++ b/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
-@@ -3,6 +3,13 @@
+@@ -3,6 +3,14 @@
  // found in the LICENSE file.
  
  #include "chrome/browser/ui/views/frame/browser_window_property_manager_win.h"
@@ -28731,12 +28731,13 @@
 +#include <shlobj.h>  // Must precede propkey.h.
 +// clang-format on
 +#include <propkey.h>
++#include <shellapi.h>
 +#include <wrl/client.h>
 +#include <initializer_list>
  
  #include "base/command_line.h"
  #include "base/functional/bind.h"
-@@ -25,6 +32,21 @@
+@@ -25,6 +33,21 @@
  #include "ui/views/win/hwnd_util.h"
  
  using extensions::ExtensionRegistry;
@@ -28758,7 +28759,7 @@
  
  BrowserWindowPropertyManager::BrowserWindowPropertyManager(
      const BrowserView* view,
-@@ -71,6 +93,15 @@
+@@ -71,6 +94,15 @@
                  profile->GetPath())
            : shell_integration::win::GetAppUserModelIdForBrowser(
                  profile->GetPath());
@@ -39059,17 +39060,15 @@
      return true;
 --- /dev/null
 +++ b/net/base/shardx_environment_controls.h
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,63 @@
 +// Copyright 2026 The ShardX Authors
 +// Use of this source code is governed by a BSD-style license.
 +#ifndef NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
 +#define NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
 +
 +#include <algorithm>
-+#include <charconv>
 +#include <cstddef>
 +#include <string_view>
-+#include <system_error>
 +#include <vector>
 +
 +namespace net::shardx {
@@ -39092,10 +39091,26 @@
 +    const size_t end = value.find(',', start);
 +    const auto part = value.substr(start, end == std::string_view::npos
 +                                             ? value.size() - start : end - start);
++    if (part.empty()) {
++      result.valid = false;
++      return result;
++    }
 +    int port = 0;
-+    const auto parsed = std::from_chars(part.data(), part.data() + part.size(), port);
-+    if (part.empty() || parsed.ec != std::errc() ||
-+        parsed.ptr != part.data() + part.size() || port < 1 || port > 65535) {
++    for (const char digit : part) {
++      if (digit < '0' || digit > '9') {
++        result.valid = false;
++        return result;
++      }
++      const int digit_value = digit - '0';
++      // Bound the next decimal step before multiplication, including very
++      // long inputs. Range iteration never exposes an unchecked pointer pair.
++      if (port > (65535 - digit_value) / 10) {
++        result.valid = false;
++        return result;
++      }
++      port = port * 10 + digit_value;
++    }
++    if (port < 1) {
 +      result.valid = false;
 +      return result;
 +    }

@@ -70,6 +70,7 @@ def verify_shell(src: Path):
 
     name = 'chrome/browser/ui/views/frame/browser_window_property_manager_win.cc'
     source = read(src, name)
+    require(source, ['#include <shellapi.h>'], name)
     clear = body(source, 'ClearManagedRelaunchDetails')
     require(clear, ['PKEY_AppUserModel_RelaunchCommand',
         'PKEY_AppUserModel_RelaunchDisplayNameResource',

@@ -60,6 +60,21 @@
       "target_preparation_sha256": "7d49711de4aa3147c2f8735e02809fdfc2aab1a0ddd6637cdc0b229cc49ad3b1",
       "target_aggregate_sha256": "815715ea7a31ec5f2d706c51b068231218802a0f772e479fdd2d0fd156fecef1",
       "scope": "Reviewed same-156 native Google defaults, Windows environment shell integration and native network/media/DNT controls. Preserve objects and unchanged source timestamps. No compiled acceptance is inherited."
+    },
+    {
+      "id": "lite156-native-browser-compile-repair-v3",
+      "chromium_version": "156.0.8078.79",
+      "core_commit": "28a211ab4ab6b83d919966a4f58a6df23cf4fb29",
+      "windows_commit": "8492884eb30fdd9417ea7816aa92def805c97c74",
+      "arch": "x64",
+      "source_commit": "dfd01b0aa75a845a34fd52e65cec6b0cd2d09176",
+      "source_recipe_sha256": "73eb5d2a9251a8a8844640d2985435bb0ed906de39b995d7ce7510df5fddcc3f",
+      "source_preparation_sha256": "7d49711de4aa3147c2f8735e02809fdfc2aab1a0ddd6637cdc0b229cc49ad3b1",
+      "source_aggregate_sha256": "815715ea7a31ec5f2d706c51b068231218802a0f772e479fdd2d0fd156fecef1",
+      "target_recipe_sha256": "592f4cb76641f0579863814b167c5d99ff43fd5646ceb924a2d4d08046d75fb8",
+      "target_preparation_sha256": "8db1dd8ae6f6f58a3223f548effe3411a5687214832583fe552eb5b0a4ce14ea",
+      "target_aggregate_sha256": "331a61fec89c868e9fe88a796379eaf02ebb8b82cb4bddb3917f5ad19b0255fb",
+      "scope": "Reviewed explicit shellapi.h include for the observed CI declaration failure, plus a semantically equivalent bounded parser without raw pointer arithmetic. Preserve bounded-decimal semantics, every other source byte, unchanged mtimes and existing object outputs. No compiled acceptance inherited."
     }
   ]
 }

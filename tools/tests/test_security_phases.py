@@ -141,11 +141,23 @@ class PhaseGuardTests(unittest.TestCase):
         self.assertTrue(result['needs_source_fix'])
         self.assertEqual(result['count'], 1)
         self.assertEqual(result['failures'][0], {'line': 2, 'target': 'obj/broken.obj'})
+        self.assertEqual(result['diagnostics'], [{'line': 3, 'message': 'file.cc: error: missing declaration'}])
         self.assertRegex(result['log_sha256'], r'^[a-f0-9]{64}$')
         path.write_text('\x1b[31mFAILED:\x1b[0m obj/color.obj\n[2/9] CXX useful.obj\n', encoding='utf-8')
         self.assertEqual(self.run_guard('ninja-failures', {'path': str(path)})['count'], 1)
         path.write_text('[1/9] CXX good.obj\nwarning: example contains FAILED: as text\n', encoding='utf-8')
         self.assertFalse(self.run_guard('ninja-failures', {'path': str(path)})['needs_source_fix'])
+
+    def test_compiler_diagnostics_are_bounded_and_survive_later_successful_work(self):
+        path = Path(self.temp.name) / 'ninja-diagnostics.log'
+        errors = ['file.cc(39,14): \x1b[31merror:\x1b[0m ' + 'x' * 2000 for _ in range(20)]
+        path.write_text('FAILED: obj/broken.obj\n' + '\n'.join(errors) +
+                        '\n' + '[next] CXX useful.obj\n' * 100, encoding='utf-8')
+        result = self.run_guard('ninja-failures', {'path': str(path)})
+        self.assertEqual(len(result['diagnostics']), 8)
+        self.assertTrue(all(len(row['message']) == 1200 and '\x1b' not in row['message']
+                            for row in result['diagnostics']))
+        self.assertEqual(result['diagnostics'][0]['line'], 2)
 
     def test_actual_invoker_prioritizes_recorded_failure_over_later_timeout(self):
         import sys

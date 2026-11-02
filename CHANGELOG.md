@@ -2,6 +2,7 @@
 
 ## Unreleased — Native browser ownership (2026-11-02)
 
+- Repair the explicit Windows SDK declaration required by WIN32_LEAN_AND_MEAN, preserve strict diagnostics, and use a bounds-checked port parser without raw pointer arithmetic. Correct the isolated runtime probe's IPv6 resolver exclusion and expose bounded compiler diagnostics before checkpoint upload.
 - Restore the pinned Google search definition and Chromium search-suggestion and translation defaults. Retain native regional, user and policy preference precedence; leave session and history behavior upstream.
 - Use a validated managed-environment UUID for native Windows taskbar grouping and profile avatars, including a single regular profile. Disable unmanaged profile shortcuts and relaunch properties inside Chromium.
 - Enforce environment camera/microphone restrictions in native permission queries and capture dispatch, blocked ports in native effective-port checks, and DNT through the native command-line preference layer. Forward port policy to renderer and network processes; no manager extension or per-profile JSON rewrite is required.

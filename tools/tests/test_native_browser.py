@@ -101,6 +101,14 @@ class NativeBrowserSourceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'relaunch details'):
             gate.verify_shell(self.source)
 
+    def test_lean_windows_build_requires_explicit_shellapi_declaration(self):
+        self.assertIn('WIN32_LEAN_AND_MEAN', self.fixture['compile_contract']['ci_relevant_defines'])
+        self.assertEqual(self.fixture['compile_contract']['required_explicit_includes'], ['shellapi.h'])
+        self.change('chrome/browser/ui/views/frame/browser_window_property_manager_win.cc',
+                    '#include <shellapi.h>', '// shellapi declaration omitted')
+        with self.assertRaisesRegex(ValueError, 'shellapi'):
+            gate.verify_shell(self.source)
+
     def test_managed_identity_must_not_depend_on_data_root(self):
         self.change('chrome/browser/shell_integration_win.cc',
             'profile_path.BaseName().AsUTF8Unsafe()',

@@ -3131,7 +3131,7 @@
     "patches/chromium155-windows/0232-renderer-launch-timezone-install.patch": "345ef39c9cc6d987f59c44f3f4a46099391d6c629058f10c1151e02a654796a7",
     "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch": "7f7f691f2d744715e0d48a25dab5ff1e8ac793122657beacd0f99a3e7e8ba908"
   },
-  "patch_sha256": "815715ea7a31ec5f2d706c51b068231218802a0f772e479fdd2d0fd156fecef1",
+  "patch_sha256": "331a61fec89c868e9fe88a796379eaf02ebb8b82cb4bddb3917f5ad19b0255fb",
   "qualification": "Source replay only; requires native build and actual account/security tests",
   "generation_inputs": {
     "schema_version": 1,
@@ -4359,8 +4359,8 @@
       "patches/fingerprint-modes/0015-pixel-mask-first.patch": "48806ebce0ca13bbaec3c2cebacf9f486f930b03be610e9e2975d571282cd2a1",
       "patches/google-services/0002-windows-native-passkey-discovery.patch": "ec57f6456b2d6d65638337074d626fd4809dfe8a5038034c88cafcf7698a8793",
       "patches/lite-win156/0001-retire-bridge-runtime-synthetic.patch": "f6ce9873dbaecb4d6f313becc05627da027fb1e13d5e2dda78303a88b1b62132",
-      "patches/native-browser/0001-native-windows-shell.patch": "46622f7370d1fd4e2889defa68046e719a14ab4dfd35fa1a495a4034d91f426c",
-      "patches/native-browser/0002-environment-controls.patch": "0bec6d0c75818f9c5945fe21fa98cf93c13dd01ba5670a1372484fa66f712322",
+      "patches/native-browser/0001-native-windows-shell.patch": "4227a857c72fc51910229fa36710ad393f882fae9bfe3983d609f470d280f000",
+      "patches/native-browser/0002-environment-controls.patch": "c6399f57c74bf930cc1be70f99e4a8fdef65501632936a735f5a0bdd3b0ddf36",
       "patches/security/0001-restore-safety-hub-entry.patch": "15c4ca59e9b4841b977067f6c0a55699cf66d6407db2f4965531db416079f1b6",
       "patches/security/0002-preserve-disabled-enterprise-profile-id.patch": "aa0e2d5a6785b8792492afabd9d18859bbeea0852adfe82625fb81ded7c6ae80",
       "patches/security/0003-link-signed-web-bundle-payload.patch": "d4cad9e00eb141ea4409c3f22d1804636df4f0895867f9a478379dc526bc2a94",
@@ -4371,9 +4371,9 @@
       "tools/patch_selection.py": "303dc5399fd3a7ae00d6f7a4fe74e9a9f3d52a07094886ae9329a458a76896f5",
       "tools/platform_pins.py": "79f5da2b264015c837e2e77df5e51f64f712f745c3a50f8002949b6419d8cb3c",
       "tools/restored_source_resources.py": "745676ca91071f789a5c1899147bdb80fed84efb40e1f2e8819bea3c241d7662",
-      "tools/verify_native_browser_source.py": "c61df56a77ea44ba340c3872489f83258020cf7790677eed1e00b3df4f4eeb2a",
-      "tools/verify_native_environment_controls_source.py": "762717c39b7c24bb15e1c72e8a96ca1870023b02fe041b9d2718fe066197afb8"
+      "tools/verify_native_browser_source.py": "91b96730668a52b23912699bedee3554adcf8490ef11a876b39b602e9bdf8736",
+      "tools/verify_native_environment_controls_source.py": "2a5f06cb2e882763a1525baa9d78670439fa3678df44080bf3731a8b8e0a343b"
     }
   },
-  "generation_inputs_sha256": "90305c234d63c53cd4f6ef025c5d53206085e8eff1f290c62b22e28edb3a62b0"
+  "generation_inputs_sha256": "7939ca9d4da8b7bf98d6fa874f963987600d2adfb6cdfaa4fb9e5801bcfde1c4"
 }

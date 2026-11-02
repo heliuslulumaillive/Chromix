@@ -178,6 +178,7 @@ function Get-OwnedCommandStatus([int]$ExitCode,[System.Collections.IDictionary]$
 }
 function Get-NinjaFailureSummary([string]$Log) {
   $failures = [Collections.Generic.List[object]]::new()
+  $diagnostics = [Collections.Generic.List[object]]::new()
   $lineNumber = 0
   foreach ($line in [IO.File]::ReadLines($Log)) {
     $lineNumber++
@@ -185,8 +186,11 @@ function Get-NinjaFailureSummary([string]$Log) {
     if ($plainLine.StartsWith('FAILED:')) {
       $failures.Add(@{ line=$lineNumber; target=$plainLine.Substring(7).Trim() })
     }
+    if ($diagnostics.Count -lt 8 -and $plainLine -match '(?:^|:\s+)(?:fatal\s+)?error(?:\s+[A-Z]+[0-9]+)?:') {
+      $diagnostics.Add(@{ line=$lineNumber; message=$plainLine.Substring(0,[Math]::Min(1200,$plainLine.Length)) })
+    }
   }
-  return @{ count=$failures.Count; failures=@($failures.ToArray());
+  return @{ count=$failures.Count; failures=@($failures.ToArray()); diagnostics=@($diagnostics.ToArray());
     log_sha256=(Get-FileHash -LiteralPath $Log -Algorithm SHA256).Hash.ToLowerInvariant();
     needs_source_fix=($failures.Count -gt 0) }
 }
@@ -221,6 +225,15 @@ function Invoke-Owned([string]$Label,[string[]]$Command,[int]$LimitSeconds=18000
       $state.failed_targets = $ninjaFailures.failures
       Save-State
       $commandStatus = 'failed'
+    }
+    if ($commandStatus -eq 'failed') {
+      # Later useful compiles can push the actual error out of the log tail.
+      # Publish bounded, escaped diagnostics before slow checkpoint retention.
+      # Keep the complete original log and digest as the authoritative evidence.
+      foreach ($diagnostic in $ninjaFailures.diagnostics) {
+        $message=([string]$diagnostic.message).Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
+        Write-Output "::error title=Native compiler::$message"
+      }
     }
   }
   if ($commandStatus -eq 'budget-stop') { throw 'SECURITY_BUDGET_STOP' }

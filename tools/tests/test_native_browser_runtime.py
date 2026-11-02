@@ -175,6 +175,16 @@ class AssessmentTests(unittest.TestCase):
 
 
 class OwnedFixtureTests(unittest.TestCase):
+    def test_ipv6_resolver_exclusion_uses_unbracketed_host(self):
+        options = runtime.launch_options(Path('chrome.exe'), Path('profile'),
+                                         'Default', 55003, 55001, True, False, {})
+        resolver = next(arg for arg in options['args'] if arg.startswith('--host-resolver-rules='))
+        self.assertIn('MAP * ~NOTFOUND', resolver)
+        self.assertIn('EXCLUDE ::1', resolver)
+        self.assertNotIn('EXCLUDE [::1]', resolver)
+        # Proxy bypass has a different grammar: its IPv6 literal stays bracketed.
+        self.assertIn('--proxy-bypass-list=127.0.0.1;[::1];localhost', options['args'])
+
     def test_media_setup_refuses_any_existing_data_root(self):
         with tempfile.TemporaryDirectory() as temporary:
             data = Path(temporary) / 'new-data'

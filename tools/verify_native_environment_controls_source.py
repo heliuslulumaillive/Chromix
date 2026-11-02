@@ -90,19 +90,29 @@ def verify(src: Path) -> list[str]:
 
     name = TARGETS[0]
     header = sources[name]
-    require(header, ['#include <algorithm>', '#include <charconv>', '#include <string_view>',
-                     '#include <system_error>', '#include <vector>', 'bool valid = true;'], name)
+    require(header, ['#include <algorithm>', '#include <cstddef>', '#include <string_view>',
+                     '#include <vector>', 'bool valid = true;'], name)
     require(body(header, 'Contains'), [
         'return !valid || std::binary_search(ports.begin(), ports.end(), port);'], name)
     parser = body(header, 'ParseBlockedPorts')
     require(parser, ['if (value.empty()) return result;',
         'if (value.size() > 1535) { result.valid = false; return result; }',
         'if (result.ports.size() >= 256) { result.valid = false; return result; }',
-        "value.find(',', start)", 'std::from_chars(part.data(), part.data() + part.size(), port)',
-        'part.empty() || parsed.ec != std::errc() || parsed.ptr != part.data() + part.size() || port < 1 || port > 65535',
+        "value.find(',', start)", 'if (part.empty()) { result.valid = false; return result; }',
+        "for (const char digit : part)",
+        "if (digit < '0' || digit > '9') { result.valid = false; return result; }",
+        "const int digit_value = digit - '0';",
+        'if (port > (65535 - digit_value) / 10) { result.valid = false; return result; }',
+        'port = port * 10 + digit_value;', 'if (port < 1) { result.valid = false; return result; }',
         'result.valid = false;', 'result.ports.push_back(port);',
         'std::sort(result.ports.begin(), result.ports.end());',
         'std::unique(result.ports.begin(), result.ports.end())'], name)
+    before(parser, 'if (port > (65535 - digit_value) / 10)',
+           'port = port * 10 + digit_value;', name)
+    if ('part.data()' in compact(parser) or 'from_chars' in code(header)
+            or 'UNSAFE_BUFFERS' in code(header) or 'UNSAFE_TODO' in code(header)
+            or re.search(r'#\s*pragma\s+clang\s+diagnostic', code(header))):
+        raise ValueError(name + ': unchecked pointer parsing or warning suppression is forbidden')
 
     name = TARGETS[1]
     source = sources[name]

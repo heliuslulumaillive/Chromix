@@ -47,6 +47,18 @@ class NativeEnvironmentControlSourceTests(unittest.TestCase):
     def test_invalid_explicit_port_policy_fails_closed(self):
         self.mutate(gate.TARGETS[0], 'return !valid || std::binary_search', 'return valid && std::binary_search')
 
+    def test_decimal_accumulation_requires_pre_multiply_range_guard(self):
+        self.mutate(gate.TARGETS[0], 'if (port > (65535 - digit_value) / 10)',
+                    'if (port > 65535)')
+
+    def test_only_ascii_decimal_digits_are_accepted(self):
+        self.mutate(gate.TARGETS[0], "if (digit < '0' || digit > '9')",
+                    "if (digit < '0' && digit > '9')")
+
+    def test_pointer_parsing_cannot_be_hidden_by_warning_suppression(self):
+        self.mutate(gate.TARGETS[0], '#include <algorithm>',
+                    '#pragma clang diagnostic ignored "-Wunsafe-buffer-usage"\n#include <algorithm>')
+
     def test_dnt_requires_native_command_pref_layer(self):
         self.mutate(gate.TARGETS[5], 'SetValue(prefs::kEnableDoNotTrack, base::Value(dnt == "true"),', 'SetValue(prefs::kEnableDoNotTrack, base::Value(false),')
 

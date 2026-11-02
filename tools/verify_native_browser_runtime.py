@@ -112,7 +112,7 @@ def launch_options(browser, data_root, native_profile, proxy_port, blocked_port,
         '--shardx-managed-environment=' + ENVIRONMENT_ID,
         '--proxy-server=http://127.0.0.1:' + str(proxy_port),
         '--proxy-bypass-list=127.0.0.1;[::1];localhost',
-        '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE [::1], EXCLUDE localhost']
+        '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE ::1, EXCLUDE localhost']
     if media_blocked is not None:
         args.extend(['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'])
     if media_blocked:
