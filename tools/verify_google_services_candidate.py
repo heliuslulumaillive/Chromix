@@ -1004,6 +1004,10 @@ def validate_security_runtime(report_path, source_record_path, bundle, payload_h
 
 
 def verify_candidate(artifact_dir, source, report_dir, record, *, build_variant=GOOGLE_VARIANT):
+    # Bind paths to the caller before probes run with cwd=REPO. Keep symlinks
+    # visible to the existing path guards rather than resolving through them.
+    artifact_dir = Path(os.path.abspath(artifact_dir))
+    report_dir = Path(os.path.abspath(report_dir))
     version = variant_version(build_variant)
     validate_source_run(source, build_variant=build_variant)
     native_tests = artifact_dir / 'native-passkey-unittests.json'
@@ -1019,6 +1023,7 @@ def verify_candidate(artifact_dir, source, report_dir, record, *, build_variant=
                   compiler_invoked=False, source_checkpoint_restored=False,
                   built_source_commit=source['head_sha'],
                   verification_commit=os.environ.get('GITHUB_SHA'),
+                  verification_script_sha256=sha256(Path(__file__)),
                   qualification='Tests of the original source-run artifact; not a rebuild of the verification commit')
     before = inventory(bundle)
     if build_variant in FINGERPRINT_VARIANTS:

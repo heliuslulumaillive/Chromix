@@ -1,6 +1,7 @@
 """Variant/version and real CLI integration gates using synthetic owned artifacts."""
 from __future__ import annotations
 import copy
+from contextlib import chdir
 import hashlib
 import json
 import os
@@ -199,15 +200,18 @@ class SecurityCandidateTests(unittest.TestCase):
         reports=self.root/'reports';reports.mkdir()
         bundle_report={'bundle_dir':str(self.bundle),'archive':{'sha256':candidate.sha256(archive)}}
         def runtime(command,**kwargs):
+            destination = Path(command[command.index('--report') + 1])
+            self.assertTrue(destination.is_absolute())
+            self.assertEqual(destination, reports / 'google-webauthn.json')
             payload={name:candidate.sha256(self.bundle/name) for name in ['chrome.exe','chrome.dll']}
             probe={'status':'passed','browser_sha256':payload['chrome.exe'],'chrome_dll_sha256':payload['chrome.dll'],
                    'checks':[{'name':name,'passed':True} for name in candidate.REQUIRED_CHECKS]}
-            (reports/'google-webauthn.json').write_text(json.dumps(probe))
+            destination.write_text(json.dumps(probe))
             return {'exit_code':0,'timed_out':False,'cleanup_errors':[]}
         with mock.patch.object(candidate,'extract_archive',return_value=bundle_report),\
              mock.patch.object(candidate,'runtime_smoke',return_value={}) as smoke,\
-             mock.patch.object(candidate,'run_command',side_effect=runtime):
-            result={};candidate.verify_candidate(self.root,source,reports,result,build_variant=FP156)
+             mock.patch.object(candidate,'run_command',side_effect=runtime), chdir(self.root.parent):
+            result={};candidate.verify_candidate(Path(self.root.name),source,Path(self.root.name)/'reports',result,build_variant=FP156)
             self.assertEqual(result['status'],'passed')
             self.assertEqual(smoke.call_args.args[1],V156)
             self.assertEqual(set(result['native_passkey_regression_tests']),compiled.REQUIRED_TESTS['passkey'])
