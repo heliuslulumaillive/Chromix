@@ -22026,7 +22026,15 @@
  #include "base/strings/string_util.h"
  #include "base/uxr_config.h"
  #include "net/base/ip_address.h"
-@@ -372,6 +382,110 @@
+@@ -96,6 +106,7 @@
+ #include "chrome/common/chrome_features.h"
+ #include "chrome/common/chrome_paths.h"
+ #include "chrome/common/chrome_result_codes.h"
++#include "components/history/core/browser/shardx_history_retention.h"
+ #include "chrome/common/chrome_switches.h"
+ #include "chrome/common/crash_keys.h"
+ #include "chrome/common/media/media_resource_provider.h"
+@@ -372,6 +383,110 @@
  
  namespace {
  
@@ -22137,7 +22145,19 @@
  // Resolve an explicitly requested auto address once, before profiles or
  // renderer persona snapshots exist. A bounded startup RunLoop services the
  // network callbacks; no UI-thread socket blocking or profile-state mutation.
-@@ -1906,6 +2020,13 @@
+@@ -1134,6 +1249,11 @@
+ // content::BrowserMainParts implementation ------------------------------------
+ 
+ int ChromeBrowserMainParts::PreEarlyInitialization() {
++  if (!history::shardx::HistoryDays(
++          *base::CommandLine::ForCurrentProcess()).has_value()) {
++    LOG(ERROR) << "Invalid managed history retention policy";
++    return CHROME_RESULT_CODE_UNSUPPORTED_PARAM;
++  }
+   TRACE_EVENT0("startup", "ChromeBrowserMainParts::PreEarlyInitialization");
+   for (auto& chrome_extra_part : chrome_extra_parts_) {
+     chrome_extra_part->PreEarlyInitialization();
+@@ -1906,6 +2026,13 @@
    SCOPED_UMA_HISTOGRAM_LONG_TIMER("Startup.PreMainMessageLoopRunImplLongTime");
  
  #if BUILDFLAG(IS_WIN)
@@ -25047,7 +25067,7 @@
  
 --- /dev/null
 +++ b/chrome/browser/profiles/shardx_native_browser_unittest.cc
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,124 @@
 +// Copyright 2026 The ShardX Authors
 +// Use of this source code is governed by a BSD-style license.
 +
@@ -25056,6 +25076,7 @@
 +#include "base/command_line.h"
 +#include "base/files/file_path.h"
 +#include "base/test/scoped_command_line.h"
++#include "components/history/core/browser/shardx_history_retention.h"
 +#include "chrome/browser/profiles/profile_shortcut_manager.h"
 +#include "chrome/browser/shell_integration_win.h"
 +#include "net/base/shardx_environment_controls.h"
@@ -25139,6 +25160,35 @@
 +    too_many += '1';
 +  }
 +  EXPECT_FALSE(net::shardx::ParseBlockedPorts(too_many).valid);
++}
++
++
++TEST(ShardXNativeBrowserTest, HistoryRetentionRejectsInvalidValues) {
++  using history::shardx::ParseHistoryDays;
++  for (const char* invalid : {"", "-1", "+1", "1.5", " 300", "300 ", "01",
++                              "106751992", "999999999999999999999999"}) {
++    EXPECT_FALSE(ParseHistoryDays(invalid).has_value()) << invalid;
++  }
++  EXPECT_EQ(0, ParseHistoryDays("0"));
++  EXPECT_EQ(1, ParseHistoryDays("1"));
++  EXPECT_EQ(300, ParseHistoryDays("300"));
++  EXPECT_EQ(106751991, ParseHistoryDays("106751991"));
++}
++
++TEST(ShardXNativeBrowserTest, ManagedHistoryRequiresExplicitPolicy) {
++  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
++  EXPECT_EQ(90, history::shardx::HistoryDays(command_line));
++  command_line.AppendSwitchASCII("shardx-history-retention-days", "0");
++  EXPECT_FALSE(history::shardx::HistoryDays(command_line).has_value());
++  command_line.AppendSwitchASCII("shardx-managed-environment",
++                                 "01234567-89ab-4cde-8123-456789abcdef");
++  EXPECT_EQ(0, history::shardx::HistoryDays(command_line));
++  command_line.AppendSwitchASCII("shardx-history-retention-days", "300");
++  EXPECT_EQ(300, history::shardx::HistoryDays(command_line));
++  command_line.RemoveSwitch("shardx-history-retention-days");
++  EXPECT_FALSE(history::shardx::HistoryDays(command_line).has_value());
++  command_line.AppendSwitchASCII("shardx-managed-environment", "invalid");
++  EXPECT_FALSE(history::shardx::HistoryDays(command_line).has_value());
 +}
 +
 +}  // namespace
@@ -30334,7 +30384,7 @@
        "//components/safe_browsing/content/browser:safe_browsing_service",
        "//components/safe_browsing/content/browser/password_protection",
        "//components/safe_browsing/content/browser/password_protection:test_support",
-@@ -4687,6 +4689,82 @@
+@@ -4687,6 +4689,83 @@
  mojom("test_interfaces") {
    testonly = true
    sources = [ "mojom/echo.test-mojom" ]
@@ -30379,6 +30429,7 @@
 +      "//chrome/utility",
 +      "//chrome:resources",
 +      "//chrome:strings",
++      "//components/history/core/browser",
 +      "//components/prefs",
 +      "//components/strings",
 +      "//components/vector_icons",
@@ -30417,7 +30468,7 @@
  }
  
  test("unit_tests") {
-@@ -5351,6 +5429,7 @@
+@@ -5351,6 +5430,7 @@
      "//components/resources",
      "//components/safe_browsing:buildflags",
      "//components/safe_browsing/content/browser",
@@ -30425,7 +30476,7 @@
      "//components/safe_browsing/content/browser/password_protection",
      "//components/safe_browsing/content/browser/password_protection:mock_password_protection",
      "//components/safe_browsing/content/browser/web_ui",
-@@ -8424,6 +8503,7 @@
+@@ -8424,6 +8504,7 @@
        "//components/privacy_sandbox:privacy_sandbox_prefs",
        "//components/reading_list/core",
        "//components/resources",
@@ -32112,6 +32163,170 @@
    return false;
  }
  
+--- a/components/history/core/browser/BUILD.gn
++++ b/components/history/core/browser/BUILD.gn
+@@ -34,6 +34,7 @@
+     "expire_history_backend.h",
+     "history_backend.cc",
+     "history_backend.h",
++    "shardx_history_retention.h",
+     "history_backend_client.h",
+     "history_backend_notifier.h",
+     "history_backend_observer.h",
+--- a/components/history/core/browser/expire_history_backend.cc
++++ b/components/history/core/browser/expire_history_backend.cc
+@@ -390,8 +390,9 @@
+ }
+ 
+ void ExpireHistoryBackend::StartExpiringOldStuff(
+-    base::TimeDelta expiration_threshold) {
++    base::TimeDelta expiration_threshold, bool expire_visits) {
+   expiration_threshold_ = expiration_threshold;
++  expire_visits_ = expire_visits;
+ 
+   // Remove all readers, just in case this was method was called before.
+   readers_.clear();
+@@ -656,7 +657,7 @@
+   }
+ 
+   const ExpiringVisitsReader* reader = work_queue_.front();
+-  bool more_to_expire = ExpireSomeOldHistory(
++  bool more_to_expire = expire_visits_ && ExpireSomeOldHistory(
+       GetCurrentExpirationTime(), reader, kNumExpirePerIteration);
+ 
+   work_queue_.pop();
+@@ -671,7 +672,8 @@
+         base::Days(internal::kOnDemandFaviconIsOldAfterDays));
+   }
+ 
+-  ExpireOldSegmentData(GetCurrentExpirationTime());
++  // Segment aggregates are maintenance data, not retained visits.
++  ExpireOldSegmentData(base::Time::Now() - expiration_threshold_);
+ 
+   ScheduleExpire();
+ }
+--- a/components/history/core/browser/expire_history_backend.h
++++ b/components/history/core/browser/expire_history_backend.h
+@@ -80,7 +80,9 @@
+ 
+   // Begins periodic expiration of history older than the given threshold. This
+   // will continue until the object is deleted.
+-  void StartExpiringOldStuff(base::TimeDelta expiration_threshold);
++  // Disabling visit expiry retains periodic favicon and segment maintenance.
++  void StartExpiringOldStuff(base::TimeDelta expiration_threshold,
++                             bool expire_visits = true);
+ 
+   // Deletes everything associated with a URL until `end_time`.
+   void DeleteURL(const GURL& url, base::Time end_time);
+@@ -119,7 +121,8 @@
+   // Note that this as an absolute time rather than a delta, so the caller
+   // should not save it.
+   base::Time GetCurrentExpirationTime() const {
+-    return base::Time::Now() - expiration_threshold_;
++    return expire_visits_ ? base::Time::Now() - expiration_threshold_
++                          : base::Time::Min();
+   }
+ 
+  private:
+@@ -293,6 +296,7 @@
+ 
+   // The threshold for "old" history where we will automatically delete it.
+   base::TimeDelta expiration_threshold_;
++  bool expire_visits_ = true;
+ 
+   // The time at which we expect the expiration code to run.
+   base::Time expected_expiration_time_;
+--- a/components/history/core/browser/history_backend.cc
++++ b/components/history/core/browser/history_backend.cc
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ #include "components/history/core/browser/history_backend.h"
++#include "components/history/core/browser/shardx_history_retention.h"
+ 
+ #include <algorithm>
+ #include <functional>
+@@ -17,7 +18,6 @@
+ #include <utility>
+ #include <vector>
+ 
+-#include "base/command_line.h"
+ #include "base/compiler_specific.h"
+ #include "base/containers/flat_map.h"
+ #include "base/containers/flat_set.h"
+@@ -1392,8 +1392,9 @@
+   db_->GetStartDate(&first_recorded_time_);
+ 
+   // Start expiring old stuff.
+-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch("keep-old-history"))
+-    expirer_.StartExpiringOldStuff(base::Days(kExpireDaysThreshold));
++  const int days = shardx::CurrentHistoryDays();
++  expirer_.StartExpiringOldStuff(
++      base::Days(days == 0 ? kExpireDaysThreshold : days), days != 0);
+ }
+ 
+ void HistoryBackend::CloseAllDatabases() {
+@@ -1621,8 +1622,6 @@
+ }
+ 
+ bool HistoryBackend::IsExpiredVisitTime(const base::Time& time) const {
+-  if (base::CommandLine::ForCurrentProcess()->HasSwitch("keep-old-history"))
+-    return false;
+   return time < expirer_.GetCurrentExpirationTime();
+ }
+ 
+--- /dev/null
++++ b/components/history/core/browser/shardx_history_retention.h
+@@ -0,0 +1,49 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#ifndef COMPONENTS_HISTORY_CORE_BROWSER_SHARDX_HISTORY_RETENTION_H_
++#define COMPONENTS_HISTORY_CORE_BROWSER_SHARDX_HISTORY_RETENTION_H_
++
++#include <optional>
++#include <string_view>
++#include "base/check.h"
++#include "base/command_line.h"
++#include "base/uuid.h"
++
++namespace history::shardx {
++inline constexpr int kMaximumHistoryDays = 106751991;
++inline constexpr char kHistoryDaysSwitch[] = "shardx-history-retention-days";
++
++inline std::optional<int> ParseHistoryDays(std::string_view value) {
++  if (value.empty() || (value.size() > 1 && value.front() == '0'))
++    return std::nullopt;
++  int days = 0;
++  for (char character : value) {
++    if (character < '0' || character > '9')
++      return std::nullopt;
++    const int digit = character - '0';
++    if (days > (kMaximumHistoryDays - digit) / 10)
++      return std::nullopt;
++    days = days * 10 + digit;
++  }
++  return days;
++}
++
++// Missing policy is allowed for unmanaged Chromium only. Zero means permanent.
++inline std::optional<int> HistoryDays(const base::CommandLine& command_line) {
++  if (!command_line.HasSwitch("shardx-managed-environment")) {
++    return command_line.HasSwitch(kHistoryDaysSwitch) ? std::nullopt
++                                                    : std::optional<int>(90);
++  }
++  if (!base::Uuid::ParseCaseInsensitive(command_line.GetSwitchValueASCII(
++          "shardx-managed-environment")).is_valid())
++    return std::nullopt;
++  return ParseHistoryDays(command_line.GetSwitchValueASCII(kHistoryDaysSwitch));
++}
++
++inline int CurrentHistoryDays() {
++  const auto days = HistoryDays(*base::CommandLine::ForCurrentProcess());
++  CHECK(days.has_value());
++  return *days;
++}
++}  // namespace history::shardx
++#endif  // COMPONENTS_HISTORY_CORE_BROWSER_SHARDX_HISTORY_RETENTION_H_
 --- a/components/page_load_metrics/google/browser/google_url_util.cc
 +++ b/components/page_load_metrics/google/browser/google_url_util.cc
 @@ -16,7 +16,40 @@
@@ -38012,6 +38227,32 @@
    AddVariationsHeaderForPrefetch(resource_request.cors_exempt_headers,
                                   resource_request.url, prefetch_request,
                                   IsFirstPartyContext(resource_request));
+--- a/content/browser/renderer_host/media/media_stream_manager.cc
++++ b/content/browser/renderer_host/media/media_stream_manager.cc
+@@ -2711,6 +2711,23 @@
+   request->SetAudioType(request->stream_controls().audio.stream_type);
+   request->SetVideoType(request->stream_controls().video.stream_type);
+ 
++  // Browser-process environment limits precede every request route. The
++  // native test/auto-accept UI intentionally bypasses the embedder's permission
++  // delegate, so a Chrome UI-only check cannot enforce this capture policy.
++  const auto is_managed_capture_blocked = [](MediaStreamType type) {
++    const auto* command_line = base::CommandLine::ForCurrentProcess();
++    if (!command_line->HasSwitch("shardx-managed-environment")) return false;
++    return (type == MediaStreamType::DEVICE_AUDIO_CAPTURE &&
++            command_line->HasSwitch("shardx-block-microphone")) ||
++           (type == MediaStreamType::DEVICE_VIDEO_CAPTURE &&
++            command_line->HasSwitch("shardx-block-camera"));
++  };
++  if (is_managed_capture_blocked(request->audio_type()) ||
++      is_managed_capture_blocked(request->video_type())) {
++    FinalizeRequestFailed(request_it, MediaStreamRequestResult::PERMISSION_DENIED);
++    return;
++  }
++
+   const bool is_display_capture =
+       request->video_type() == MediaStreamType::DISPLAY_VIDEO_CAPTURE ||
+       request->video_type() ==
 --- a/content/browser/renderer_host/render_process_host_impl.cc
 +++ b/content/browser/renderer_host/render_process_host_impl.cc
 @@ -1183,47 +1183,6 @@

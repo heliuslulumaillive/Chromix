@@ -75,6 +75,21 @@
       "target_preparation_sha256": "8db1dd8ae6f6f58a3223f548effe3411a5687214832583fe552eb5b0a4ce14ea",
       "target_aggregate_sha256": "331a61fec89c868e9fe88a796379eaf02ebb8b82cb4bddb3917f5ad19b0255fb",
       "scope": "Reviewed explicit shellapi.h include for the observed CI declaration failure, plus a semantically equivalent bounded parser without raw pointer arithmetic. Preserve bounded-decimal semantics, every other source byte, unchanged mtimes and existing object outputs. No compiled acceptance inherited."
+    },
+    {
+      "id": "lite156-native-history-and-media-v1",
+      "chromium_version": "156.0.8078.79",
+      "core_commit": "28a211ab4ab6b83d919966a4f58a6df23cf4fb29",
+      "windows_commit": "8492884eb30fdd9417ea7816aa92def805c97c74",
+      "arch": "x64",
+      "source_commit": "b2f17fe30258fc718d0d2cc5e6395d55ccbd9eeb",
+      "source_recipe_sha256": "592f4cb76641f0579863814b167c5d99ff43fd5646ceb924a2d4d08046d75fb8",
+      "source_preparation_sha256": "8db1dd8ae6f6f58a3223f548effe3411a5687214832583fe552eb5b0a4ce14ea",
+      "source_aggregate_sha256": "331a61fec89c868e9fe88a796379eaf02ebb8b82cb4bddb3917f5ad19b0255fb",
+      "target_recipe_sha256": "6ab3b5b069de439de54f63ca705f67c42195f6d2deada9aaf1eec8f336a72d50",
+      "target_preparation_sha256": "a86a417898baca37e515f7e3834bf632919658d793dc499e00346f2b17634049",
+      "target_aggregate_sha256": "daa2206518e778e4f671ce209c2a3480dd78364a3a931cd236de07590370975d",
+      "scope": "Reviewed native history age policy and common media request deny before real/fake UI selection; Cookie and session changes excluded. Preserve unrelated source bytes, mtimes and compiled objects. No failed-runtime acceptance inherited."
     }
   ]
 }

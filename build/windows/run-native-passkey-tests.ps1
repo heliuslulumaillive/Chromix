@@ -4,6 +4,7 @@ param(
   [Parameter(Mandatory)][string]$Log,
   [Parameter(Mandatory)][string]$Receipt,
   [Parameter(Mandatory)][string]$WorkingDirectory,
+  [string]$BuildRecord,
   [ValidateSet('WinAuthenticatorTest.*:AuthenticatorRequestDialogControllerTest.*','ShardXNativeBrowserTest.*')]
   [string]$TestFilter='WinAuthenticatorTest.*:AuthenticatorRequestDialogControllerTest.*'
 )
@@ -27,6 +28,7 @@ $record = [ordered]@{
   schema_version=1;status='failed';started_at_utc=[DateTime]::UtcNow.ToString('o');
   executable=$executablePath;
   executable_sha256=(Get-FileHash -LiteralPath $executablePath -Algorithm SHA256).Hash.ToLowerInvariant();
+  executable_bytes=(Get-Item -LiteralPath $executablePath).Length;
   host_process_id=$hostProcess.Id;original_host_priority=$originalPriority.ToString();
   test_host_priority=$null;restored_host_priority=$null;native_exit_code=$null;
   startup_assertions_unchanged=$true;
@@ -34,6 +36,51 @@ $record = [ordered]@{
 }
 $locationPushed = $false
 try {
+  if ($BuildRecord) {
+    $buildPath = (Resolve-Path -LiteralPath $BuildRecord).Path
+    $buildFile = Get-Item -LiteralPath $buildPath
+    if ($buildFile.Length -gt 4MB -or $buildFile.PSIsContainer -or
+        ($buildFile.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+      throw 'Invalid immutable native-test build record'
+    }
+    $buildBytes = [IO.File]::ReadAllBytes($buildPath)
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try { $buildHash = [BitConverter]::ToString($hasher.ComputeHash($buildBytes)).Replace('-','').ToLowerInvariant() }
+    finally { $hasher.Dispose() }
+    $buildText = [Text.Encoding]::UTF8.GetString($buildBytes).TrimStart([char]0xFEFF)
+    $build = $buildText | ConvertFrom-Json
+    # ConvertFrom-Json may turn ISO strings into DateTime and lose their UTC
+    # spelling. Read the original JSON string before enforcing explicit UTC.
+    $document = [Text.Json.JsonDocument]::Parse($buildText)
+    try { $createdText = $document.RootElement.GetProperty('created_at_utc').GetString() }
+    finally { $document.Dispose() }
+    $native = $build.native_test_executable
+    if (($build.schema_version -isnot [int] -and $build.schema_version -isnot [long]) -or
+        $build.schema_version -ne 1 -or $build.build_variant -ne 'fingerprint-modes-win156' -or
+        $build.chromium_version -ne '156.0.8078.79' -or
+        $build.source_commit -cnotmatch '^[a-f0-9]{40}$' -or
+        ($build.run_id -isnot [int] -and $build.run_id -isnot [long]) -or $build.run_id -le 0 -or
+        $build.preparation_sha256 -cnotmatch '^[a-f0-9]{64}$' -or
+        $build.gn_args_sha256 -cnotmatch '^[a-f0-9]{64}$' -or
+        $native.name -cne 'native_passkey_unittests.exe' -or
+        [IO.Path]::GetFileName($executablePath) -cne $native.name -or
+        $native.sha256 -cne $record.executable_sha256 -or
+        ($native.bytes -isnot [int] -and $native.bytes -isnot [long]) -or
+        $native.bytes -le 0 -or $native.bytes -ne $record.executable_bytes) {
+      throw 'Native test executable/source does not match its immutable pretest build record'
+    }
+    $created = [DateTimeOffset]::MinValue
+    if (-not [DateTimeOffset]::TryParse($createdText, [Globalization.CultureInfo]::InvariantCulture,
+          [Globalization.DateTimeStyles]::None, [ref]$created) -or $created.Offset -ne [TimeSpan]::Zero -or
+        $createdText -notmatch '(Z|\+00:00)$' -or
+        $created -gt [DateTimeOffset]::Parse($record.started_at_utc, [Globalization.CultureInfo]::InvariantCulture)) {
+      throw 'Native tests cannot precede the immutable pretest build record'
+    }
+    $record['build_record_sha256'] = $buildHash
+    foreach ($key in @('source_commit','run_id','preparation_sha256','gn_args_sha256')) {
+      $record[$key] = $build.$key
+    }
+  }
   # Chromium's TestSuite checks process priority before running any test. A
   # BelowNormal/Idle CI shell otherwise gives every test child that same class.
   # Normalize before child creation; changing an already started child races.
@@ -57,6 +104,11 @@ try {
   }
   Move-Item -LiteralPath $currentSummary -Destination $summaryPath -Force
   $record['summary_sha256'] = (Get-FileHash -LiteralPath $summaryPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ((Get-FileHash -LiteralPath $executablePath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $record.executable_sha256 -or
+      (Get-Item -LiteralPath $executablePath).Length -ne $record.executable_bytes -or
+      ($BuildRecord -and (Get-FileHash -LiteralPath $buildPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $record.build_record_sha256)) {
+    throw 'Native test executable or pretest build record changed during execution'
+  }
   $record.status = 'passed'
 } catch {
   $record['error'] = $_.Exception.Message

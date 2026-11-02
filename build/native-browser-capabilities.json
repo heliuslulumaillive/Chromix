@@ -35,7 +35,10 @@
     "scope": "browser-process-all-native-profiles",
     "blocked_ports": {
       "flag": "shardx-blocked-ports",
-      "range": [1, 65535],
+      "range": [
+        1,
+        65535
+      ],
       "max_entries": 256,
       "implementation": "native-effective-port"
     },
@@ -46,11 +49,22 @@
     },
     "do_not_track": {
       "flag": "shardx-do-not-track",
-      "values": ["true", "false"]
+      "values": [
+        "true",
+        "false"
+      ]
     }
   },
   "session_restore_default": "chromium-upstream-user-overridable",
   "network_prediction_default": "disabled-user-overridable",
-  "history_retention": "chromium-upstream-default",
+  "history_retention": {
+    "flag": "shardx-history-retention-days",
+    "permanent": 0,
+    "maximum_days": 106751991,
+    "unmanaged_days": 90,
+    "manual_deletion": "native",
+    "maintenance": "retained",
+    "query": "native-history"
+  },
   "clear_data_on_exit_default": false
 }

@@ -29,8 +29,8 @@ class NativeEnvironmentControlSourceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             gate.verify(self.root)
 
-    def test_effective_source_has_all_seven_native_sites(self):
-        self.assertEqual(len(gate.verify(self.root)), 7)
+    def test_effective_source_has_all_eight_native_sites(self):
+        self.assertEqual(len(gate.verify(self.root)), 8)
 
     def test_network_utility_must_receive_port_policy(self):
         self.mutate(gate.TARGETS[2], '"shardx-blocked-ports",', '// "shardx-blocked-ports",')
@@ -40,6 +40,34 @@ class NativeEnvironmentControlSourceTests(unittest.TestCase):
 
     def test_actual_capture_must_still_deny_after_a_stored_grant(self):
         self.mutate(gate.TARGETS[4], 'if (IsShardXCaptureBlocked(request.audio_type) ||', 'if (false && IsShardXCaptureBlocked(request.audio_type) ||')
+
+    def test_common_capture_guard_cannot_be_skipped_by_auto_or_fake_ui(self):
+        self.mutate(gate.TARGETS[6], 'if (is_managed_capture_blocked(request->audio_type()) ||',
+                    'if (false && is_managed_capture_blocked(request->audio_type()) ||')
+
+    def test_common_capture_deny_stops_before_invalidated_request_is_used(self):
+        self.mutate(gate.TARGETS[6],
+                    'FinalizeRequestFailed(request_it, MediaStreamRequestResult::PERMISSION_DENIED);\n    return;',
+                    'FinalizeRequestFailed(request_it, MediaStreamRequestResult::PERMISSION_DENIED);')
+
+    def test_common_capture_guard_remains_device_only_and_managed_only(self):
+        self.mutate(gate.TARGETS[6],
+                    'return (type == MediaStreamType::DEVICE_AUDIO_CAPTURE &&',
+                    'return (type == MediaStreamType::DISPLAY_AUDIO_CAPTURE &&')
+
+    def test_common_capture_guard_must_precede_enumeration(self):
+        name = gate.TARGETS[6]
+        path = self.root / name
+        source = path.read_text()
+        start = source.index('  // Browser-process environment limits precede every request route.')
+        end = source.index('  const bool is_display_capture', start)
+        guard = source[start:end]
+        source = source[:start] + source[end:]
+        marker = '  ReadOutputParamsAndPostRequestToUI(label, request, MediaDeviceEnumeration());'
+        insertion = source.index(marker, source.index('void MediaStreamManager::SetUpRequest('))
+        path.write_text(source[:insertion] + guard + source[insertion:], encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'precedence'):
+            gate.verify(self.root)
 
     def test_port_policy_cannot_be_replaced_by_comment_only_claim(self):
         self.mutate(gate.TARGETS[1], 'if (managed_ports->Contains(port)) return false;', '// if (managed_ports->Contains(port)) return false;')

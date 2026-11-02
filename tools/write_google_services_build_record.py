@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Bind a Google-service candidate to its source recipe and immutable file set."""
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -30,6 +31,27 @@ def sha256(path):
         for chunk in iter(lambda: stream.read(1024 * 1024), b''):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def native_test_identity(gn_args):
+    """The focused test executable must come from the same selected output."""
+    args = gn_args.absolute()
+    executable = args.with_name('native_passkey_unittests.exe')
+    if args.name != 'args.gn':
+        raise ValueError('Windows 156 packaging requires the selected Out/args.gn')
+    for path in (args, executable):
+        if (not path.is_file() or any(item.is_symlink() or
+                (hasattr(item, 'is_junction') and item.is_junction())
+                for item in (path, *path.parents))):
+            raise ValueError('Windows 156 packaging requires plain GN and native test files in the selected output')
+    before = executable.stat()
+    if before.st_size <= 0:
+        raise ValueError('Compiled native test executable is empty')
+    digest = sha256(executable)
+    after = executable.stat()
+    if (before.st_size, before.st_mtime_ns, before.st_ino) != (after.st_size, after.st_mtime_ns, after.st_ino):
+        raise ValueError('Compiled native test executable changed during packaging')
+    return {'name': executable.name, 'sha256': digest, 'bytes': before.st_size}
 
 
 def main():
@@ -62,10 +84,14 @@ def main():
     }
     if 'build_variant' in source:
         record['build_variant'] = source['build_variant']
+    if source.get('build_variant') == 'fingerprint-modes-win156':
+        record['native_test_executable'] = native_test_identity(args.gn_args)
     destination = args.bundle / 'google-services-build.json'
     for path in sorted(args.bundle.rglob('*')):
         if path.is_file() and path != destination:
             record['files'][path.relative_to(args.bundle).as_posix()] = sha256(path)
+    if source.get('build_variant') == 'fingerprint-modes-win156':
+        record['created_at_utc'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
     destination.write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
 
 

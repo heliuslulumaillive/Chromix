@@ -18,7 +18,7 @@ def good_report():
     browser = Path('chrome.exe').absolute()
     binding = {key: 'a' * 64 for key in ('browser_sha256', 'chrome_dll_sha256',
         'capabilities_sha256', 'source_receipt_sha256', 'verifier_sha256',
-        'security_helper_sha256', 'recipe_tool_sha256', 'python_sha256', 'requirements_sha256')}
+        'security_helper_sha256', 'history_helper_sha256', 'recipe_tool_sha256', 'python_sha256', 'requirements_sha256')}
     binding['dependencies'] = {package: {'inventory_sha256': 'b' * 64, 'files': 1,
                                        'version': runtime.LOCKED_DEPENDENCIES[package]}
                               for package in ('playwright', 'psutil')}
@@ -31,7 +31,7 @@ def good_report():
             'blocked_ipv4', 'blocked_ipv6', 'allowed_ipv4', 'allowed_ipv6')],
         'scenarios': []}
     for index, (name, profile, blocked, dnt) in enumerate(runtime.SCENARIOS):
-        options = runtime.launch_options(browser, root / name, profile, 55003, 55001, blocked, dnt, {})
+        options = runtime.launch_options(browser, root / name, profile, 55003, 55001, blocked, dnt, {}, fake_ui=name.endswith('_fake_ui'))
         row = {'name': name, 'completed': True, 'browser_version': 'Chrome/' + runtime.VERSION,
             'process_identity': [100 + index, 1234567.5 + index],
             'launch_policy': {key: value for key, value in options.items() if key != 'env'},
@@ -70,6 +70,8 @@ def good_report():
         if blocked:
             row['navigator_dnt'] = '1' if dnt else None
         report['scenarios'].append(row)
+    from tools.tests.test_native_history import good_history
+    report['history'] = good_history()
     report['checks'] = runtime.assess(report) + [
         {'name': name, 'passed': True} for name in runtime.CLEANUP_CHECKS]
     return report
@@ -144,6 +146,30 @@ class AssessmentTests(unittest.TestCase):
             report = good_report(); del scenario(report, 'blocked_false_profile1')[field]
             self.assertFalse(runtime.report_passed(report), field)
 
+    def test_denied_permission_with_successful_capture_still_fails(self):
+        # Preserve the exact eight failures seen in run 41431582034. Changing
+        # the launch fixture must never turn these observations into success.
+        for name, _profile, blocked, _dnt in runtime.SCENARIOS:
+            if not blocked:
+                continue
+            for device in ('audio', 'video'):
+                report = good_report()
+                scenario(report, name)['media']['capture'][device] = {'ok': True, 'tracks': 1}
+                self.assertFalse(runtime.report_passed(report), (name, device))
+
+    def test_fake_authorization_in_requested_or_actual_arguments_is_rejected(self):
+        for name, _profile, blocked, _dnt in runtime.SCENARIOS:
+            if blocked is None:
+                continue
+            for flag in ('--use-fake-ui-for-media-stream', '--use-fake-ui-for-media-stream=deny'):
+                for change_requested in (False, True):
+                    report = good_report()
+                    row = scenario(report, name)
+                    row['actual_arguments'].append(flag)
+                    if change_requested:
+                        row['launch_policy']['args'].append(flag)
+                    self.assertFalse(runtime.report_passed(report), (name, flag, change_requested))
+
     def test_connection_failure_ipv6_alias_wrong_nonce_and_real_hit_fail(self):
         for change in ('timeout', 'ipv4_alias', 'nonce', 'unexpected_hit', 'missing'):
             report = good_report(); fetches = scenario(report, 'blocked_true_profile1')['fetches']
@@ -175,6 +201,14 @@ class AssessmentTests(unittest.TestCase):
 
 
 class OwnedFixtureTests(unittest.TestCase):
+    def test_media_fixtures_replace_devices_without_bypassing_native_authorization(self):
+        for _name, profile, blocked, dnt in runtime.SCENARIOS:
+            options = runtime.launch_options(Path('chrome.exe'), Path('profile'),
+                                             profile, 55003, 55001, blocked, dnt, {})
+            switches = {arg.split('=')[0] for arg in options['args']}
+            self.assertNotIn('--use-fake-ui-for-media-stream', switches)
+            self.assertEqual('--use-fake-device-for-media-stream' in switches, blocked is not None)
+
     def test_ipv6_resolver_exclusion_uses_unbracketed_host(self):
         options = runtime.launch_options(Path('chrome.exe'), Path('profile'),
                                          'Default', 55003, 55001, True, False, {})

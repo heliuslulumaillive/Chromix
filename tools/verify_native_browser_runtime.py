@@ -26,8 +26,10 @@ from urllib.parse import urlsplit
 
 try:
     from . import verify_security_runtime as security
+    from . import native_history_probe as history_probe
 except ImportError:
     import verify_security_runtime as security
+    import native_history_probe as history_probe
 
 REPO = Path(__file__).resolve().parents[1]
 VERSION = security.VERSION
@@ -44,6 +46,8 @@ SCENARIOS = (
     ('blocked_true_profile1', 'Profile 1', True, True),
     ('blocked_false_default', 'Default', True, False),
     ('blocked_false_profile1', 'Profile 1', True, False),
+    ('blocked_true_fake_ui', 'Default', True, True),
+    ('allow_fake_ui', 'Default', False, None),
 )
 CLEANUP_CHECKS = {'owned_processes_closed', 'fixture_servers_closed',
                   'bindings_unchanged', 'owned_profile_removed'}
@@ -105,16 +109,22 @@ def safe_environment(root):
 
 
 def launch_options(browser, data_root, native_profile, proxy_port, blocked_port,
-                   media_blocked, dnt, environment):
+                   media_blocked, dnt, environment, fake_ui=False):
     args = ['--headless=new', '--enable-automation', '--remote-debugging-pipe',
         '--user-data-dir=' + str(data_root), '--profile-directory=' + native_profile,
         '--no-first-run', '--no-default-browser-check',
         '--shardx-managed-environment=' + ENVIRONMENT_ID,
+        '--shardx-history-retention-days=0',
         '--proxy-server=http://127.0.0.1:' + str(proxy_port),
         '--proxy-bypass-list=127.0.0.1;[::1];localhost',
         '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE ::1, EXCLUDE localhost']
     if media_blocked is not None:
-        args.extend(['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'])
+        # Replace hardware only. Fake UI installs a separate access proxy which
+        # bypasses Chrome's permission/capture dispatcher, the subject of this
+        # probe. The owned profile's saved grants exercise the native UI path.
+        args.append('--use-fake-device-for-media-stream')
+    if fake_ui:
+        args.append('--use-fake-ui-for-media-stream')
     if media_blocked:
         args.extend(['--shardx-block-camera', '--shardx-block-microphone',
                      '--shardx-blocked-ports=' + str(blocked_port),
@@ -270,7 +280,7 @@ def assess(report):
     binding, source = obj(report.get('binding')), obj(report.get('source'))
     add('exact_input_bindings', all(HASH.fullmatch(str(binding.get(key, ''))) for key in (
         'browser_sha256', 'chrome_dll_sha256', 'capabilities_sha256', 'source_receipt_sha256',
-        'verifier_sha256', 'security_helper_sha256', 'recipe_tool_sha256',
+        'verifier_sha256', 'security_helper_sha256', 'history_helper_sha256', 'recipe_tool_sha256',
         'python_sha256', 'requirements_sha256'))
         and all(HASH.fullmatch(str(source.get(key, ''))) for key in (
             'record_sha256', 'recipe_sha256', 'source_receipt_sha256', 'gn_sha256'))
@@ -317,7 +327,7 @@ def assess(report):
             browser = Path(report['browser'])
             data_root = root / name
             expected = launch_options(browser, data_root, profile, network['proxy_port'],
-                network['blocked_port'], blocked, dnt, {})
+                network['blocked_port'], blocked, dnt, {}, fake_ui=name.endswith('_fake_ui'))
             safe = (root.name.startswith('security-runtime-native-browser-')
                 and row.get('launch_policy') == {key: value for key, value in expected.items() if key != 'env'}
                 and security.arguments_match(row.get('actual_arguments'), expected['args'], browser))
@@ -394,6 +404,7 @@ def assess(report):
                         for key in ('allowed_ipv4', 'allowed_ipv6')))
     add('independent_policy_processes', len(identities) == len(SCENARIOS)
         and len(set(identities)) == len(identities))
+    checks.extend(history_probe.assess(report.get('history')))
     return checks
 
 
@@ -442,7 +453,8 @@ def probe(browser, root, report):
                     else:
                         data_root.mkdir()
                     options = launch_options(browser, data_root, native_profile,
-                        fixtures.proxy.server_port, fixtures.blocked_port, blocked, dnt, environment)
+                        fixtures.proxy.server_port, fixtures.blocked_port, blocked, dnt, environment,
+                        fake_ui=name.endswith('_fake_ui'))
                     row['launch_policy'] = {key: value for key, value in options.items() if key != 'env'}
                     context = playwright.chromium.launch_persistent_context(str(data_root), **options)
                     retain_children()
@@ -490,6 +502,10 @@ def probe(browser, root, report):
                             context.close()
                         finally:
                             context = None
+            report['history'] = history_probe.probe(playwright, browser, root,
+                fixtures.targets['allowed_ipv4'][1],
+                lambda data: launch_options(browser, data, 'Default', fixtures.proxy.server_port,
+                    fixtures.blocked_port, None, None, environment), retain_children)
     finally:
         retain_children()
         try:
@@ -529,6 +545,7 @@ def binding_identity(browser, source_record):
     binding = {'browser_sha256': security.digest(browser), 'chrome_dll_sha256': security.digest(dll),
         'capabilities_sha256': security.digest(capabilities), 'source_receipt_sha256': security.digest(receipt),
         'verifier_sha256': security.digest(Path(__file__)),
+        'history_helper_sha256': security.digest(Path(history_probe.__file__)),
         'security_helper_sha256': security.digest(Path(security.__file__)),
         'recipe_tool_sha256': security.digest(Path(security.build_record.__file__)),
         'requirements_sha256': security.digest(REPO / 'tools/google-services-requirements.txt'),
@@ -550,7 +567,7 @@ def main(argv=None):
     report = {'schema_version': 1, 'contract': CONTRACT, 'status': 'failed', 'checks': [], 'scenarios': [],
         'scope': 'Owned headless native defaults, profile-wide media, ports and DNT; no real accounts.',
         'native_windows_avatar_taskbar': 'not_tested', 'online_translation': 'not_tested',
-        'real_google_accounts_and_sync': 'not_tested', 'historical_retention_duration': 'not_tested',
+        'real_google_accounts_and_sync': 'not_tested', 'historical_retention_duration': 'owned-aged-database-fixtures',
         'persistent_real_profiles_touched': False}
     root = None
     try:

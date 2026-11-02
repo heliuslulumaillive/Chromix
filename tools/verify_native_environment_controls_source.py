@@ -24,6 +24,7 @@ TARGETS = (
     'chrome/browser/media/webrtc/media_stream_device_permission_context.cc',
     'chrome/browser/media/webrtc/media_capture_devices_dispatcher.cc',
     'chrome/browser/prefs/chrome_command_line_pref_store.cc',
+    'content/browser/renderer_host/media/media_stream_manager.cc',
 )
 
 
@@ -187,6 +188,34 @@ def verify(src: Path) -> list[str]:
                  WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
       }
     }'''], name)
+
+    name = TARGETS[6]
+    setup = body(sources[name], 'MediaStreamManager::SetUpRequest')
+    policy = '''const auto is_managed_capture_blocked = [](MediaStreamType type) {
+      const auto* command_line = base::CommandLine::ForCurrentProcess();
+      if (!command_line->HasSwitch("shardx-managed-environment")) return false;
+      return (type == MediaStreamType::DEVICE_AUDIO_CAPTURE &&
+              command_line->HasSwitch("shardx-block-microphone")) ||
+             (type == MediaStreamType::DEVICE_VIDEO_CAPTURE &&
+              command_line->HasSwitch("shardx-block-camera"));
+    };'''
+    deny = '''if (is_managed_capture_blocked(request->audio_type()) ||
+        is_managed_capture_blocked(request->video_type())) {
+      FinalizeRequestFailed(request_it, MediaStreamRequestResult::PERMISSION_DENIED);
+      return;
+    }'''
+    require(setup, [policy, deny], name)
+    before(setup, 'request->SetVideoType(request->stream_controls().video.stream_type);', policy, name)
+    for later in ('const bool is_display_capture', 'StartEnumeration(request, label);',
+                  'ReadOutputParamsAndPostRequestToUI(label, request, MediaDeviceEnumeration());'):
+        before(setup, deny, later, name)
+    # Both real UI and upstream's explicitly bypassing fake/auto-accept UI go
+    # through SetUpRequest. Never hide this guard in an optional route branch.
+    for token in (policy, deny):
+        normalized = compact(setup)
+        prefix = mask(normalized[:normalized.index(compact(token))])
+        if prefix.count('{') != prefix.count('}'):
+            raise ValueError(name + ': capture guard must be at common request setup scope')
     build = (src / 'net/BUILD.gn').read_text(encoding='utf-8')
     require(build, ['"base/shardx_environment_controls.h"'], 'net/BUILD.gn')
     return [*TARGETS, 'net/BUILD.gn']

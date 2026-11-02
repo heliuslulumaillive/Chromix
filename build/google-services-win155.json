@@ -29,7 +29,8 @@
     "core/iridium-browser/safe_browsing-disable-incident-reporting.patch",
     "core/iridium-browser/safe_browsing-disable-reporting-of-safebrowsing-over.patch",
     "extra/ungoogled-chromium/disable-download-quarantine.patch",
-    "core/ungoogled-chromium/move-js-optimizer-unfamiliar-sites.patch"
+    "core/ungoogled-chromium/move-js-optimizer-unfamiliar-sites.patch",
+    "extra/ungoogled-chromium/add-flag-to-disable-local-history-expiration.patch"
   ],
   "restore_sections": {
     "core/ungoogled-chromium/block-requests.patch": [
@@ -195,7 +196,8 @@
     "patches/security/0003-link-signed-web-bundle-payload.patch",
     "patches/lite-win156/0001-retire-bridge-runtime-synthetic.patch",
     "patches/native-browser/0001-native-windows-shell.patch",
-    "patches/native-browser/0002-environment-controls.patch"
+    "patches/native-browser/0002-environment-controls.patch",
+    "patches/native-browser/0003-history-retention.patch"
   ],
   "extra_sources": [
     "chrome/browser/preloading/preloading_prefs.h",

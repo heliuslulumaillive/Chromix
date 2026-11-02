@@ -4,6 +4,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -19,6 +20,8 @@ from tools import write_google_services_build_record as writer
 from tools import security_build_record, verify_security_runtime
 from tools.tests.test_security_runtime import diagnostic_fixture
 from tools.tests.test_fingerprint_build_pipeline import write_fingerprint_evidence, rebind_fingerprint_fixture
+from tools.tests.test_native_integration_candidate import write_native_integration_evidence
+from tools import native_compiled_evidence as compiled
 
 FP156 = 'fingerprint-modes-win156'
 V156 = '156.0.8078.79'
@@ -108,6 +111,7 @@ class SecurityCandidateTests(unittest.TestCase):
                 'patch_sha256':'a'*64,'preparation_sha256':'b'*64}
         (work/'google-services-source.json').write_text(json.dumps(source))
         args=self.root/'args.gn';args.write_text('is_debug = false\n')
+        (args.parent/'native_passkey_unittests.exe').write_bytes(b'synthetic test identity; never execute')
         env={**os.environ,'GITHUB_SHA':'c'*40,'GITHUB_RUN_ID':'42','GITHUB_REPOSITORY':'fixture/repo'}
         command=[sys.executable,'-B',str(ROOT/'tools/write_google_services_build_record.py'),
                  '--work',str(work),'--bundle',str(self.bundle),'--gn-args',str(args)]
@@ -187,8 +191,11 @@ class SecurityCandidateTests(unittest.TestCase):
             'source_commit':source['head_sha'],'run_id':50,'patch_sha256':receipt['patch_sha256'],
             'preparation_sha256':digest,'files':candidate.inventory(self.bundle)}
         build_path=self.bundle/'google-services-build.json';build_path.write_text(json.dumps(build))
-        security_path,_,_=write_security_evidence(self.root,self.bundle)
+        security_path,_,security_report=write_security_evidence(self.root,self.bundle)
+        write_native_integration_evidence(self.root,self.bundle,security_report['source'])
         build=json.loads(build_path.read_text())
+        build['files']={name:value for name,value in candidate.inventory(self.bundle).items() if name!='google-services-build.json'}
+        build_path.write_text(json.dumps(build))
         reports=self.root/'reports';reports.mkdir()
         bundle_report={'bundle_dir':str(self.bundle),'archive':{'sha256':candidate.sha256(archive)}}
         def runtime(command,**kwargs):
@@ -203,8 +210,9 @@ class SecurityCandidateTests(unittest.TestCase):
             result={};candidate.verify_candidate(self.root,source,reports,result,build_variant=FP156)
             self.assertEqual(result['status'],'passed')
             self.assertEqual(smoke.call_args.args[1],V156)
-            self.assertEqual(set(result['native_passkey_regression_tests']),candidate.NATIVE_PASSKEY_TESTS)
+            self.assertEqual(set(result['native_passkey_regression_tests']),compiled.REQUIRED_TESTS['passkey'])
             self.assertEqual(result['security_runtime']['status'],'passed')
+            self.assertEqual(result['native_integration']['status'],'passed')
             security_bytes=security_path.read_bytes();security_path.unlink()
             with self.assertRaisesRegex(ValueError,'Mandatory'):
                 candidate.verify_candidate(self.root,source,reports,{},build_variant=FP156)
@@ -271,8 +279,13 @@ class SecurityCandidateTests(unittest.TestCase):
         wrong=subprocess.run(command+['--build-variant','fingerprint-modes-win155'],capture_output=True,text=True,encoding='utf-8',timeout=30)
         self.assertNotEqual(wrong.returncode,0)
         stage=(ROOT/'build/windows/security-stage.ps1').read_text()
-        self.assertLess(stage.index("Invoke-Owned 'security-runtime'"),stage.index("Invoke-Owned 'accept-security-runtime'"))
-        self.assertLess(stage.index("Invoke-Owned 'accept-security-runtime'"),stage.index("Invoke-Owned 'archive'"))
+        phase=stage.split("    'Verify' {",1)[1].split("    'Archive' {",1)[0]
+        labels=re.findall(r"label='([^']+)'",phase)
+        self.assertEqual(set(labels),candidate.NATIVE_VERIFICATION_LABELS)
+        self.assertEqual(len(labels),11)
+        self.assertLess(labels.index('security-runtime'),labels.index('accept-security-runtime'))
+        self.assertIn("label='accept-security-runtime';depends=@('security-runtime')",phase)
+        self.assertLess(stage.index('Invoke-VerificationPlan $checks'),stage.index("Invoke-Owned 'archive'"))
         self.assertIn("'security-runtime.json','fingerprint-modes-validation.json'",stage)
 
 

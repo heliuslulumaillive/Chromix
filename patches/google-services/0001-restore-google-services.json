@@ -301,6 +301,11 @@
     "components/gcm_driver/gcm_client_impl.cc",
     "components/gcm_driver/gcm_driver_desktop.cc",
     "components/google/core/common/google_util.cc",
+    "components/history/core/browser/BUILD.gn",
+    "components/history/core/browser/expire_history_backend.cc",
+    "components/history/core/browser/expire_history_backend.h",
+    "components/history/core/browser/history_backend.cc",
+    "components/history/core/browser/shardx_history_retention.h",
     "components/page_load_metrics/google/browser/google_url_util.cc",
     "components/password_manager/core/browser/leak_detection/leak_detection_check_impl.cc",
     "components/password_manager/core/browser/leak_detection_delegate.cc",
@@ -406,6 +411,7 @@
     "content/browser/file_system_access/file_system_access_safe_move_helper.h",
     "content/browser/gpu/gpu_data_manager_impl_private.cc",
     "content/browser/preloading/prefetch/prefetch_resource_request_utils.cc",
+    "content/browser/renderer_host/media/media_stream_manager.cc",
     "content/browser/renderer_host/render_process_host_impl.cc",
     "content/browser/speech/tts_win.cc",
     "device/fido/win/authenticator.cc",
@@ -1645,6 +1651,22 @@
       "sha256": "1e6dfc9e2a53a9bc0e548aec7cf85706692a1c7851ad6d3828dc87bbb8f8538e"
     },
     {
+      "path": "components/history/core/browser/BUILD.gn",
+      "sha256": "43b9021506d37e4f3bc3774d6f03bf13f33892d3777251319a693a743e16ca89"
+    },
+    {
+      "path": "components/history/core/browser/expire_history_backend.cc",
+      "sha256": "1d67aab88a8d8094ab4fe120b5d6dad6914841636dc76f908589505ed24f4de4"
+    },
+    {
+      "path": "components/history/core/browser/expire_history_backend.h",
+      "sha256": "d7f63e92ba8c0e54138de7f5c8eda7b3482945cf2abbf654a9c7289094bc662a"
+    },
+    {
+      "path": "components/history/core/browser/history_backend.cc",
+      "sha256": "d976fb7c4d14dad348af7fefaa5f5370df04c8d9f038003b9c18efa0179efd85"
+    },
+    {
       "path": "components/page_load_metrics/google/browser/google_url_util.cc",
       "sha256": "11cc44bca601f2a80d538ce826efccaa842b906ddeef96a032ceb5dceaa3b830"
     },
@@ -2095,6 +2117,10 @@
     {
       "path": "content/browser/renderer_host/cross_process_frame_connector.cc",
       "sha256": "1c885ea810782a6f9b42f0834667f83b79d0505f276da67e0ee697f4bea31333"
+    },
+    {
+      "path": "content/browser/renderer_host/media/media_stream_manager.cc",
+      "sha256": "2d8bbda1120852e6bef6605c7b4a01c198ec9d2352e6d8dd07f753bf38eee568"
     },
     {
       "path": "content/browser/renderer_host/render_process_host_impl.cc",
@@ -2888,7 +2914,7 @@
   "verify_all_baseline": true,
   "replay_counts": {
     "baseline": {
-      "core": 43,
+      "core": 44,
       "windows": 5,
       "chromix": 231
     },
@@ -3131,7 +3157,7 @@
     "patches/chromium155-windows/0232-renderer-launch-timezone-install.patch": "345ef39c9cc6d987f59c44f3f4a46099391d6c629058f10c1151e02a654796a7",
     "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch": "7f7f691f2d744715e0d48a25dab5ff1e8ac793122657beacd0f99a3e7e8ba908"
   },
-  "patch_sha256": "331a61fec89c868e9fe88a796379eaf02ebb8b82cb4bddb3917f5ad19b0255fb",
+  "patch_sha256": "daa2206518e778e4f671ce209c2a3480dd78364a3a931cd236de07590370975d",
   "qualification": "Source replay only; requires native build and actual account/security tests",
   "generation_inputs": {
     "schema_version": 1,
@@ -3158,7 +3184,8 @@
       "patches/security/0003-link-signed-web-bundle-payload.patch",
       "patches/lite-win156/0001-retire-bridge-runtime-synthetic.patch",
       "patches/native-browser/0001-native-windows-shell.patch",
-      "patches/native-browser/0002-environment-controls.patch"
+      "patches/native-browser/0002-environment-controls.patch",
+      "patches/native-browser/0003-history-retention.patch"
     ],
     "selected_baseline": {
       "series_sha256": "5c593c739b18ebd8888040483138910a269391e5aecb6dafa044b736097cfbeb",
@@ -4107,8 +4134,8 @@
     "files": {
       "CHROMIUM_WINDOWS_VERSION": "68d92a4dba65e695e0d31f0b0f210ee61ce7145ec89a08def77104b266cccd99",
       "UNGOOGLED_WINDOWS_VERSION": "e21b0fce64ba0f9c2457f30c618fb87e73fb88a8b1cd49af795548eca8f14395",
-      "build/google-services-win155.json": "e9a51ce24553697bdba66ea047c7a97afa96eea0ceaa67a6c25a7c3c2cd7d121",
-      "build/native-browser-capabilities.json": "494182a0bf4efe0dd49994b2f0f69bea265b34aebf1e4ad2833c35b5fb250079",
+      "build/google-services-win155.json": "dfb82a7a3f458107c2bb642aef8fd031b3e9f3f6e553b391d0c160bb914500f1",
+      "build/native-browser-capabilities.json": "0d6445aa29e5f70d630038701844d2724a8479be344bdb6d13ec84853cb797d3",
       "build/security-resources/empty_file_type_policy.pb": "98ebc9403565619b3aa2f71f64f5f54adea01d4c4b54d873b2b91c2ac5544112",
       "build/security-resources/etw_events/MSG00001.bin": "51b3d8c734d307af13984bb2c2abde79c859a5acb6386fd233f3e9338f2a7dc5",
       "build/security-resources/etw_events/chrome_events_winTEMP.BIN": "1de7329c900e3e367a04ea99c1169cde528754c408de077628f5be856cfe0926",
@@ -4360,20 +4387,23 @@
       "patches/google-services/0002-windows-native-passkey-discovery.patch": "ec57f6456b2d6d65638337074d626fd4809dfe8a5038034c88cafcf7698a8793",
       "patches/lite-win156/0001-retire-bridge-runtime-synthetic.patch": "f6ce9873dbaecb4d6f313becc05627da027fb1e13d5e2dda78303a88b1b62132",
       "patches/native-browser/0001-native-windows-shell.patch": "4227a857c72fc51910229fa36710ad393f882fae9bfe3983d609f470d280f000",
-      "patches/native-browser/0002-environment-controls.patch": "c6399f57c74bf930cc1be70f99e4a8fdef65501632936a735f5a0bdd3b0ddf36",
+      "patches/native-browser/0002-environment-controls.patch": "2f66ef24cffc357b307b9579288342e823b9ed8a28d8a2d169a21d13afff03d0",
+      "patches/native-browser/0003-history-retention.patch": "ad70418516ead0950c1ced8f38452f31dcceb8bd0516d386549bd7d6e5186079",
       "patches/security/0001-restore-safety-hub-entry.patch": "15c4ca59e9b4841b977067f6c0a55699cf66d6407db2f4965531db416079f1b6",
       "patches/security/0002-preserve-disabled-enterprise-profile-id.patch": "aa0e2d5a6785b8792492afabd9d18859bbeea0852adfe82625fb81ded7c6ae80",
       "patches/security/0003-link-signed-web-bundle-payload.patch": "d4cad9e00eb141ea4409c3f22d1804636df4f0895867f9a478379dc526bc2a94",
       "patches/series": "71613faf45339ae3debd3dcf8afb95101989c4e6537d14dc7b0cebd1766f5863",
       "tools/build_google_services_patch.py": "86a7120f4a24b11b21b091901950a632c63f089cfab2c0e0ac5d44111b56564c",
+      "tools/build_history_retention_patch.py": "227055200a17293b4f74d1b6e507529981c8876878ec8e356bbef432c5264ebf",
       "tools/build_lite_retirement_patch.py": "65d7bb644d2236c2ab44ebef1e04c1e788c38a0dda89dd01ec920a85446f6cd7",
-      "tools/google_services_inputs.py": "77f2450cde91092b27d87f624c40669ba6d68d69fc1072afd3e66b996aa9e0aa",
+      "tools/google_services_inputs.py": "910cfd0e97cfb44bb254d8907459d98293d750e883eabb78be1ee4cdd78d7e6e",
       "tools/patch_selection.py": "303dc5399fd3a7ae00d6f7a4fe74e9a9f3d52a07094886ae9329a458a76896f5",
       "tools/platform_pins.py": "79f5da2b264015c837e2e77df5e51f64f712f745c3a50f8002949b6419d8cb3c",
       "tools/restored_source_resources.py": "745676ca91071f789a5c1899147bdb80fed84efb40e1f2e8819bea3c241d7662",
-      "tools/verify_native_browser_source.py": "91b96730668a52b23912699bedee3554adcf8490ef11a876b39b602e9bdf8736",
-      "tools/verify_native_environment_controls_source.py": "2a5f06cb2e882763a1525baa9d78670439fa3678df44080bf3731a8b8e0a343b"
+      "tools/verify_history_retention_source.py": "c5c3f2c10c1e1f59cf7d828bf987334d461dfc234e2e3d7dad3f985eb855e7b1",
+      "tools/verify_native_browser_source.py": "cf1c43252480e9fe5d410df82565d71f7db9d03ec3f571dfd5fbb2117c856ca1",
+      "tools/verify_native_environment_controls_source.py": "8f99f09b5c3ba476429cb3155418d59055ed8fad5cb2b025deb10e68f16b9d65"
     }
   },
-  "generation_inputs_sha256": "7939ca9d4da8b7bf98d6fa874f963987600d2adfb6cdfaa4fb9e5801bcfde1c4"
+  "generation_inputs_sha256": "f02e64f747b0cac8f441d5e2e6f1973eec3dfd534ab73908a493a66822f09835"
 }

@@ -1,6 +1,6 @@
 #Requires -Version 7.0
 param(
-  [ValidateSet('Build','Acquire','Extract','Prepare','Configure','Compile','Bundle','Verify','Archive','Checkpoint','Result')][string]$Phase = 'Build',
+  [ValidateSet('Build','Acquire','Extract','Prepare','Configure','Compile','Bundle','Verify','Archive','Diagnose','Checkpoint','Result')][string]$Phase = 'Build',
   [ValidateSet('fresh','resume','upstream','upgrade')][string]$Operation = 'fresh',
   [ValidateRange(1,99)][int]$Stage = 1,
   [string]$SourceRun = '',
@@ -115,6 +115,21 @@ if ($Phase -eq 'Result') {
   if ($result.retention_failed) { throw 'Candidate delivered, but the requested reusable checkpoint is incomplete; retained-cache requirement failed.' }
   return
 }
+if ($Phase -eq 'Diagnose') {
+  Output diagnostic 'false'
+  $saved = Read-State
+  # This path never advances state, sets finished, or creates an accepted asset.
+  # The helper checks the pre-verification inventory and source identity again.
+  $diagnosticOutput = Join-Path 'C:\unaccepted-runtime' ("s$Stage")
+  Assert-Plain $diagnosticOutput
+  Checked { & $python -B -X utf8 (Join-Path $repo 'tools\stage_unaccepted_runtime.py') `
+    --repo $repo --bundle 'C:\c\dist\chromix' --evidence $evidence `
+    --state $statePath --output $diagnosticOutput }
+  $diagnostic = Get-Content -LiteralPath (Join-Path $diagnosticOutput 'diagnostic.json') -Raw | ConvertFrom-Json
+  if ($diagnostic.accepted -ne $false -or $diagnostic.not_for_activation -ne $true) { throw 'Diagnostic acceptance marker is invalid' }
+  Output diagnostic 'true'
+  return
+}
 if ($Phase -eq 'Checkpoint') {
   Output checkpoint 'false'
   Output parts '0'
@@ -194,6 +209,43 @@ function Get-NinjaFailureSummary([string]$Log) {
     log_sha256=(Get-FileHash -LiteralPath $Log -Algorithm SHA256).Hash.ToLowerInvariant();
     needs_source_fix=($failures.Count -gt 0) }
 }
+function Get-OwnedFailureSummary([string]$Label,[int]$ExitCode,$Receipt,[string]$Log) {
+  $safeLabel = if ($Label -cmatch '^[a-z0-9-]{1,64}$') { $Label } else { 'owned-command' }
+  $failedChecks = [Collections.Generic.List[string]]::new()
+  $exceptionType = ''
+  $trustedSummary = $safeLabel -cin @('native-browser-runtime','native-cookie-runtime','security-runtime',
+    'google-runtime','accept-native-browser-tests','accept-native-cookie-tests','accept-native-passkey','accept-fingerprint')
+  if (Test-Path -LiteralPath $Log -PathType Leaf) {
+    foreach ($line in @(Get-Content -LiteralPath $Log -Tail 24 -ErrorAction SilentlyContinue)) {
+      if ($line.Length -gt 16384) { continue }
+      if ($line -cmatch '^([A-Za-z_][A-Za-z0-9_.]{0,63}(?:Error|Exception))(?::|$)') { $exceptionType=$Matches[1] }
+      if (-not $trustedSummary) { continue }
+      try { $summary = $line | ConvertFrom-Json -AsHashtable -ErrorAction Stop } catch { continue }
+      if ($summary -isnot [Collections.IDictionary]) { continue }
+      foreach ($name in @($summary.failed)) {
+        if ($failedChecks.Count -lt 8 -and $name -is [string] -and $name -cmatch '^[A-Za-z0-9_.:/-]{1,100}$') {
+          if (-not $failedChecks.Contains($name)) { $failedChecks.Add($name) }
+        }
+      }
+    }
+  }
+  $hasReceipt = $Receipt -is [Collections.IDictionary]
+  return @{ label=$safeLabel; exit_code=$ExitCode; timed_out=($hasReceipt -and $Receipt.timed_out -eq $true);
+    cleanup_error_count=$(if ($hasReceipt) {@($Receipt.cleanup_errors).Count} else {0});
+    exception_type=$exceptionType; failed_checks=@($failedChecks.ToArray()) }
+}
+function Write-OwnedFailureAnnotation([string]$Label,[string]$Status,[int]$ExitCode,$Receipt,[string]$Log) {
+  $summary=Get-OwnedFailureSummary $Label $ExitCode $Receipt $Log
+  $logName=[IO.Path]::GetFileName($Log)
+  if ($logName -cnotmatch '^[0-9]{3}-[a-z0-9-]{1,64}\.log$') { $logName='owned-command.log' }
+  # Never forward arbitrary exception messages, URLs, cookie values, or protocol
+  # payloads. Full original evidence remains in the separately retained log.
+  $message="step=$($summary.label); status=$Status; exit=$ExitCode; timed_out=$($summary.timed_out); cleanup_errors=$($summary.cleanup_error_count); log=$logName"
+  if ($summary.exception_type) { $message += "; exception=$($summary.exception_type)" }
+  if ($summary.failed_checks.Count) { $message += '; failed_checks=' + ($summary.failed_checks -join ',') }
+  $message=$message.Substring(0,[Math]::Min(1200,$message.Length)).Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
+  Write-Output "::error title=Owned verification command::$message"
+}
 function Invoke-Owned([string]$Label,[string[]]$Command,[int]$LimitSeconds=18000,[string]$WorkingDirectory=$repo,[switch]$GitHubReadToken) {
   $remaining = [int]($deadline - [DateTimeOffset]::UtcNow).TotalSeconds
   if ($remaining -lt 30) { throw 'SECURITY_BUDGET_STOP' }
@@ -213,6 +265,7 @@ function Invoke-Owned([string]$Label,[string[]]$Command,[int]$LimitSeconds=18000
   if ($commandStatus -eq 'unsafe') {
     $state.resume_safe = $false
     Save-State
+    Write-OwnedFailureAnnotation $Label $commandStatus $rc $receipt $log
     throw "Owned command cleanup or receipt is unverified: $Label"
   }
   if ($Label -ceq 'ninja') {
@@ -238,9 +291,54 @@ function Invoke-Owned([string]$Label,[string[]]$Command,[int]$LimitSeconds=18000
   }
   if ($commandStatus -eq 'budget-stop') { throw 'SECURITY_BUDGET_STOP' }
   if ($commandStatus -ne 'success') {
+    Write-OwnedFailureAnnotation $Label $commandStatus $rc $receipt $log
     if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Tail 35 }
     throw "Security stage command failed: $Label ($rc)"
   }
+}
+
+function Invoke-VerificationPlan([object[]]$Steps) {
+  if (-not $Steps -or $Steps.Count -lt 1) { throw 'Empty verification step inventory' }
+  $results = [ordered]@{}
+  $failures = [Collections.Generic.List[string]]::new()
+  $stopped = ''
+  foreach ($step in $Steps) {
+    $label = [string]$step.label
+    if ($label -cnotmatch '^[a-z0-9-]+$' -or $results.Contains($label)) { throw 'Invalid verification step inventory' }
+    if ($stopped) {
+      $results[$label] = @{label=$label;status='skipped';reason=$stopped}
+      continue
+    }
+    $blocked = @(foreach ($dependency in $step.depends) {
+      if (-not $results.Contains($dependency) -or $results[$dependency].status -cne 'passed') { $dependency }
+    })
+    if ($blocked.Count) {
+      $results[$label] = @{label=$label;status='skipped';reason='dependency-failed';dependencies=$blocked}
+      continue
+    }
+    try {
+      Invoke-Owned $label $step.command
+      $results[$label] = @{label=$label;status='passed'}
+    } catch {
+      if ($_.Exception.Message -ceq 'SECURITY_BUDGET_STOP') {
+        $results[$label] = @{label=$label;status='budget-stop'}
+        $stopped = 'budget-exhausted'
+      } else {
+        $failures.Add($label)
+        # Detailed command logs already exist; do not echo untrusted exception
+        # text or Cookie values into this orchestration receipt.
+        $results[$label] = @{label=$label;status='failed';errorType=$_.Exception.GetType().Name}
+        if ($state.resume_safe -eq $false) { $stopped = 'cleanup-unverified' }
+      }
+    }
+  }
+  $incomplete = @($results.Values | Where-Object status -ne 'passed').Count
+  $status = if ($failures.Count) {'failed'} elseif ($stopped) {'budget-stop'} elseif ($incomplete) {'failed'} else {'passed'}
+  Json (Join-Path $evidence 'verification-results.json') @{schema_version=1;status=$status;checks=@($results.Values)}
+  # A known test failure must never turn into an automatic budget continuation.
+  if ($failures.Count) { throw ('SECURITY_VERIFICATION_FAILED: ' + ($failures -join ', ')) }
+  if ($stopped) { throw 'SECURITY_BUDGET_STOP' }
+  if ($incomplete) { throw 'SECURITY_VERIFICATION_INCOMPLETE' }
 }
 
 function Set-CompilerEnvironment([switch]$WithoutSourceTools) {
@@ -424,29 +522,36 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
     'Verify' {
       Set-CompilerEnvironment
       $bundle = 'C:\c\dist\chromix'
-      Invoke-Owned 'native-passkey' @($pwsh,'-NoProfile','-File',"$PSScriptRoot\run-native-passkey-tests.ps1",'-Executable',(Join-Path $out 'native_passkey_unittests.exe'),
+      # Collect every independent result from this expensive compiled candidate.
+      # Dependent acceptors run only after their actual producer succeeded.
+      $checks = @(
+      @{label='native-passkey';command=@($pwsh,'-NoProfile','-File',"$PSScriptRoot\run-native-passkey-tests.ps1",'-Executable',(Join-Path $out 'native_passkey_unittests.exe'),
         '-Summary',(Join-Path $evidence 'native-passkey-unittests.json'),'-Log',(Join-Path $evidence 'native-passkey.log'),
-        '-Receipt',(Join-Path $evidence 'native-passkey-launcher.json'),'-WorkingDirectory',$src)
+        '-Receipt',(Join-Path $evidence 'native-passkey-launcher.json'),'-WorkingDirectory',$src,'-BuildRecord',(Join-Path $bundle 'google-services-build.json'))}
       # Reuse the already linked profile harness; do not build all Chrome unit_tests.
-      Invoke-Owned 'native-browser-tests' @($pwsh,'-NoProfile','-File',"$PSScriptRoot\run-native-passkey-tests.ps1",'-Executable',(Join-Path $out 'native_passkey_unittests.exe'),
+      @{label='native-browser-tests';command=@($pwsh,'-NoProfile','-File',"$PSScriptRoot\run-native-passkey-tests.ps1",'-Executable',(Join-Path $out 'native_passkey_unittests.exe'),
         '-Summary',(Join-Path $evidence 'native-browser-unittests.json'),'-Log',(Join-Path $evidence 'native-browser-tests.log'),
-        '-Receipt',(Join-Path $evidence 'native-browser-launcher.json'),'-WorkingDirectory',$src,'-TestFilter','ShardXNativeBrowserTest.*')
-      Invoke-Owned 'accept-native-browser-tests' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_native_browser_tests.py'),
-        '--summary',(Join-Path $evidence 'native-browser-unittests.json'))
-      Invoke-Owned 'native-browser-runtime' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_native_browser_runtime.py'),
-        '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'native-browser-runtime.json'))
-      Invoke-Owned 'browser-smoke' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_windows_bundle.py'),'--bundle',$bundle,'--arch','x64','--native','--version',$version,'--report',(Join-Path $evidence 'candidate-smoke.json'))
-      Invoke-Owned 'security-runtime' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_security_runtime.py'),
-        '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'security-runtime.json'))
-      Invoke-Owned 'accept-security-runtime' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_candidate.py'),
+        '-Receipt',(Join-Path $evidence 'native-browser-launcher.json'),'-WorkingDirectory',$src,'-TestFilter','ShardXNativeBrowserTest.*','-BuildRecord',(Join-Path $bundle 'google-services-build.json'))}
+      @{label='accept-native-browser-tests';depends=@('native-browser-tests');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\native_compiled_evidence.py'),
+        '--summary',(Join-Path $evidence 'native-browser-unittests.json'),'--launcher',(Join-Path $evidence 'native-browser-launcher.json'),
+        '--build-record',(Join-Path $bundle 'google-services-build.json'),'--kind','browser')}
+      @{label='native-browser-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_native_browser_runtime.py'),
+        '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'native-browser-runtime.json'))}
+      @{label='browser-smoke';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_windows_bundle.py'),'--bundle',$bundle,'--arch','x64','--native','--version',$version,'--report',(Join-Path $evidence 'candidate-smoke.json'))}
+      @{label='security-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_security_runtime.py'),
+        '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'security-runtime.json'))}
+      @{label='accept-security-runtime';depends=@('security-runtime');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_candidate.py'),
         '--security-tests-json',(Join-Path $evidence 'security-runtime.json'),'--source-record',(Join-Path $evidence 'build-inputs.json'),
-        '--bundle',$bundle,'--build-variant','fingerprint-modes-win156')
-      Invoke-Owned 'google-runtime' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_runtime.py'),'--browser',(Join-Path $bundle 'chrome.exe'),'--report',(Join-Path $evidence 'google-services-runtime.json'))
-      Invoke-Owned 'fingerprint-runtime' @($pwsh,'-NoProfile','-File',"$PSScriptRoot\verify-fingerprint-modes.ps1",'-Out',$out,'-Bundle',$bundle,'-Report',(Join-Path $evidence 'fingerprint-modes-validation.json'))
-      Invoke-Owned 'accept-native-passkey' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_candidate.py'),
-        '--native-tests-json',(Join-Path $evidence 'native-passkey-unittests.json'),'--build-variant','fingerprint-modes-win156')
-      Invoke-Owned 'accept-fingerprint' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_candidate.py'),
-        '--fingerprint-tests-json',(Join-Path $evidence 'fingerprint-modes-validation.json'),'--bundle',$bundle,'--build-variant','fingerprint-modes-win156')
+        '--bundle',$bundle,'--build-variant','fingerprint-modes-win156')}
+      @{label='google-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_runtime.py'),'--browser',(Join-Path $bundle 'chrome.exe'),'--report',(Join-Path $evidence 'google-services-runtime.json'))}
+      @{label='fingerprint-runtime';command=@($pwsh,'-NoProfile','-File',"$PSScriptRoot\verify-fingerprint-modes.ps1",'-Out',$out,'-Bundle',$bundle,'-Report',(Join-Path $evidence 'fingerprint-modes-validation.json'))}
+      @{label='accept-native-passkey';depends=@('native-passkey');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\native_compiled_evidence.py'),
+        '--summary',(Join-Path $evidence 'native-passkey-unittests.json'),'--launcher',(Join-Path $evidence 'native-passkey-launcher.json'),
+        '--build-record',(Join-Path $bundle 'google-services-build.json'),'--kind','passkey')}
+      @{label='accept-fingerprint';depends=@('fingerprint-runtime');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_candidate.py'),
+        '--fingerprint-tests-json',(Join-Path $evidence 'fingerprint-modes-validation.json'),'--bundle',$bundle,'--build-variant','fingerprint-modes-win156')}
+      )
+      Invoke-VerificationPlan $checks
     }
     'Archive' {
       Set-CompilerEnvironment
@@ -455,6 +560,7 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       # are outside the immutable browser bundle and therefore do not rebaseline it.
       foreach ($name in @('build-inputs.json','native-passkey-unittests.json','native-passkey-launcher.json',
           'native-browser-unittests.json','native-browser-launcher.json','native-browser-runtime.json',
+          'verification-results.json',
           'candidate-smoke.json','google-services-runtime.json','security-runtime.json','fingerprint-modes-validation.json',
           'modes-native.json','modes-runtime.json','fingerprint-modes-capabilities.json')) {
         Copy-Item -LiteralPath (Join-Path $evidence $name) -Destination (Join-Path 'C:\c\dist' $name)

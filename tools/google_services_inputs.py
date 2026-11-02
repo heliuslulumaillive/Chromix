@@ -78,6 +78,7 @@ def native_browser_input_names(config: dict) -> tuple[str, ...]:
         raise ValueError('Native browser source/capability contract is invalid')
     return (expected['capabilities'], 'tools/verify_native_browser_source.py',
             'tools/verify_native_environment_controls_source.py',
+            'tools/verify_history_retention_source.py', 'tools/build_history_retention_patch.py',
             'tools/build_lite_retirement_patch.py')
 
 

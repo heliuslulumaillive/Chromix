@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 $tokens = $null; $parseErrors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile($env:PHASE_TEST_SOURCE,[ref]$tokens,[ref]$parseErrors)
 if ($parseErrors.Count) { throw ($parseErrors.Message -join '; ') }
-$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Get-OwnedCommandStatus','Get-NinjaFailureSummary','Invoke-Owned','Read-State')
+$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Get-OwnedCommandStatus','Get-NinjaFailureSummary','Get-OwnedFailureSummary','Write-OwnedFailureAnnotation','Invoke-Owned','Invoke-VerificationPlan','Read-State')
 $definitions = $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in $allowed}, $false)
 if (@($definitions).Count -ne $allowed.Count) { throw 'Guard function inventory mismatch' }
 . ([scriptblock]::Create(($definitions.Extent.Text -join "`n")))
@@ -45,6 +45,30 @@ try {
     'disk' { $result=Get-CheckpointDiskBudget $request }
     'command-status' { $result=@{status=(Get-OwnedCommandStatus $request.exit_code $request.receipt)} }
     'ninja-failures' { $result=Get-NinjaFailureSummary $request.path }
+    'owned-failure' { $result=Get-OwnedFailureSummary $request.label $request.exit_code $request.receipt $request.path }
+    'owned-annotation' { $result=@{message=(Write-OwnedFailureAnnotation $request.label 'failed' $request.exit_code $request.receipt $request.path)} }
+    'native-test-filter' {
+      $nativeAST=[Management.Automation.Language.Parser]::ParseFile($env:NATIVE_TEST_SOURCE,[ref]$tokens,[ref]$parseErrors)
+      if ($parseErrors.Count) { throw 'Native test launcher parse failed' }
+      # Bind the production ParamBlock without executing a browser or the body.
+      $binder=[scriptblock]::Create($nativeAST.ParamBlock.Extent.Text + "`n`$true")
+      & $binder -Executable 'not-executed' -Summary 'not-written' -Log 'not-written' -Receipt 'not-written' -WorkingDirectory 'not-read' -TestFilter $request.filter | Out-Null
+      $result=@{accepted=$true}
+    }
+    'verification-plan' {
+      $evidence='synthetic-not-written'; $state=@{resume_safe=$true}
+      $called=[Collections.Generic.List[string]]::new()
+      function Json([string]$Path,$Data) { $script:verificationReport=$Data }
+      function Invoke-Owned([string]$Label,[string[]]$Command) {
+        $called.Add($Label)
+        if ($Label -eq $request.unsafe) { $state.resume_safe=$false; throw 'synthetic-cleanup-failure' }
+        if ($Label -eq $request.timeout) { throw 'SECURITY_BUDGET_STOP' }
+        if ($Label -in $request.fail) { throw 'synthetic-test-failure' }
+      }
+      try { Invoke-VerificationPlan $request.steps; $errorName=$null }
+      catch { $errorName=$_.Exception.Message }
+      $result=@{called=@($called.ToArray());report=$script:verificationReport;error=$errorName;resume_safe=$state.resume_safe}
+    }
     'ninja-timeout' {
       $repo=$request.repo; $evidence=$request.repo; $python=$request.python
       $deadline=[DateTimeOffset]::UtcNow.AddMinutes(1)
@@ -80,6 +104,7 @@ class PhaseGuardTests(unittest.TestCase):
 
     def run_guard(self, mode, payload):
         env = {**os.environ, 'PHASE_TEST_SOURCE': str(STAGE),
+               'NATIVE_TEST_SOURCE': str(ROOT / 'build/windows/run-native-passkey-tests.ps1'),
                'GITHUB_RUN_ID': '123', 'GITHUB_SHA': 'a' * 40}
         proc = subprocess.run([PWSH, '-NoProfile', '-File', str(self.harness), mode,
                                json.dumps(payload, separators=(',', ':'))],
@@ -133,6 +158,60 @@ class PhaseGuardTests(unittest.TestCase):
     def test_expired_budget_cannot_start_a_command(self):
         self.assertEqual(self.run_guard('budget', {})['error'], 'SECURITY_BUDGET_STOP')
 
+    def test_native_launcher_actually_binds_each_required_filter(self):
+        for value in ('WinAuthenticatorTest.*:AuthenticatorRequestDialogControllerTest.*',
+                      'ShardXNativeBrowserTest.*'):
+            self.assertTrue(self.run_guard('native-test-filter', {'filter': value})['accepted'])
+        self.assertFalse(self.run_guard('native-test-filter', {'filter': '*'})['accepted'])
+
+    def verification_plan(self, **extra):
+        return self.run_guard('verification-plan', {'steps': [
+            {'label': 'first', 'command': ['synthetic']},
+            {'label': 'accept-first', 'command': ['synthetic'], 'depends': ['first']},
+            {'label': 'second', 'command': ['synthetic']},
+            {'label': 'third', 'command': ['synthetic']},
+        ], **extra})
+
+    def test_verification_plan_runs_all_required_checks_when_successful(self):
+        result = self.verification_plan()
+        self.assertIsNone(result['error'])
+        self.assertEqual(result['called'], ['first', 'accept-first', 'second', 'third'])
+        self.assertEqual(result['report']['status'], 'passed')
+        self.assertTrue(all(row['status'] == 'passed' for row in result['report']['checks']))
+
+    def test_independent_failures_are_collected_and_dependents_not_accepted(self):
+        result = self.verification_plan(fail=['first', 'third'])
+        self.assertEqual(result['called'], ['first', 'second', 'third'])
+        self.assertEqual(result['report']['status'], 'failed')
+        self.assertEqual(result['report']['checks'][1]['status'], 'skipped')
+        self.assertEqual(result['error'], 'SECURITY_VERIFICATION_FAILED: first, third')
+
+    def test_prior_failure_cannot_become_a_budget_continuation(self):
+        result = self.verification_plan(fail=['first'], timeout='second')
+        self.assertEqual(result['called'], ['first', 'second'])
+        self.assertEqual(result['report']['status'], 'failed')
+        self.assertEqual(result['error'], 'SECURITY_VERIFICATION_FAILED: first')
+        self.assertEqual(result['report']['checks'][-1]['reason'], 'budget-exhausted')
+
+    def test_clean_budget_stop_preserves_existing_continuation_semantics(self):
+        result = self.verification_plan(timeout='second')
+        self.assertEqual(result['called'], ['first', 'accept-first', 'second'])
+        self.assertEqual(result['report']['status'], 'budget-stop')
+        self.assertEqual(result['error'], 'SECURITY_BUDGET_STOP')
+
+    def test_unverified_process_cleanup_stops_further_independent_commands(self):
+        result = self.verification_plan(unsafe='first')
+        self.assertEqual(result['called'], ['first'])
+        self.assertFalse(result['resume_safe'])
+        self.assertEqual(result['report']['status'], 'failed')
+        self.assertTrue(all(row['reason'] == 'cleanup-unverified' for row in result['report']['checks'][1:]))
+
+    def test_missing_dependency_is_not_a_passing_verification_plan(self):
+        result = self.verification_plan(steps=[{'label': 'accept-missing', 'command': ['synthetic'], 'depends': ['missing']}])
+        self.assertEqual(result['called'], [])
+        self.assertEqual(result['report']['status'], 'failed')
+        self.assertEqual(result['error'], 'SECURITY_VERIFICATION_INCOMPLETE')
+
     def test_failed_ninja_edges_are_preserved_even_when_other_targets_continue(self):
         path = Path(self.temp.name) / 'ninja.log'
         path.write_text('[1/9] CXX good.obj\nFAILED: obj/broken.obj\n'
@@ -158,6 +237,37 @@ class PhaseGuardTests(unittest.TestCase):
         self.assertTrue(all(len(row['message']) == 1200 and '\x1b' not in row['message']
                             for row in result['diagnostics']))
         self.assertEqual(result['diagnostics'][0]['line'], 2)
+
+    def test_generic_failure_annotations_do_not_echo_cookie_values_or_exception_messages(self):
+        path = Path(self.temp.name) / '019-native-cookie-runtime.log'
+        secret = 'DO-NOT-ECHO-RAW-COOKIE-VALUE'
+        path.write_text(json.dumps({'status': 'failed', 'failed': ['first_request/cookies', 'receipt/status'],
+                                    'error': secret, 'cookie': secret}) + '\nValueError: ' + secret,
+                        encoding='utf-8')
+        payload = {'label': 'native-cookie-runtime', 'exit_code': 1, 'path': str(path),
+                   'receipt': {'timed_out': False, 'cleanup_errors': []}}
+        result = self.run_guard('owned-failure', payload)
+        self.assertEqual(result['failed_checks'], ['first_request/cookies', 'receipt/status'])
+        self.assertEqual(result['exception_type'], 'ValueError')
+        annotation = self.run_guard('owned-annotation', payload)['message']
+        self.assertTrue(annotation.startswith('::error title=Owned verification command::'))
+        self.assertIn('first_request/cookies', annotation)
+        self.assertNotIn(secret, annotation)
+        self.assertNotIn(str(path.parent), annotation)
+        self.assertLessEqual(len(annotation), 1260)
+
+    def test_generic_failure_summary_only_accepts_bounded_identifiers_from_known_verifiers(self):
+        path = Path(self.temp.name) / '020-native-cookie-runtime.log'
+        path.write_text(json.dumps({'failed': ['check/' + str(n) for n in range(20)] +
+                                    ['https://private.test/?token=secret', '\n::error::injected']}), encoding='utf-8')
+        payload = {'label': 'native-cookie-runtime', 'exit_code': 5, 'path': str(path),
+                   'receipt': {'timed_out': True, 'cleanup_errors': ['hidden detail']}}
+        result = self.run_guard('owned-failure', payload)
+        self.assertEqual(len(result['failed_checks']), 8)
+        self.assertEqual(result['cleanup_error_count'], 1)
+        self.assertTrue(result['timed_out'])
+        payload['label'] = 'unreviewed-helper'
+        self.assertEqual(self.run_guard('owned-failure', payload)['failed_checks'], [])
 
     def test_actual_invoker_prioritizes_recorded_failure_over_later_timeout(self):
         import sys

@@ -159,6 +159,11 @@ def verify(src: Path, repo: Path):
     except ImportError:
         from verify_native_environment_controls_source import verify as verify_controls
     checked.extend(verify_controls(src))
+    try:
+        from .verify_history_retention_source import verify as verify_history
+    except ImportError:
+        from verify_history_retention_source import verify as verify_history
+    checked.extend(verify_history(src))
     return list(dict.fromkeys(checked))
 
 

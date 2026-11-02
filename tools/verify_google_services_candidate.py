@@ -95,6 +95,12 @@ REQUIRED_CHECKS = {
     'foreign_appid_rejected', 'appid_fragment_rejected',
     'profile_storage_restart', 'google_authentication_after_restart',
 }
+NATIVE_VERIFICATION_LABELS = frozenset({
+    'native-passkey', 'native-browser-tests', 'accept-native-browser-tests',
+    'native-browser-runtime',
+    'browser-smoke', 'security-runtime', 'accept-security-runtime',
+    'google-runtime', 'fingerprint-runtime', 'accept-native-passkey', 'accept-fingerprint',
+})
 
 
 def read_object(path, *, max_bytes=512 * 1024):
@@ -820,6 +826,96 @@ def inventory(bundle):
             for path in sorted(bundle.rglob('*')) if path.is_file()}
 
 
+def validate_verification_results(path):
+    report = read_object(path)
+    rows = report.get('checks')
+    if (type(report.get('schema_version')) is not int or report['schema_version'] != 1
+            or report.get('status') != 'passed' or not isinstance(rows, list)
+            or len(rows) != len(NATIVE_VERIFICATION_LABELS)
+            or any(not isinstance(row, dict) or not isinstance(row.get('label'), str)
+                   or row.get('status') != 'passed' for row in rows)):
+        raise ValueError('Native verification plan is missing or has incomplete steps')
+    labels = [row['label'] for row in rows]
+    if set(labels) != NATIVE_VERIFICATION_LABELS or len(set(labels)) != len(labels):
+        raise ValueError('Native verification plan must contain exactly 11 unique required labels')
+    return {'status': 'passed', 'report_sha256': sha256(path), 'labels': sorted(labels)}
+
+
+def validate_native_runtime(report_path, bundle, payload, expected_source, kind):
+    """Recompute native observations; never trust a passed-only check manifest."""
+    if kind == 'browser':
+        try:
+            from . import verify_native_browser_runtime as probe
+        except ImportError:
+            import verify_native_browser_runtime as probe
+    else:
+        raise ValueError('Unknown native runtime proof')
+    report = read_object(report_path, max_bytes=16 * 1024**2)
+    if (type(report.get('schema_version')) is not int or report['schema_version'] != 1
+            or report.get('contract') != probe.CONTRACT or report.get('status') != 'passed'
+            or report.get('source') != expected_source or not probe.report_passed(report)
+            or any(row.get('passed') is not True for row in probe.assess(report))):
+        raise ValueError('Native ' + kind + ' observations contradict their claimed successful source/run')
+    cap = 'native-' + kind + '-capabilities.json'
+    expected = {
+        'browser_sha256': payload['chrome.exe'], 'chrome_dll_sha256': payload['chrome.dll'],
+        'capabilities_sha256': sha256(REPO / 'build' / cap),
+        'source_receipt_sha256': expected_source['source_receipt_sha256'],
+        'verifier_sha256': sha256(REPO / 'tools' / ('verify_native_' + kind + '_runtime.py')),
+        'security_helper_sha256': sha256(REPO / 'tools/verify_security_runtime.py'),
+        'history_helper_sha256': sha256(REPO / 'tools/native_history_probe.py'),
+        'recipe_tool_sha256': sha256(REPO / 'tools/security_build_record.py'),
+        'requirements_sha256': sha256(REPO / 'tools/google-services-requirements.txt'),
+    }
+    binding = report.get('binding')
+    if (payload.get(cap) != expected['capabilities_sha256'] or sha256(bundle / cap) != payload.get(cap)
+            or not isinstance(binding, dict) or any(binding.get(key) != value for key, value in expected.items())
+            or not re.fullmatch('[a-f0-9]{64}', str(binding.get('python_sha256', '')))):
+        raise ValueError('Native ' + kind + ' DLL, capability or verification helper identity differs')
+    locked = dict(re.findall(r'(?m)^(playwright|psutil)==([^\s#]+)$',
+                            (REPO / 'tools/google-services-requirements.txt').read_text()))
+    dependencies = binding.get('dependencies')
+    if not isinstance(dependencies, dict) or set(dependencies) != set(locked):
+        raise ValueError('Native runtime producer dependency inventory is incomplete')
+    for name, value in dependencies.items():
+        if (not isinstance(value, dict) or value.get('version') != locked[name]
+                or type(value.get('files')) is not int or value['files'] <= 0
+                or not re.fullmatch('[a-f0-9]{64}', str(value.get('inventory_sha256', '')))):
+            raise ValueError('Native runtime producer dependency identity differs: ' + name)
+    return {'status': 'passed', 'report_sha256': sha256(report_path), 'binding': binding,
+            'source': expected_source, 'checks': [row['name'] for row in report['checks']],
+            'producer_identity': 'Retained metadata; not assumed equal to the verification host'}
+
+
+def validate_native_integration(artifact_dir, bundle, payload, expected_source):
+    try:
+        from . import native_compiled_evidence as compiled
+        from . import verify_security_runtime as security
+    except ImportError:
+        import native_compiled_evidence as compiled
+        import verify_security_runtime as security
+    names = ('verification-results.json', 'native-passkey-unittests.json', 'native-passkey-launcher.json',
+             'native-browser-unittests.json', 'native-browser-launcher.json', 'native-browser-runtime.json')
+    for name in names:
+        if not security.plain(artifact_dir / name).is_file():
+            raise ValueError('Mandatory native integration evidence is missing: ' + name)
+    before = {name: sha256(artifact_dir / name) for name in names}
+    result = {'verification': validate_verification_results(artifact_dir / 'verification-results.json')}
+    for kind in ('passkey', 'browser'):
+        result[kind + '_compiled_tests'] = compiled.validate_compiled_suite(
+            artifact_dir / ('native-' + kind + '-unittests.json'),
+            artifact_dir / ('native-' + kind + '-launcher.json'),
+            bundle / 'google-services-build.json', kind)
+    if len({result[kind + '_compiled_tests']['test_executable_sha256'] for kind in ('passkey', 'browser')}) != 1:
+        raise ValueError('Native suites came from different compiled test executables')
+    for kind in ('browser',):
+        result[kind + '_runtime'] = validate_native_runtime(
+            artifact_dir / ('native-' + kind + '-runtime.json'), bundle, payload, expected_source, kind)
+    if before != {name: sha256(artifact_dir / name) for name in names}:
+        raise ValueError('Native integration evidence changed while verifying it')
+    return {'status': 'passed', 'evidence_sha256': before, **result}
+
+
 def validate_security_runtime(report_path, source_record_path, bundle, payload_hashes=None):
     """Validate existing 156 security evidence only; importing the probe never runs it."""
     try:
@@ -944,6 +1040,8 @@ def verify_candidate(artifact_dir, source, report_dir, record, *, build_variant=
         if build_variant == SECURITY_VARIANT:
             record['security_runtime'] = validate_security_runtime(
                 artifact_dir / 'security-runtime.json', artifact_dir / 'build-inputs.json', bundle, before)
+            record['native_integration'] = validate_native_integration(
+                artifact_dir, bundle, before, record['security_runtime']['source'])
     native = runtime_smoke(bundle_report, version, report_dir / 'native-smoke')
     (report_dir / 'native-smoke.json').write_text(json.dumps(native, indent=2) + '\n', encoding='utf-8')
     probe_report = report_dir / 'google-webauthn.json'
@@ -968,6 +1066,10 @@ def verify_candidate(artifact_dir, source, report_dir, record, *, build_variant=
             sha256(artifact_dir / 'security-runtime.json') != record['security_runtime']['report_sha256']
             or sha256(artifact_dir / 'build-inputs.json') != record['security_runtime']['source']['record_sha256']):
         raise ValueError('Mandatory security evidence changed during candidate verification')
+    if build_variant == SECURITY_VARIANT and any(
+            sha256(artifact_dir / name) != digest
+            for name, digest in record['native_integration']['evidence_sha256'].items()):
+        raise ValueError('Mandatory native evidence changed during candidate verification')
     record.update(status='passed', files=before, runtime_checks=len(checks),
                   google_account_and_cloud_access='not_tested', windows_hello='not_tested',
                   google_password_manager_cloud_passkeys='not_tested')

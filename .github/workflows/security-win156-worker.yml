@@ -65,7 +65,7 @@ jobs:
           "FINGERPRINT_TEST_NODE=$((Get-Command node).Source)" | Add-Content $env:GITHUB_ENV
       - name: Check checkpoint and build-record invariants before any large transfer
         shell: pwsh
-        run: python -B -X utf8 -m unittest tools.tests.test_google_services_inputs tools.tests.test_native_browser tools.tests.test_native_environment_controls tools.tests.test_native_browser_acceptance tools.tests.test_native_browser_runtime tools.tests.test_security_build tools.tests.test_security_upstream tools.tests.test_security_candidate tools.tests.test_security_runtime tools.tests.test_security_phases tools.tests.test_security_checkpoint_transfer tools.tests.test_security_migration tools.tests.test_security_handoff tools.tests.test_security_budget_review tools.tests.test_security_run_credentials tools.tests.test_fingerprint_evidence_identity tools.tests.test_security_interstitial_restoration tools.tests.test_enterprise_signal_scope tools.tests.test_windows_etw_resources tools.tests.test_web_package_linkage tools.tests.test_windows_metagen_bindings tools.tests.test_fetch_upstream_cache_arm64
+        run: python -B -X utf8 -m unittest tools.tests.test_native_history tools.tests.test_native_compiled_evidence tools.tests.test_native_integration_candidate tools.tests.test_unaccepted_runtime tools.tests.test_google_services_inputs tools.tests.test_native_browser tools.tests.test_native_environment_controls tools.tests.test_native_browser_acceptance tools.tests.test_native_browser_runtime tools.tests.test_security_build tools.tests.test_security_upstream tools.tests.test_security_candidate tools.tests.test_security_runtime tools.tests.test_security_phases tools.tests.test_security_checkpoint_transfer tools.tests.test_security_migration tools.tests.test_security_handoff tools.tests.test_security_budget_review tools.tests.test_security_run_credentials tools.tests.test_fingerprint_evidence_identity tools.tests.test_security_interstitial_restoration tools.tests.test_enterprise_signal_scope tools.tests.test_windows_etw_resources tools.tests.test_web_package_linkage tools.tests.test_windows_metagen_bindings tools.tests.test_fetch_upstream_cache_arm64
       - name: Admit the donor and download verified source volumes
         id: acquire
         shell: pwsh
@@ -117,6 +117,20 @@ jobs:
             C:/c/dist/chromix-win-x64.zip
             C:/c/dist/SHA256SUMS
             C:/c/dist/*.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+      - name: Preserve the immutable unaccepted runtime after verification failure
+        id: diagnostic
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' && steps.verify.outcome == 'failure' }}
+        shell: pwsh
+        run: build/windows/security-stage.ps1 -Phase Diagnose -Stage $env:SECURITY_STAGE
+      - name: Upload failed-verification diagnostics before checkpoint compression
+        if: ${{ !cancelled() && steps.diagnostic.outcome == 'success' && steps.diagnostic.outputs.diagnostic == 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unaccepted-runtime-s${{ inputs.stage }}
+          path: C:/unaccepted-runtime/s${{ inputs.stage }}/*
           if-no-files-found: error
           retention-days: 30
           compression-level: 0

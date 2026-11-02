@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 
 REQUIRED = {
+    'ShardXNativeBrowserTest.HistoryRetentionRejectsInvalidValues',
+    'ShardXNativeBrowserTest.ManagedHistoryRequiresExplicitPolicy',
     'ShardXNativeBrowserTest.ManagedEnvironmentOwnsProfileShellIdentity',
     'ShardXNativeBrowserTest.InvalidManagedMarkerPreservesNativeIdentity',
     'ShardXNativeBrowserTest.ManagedProfileShortcutsRemainUnavailable',
@@ -16,7 +18,7 @@ def verify(data):
     if not isinstance(iterations, list) or len(iterations) != 1 or not isinstance(iterations[0], dict):
         raise ValueError('Expected one fresh native-browser test iteration')
     tests = iterations[0]
-    if not REQUIRED.issubset(tests):
+    if set(tests) != REQUIRED:
         raise ValueError('Required native-browser test cases did not execute')
     for name, attempts in tests.items():
         if not isinstance(attempts, list) or len(attempts) != 1 or attempts[0].get('status') != 'SUCCESS':

@@ -196,3 +196,29 @@
 +}
 +}  // namespace net::shardx
 +#endif  // NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
+--- a/content/browser/renderer_host/media/media_stream_manager.cc
++++ b/content/browser/renderer_host/media/media_stream_manager.cc
+@@ -2711,6 +2711,23 @@
+   request->SetAudioType(request->stream_controls().audio.stream_type);
+   request->SetVideoType(request->stream_controls().video.stream_type);
+ 
++  // Browser-process environment limits precede every request route. The
++  // native test/auto-accept UI intentionally bypasses the embedder's permission
++  // delegate, so a Chrome UI-only check cannot enforce this capture policy.
++  const auto is_managed_capture_blocked = [](MediaStreamType type) {
++    const auto* command_line = base::CommandLine::ForCurrentProcess();
++    if (!command_line->HasSwitch("shardx-managed-environment")) return false;
++    return (type == MediaStreamType::DEVICE_AUDIO_CAPTURE &&
++            command_line->HasSwitch("shardx-block-microphone")) ||
++           (type == MediaStreamType::DEVICE_VIDEO_CAPTURE &&
++            command_line->HasSwitch("shardx-block-camera"));
++  };
++  if (is_managed_capture_blocked(request->audio_type()) ||
++      is_managed_capture_blocked(request->video_type())) {
++    FinalizeRequestFailed(request_it, MediaStreamRequestResult::PERMISSION_DENIED);
++    return;
++  }
++
+   const bool is_display_capture =
+       request->video_type() == MediaStreamType::DISPLAY_VIDEO_CAPTURE ||
+       request->video_type() ==
