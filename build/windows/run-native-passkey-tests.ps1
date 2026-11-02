@@ -3,7 +3,9 @@ param(
   [Parameter(Mandatory)][string]$Summary,
   [Parameter(Mandatory)][string]$Log,
   [Parameter(Mandatory)][string]$Receipt,
-  [Parameter(Mandatory)][string]$WorkingDirectory
+  [Parameter(Mandatory)][string]$WorkingDirectory,
+  [ValidateSet('WinAuthenticatorTest.*:AuthenticatorRequestDialogControllerTest.*','ShardXNativeBrowserTest.*')]
+  [string]$TestFilter='WinAuthenticatorTest.*:AuthenticatorRequestDialogControllerTest.*'
 )
 $ErrorActionPreference = 'Stop'
 $executablePath = (Resolve-Path -LiteralPath $Executable).Path
@@ -28,7 +30,7 @@ $record = [ordered]@{
   host_process_id=$hostProcess.Id;original_host_priority=$originalPriority.ToString();
   test_host_priority=$null;restored_host_priority=$null;native_exit_code=$null;
   startup_assertions_unchanged=$true;
-  test_filter='WinAuthenticatorTest.*:AuthenticatorRequestDialogControllerTest.*'
+  test_filter=$TestFilter
 }
 $locationPushed = $false
 try {

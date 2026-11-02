@@ -22161,7 +22161,16 @@
  #include "components/search/ntp_features.h"
  #include "components/search_engines/search_engines_switches.h"
  #include "components/security_state/core/security_state.h"
-@@ -5362,6 +5363,7 @@
+@@ -2972,6 +2973,8 @@
+   static const char* const kCommonSwitchNames[] = {
+       embedder_support::kUserAgent,
+       switches::kUserDataDir,  // Make logs go to the right file.
++      "shardx-managed-environment",
++      "shardx-blocked-ports",
+   };
+   command_line->CopySwitchesFrom(browser_command_line, kCommonSwitchNames);
+ 
+@@ -5362,6 +5365,7 @@
  #endif
      case sandbox::mojom::Sandbox::kPrintCompositor:
      case sandbox::mojom::Sandbox::kAudio:
@@ -22169,7 +22178,7 @@
      case sandbox::mojom::Sandbox::kPlatformRuntime:
      case sandbox::mojom::Sandbox::kSpeechRecognition:
      case sandbox::mojom::Sandbox::kPdfConversion:
-@@ -5470,6 +5472,7 @@
+@@ -5470,6 +5474,7 @@
      case sandbox::mojom::Sandbox::kPrintBackend:
  #endif
      case sandbox::mojom::Sandbox::kPrintCompositor:
@@ -24123,6 +24132,69 @@
  
  #if BUILDFLAG(IS_MAC)
  #include "chrome/browser/app_controller_mac.h"
+--- a/chrome/browser/media/webrtc/media_capture_devices_dispatcher.cc
++++ b/chrome/browser/media/webrtc/media_capture_devices_dispatcher.cc
+@@ -68,6 +68,17 @@
+ using content::BrowserThread;
+ using content::MediaCaptureDevices;
+ 
++namespace {
++bool IsShardXCaptureBlocked(blink::mojom::MediaStreamType type) {
++  const auto* command_line = base::CommandLine::ForCurrentProcess();
++  if (!command_line->HasSwitch("shardx-managed-environment")) return false;
++  return (type == blink::mojom::MediaStreamType::DEVICE_AUDIO_CAPTURE &&
++          command_line->HasSwitch("shardx-block-microphone")) ||
++         (type == blink::mojom::MediaStreamType::DEVICE_VIDEO_CAPTURE &&
++          command_line->HasSwitch("shardx-block-camera"));
++}
++}  // namespace
++
+ MediaCaptureDevicesDispatcher* MediaCaptureDevicesDispatcher::GetInstance() {
+   return base::Singleton<MediaCaptureDevicesDispatcher>::get();
+ }
+@@ -140,6 +151,15 @@
+     content::MediaResponseCallback callback,
+     const extensions::Extension* extension) {
+   DCHECK_CURRENTLY_ON(BrowserThread::UI);
++  // Enforce before any extension, stored grant or prompt handler. Screen/tab
++  // capture keeps its independent native permission path.
++  if (IsShardXCaptureBlocked(request.audio_type) ||
++      IsShardXCaptureBlocked(request.video_type)) {
++    std::move(callback).Run(
++        blink::mojom::StreamDevicesSet(),
++        blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED, nullptr);
++    return;
++  }
+ 
+ #if BUILDFLAG(IS_ANDROID)
+   // Kill switch for getDisplayMedia() on browser side to prevent renderer from
+@@ -198,6 +218,7 @@
+     blink::mojom::MediaStreamType type,
+     const extensions::Extension* extension) {
+   DCHECK_CURRENTLY_ON(BrowserThread::UI);
++  if (IsShardXCaptureBlocked(type)) return false;
+   for (const auto& handler : media_access_handlers_) {
+     if (handler->SupportsStreamType(render_frame_host, type, extension)) {
+       return handler->CheckMediaAccessPermission(
+--- a/chrome/browser/media/webrtc/media_stream_device_permission_context.cc
++++ b/chrome/browser/media/webrtc/media_stream_device_permission_context.cc
+@@ -88,6 +88,16 @@
+     content::RenderFrameHost* render_frame_host,
+     const GURL& requesting_origin,
+     const GURL& embedding_origin) const {
++  // A managed environment applies to every native Profile, including ones
++  // created after startup. Keep the user's saved per-site preferences intact.
++  const auto* command_line = base::CommandLine::ForCurrentProcess();
++  if (command_line->HasSwitch("shardx-managed-environment") &&
++      command_line->HasSwitch(
++          content_settings_type_ == ContentSettingsType::MEDIASTREAM_MIC
++              ? "shardx-block-microphone" : "shardx-block-camera")) {
++    return CONTENT_SETTING_BLOCK;
++  }
++
+   // TODO(raymes): Merge this policy check into content settings
+   // crbug.com/41014586.
+   const char* policy_name = nullptr;
 --- a/chrome/browser/metrics/chrome_metrics_service_client.cc
 +++ b/chrome/browser/metrics/chrome_metrics_service_client.cc
 @@ -887,6 +887,13 @@
@@ -24712,6 +24784,22 @@
  #if BUILDFLAG(IS_CHROMEOS)
          {ash::switches::kEnableTouchpadThreeFingerClick,
           ash::prefs::kEnableTouchpadThreeFingerClick, true},
+@@ -111,6 +114,15 @@
+   ApplySSLSwitches();
+   ApplyBackgroundModeSwitches();
+   ApplyExplicitlyAllowedPortSwitch();
++  // A native, per-process preference layer covers every Profile without
++  // rewriting Preferences or overriding unrelated user choices on disk.
++  if (command_line->HasSwitch("shardx-managed-environment")) {
++    const std::string dnt = command_line->GetSwitchValueASCII("shardx-do-not-track");
++    if (dnt == "true" || dnt == "false") {
++      SetValue(prefs::kEnableDoNotTrack, base::Value(dnt == "true"),
++               WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
++    }
++  }
+ }
+ 
+ ChromeCommandLinePrefStore::~ChromeCommandLinePrefStore() = default;
 --- a/chrome/browser/prefs/chrome_pref_service_factory.cc
 +++ b/chrome/browser/prefs/chrome_pref_service_factory.cc
 @@ -54,8 +54,10 @@
@@ -24801,6 +24889,17 @@
  #endif
  #if BUILDFLAG(ENTERPRISE_TELOMERE_REPORTING)
    if (base::FeatureList::IsEnabled(enterprise_connectors::kTelomereReporting)) {
+--- a/chrome/browser/profiles/profile.cc
++++ b/chrome/browser/profiles/profile.cc
+@@ -329,7 +329,7 @@
+ void Profile::RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
+   registry->RegisterBooleanPref(
+       prefs::kSearchSuggestEnabled,
+-      false,
++      true,
+       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+ #if BUILDFLAG(IS_ANDROID)
+   registry->RegisterStringPref(
 --- a/chrome/browser/profiles/profile_attributes_entry.cc
 +++ b/chrome/browser/profiles/profile_attributes_entry.cc
 @@ -25,6 +25,7 @@
@@ -24933,6 +25032,116 @@
    prefs->SetBoolean(bookmarks::prefs::kEditBookmarksEnabled, false);
    prefs->SetBoolean(bookmarks::prefs::kShowBookmarkBar, false);
    prefs->ClearPref(DefaultSearchManager::kDefaultSearchProviderDataPrefName);
+--- a/chrome/browser/profiles/profile_shortcut_manager_win.cc
++++ b/chrome/browser/profiles/profile_shortcut_manager_win.cc
+@@ -873,6 +873,10 @@
+ 
+ // static
+ bool ProfileShortcutManager::IsFeatureEnabled() {
++  // The settings WebUI uses this same gate to hide unavailable shortcut
++  // controls. Raw browser shortcuts would bypass managed proxy/identity setup.
++  if (shell_integration::win::IsShardXManagedEnvironment())
++    return false;
+   if (disabled_for_unit_tests)
+     return false;
+ 
+--- /dev/null
++++ b/chrome/browser/profiles/shardx_native_browser_unittest.cc
+@@ -0,0 +1,94 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++
++#include <string>
++
++#include "base/command_line.h"
++#include "base/files/file_path.h"
++#include "base/test/scoped_command_line.h"
++#include "chrome/browser/profiles/profile_shortcut_manager.h"
++#include "chrome/browser/shell_integration_win.h"
++#include "net/base/shardx_environment_controls.h"
++#include "testing/gtest/include/gtest/gtest.h"
++
++namespace {
++
++using shell_integration::win::GetAppUserModelIdForApp;
++using shell_integration::win::GetAppUserModelIdForBrowser;
++using shell_integration::win::IsShardXManagedEnvironment;
++
++TEST(ShardXNativeBrowserTest, ManagedEnvironmentOwnsProfileShellIdentity) {
++  base::test::ScopedCommandLine scoped_command_line;
++  auto* command_line = scoped_command_line.GetProcessCommandLine();
++  command_line->AppendSwitchASCII("shardx-managed-environment",
++                                 "12345678-1234-4234-8234-123456789abc");
++  ASSERT_TRUE(IsShardXManagedEnvironment());
++  const base::FilePath first(
++      FILE_PATH_LITERAL("C:\\one\\engines\\chromix\\Default"));
++  const base::FilePath moved(
++      FILE_PATH_LITERAL("D:\\moved\\engines\\chromix\\Default"));
++  const std::wstring identity = GetAppUserModelIdForBrowser(first);
++  EXPECT_EQ(identity, GetAppUserModelIdForBrowser(moved));
++  EXPECT_LE(identity.size(), 128u);
++  EXPECT_EQ(std::wstring::npos, identity.find(L' '));
++  EXPECT_NE(identity, GetAppUserModelIdForBrowser(
++                          first.DirName().AppendASCII("Profile 1")));
++  EXPECT_NE(
++      GetAppUserModelIdForBrowser(first.DirName().AppendASCII("Profile 1")),
++      GetAppUserModelIdForBrowser(first.DirName().AppendASCII("Profile1")));
++  EXPECT_NE(identity, GetAppUserModelIdForApp(L"test-web-app", first));
++  command_line->AppendSwitchASCII("shardx-managed-environment",
++                                 "12345678-1234-4234-8234-123456789ABC");
++  EXPECT_EQ(identity, GetAppUserModelIdForBrowser(first));
++  command_line->AppendSwitchASCII("shardx-managed-environment",
++                                 "87654321-4321-4321-8321-cba987654321");
++  EXPECT_NE(identity, GetAppUserModelIdForBrowser(first));
++}
++
++TEST(ShardXNativeBrowserTest, InvalidManagedMarkerPreservesNativeIdentity) {
++  base::test::ScopedCommandLine scoped_command_line;
++  auto* command_line = scoped_command_line.GetProcessCommandLine();
++  command_line->RemoveSwitch("shardx-managed-environment");
++  const base::FilePath path(FILE_PATH_LITERAL("C:\\data\\Default"));
++  const std::wstring native_identity = GetAppUserModelIdForBrowser(path);
++  for (const char* invalid : {"", "not-a-uuid", "../Default", "12345678"}) {
++    command_line->AppendSwitchASCII("shardx-managed-environment", invalid);
++    EXPECT_FALSE(IsShardXManagedEnvironment());
++    EXPECT_EQ(native_identity, GetAppUserModelIdForBrowser(path));
++  }
++}
++
++TEST(ShardXNativeBrowserTest, ManagedProfileShortcutsRemainUnavailable) {
++  base::test::ScopedCommandLine scoped_command_line;
++  auto* command_line = scoped_command_line.GetProcessCommandLine();
++  command_line->AppendSwitchASCII("shardx-managed-environment",
++                                 "12345678-1234-4234-8234-123456789abc");
++  command_line->AppendSwitch("enable-profile-shortcut-manager");
++  EXPECT_FALSE(ProfileShortcutManager::IsFeatureEnabled());
++}
++
++TEST(ShardXNativeBrowserTest, BlockedPortParserPreservesBoundsAndDenySemantics) {
++  const auto ports = net::shardx::ParseBlockedPorts("443,80,443,1,65535");
++  ASSERT_TRUE(ports.valid);
++  EXPECT_EQ(4u, ports.ports.size());
++  for (int port : {1, 80, 443, 65535}) {
++    EXPECT_TRUE(ports.Contains(port));
++  }
++  EXPECT_FALSE(ports.Contains(8080));
++  EXPECT_FALSE(net::shardx::ParseBlockedPorts("").Contains(80));
++  for (const char* invalid : {"0", "65536", "-1", " 80", "80,", ",80",
++                              "80,,443", "80x"}) {
++    const auto rejected = net::shardx::ParseBlockedPorts(invalid);
++    EXPECT_FALSE(rejected.valid) << invalid;
++    EXPECT_TRUE(rejected.Contains(80)) << invalid;
++  }
++  std::string too_many;
++  for (int i = 0; i < 257; ++i) {
++    if (i)
++      too_many += ',';
++    too_many += '1';
++  }
++  EXPECT_FALSE(net::shardx::ParseBlockedPorts(too_many).valid);
++}
++
++}  // namespace
 --- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
 +++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
 @@ -219,7 +219,6 @@
@@ -26337,6 +26546,110 @@
  }
  
  scoped_refptr<network::SharedURLLoaderFactory>
+--- a/chrome/browser/shell_integration_win.cc
++++ b/chrome/browser/shell_integration_win.cc
+@@ -28,6 +28,7 @@
+ #include "base/files/file_path.h"
+ #include "base/functional/bind.h"
+ #include "base/functional/callback.h"
++#include "base/hash/sha1.h"
+ #include "base/logging.h"
+ #include "base/memory/weak_ptr.h"
+ #include "base/notreached.h"
+@@ -35,12 +36,14 @@
+ #include "base/strings/strcat.h"
+ #include "base/strings/strcat_win.h"
+ #include "base/strings/string_util.h"
++#include "base/strings/string_number_conversions.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/task/thread_pool.h"
+ #include "base/threading/platform_thread.h"
+ #include "base/time/time.h"
+ #include "base/timer/timer.h"
++#include "base/uuid.h"
+ #include "base/win/com_init_util.h"
+ #include "base/win/registry.h"
+ #include "base/win/scoped_co_mem.h"
+@@ -68,6 +71,34 @@
+ 
+ namespace {
+ 
++// The launcher supplies its persistent environment UUID, never a display name
++// or an installation path. Keep this separate from GetProfileIdFromPath():
++// taskbar-shortcut migration must still inspect unrelated shortcuts natively.
++std::string GetShardXManagedEnvironmentId() {
++  const auto uuid = base::Uuid::ParseCaseInsensitive(
++      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
++          "shardx-managed-environment"));
++  return uuid.is_valid() ? uuid.AsLowercaseString() : std::string();
++}
++
++std::optional<std::wstring> GetShardXManagedAppUserModelId(
++    const std::wstring& app_name,
++    const base::FilePath& profile_path) {
++  const std::string environment = GetShardXManagedEnvironmentId();
++  if (environment.empty() || profile_path.empty())
++    return std::nullopt;
++
++  // AppID is a shell grouping identifier, not an integrity/security digest.
++  // Hash the complete tuple rather than strip punctuation from profile names.
++  // Moving the application or data root keeps the same environment identity.
++  const std::string identity = environment + "\n" +
++      base::ToLowerASCII(profile_path.BaseName().AsUTF8Unsafe()) + "\n" +
++      base::WideToUTF8(app_name);
++  return ShellUtil::BuildAppUserModelId(
++      {install_static::GetBaseAppId(), L"ShardX",
++       base::ASCIIToWide(base::HexEncode(base::SHA1HashString(identity)))});
++}
++
+ // Helper function for GetAppId to generates profile id
+ // from profile path. "profile_id" is composed of sanitized basenames of
+ // user data dir and profile dir joined by a ".".
+@@ -711,6 +742,10 @@
+ 
+ namespace win {
+ 
++bool IsShardXManagedEnvironment() {
++  return !GetShardXManagedEnvironmentId().empty();
++}
++
+ void SetAsDefaultBrowserUsingSystemSettings(
+     base::OnceClosure on_finished_callback) {
+   base::FilePath chrome_exe;
+@@ -742,11 +777,19 @@
+ 
+ std::wstring GetAppUserModelIdForApp(const std::wstring& app_name,
+                                      const base::FilePath& profile_path) {
++  if (const auto managed_id =
++          GetShardXManagedAppUserModelId(app_name, profile_path)) {
++    return *managed_id;
++  }
+   return GetAppUserModelIdImpl(install_static::GetBaseAppId(), app_name,
+                                profile_path);
+ }
+ 
+ std::wstring GetAppUserModelIdForBrowser(const base::FilePath& profile_path) {
++  if (const auto managed_id =
++          GetShardXManagedAppUserModelId(L"browser", profile_path)) {
++    return *managed_id;
++  }
+   return GetAppUserModelIdImpl(
+       std::wstring(),
+       ShellUtil::GetBrowserModelId(InstallUtil::IsPerUserInstall()),
+--- a/chrome/browser/shell_integration_win.h
++++ b/chrome/browser/shell_integration_win.h
+@@ -18,6 +18,10 @@
+ }  // namespace base::win
+ 
+ namespace shell_integration::win {
++// True only for the launcher's valid persistent environment UUID. This marker
++// controls shell ownership; it does not grant web permissions or sign-in access.
++bool IsShardXManagedEnvironment();
++
+ 
+ // Initiates the interaction with the system settings for the default browser.
+ // The function takes care of making sure |on_finished_callback| will get called
 --- a/chrome/browser/signin/account_consistency_mode_manager.cc
 +++ b/chrome/browser/signin/account_consistency_mode_manager.cc
 @@ -24,6 +24,7 @@
@@ -27581,6 +27894,35 @@
    DependsOn(SendTabToSelfSyncServiceFactory::GetInstance());
    DependsOn(SharingMessageBridgeFactory::GetInstance());
  #if !BUILDFLAG(IS_ANDROID)
+--- a/chrome/browser/taskbar/taskbar_decorator_win.cc
++++ b/chrome/browser/taskbar/taskbar_decorator_win.cc
+@@ -26,6 +26,7 @@
+ #include "chrome/browser/profiles/profile_attributes_storage.h"
+ #include "chrome/browser/profiles/profile_avatar_icon_util.h"
+ #include "chrome/browser/profiles/profile_manager.h"
++#include "chrome/browser/shell_integration_win.h"
+ #include "skia/ext/font_utils.h"
+ #include "skia/ext/image_operations.h"
+ #include "skia/ext/legacy_display_globals.h"
+@@ -193,12 +194,17 @@
+ }
+ 
+ void UpdateTaskbarDecoration(Profile* profile, gfx::NativeWindow window) {
++  // Each managed environment owns a separate user-data root. Even a single
++  // regular profile therefore needs its native avatar to identify its window.
++  const bool managed_avatar =
++      shell_integration::win::IsShardXManagedEnvironment() &&
++      profile->IsRegularProfile();
+   if (profile->IsGuestSession() ||
+       // Browser process and profile manager may be null in tests.
+       (g_browser_process && g_browser_process->profile_manager() &&
+        g_browser_process->profile_manager()
+                ->GetProfileAttributesStorage()
+-               .GetNumberOfProfiles() <= 1)) {
++               .GetNumberOfProfiles() <= 1 && !managed_avatar)) {
+     taskbar::DrawTaskbarDecoration(window, nullptr);
+     return;
+   }
 --- a/chrome/browser/ui/autofill/BUILD.gn
 +++ b/chrome/browser/ui/autofill/BUILD.gn
 @@ -177,6 +177,8 @@
@@ -27625,6 +27967,17 @@
  #include "components/signin/public/identity_manager/identity_manager.h"
  #include "components/skills/features.h"
  #include "components/tab_groups/tab_group_id.h"
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
+@@ -145,7 +145,7 @@
+   registry->RegisterBooleanPref(prefs::kWebAppCreateInAppsMenu, true);
+   registry->RegisterBooleanPref(prefs::kWebAppCreateInQuickLaunchBar, true);
+   registry->RegisterBooleanPref(
+-      translate::prefs::kOfferTranslateEnabled, false,
++      translate::prefs::kOfferTranslateEnabled, true,
+       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+   registry->RegisterDictionaryPref(prefs::kBrowserWindowPlacement);
+   registry->RegisterDictionaryPref(prefs::kBrowserWindowPlacementPopup);
 --- a/chrome/browser/ui/chrome_pages.cc
 +++ b/chrome/browser/ui/chrome_pages.cc
 @@ -88,6 +88,7 @@
@@ -28300,6 +28653,127 @@
        ]
      }
    }
+--- a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
++++ b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
+@@ -22,6 +22,7 @@
+ #include "chrome/browser/lifetime/application_lifetime_desktop.h"
+ #include "chrome/browser/profiles/profile_avatar_icon_util.h"
+ #include "chrome/browser/profiles/profile_manager.h"
++#include "chrome/browser/shell_integration_win.h"
+ #include "chrome/browser/themes/theme_service.h"
+ #include "chrome/browser/themes/theme_service_factory.h"
+ #include "chrome/browser/ui/ui_features.h"
+@@ -392,12 +393,13 @@
+       BrowserWindowPropertyManager::CreateBrowserWindowPropertyManager(
+           browser_view_, GetHWND());
+ 
+-  // Use the profile icon as the browser window icon, if there is more
+-  // than one profile. This makes alt-tab preview tabs show the profile-specific
+-  // icon in the multi-profile case.
+-  if (g_browser_process->profile_manager()
+-          ->GetProfileAttributesStorage()
+-          .GetNumberOfProfiles() > 1) {
++  // Use Chromium's profile image for managed environments, including a
++  // single regular profile. Other browsers retain native multi-profile badging.
++  if ((shell_integration::win::IsShardXManagedEnvironment() &&
++       browser_view_->browser()->GetProfile()->IsRegularProfile()) ||
++      g_browser_process->profile_manager()
++              ->GetProfileAttributesStorage()
++              .GetNumberOfProfiles() > 1) {
+     SetWindowIcon(/*badged=*/true);
+   }
+ }
+@@ -555,14 +557,16 @@
+ 
+ void BrowserDesktopWindowTreeHostWin::OnProfileAvatarChanged(
+     const base::FilePath& profile_path) {
+-  // If we're currently badging the window icon (>1 available profile),
+-  // and this window's profile's avatar changed, update the window icon.
++  // Update the native image for this window's profile, including managed
++  // single-profile windows.
+   CHECK(browser_view_);
+   if (browser_view_->browser()->GetProfile()->GetPath() == profile_path &&
+-      g_browser_process->profile_manager()
+-              ->GetProfileAttributesStorage()
+-              .GetNumberOfProfiles() > 1) {
+-    // If we went from 1 to 2 profiles, window icons should be badged.
++      ((shell_integration::win::IsShardXManagedEnvironment() &&
++        browser_view_->browser()->GetProfile()->IsRegularProfile()) ||
++       g_browser_process->profile_manager()
++               ->GetProfileAttributesStorage()
++               .GetNumberOfProfiles() > 1)) {
++    // Profile avatar changes also update managed single-profile windows.
+     SetWindowIcon(/*badged=*/true);
+   }
+ }
+@@ -582,8 +586,11 @@
+   if (g_browser_process->profile_manager()
+           ->GetProfileAttributesStorage()
+           .GetNumberOfProfiles() == 1) {
+-    // If we went from 2 profiles to 1, window icons should not be badged.
+-    SetWindowIcon(/*badged=*/false);
++    // Ordinary single-profile windows lose the badge; managed environments
++    // retain their own native profile image.
++    SetWindowIcon(
++        /*badged=*/shell_integration::win::IsShardXManagedEnvironment() &&
++        browser_view_->browser()->GetProfile()->IsRegularProfile());
+   }
+ }
+ 
+--- a/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
++++ b/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
+@@ -3,6 +3,13 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/ui/views/frame/browser_window_property_manager_win.h"
++
++// clang-format off
++#include <shlobj.h>  // Must precede propkey.h.
++// clang-format on
++#include <propkey.h>
++#include <wrl/client.h>
++#include <initializer_list>
+ 
+ #include "base/command_line.h"
+ #include "base/functional/bind.h"
+@@ -25,6 +32,21 @@
+ #include "ui/views/win/hwnd_util.h"
+ 
+ using extensions::ExtensionRegistry;
++
++namespace {
++void ClearManagedRelaunchDetails(HWND hwnd) {
++  Microsoft::WRL::ComPtr<IPropertyStore> properties;
++  if (FAILED(SHGetPropertyStoreForWindow(hwnd, IID_PPV_ARGS(&properties))))
++    return;
++  const PROPVARIANT empty = {};
++  for (const PROPERTYKEY& key : {PKEY_AppUserModel_RelaunchCommand,
++                                PKEY_AppUserModel_RelaunchDisplayNameResource,
++                                PKEY_AppUserModel_RelaunchIconResource}) {
++    properties->SetValue(key, empty);
++  }
++  properties->Commit();
++}
++}  // namespace
+ 
+ BrowserWindowPropertyManager::BrowserWindowPropertyManager(
+     const BrowserView* view,
+@@ -71,6 +93,15 @@
+                 profile->GetPath())
+           : shell_integration::win::GetAppUserModelIdForBrowser(
+                 profile->GetPath());
++  if (shell_integration::win::IsShardXManagedEnvironment()) {
++    // A raw chrome.exe relaunch omits the manager's proxy/identity contract.
++    // Keep this in Chromium's native property-update lifecycle so profile-icon
++    // changes cannot reinstall a bypassing relaunch command later.
++    ClearManagedRelaunchDetails(hwnd_);
++    ui::win::PreventWindowFromPinning(hwnd_);
++    ui::win::SetAppIdForWindow(app_id, hwnd_);
++    return;
++  }
+   // Apps set their relaunch details based on app's details.
+   if (browser->GetType() == BrowserWindowInterface::Type::TYPE_APP ||
+       browser->GetType() == BrowserWindowInterface::Type::TYPE_APP_POPUP) {
 --- a/chrome/browser/ui/views/page_info/BUILD.gn
 +++ b/chrome/browser/ui/views/page_info/BUILD.gn
 @@ -28,6 +28,7 @@
@@ -29859,7 +30333,7 @@
        "//components/safe_browsing/content/browser:safe_browsing_service",
        "//components/safe_browsing/content/browser/password_protection",
        "//components/safe_browsing/content/browser/password_protection:test_support",
-@@ -4687,6 +4689,80 @@
+@@ -4687,6 +4689,82 @@
  mojom("test_interfaces") {
    testonly = true
    sources = [ "mojom/echo.test-mojom" ]
@@ -29870,6 +30344,7 @@
 +  test("native_passkey_unittests") {
 +    sources = [
 +      "base/run_all_unittests.cc",
++      "../browser/profiles/shardx_native_browser_unittest.cc",
 +      "../../device/fido/win/authenticator_unittest.cc",
 +      "../browser/webauthn/authenticator_request_dialog_model_unittest.cc",
 +    ]
@@ -29913,6 +30388,7 @@
 +      "//device/fido:test_support",
 +      "//mojo/core/embedder",
 +      "//mojo/core/test:test_support",
++      "//net",
 +      "//testing/gmock",
 +      "//testing/gtest",
 +      "//ui/base",
@@ -29940,7 +30416,7 @@
  }
  
  test("unit_tests") {
-@@ -5351,6 +5427,7 @@
+@@ -5351,6 +5429,7 @@
      "//components/resources",
      "//components/safe_browsing:buildflags",
      "//components/safe_browsing/content/browser",
@@ -29948,7 +30424,7 @@
      "//components/safe_browsing/content/browser/password_protection",
      "//components/safe_browsing/content/browser/password_protection:mock_password_protection",
      "//components/safe_browsing/content/browser/web_ui",
-@@ -8424,6 +8501,7 @@
+@@ -8424,6 +8503,7 @@
        "//components/privacy_sandbox:privacy_sandbox_prefs",
        "//components/reading_list/core",
        "//components/resources",
@@ -38541,6 +39017,98 @@
  
    // InterfaceBase implementation.
    void GenSyncTokenCHROMIUM(GLbyte* sync_token) override;
+--- a/net/BUILD.gn
++++ b/net/BUILD.gn
+@@ -285,6 +285,7 @@
+     "base/platform_mime_util.h",
+     "base/port_util.cc",
+     "base/port_util.h",
++    "base/shardx_environment_controls.h",
+     "base/prioritized_dispatcher.cc",
+     "base/prioritized_dispatcher.h",
+     "base/prioritized_task_runner.cc",
+--- a/net/base/port_util.cc
++++ b/net/base/port_util.cc
+@@ -7,6 +7,8 @@
+ #include <limits>
+ #include <set>
+ 
++#include "base/command_line.h"
++#include "net/base/shardx_environment_controls.h"
+ #include "base/containers/fixed_flat_map.h"
+ #include "base/containers/flat_set.h"
+ #include "base/feature_list.h"
+@@ -181,6 +183,18 @@
+   if (!IsPortValid(port))
+     return false;
+ 
++  // This is an environment-level deny policy. Evaluate the parsed effective
++  // port before explicit allow exceptions, irrespective of IPv4/IPv6 spelling.
++  // The immutable browser command line is forwarded to network/renderer children.
++  static const base::NoDestructor<net::shardx::BlockedPorts> managed_ports([] {
++    const auto* command_line = base::CommandLine::ForCurrentProcess();
++    return command_line->HasSwitch("shardx-managed-environment")
++               ? net::shardx::ParseBlockedPorts(
++                     command_line->GetSwitchValueASCII("shardx-blocked-ports"))
++               : net::shardx::BlockedPorts();
++  }());
++  if (managed_ports->Contains(port)) return false;
++
+   // Allow explicitly allowed ports for any scheme.
+   if (GetExplicitlyAllowedPorts().count(port) > 0) {
+     return true;
+--- /dev/null
++++ b/net/base/shardx_environment_controls.h
+@@ -0,0 +1,49 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#ifndef NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
++#define NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
++
++#include <algorithm>
++#include <charconv>
++#include <cstddef>
++#include <string_view>
++#include <system_error>
++#include <vector>
++
++namespace net::shardx {
++struct BlockedPorts {
++  bool valid = true;
++  std::vector<int> ports;
++  bool Contains(int port) const {
++    // Malformed explicit policy never silently becomes unrestricted access.
++    return !valid || std::binary_search(ports.begin(), ports.end(), port);
++  }
++};
++
++inline BlockedPorts ParseBlockedPorts(std::string_view value) {
++  BlockedPorts result;
++  if (value.empty()) return result;
++  if (value.size() > 1535) { result.valid = false; return result; }
++  size_t start = 0;
++  do {
++    if (result.ports.size() >= 256) { result.valid = false; return result; }
++    const size_t end = value.find(',', start);
++    const auto part = value.substr(start, end == std::string_view::npos
++                                             ? value.size() - start : end - start);
++    int port = 0;
++    const auto parsed = std::from_chars(part.data(), part.data() + part.size(), port);
++    if (part.empty() || parsed.ec != std::errc() ||
++        parsed.ptr != part.data() + part.size() || port < 1 || port > 65535) {
++      result.valid = false;
++      return result;
++    }
++    result.ports.push_back(port);
++    if (end == std::string_view::npos) break;
++    start = end + 1;
++  } while (true);
++  std::sort(result.ports.begin(), result.ports.end());
++  result.ports.erase(std::unique(result.ports.begin(), result.ports.end()), result.ports.end());
++  return result;
++}
++}  // namespace net::shardx
++#endif  // NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
 --- a/net/base/url_util.cc
 +++ b/net/base/url_util.cc
 @@ -549,6 +549,28 @@
@@ -44152,6 +44720,40 @@
        name: "FastPositionIterator",
        // Not enabled due to a RTL issue. crbug.com/1421016.
      },
+--- a/third_party/search_engines_data/resources/definitions/prepopulated_engines.json
++++ b/third_party/search_engines_data/resources/definitions/prepopulated_engines.json
+@@ -173,11 +173,26 @@
+     },
+ 
+     "google": {
+-      "name": "No Search",
+-      "keyword": "nosearch",
+-      "favicon_url": "about:blank",
+-      "search_url": "http://{searchTerms}",
+-      "new_tab_url": "about:blank",
++      "name": "Google",
++      "keyword": "google.com",
++      "favicon_url": "https://www.google.com/images/branding/product/ico/googleg_alldp.ico",
++      "base_builtin_resource_id": "SEARCH_ENGINE_GOOGLE",
++      "search_url": "{google:baseURL}search?q={searchTerms}&{google:RLZ}{google:originalQueryForSuggestion}{google:assistedQueryStats}{google:searchFieldtrialParameter}{google:language}{google:prefetchSource}{google:searchClient}{google:sourceId}{google:searchSource}{google:contextualSearchVersion}ie={inputEncoding}",
++      "suggest_url": "{google:baseSuggestURL}{google:suggestPath}?{google:searchFieldtrialParameter}client={google:suggestClient}&gs_ri={google:suggestRid}&xssi=t&q={searchTerms}&{google:inputType}{google:omniboxFocusType}{google:cursorPosition}{google:currentPageUrl}{google:pageClassification}{google:clientCacheTimeToLive}{google:searchVersion}{google:sessionToken}{google:prefetchQuery}sugkey={google:suggestAPIKeyParameter}",
++      "image_url": "{google:baseSearchByImageURL}upload",
++      "image_translate_url": "{google:baseSearchByImageURL}upload?filtertype=tr&{imageTranslateSourceLocale}{imageTranslateTargetLocale}",
++      "contextual_search_url": "{google:baseURL}_/contextualsearch?{google:contextualSearchVersion}{google:contextualSearchContextData}",
++      "image_url_post_params": "encoded_image={google:imageThumbnail},image_url={google:imageURL},sbisrc={google:imageSearchSource},original_width={google:imageOriginalWidth},original_height={google:imageOriginalHeight},processed_image_dimensions={google:processedImageDimensions}",
++      "image_translate_source_language_param_key": "sourcelang",
++      "image_translate_target_language_param_key": "targetlang",
++      "search_intent_params": ["si", "gs_ssp", "udm"],
++      "alternate_urls": [
++        "{google:baseURL}#q={searchTerms}",
++        "{google:baseURL}search#q={searchTerms}",
++        "{google:baseURL}webhp#q={searchTerms}",
++        "{google:baseURL}s#q={searchTerms}",
++        "{google:baseURL}s?q={searchTerms}"
++      ],
+       "type": "SEARCH_ENGINE_GOOGLE",
+       "preconnect_to_search_url" : "ALLOWED",
+       "prefetch_likely_navigations" : "ALLOWED",
 --- a/v8/src/flags/flag-definitions.h
 +++ b/v8/src/flags/flag-definitions.h
 @@ -3176,8 +3176,6 @@

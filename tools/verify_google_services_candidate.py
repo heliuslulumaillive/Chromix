@@ -171,6 +171,14 @@ def validate_source_recipe(inner, outer, repo=REPO, *, build_variant=GOOGLE_VARI
                 names.append(name)
             if (repo / 'build/gpu-binding-capabilities.json').is_file():
                 names.append('build/gpu-binding-capabilities.json')
+            # Share the authoritative inventory with preparation, including
+            # generator/helper changes and any new opt-in capability contract.
+            try:
+                from .google_services_inputs import preparation_input_hashes, verify_aggregate_inputs
+            except ImportError:
+                from google_services_inputs import preparation_input_hashes, verify_aggregate_inputs
+            verify_aggregate_inputs(repo, read_object(repo / 'patches/google-services/0001-restore-google-services.json'), config)
+            names = list(preparation_input_hashes(repo))
     for name in dict.fromkeys(names):
         if inputs.get(name) != sha256(repo / name):
             raise ValueError('Candidate source inputs do not match: ' + name)

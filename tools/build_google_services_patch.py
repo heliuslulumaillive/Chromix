@@ -24,6 +24,8 @@ from urllib.request import Request, urlopen
 sys.dont_write_bytecode = True
 from patch_selection import select
 from restored_source_resources import resources as restored_resources
+from google_services_inputs import (PinnedSourceCache, aggregate_inputs, identity,
+                                    owned, plain, write_if_changed)
 
 HEADER = re.compile(r"^--- (a/[^\r\n]+|/dev/null)\r?\n\+\+\+ (b/[^\r\n]+|/dev/null)\r?\n", re.M)
 HUNK = re.compile(r"^@@ [^\n]+\n", re.M)
@@ -53,6 +55,20 @@ def v8_revision_from_deps(data: bytes) -> str:
     match = re.search(r"'v8_revision'\s*:\s*'([a-f0-9]{40})'", text)
     if not match:
         raise ValueError('Missing fixed V8 revision in pinned Chromium DEPS')
+    return match[1]
+
+
+def search_engines_revision_from_deps(data: bytes) -> str:
+    """The search definition data is a separate pinned checkout, not src.git."""
+    text = data.decode('utf-8')
+    if not re.search(r"'chromium_git'\s*:\s*'https://chromium\.googlesource\.com'", text):
+        raise ValueError('Unexpected Chromium repository in pinned DEPS')
+    match = re.search(
+        r"'src/third_party/search_engines_data/resources'\s*:\s*"
+        r"Var\('chromium_git'\)\s*\+\s*'/external/search_engines_data\.git'\s*"
+        r"\+\s*'@'\s*\+\s*'([a-f0-9]{40})'", text)
+    if not match:
+        raise ValueError('Missing fixed search engine data revision in pinned Chromium DEPS')
     return match[1]
 
 
@@ -120,11 +136,23 @@ def main():
     parser.add_argument("--patch-bin", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--download-workers", type=int, default=8)
+    parser.add_argument('--source-cache', type=Path, action='append', default=[],
+                        help='Read-only pristine tree; pair each occurrence with a source-cache-receipt')
+    parser.add_argument('--source-cache-receipt', type=Path, action='append', default=[],
+                        help='Same-version receipt with exact source_inputs hashes (or files rows)')
+    parser.add_argument('--deps-cache', type=Path,
+                        help='Pinned DEPS bytes, verified against the source receipt before reuse')
     parser.add_argument("--verify-all-baseline", action="store_true",
                         help="Replay every selected Windows 156 baseline patch target")
     args = parser.parse_args()
     if not 1 <= args.download_workers <= 16:
         parser.error('--download-workers must be between 1 and 16')
+    if len(args.source_cache) != len(args.source_cache_receipt):
+        parser.error('Pair every --source-cache with one --source-cache-receipt')
+    args.work, args.output = plain(args.work), plain(args.output)
+    for variant in ('baseline', 'restored'):
+        if owned(args.work, variant).exists():
+            raise FileExistsError('Use a fresh work directory: ' + str(args.work / variant))
     config = json.loads((args.repo / "build/google-services-win155.json").read_text())
     if args.verify_all_baseline and config['chromium_version'].split('.')[0] != '156':
         parser.error('--verify-all-baseline currently requires Windows Chromium 156')
@@ -143,7 +171,10 @@ def main():
         raise ValueError('Binary restoration must name explicitly restored pruned sources')
     core = list(patch_series(args.core))
     windows = list(patch_series(args.windows))
-    _, chromix_bytes = select(args.repo, "windows")
+    selection, chromix_bytes = select(args.repo, "windows")
+    generation_inputs = aggregate_inputs(args.repo, config, selection)
+    source_cache = PinnedSourceCache(config['chromium_version'],
+                                    zip(args.source_cache, args.source_cache_receipt))
     chromix = [(name, data.decode()) for name, data in chromix_bytes]
     targets = set(config["extra_sources"])
     baseline_targets = {path for _, data in chromix for path, _, _ in sections(data)}
@@ -179,14 +210,20 @@ def main():
     pristine = args.work / "pristine"
     pristine.mkdir(parents=True, exist_ok=True)
     external_source_pins = {}
-    external_roots = ('third_party/webrtc', 'v8')
+    external_roots = ('third_party/webrtc', 'v8', 'third_party/search_engines_data/resources')
     if any(name.startswith(tuple(prefix + '/' for prefix in external_roots)) for name in targets - created):
         deps_url = f"https://raw.githubusercontent.com/chromium/chromium/{config['chromium_version']}/DEPS"
-        with urlopen(Request(deps_url, headers={"User-Agent": "Chromix-Google-services"}), timeout=40) as response:
-            deps_data = response.read()
+        def download_deps():
+            with urlopen(Request(deps_url, headers={"User-Agent": "Chromix-Google-services"}), timeout=40) as response:
+                return response.read()
+        deps_data = source_cache.deps(owned(args.work, 'chromium-DEPS'), download_deps,
+                                      args.deps_cache)
         for prefix, repository, parse in (
             ('third_party/webrtc', 'https://webrtc.googlesource.com/src', webrtc_revision_from_deps),
             ('v8', 'https://chromium.googlesource.com/v8/v8', v8_revision_from_deps),
+            ('third_party/search_engines_data/resources',
+             'https://chromium.googlesource.com/external/search_engines_data.git',
+             search_engines_revision_from_deps),
         ):
             if any(name.startswith(prefix + '/') for name in targets - created):
                 external_source_pins[prefix] = {
@@ -195,8 +232,6 @@ def main():
                 }
 
     def fetch(name):
-        path = pristine / name
-        path.parent.mkdir(parents=True, exist_ok=True)
         dependency = next((prefix for prefix in external_source_pins if name.startswith(prefix + '/')), None)
         external = dependency is not None
         if external:
@@ -205,20 +240,21 @@ def main():
             url = f"{pin['repository']}/+/{pin['revision']}/{relative}?format=TEXT"
         else:
             url = f"https://raw.githubusercontent.com/chromium/chromium/{config['chromium_version']}/{name}"
-        if not path.exists():
+        def download():
             for attempt in range(3):
                 try:
                     with urlopen(Request(url, headers={"User-Agent": "Chromix-Google-services"}), timeout=40) as response:
                         data = response.read()
                     if external:
                         data = base64.b64decode(data.strip(), validate=True)
-                    path.write_bytes(data)
-                    break
+                    return data
                 except Exception as error:
                     if attempt == 2:
                         raise RuntimeError('Cannot fetch pinned source: ' + name) from error
                     time.sleep(attempt + 1)
-        result = {"path": name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        data = source_cache.materialize(pristine, name, download,
+                                        external=external_source_pins.get(dependency))
+        result = {"path": name, "sha256": hashlib.sha256(data).hexdigest()}
         if external:
             result.update(upstream_repository=pin['repository'], upstream_revision=pin['revision'])
         return result
@@ -335,15 +371,18 @@ def main():
         if a != b:
             differences.extend(difflib.unified_diff(a, b, fromfile="a/" + name if old.exists() else "/dev/null", tofile="b/" + name if new.exists() else "/dev/null"))
             changed.append(name)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    if args.output.is_file() and args.output.read_text() != ''.join(differences):
+    if aggregate_inputs(args.repo) != generation_inputs:
+        raise ValueError('Aggregate generation inputs changed during replay; output was not updated')
+    patch_bytes = ''.join(differences).encode('utf-8')
+    if args.output.is_file() and args.output.read_bytes() != patch_bytes:
         previous = args.output.read_bytes()
         history = args.output.parent / 'history'
-        history.mkdir(exist_ok=True)
-        (history / (hashlib.sha256(previous).hexdigest() + '.patch')).write_bytes(previous)
-    args.output.write_text("".join(differences), encoding="utf-8", newline="\n")
+        write_if_changed(history / (hashlib.sha256(previous).hexdigest() + '.patch'), previous)
+    write_if_changed(args.output, patch_bytes)
     report = {"version": config["chromium_version"], "changed_files": changed, "source_inputs": sources, "external_source_pins": external_source_pins, "pruning_list_sha256": hashlib.sha256(pruning_data).hexdigest(), "baseline_pruned_sources": sorted(targets & pruned), "restored_pruned_sources": sorted(restored_pruned), "restored_pruned_resources": config.get('restore_pruned_resources', {}), "removed_pruned_includes": removed_includes, "verify_all_baseline": args.verify_all_baseline, "replay_counts": replay_counts, "selected_baseline_inputs": {name: hashlib.sha256(data).hexdigest() for name, data in chromix_bytes}, "patch_sha256": hashlib.sha256(args.output.read_bytes()).hexdigest(), "qualification": "Source replay only; requires native build and actual account/security tests"}
-    args.output.with_suffix(".json").write_text(json.dumps(report, indent=2), encoding="utf-8", newline="\n")
+    report['generation_inputs'] = generation_inputs
+    report['generation_inputs_sha256'] = identity(generation_inputs)
+    write_if_changed(args.output.with_suffix('.json'), json.dumps(report, indent=2).encode('utf-8'))
     print(json.dumps({"changed_files": len(changed), "patch_bytes": args.output.stat().st_size, "output": str(args.output)}, indent=2))
 
 

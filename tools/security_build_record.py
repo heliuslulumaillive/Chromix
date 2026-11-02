@@ -42,11 +42,22 @@ def recipe(repo: Path) -> str:
         'build/google-services-win155.json', 'tools/prepare_google_services.py',
         'build/fingerprint-modes-capabilities.json', 'build/gpu-binding-capabilities.json',
         'tools/patch_selection.py', 'tools/restored_source_resources.py',
+        'tools/google_services_inputs.py', 'tools/platform_pins.py',
         'tools/build_google_services_patch.py', 'tools/verify_google_services_source.py',
         'build/windows/prepare-ungoogled.ps1')]
     # The retirement gate is a payload input; transfer/workflow code is not.
     if (repo / 'tools/lite_retirement.py').is_file():
         files.append(repo / 'tools/lite_retirement.py')
+    config = json.loads((repo / 'build/google-services-win155.json').read_text('utf-8'))
+    if 'native_browser' in config:
+        try:
+            from .google_services_inputs import native_browser_input_names
+        except ImportError:
+            from google_services_inputs import native_browser_input_names
+        # Missing active inputs fail here, rather than disappearing in is_file().
+        for name in native_browser_input_names(config):
+            plain(repo / name).read_bytes()
+            files.append(repo / name)
     entries = {p.relative_to(repo).as_posix(): sha256(plain(p))
                for p in sorted(set(files)) if p.is_file()}
     for name in ('build/args.security.gn', 'build/google-services-win155.json'):

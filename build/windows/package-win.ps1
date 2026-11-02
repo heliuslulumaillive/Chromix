@@ -71,6 +71,21 @@ if (Test-Path -LiteralPath $serviceMetadata -PathType Leaf) {
       throw 'Fingerprint-mode capability contract does not match this build'
     }
     Copy-Item -LiteralPath $capabilities -Destination (Join-Path $Bundle 'fingerprint-modes-capabilities.json')
+    $nativeKey = 'build/native-browser-capabilities.json'
+    $expectedNative = $serviceVariant.preparation_inputs.$nativeKey
+    if ($expectedNative) {
+      $nativePath = Join-Path $Repo $nativeKey
+      if ($expectedNative -cnotmatch '^[0-9a-f]{64}$' -or
+          (Get-FileHash -LiteralPath $nativePath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $expectedNative) {
+        throw 'Native browser contract differs from the prepared source receipt'
+      }
+      $native = Get-Content -LiteralPath $nativePath -Raw | ConvertFrom-Json
+      if ($native.schema_version -ne 1 -or $native.contract -cne 'shardx-native-browser-v1' -or
+          $native.chromium_version -cne $serviceVariant.chromium_version) {
+        throw 'Native browser contract does not match this kernel'
+      }
+      Copy-Item -LiteralPath $nativePath -Destination (Join-Path $Bundle 'native-browser-capabilities.json')
+    }
     if ($contract.lite_retirement) {
       if ($contract.lite_retirement.manifest -cne 'retirement-manifest.json') { throw 'Unexpected retirement manifest path' }
       $retirementKey = 'patches/lite-win156/retirement-manifest.json'

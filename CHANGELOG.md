@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Native browser ownership (2026-11-02)
+
+- Restore the pinned Google search definition and Chromium search-suggestion and translation defaults. Retain native regional, user and policy preference precedence; leave session and history behavior upstream.
+- Use a validated managed-environment UUID for native Windows taskbar grouping and profile avatars, including a single regular profile. Disable unmanaged profile shortcuts and relaunch properties inside Chromium.
+- Enforce environment camera/microphone restrictions in native permission queries and capture dispatch, blocked ports in native effective-port checks, and DNT through the native command-line preference layer. Forward port policy to renderer and network processes; no manager extension or per-profile JSON rewrite is required.
+- Bind generated restoration patches to their generator, configuration, overlays and selected baseline inputs. Reuse source caches only with matching pinned hashes, and preserve unchanged source timestamps and compiled objects during a reviewed same-156 checkpoint upgrade.
+- Build four focused native integration cases using the existing test executable, and require separate account-free runtime probes. Source verification alone does not establish compiled or Windows UI acceptance.
+
 ## Unreleased — Windows 156 Lite continuation
 
 Probe the default internal-WebUI access gate before testing the Safe Browsing

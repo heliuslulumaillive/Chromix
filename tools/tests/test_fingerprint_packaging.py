@@ -39,12 +39,17 @@ class FingerprintPackagingTest(unittest.TestCase):
                 (work / "google-services-source.json").write_text(json.dumps(source))
                 capability = json.loads((ROOT / "build/fingerprint-modes-capabilities.json").read_bytes())
                 retirement_bytes = None
+                native_bytes = None
                 if variant == 'fingerprint-modes-win156':
                     key = 'patches/lite-win156/retirement-manifest.json'
                     retirement_bytes = (ROOT / key).read_bytes()
                     (repo / key).parent.mkdir(parents=True, exist_ok=True)
                     (repo / key).write_bytes(retirement_bytes)
                     source['preparation_inputs'] = {key: hashlib.sha256(retirement_bytes).hexdigest()}
+                    native_key = 'build/native-browser-capabilities.json'
+                    native_bytes = (ROOT / native_key).read_bytes()
+                    (repo / native_key).write_bytes(native_bytes)
+                    source['preparation_inputs'][native_key] = hashlib.sha256(native_bytes).hexdigest()
                     (work / 'google-services-source.json').write_text(json.dumps(source))
                 else:
                     capability.pop('lite_retirement', None)
@@ -76,6 +81,24 @@ class FingerprintPackagingTest(unittest.TestCase):
                         env=environment, capture_output=True, text=True, encoding="utf-8",
                         timeout=45)
 
+                if native_bytes:
+                    (repo / native_key).write_bytes(native_bytes + b'\n')
+                    rejected = invoke('-SkipArchive')
+                    self.assertNotEqual(rejected.returncode, 0)
+                    self.assertIn('Native browser contract differs', rejected.stderr + rejected.stdout)
+                    (repo / native_key).write_bytes(native_bytes)
+                    wrong_version = json.loads(native_bytes)
+                    wrong_version['chromium_version'] = '155.0.8059.39'
+                    wrong_bytes = json.dumps(wrong_version).encode()
+                    (repo / native_key).write_bytes(wrong_bytes)
+                    source['preparation_inputs'][native_key] = hashlib.sha256(wrong_bytes).hexdigest()
+                    (work / 'google-services-source.json').write_text(json.dumps(source))
+                    rejected = invoke('-SkipArchive')
+                    self.assertNotEqual(rejected.returncode, 0)
+                    self.assertIn('Native browser contract does not match', rejected.stderr + rejected.stdout)
+                    (repo / native_key).write_bytes(native_bytes)
+                    source['preparation_inputs'][native_key] = hashlib.sha256(native_bytes).hexdigest()
+                    (work / 'google-services-source.json').write_text(json.dumps(source))
                 stage = invoke("-SkipArchive")
                 self.assertEqual(stage.returncode, 0, stage.stdout + stage.stderr)
                 bundle = dest / "chromix"
@@ -85,6 +108,15 @@ class FingerprintPackagingTest(unittest.TestCase):
                 name = "fingerprint-modes-capabilities.json"
                 self.assertEqual((bundle / name).exists(), fingerprint)
                 self.assertEqual(name in record["files"], fingerprint)
+                if native_bytes:
+                    native_name = 'native-browser-capabilities.json'
+                    self.assertEqual((bundle / native_name).read_bytes(), native_bytes)
+                    self.assertEqual(record['files'][native_name], hashlib.sha256(native_bytes).hexdigest())
+                    (bundle / native_name).write_bytes(native_bytes + b'\n')
+                    rejected = invoke('-ArchiveOnly', '-ExpectedBuildRecordSHA256', receipt_hash)
+                    self.assertNotEqual(rejected.returncode, 0)
+                    self.assertFalse((dest / 'chromix-win-x64.zip').exists())
+                    (bundle / native_name).write_bytes(native_bytes)
                 if retirement_bytes:
                     self.assertEqual((bundle / 'retirement-manifest.json').read_bytes(), retirement_bytes)
                     self.assertEqual(record['files']['retirement-manifest.json'], hashlib.sha256(retirement_bytes).hexdigest())

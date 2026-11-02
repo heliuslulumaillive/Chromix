@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "contract": "shardx-native-browser-v1",
+  "chromium_version": "156.0.8078.79",
+  "build_variant": "fingerprint-modes-win156",
+  "qualification": "Source contract only; exact compiled and packaged runtime acceptance is required.",
+  "google_defaults": {
+    "search_provider": "native-google-definition",
+    "default_search_selection": "native-regional-and-user-precedence",
+    "search_suggestions": true,
+    "offer_translate": true,
+    "preference_precedence": "Existing user and policy choices retain Chromium precedence.",
+    "account_and_cloud_access": "Not established by this contract."
+  },
+  "managed_environment": {
+    "flag": "shardx-managed-environment",
+    "format": "uuid",
+    "app_id": "environment-uuid-and-native-profile-and-app",
+    "relocation_stable": true,
+    "prevent_taskbar_pinning": true,
+    "relaunch_details": "cleared",
+    "profile_shortcuts": "disabled-through-native-feature-gate",
+    "native_profile_switching": "retained",
+    "web_permission_authority": "This marker does not grant or constrain web permissions."
+  },
+  "windows_avatar": {
+    "source": "native-ProfileAttributesStorage",
+    "window_icon": true,
+    "taskbar_overlay": true,
+    "managed_single_regular_profile": true,
+    "guest_behavior": "upstream",
+    "manager_image_input": false
+  },
+  "environment_controls": {
+    "scope": "browser-process-all-native-profiles",
+    "blocked_ports": {
+      "flag": "shardx-blocked-ports",
+      "range": [1, 65535],
+      "max_entries": 256,
+      "implementation": "native-effective-port"
+    },
+    "media": {
+      "camera_flag": "shardx-block-camera",
+      "microphone_flag": "shardx-block-microphone",
+      "permissions_and_capture": true
+    },
+    "do_not_track": {
+      "flag": "shardx-do-not-track",
+      "values": ["true", "false"]
+    }
+  },
+  "session_restore_default": "chromium-upstream-user-overridable",
+  "network_prediction_default": "disabled-user-overridable",
+  "history_retention": "chromium-upstream-default",
+  "clear_data_on_exit_default": false
+}

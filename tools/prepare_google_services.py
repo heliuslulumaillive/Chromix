@@ -11,9 +11,9 @@ import re
 import subprocess
 import tarfile
 from verify_google_services_source import verify as verify_signin_source
-from restored_source_resources import resources as resource_payloads
 from restored_source_resources import restore as restore_resources
 from restored_source_resources import verify as verify_resources
+from google_services_inputs import native_browser_input_names, preparation_input_hashes, verify_aggregate_inputs
 
 CPP_TOKENS = re.compile(
     r'(?P<raw>R"(?P<delimiter>[^ ()\\\t\r\n]{0,16})\([\s\S]*?\)(?P=delimiter)")'
@@ -169,45 +169,16 @@ def apply_patch(src: Path, executable: str, patch: Path, *, reverse=False):
 
 
 def recipe_identity(repo: Path):
-    files = [
-        'tools/prepare_google_services.py', 'tools/verify_google_services_source.py',
-        'tools/restored_source_resources.py',
-        'build/google-services-win155.json',
-        'patches/google-services/0001-restore-google-services.patch',
-        'patches/google-services/0001-restore-google-services.json',
-        'patches/google-services/0002-windows-native-passkey-discovery.patch',
-        'patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch',
-    ]
-    # Bind every active overlay and the declared mode contract. Existing
-    # Google-only repositories keep exactly the previous input set.
-    config = json.loads((repo / "build/google-services-win155.json").read_text(encoding="utf-8"))
-    resource_payloads(repo, config)  # Validate before recording any recipe.
-    files.extend(spec['repository_path'] for spec in config.get('restore_pruned_resources', {}).values())
-    if config.get('security_restoration'):
-        files.append('build/args.security.gn')
-    if config.get('lite_retirement'):
-        files.extend(('tools/lite_retirement.py',
-                      'patches/lite-win156/retirement-manifest.json'))
-    for name in config.get("restoration_overlays", []):
-        candidate = (repo / name).resolve()
-        if not candidate.is_relative_to(repo.resolve()) or not candidate.is_file():
-            raise ValueError("Restoration overlay is not an owned repository file")
-        if name not in files:
-            files.append(name)
-    capabilities = repo / "build/fingerprint-modes-capabilities.json"
-    if any(name.startswith(("patches/fingerprint-modes/", "patches/fingerprint-modes-win156/")) for name in files):
-        if not capabilities.is_file():
-            raise ValueError("Fingerprint overlay requires its capability contract")
-        files.append("build/fingerprint-modes-capabilities.json")
-    if (repo / 'build/gpu-binding-capabilities.json').is_file():
-        files.append('build/gpu-binding-capabilities.json')
-    if 'patches/fingerprint-modes/0011-pixel-semantic-preservation.patch' in config.get('restoration_overlays', []):
-        # These independent native-rendered inputs are executed by the compiled
-        # pixel golden. Their identity belongs to the build recipe as well.
-        files.extend('tools/tests/fixtures/pixel-semantics-v1/' + name
-                     for name in ('cases.tsv', 'pixels.bin', 'provenance.json'))
-    inputs = {name: hashlib.sha256((repo / name).read_bytes()).hexdigest() for name in files}
+    inputs = preparation_input_hashes(repo)
     return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest(), inputs
+
+
+def verify_prepared_sources(src: Path, repo: Path, config: dict, **source_checks):
+    checked = verify_signin_source(src, **source_checks)
+    if native_browser_input_names(config):
+        from verify_native_browser_source import verify as verify_native_browser
+        checked = sorted(set(checked) | set(verify_native_browser(src, repo)))
+    return checked
 
 
 def patch_paths(patch: Path):
@@ -240,6 +211,9 @@ def main():
     patch_record = json.loads(patch.with_suffix('.json').read_text(encoding='utf-8'))
     if patch_record.get('version') != expected_version or patch_record.get('patch_sha256') != digest:
         raise ValueError('Restoration aggregate does not match the configured Chromium version and bytes')
+    # An updated overlay/config cannot be declared prepared using an old aggregate.
+    # This runs before touching a source tree or accepting an idempotence marker.
+    verify_aggregate_inputs(args.repo, patch_record, config)
     if patch_record.get('restored_pruned_resources', {}) != config.get('restore_pruned_resources', {}):
         raise ValueError('Restoration aggregate binary resource inventory does not match the recipe')
     capabilities = json.loads((args.repo / 'build/fingerprint-modes-capabilities.json').read_text(encoding='utf-8'))
@@ -268,7 +242,7 @@ def main():
                 raise ValueError('Previous service patch is unavailable; restore its matching checkpoint or patch history')
         elif saved.get('preparation_sha256') == recipe and saved.get('build_variant') == expected_build_variant:
             verify_resources(src, args.repo, config)
-            verify_signin_source(src, **source_checks)
+            verify_prepared_sources(src, args.repo, config, **source_checks)
             print("Google-service source is already prepared and source checks passed")
             return
     if args.reuse_prepared_domains:
@@ -305,7 +279,7 @@ def main():
     if not saved or old_patch:
         apply_patch(src, args.patch_bin, patch)
     restored_resources = restore_resources(src, args.repo, config)
-    checked = verify_signin_source(src, **source_checks)
+    checked = verify_prepared_sources(src, args.repo, config, **source_checks)
     preserved = 0
     for name, (content, access_ns, modification_ns) in before.items():
         path = inside(src, name)

@@ -119,6 +119,10 @@ class RegisteredCheckoutTest(unittest.TestCase):
     def test_current_checkout_matches_the_explicit_transition(self):
         root = Path(__file__).resolve().parents[2]
         rules = json.loads((root / m.POLICY).read_text(encoding='utf-8'))['migrations']
+        # Historical edges keep their reviewed target. Only explicitly reviewed
+        # edges to this payload are executable; do not silently retarget donors.
+        rules = [rule for rule in rules if rule['target_recipe_sha256'] == m.recipe(root)]
+        self.assertTrue(rules, 'The current source needs an explicit reviewed donor transition')
         for rule in rules:
             with self.subTest(migration=rule['id']):
                 donor = {**c.IDENTITY, 'source_commit': rule['source_commit'],

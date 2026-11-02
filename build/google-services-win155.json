@@ -5,12 +5,18 @@
     "manifest": "patches/lite-win156/retirement-manifest.json",
     "source_gate_required": true
   },
+  "native_browser": {
+    "version": 1,
+    "capabilities": "build/native-browser-capabilities.json",
+    "source_gate_required": true
+  },
   "core_commit": "28a211ab4ab6b83d919966a4f58a6df23cf4fb29",
   "windows_commit": "8492884eb30fdd9417ea7816aa92def805c97c74",
   "remove_patches": [
     "core/inox-patchset/0003-disable-autofill-download-manager.patch",
     "core/inox-patchset/0005-disable-default-extensions.patch",
     "core/ungoogled-chromium/disable-google-host-detection.patch",
+    "core/ungoogled-chromium/replace-google-search-engine-with-nosearch.patch",
     "core/ungoogled-chromium/toggle-translation-via-switch.patch",
     "core/ungoogled-chromium/disable-profile-avatar-downloading.patch",
     "core/ungoogled-chromium/disable-gcm.patch",
@@ -33,7 +39,9 @@
       "components/translate/core/browser/ranker_url_fetcher.cc"
     ],
     "extra/inox-patchset/0006-modify-default-prefs.patch": [
-      "components/password_manager/core/browser/password_manager.cc"
+      "components/password_manager/core/browser/password_manager.cc",
+      "chrome/browser/profiles/profile.cc",
+      "chrome/browser/ui/browser_ui_prefs.cc"
     ],
     "extra/ungoogled-chromium/remove-uneeded-ui.patch": [
       "chrome/app/settings_chromium_strings.grdp",
@@ -185,9 +193,13 @@
     "patches/security/0001-restore-safety-hub-entry.patch",
     "patches/security/0002-preserve-disabled-enterprise-profile-id.patch",
     "patches/security/0003-link-signed-web-bundle-payload.patch",
-    "patches/lite-win156/0001-retire-bridge-runtime-synthetic.patch"
+    "patches/lite-win156/0001-retire-bridge-runtime-synthetic.patch",
+    "patches/native-browser/0001-native-windows-shell.patch",
+    "patches/native-browser/0002-environment-controls.patch"
   ],
   "extra_sources": [
+    "chrome/browser/preloading/preloading_prefs.h",
+    "chrome/browser/browser_features.cc",
     "chrome/browser/BUILD.gn",
     "chrome/browser/security_events/BUILD.gn",
     "chrome/browser/security_events/security_event_recorder_factory.cc",

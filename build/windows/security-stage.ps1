@@ -414,6 +414,14 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       Invoke-Owned 'native-passkey' @($pwsh,'-NoProfile','-File',"$PSScriptRoot\run-native-passkey-tests.ps1",'-Executable',(Join-Path $out 'native_passkey_unittests.exe'),
         '-Summary',(Join-Path $evidence 'native-passkey-unittests.json'),'-Log',(Join-Path $evidence 'native-passkey.log'),
         '-Receipt',(Join-Path $evidence 'native-passkey-launcher.json'),'-WorkingDirectory',$src)
+      # Reuse the already linked profile harness; do not build all Chrome unit_tests.
+      Invoke-Owned 'native-browser-tests' @($pwsh,'-NoProfile','-File',"$PSScriptRoot\run-native-passkey-tests.ps1",'-Executable',(Join-Path $out 'native_passkey_unittests.exe'),
+        '-Summary',(Join-Path $evidence 'native-browser-unittests.json'),'-Log',(Join-Path $evidence 'native-browser-tests.log'),
+        '-Receipt',(Join-Path $evidence 'native-browser-launcher.json'),'-WorkingDirectory',$src,'-TestFilter','ShardXNativeBrowserTest.*')
+      Invoke-Owned 'accept-native-browser-tests' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_native_browser_tests.py'),
+        '--summary',(Join-Path $evidence 'native-browser-unittests.json'))
+      Invoke-Owned 'native-browser-runtime' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_native_browser_runtime.py'),
+        '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'native-browser-runtime.json'))
       Invoke-Owned 'browser-smoke' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_windows_bundle.py'),'--bundle',$bundle,'--arch','x64','--native','--version',$version,'--report',(Join-Path $evidence 'candidate-smoke.json'))
       Invoke-Owned 'security-runtime' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_security_runtime.py'),
         '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'security-runtime.json'))
@@ -433,6 +441,7 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       # Keep the artifact verifier's outer receipts beside the archive. These copies
       # are outside the immutable browser bundle and therefore do not rebaseline it.
       foreach ($name in @('build-inputs.json','native-passkey-unittests.json','native-passkey-launcher.json',
+          'native-browser-unittests.json','native-browser-launcher.json','native-browser-runtime.json',
           'candidate-smoke.json','google-services-runtime.json','security-runtime.json','fingerprint-modes-validation.json',
           'modes-native.json','modes-runtime.json','fingerprint-modes-capabilities.json')) {
         Copy-Item -LiteralPath (Join-Path $evidence $name) -Destination (Join-Path 'C:\c\dist' $name)

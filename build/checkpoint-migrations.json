@@ -45,6 +45,21 @@
       "target_preparation_sha256": "63ab0ce6c8f59ca6dbb10caf5e6db19ecc6733862cfdf4a48312af50631a100b",
       "target_aggregate_sha256": "1eb245065d8fe8910c1a9646b6ab247a860529f7d6dcd886e10302ec5fefc892",
       "scope": "Repair only the missing library source edge for the existing Windows signature payload encoder. Preserve all test suites, crypto implementation bytes, outputs and unchanged timestamps; full native acceptance remains required."
+    },
+    {
+      "id": "lite156-native-browser-v1",
+      "chromium_version": "156.0.8078.79",
+      "core_commit": "28a211ab4ab6b83d919966a4f58a6df23cf4fb29",
+      "windows_commit": "8492884eb30fdd9417ea7816aa92def805c97c74",
+      "arch": "x64",
+      "source_commit": "0da07270bee3276478f786971e4db831614a4953",
+      "source_recipe_sha256": "40c0a318a354609434aae2aa3a5f51e316b86270d73e2559b0e0a314df97e651",
+      "source_preparation_sha256": "63ab0ce6c8f59ca6dbb10caf5e6db19ecc6733862cfdf4a48312af50631a100b",
+      "source_aggregate_sha256": "1eb245065d8fe8910c1a9646b6ab247a860529f7d6dcd886e10302ec5fefc892",
+      "target_recipe_sha256": "73eb5d2a9251a8a8844640d2985435bb0ed906de39b995d7ce7510df5fddcc3f",
+      "target_preparation_sha256": "7d49711de4aa3147c2f8735e02809fdfc2aab1a0ddd6637cdc0b229cc49ad3b1",
+      "target_aggregate_sha256": "815715ea7a31ec5f2d706c51b068231218802a0f772e479fdd2d0fd156fecef1",
+      "scope": "Reviewed same-156 native Google defaults, Windows environment shell integration and native network/media/DNT controls. Preserve objects and unchanged source timestamps. No compiled acceptance is inherited."
     }
   ]
 }
