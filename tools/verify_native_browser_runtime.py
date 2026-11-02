@@ -114,7 +114,10 @@ def launch_options(browser, data_root, native_profile, proxy_port, blocked_port,
         '--proxy-bypass-list=127.0.0.1;[::1];localhost',
         '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE ::1, EXCLUDE localhost']
     if media_blocked is not None:
-        args.extend(['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'])
+        # Replace hardware only. Fake UI installs a separate access proxy which
+        # bypasses Chrome's permission/capture dispatcher, the subject of this
+        # probe. The owned profile's saved grants exercise the native UI path.
+        args.append('--use-fake-device-for-media-stream')
     if media_blocked:
         args.extend(['--shardx-block-camera', '--shardx-block-microphone',
                      '--shardx-blocked-ports=' + str(blocked_port),
