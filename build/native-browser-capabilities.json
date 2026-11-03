@@ -77,6 +77,7 @@
     "restore_backend": "native-session-service",
     "crash_restore": "native-explicit-opt-in",
     "whole_environment_exit": "ShardX.Lite.ExitEnvironment.v1",
-    "beforeunload": "native-cancellable"
+    "beforeunload": "native-cancellable",
+    "background_exit": "native-process-singleton-message-window"
   }
 }

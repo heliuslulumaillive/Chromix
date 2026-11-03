@@ -125,6 +125,7 @@
     "chrome/browser/prefs/chrome_command_line_pref_store.cc",
     "chrome/browser/prefs/chrome_pref_service_factory.cc",
     "chrome/browser/prefs/pref_functional_browsertest.cc",
+    "chrome/browser/process_singleton_win.cc",
     "chrome/browser/profiles/BUILD.gn",
     "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc",
     "chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc",
@@ -949,6 +950,10 @@
     {
       "path": "chrome/browser/preloading/preloading_prefs.h",
       "sha256": "7c4c151c39c0cd9540b1cca2ac2ffaf627d6b05f906b67e3463a787fb9fcd229"
+    },
+    {
+      "path": "chrome/browser/process_singleton_win.cc",
+      "sha256": "ec10cb04c03a3ad6108e2f44de7c2d366f6394460eed8009368b2fff6a2253c9"
     },
     {
       "path": "chrome/browser/profiles/BUILD.gn",
@@ -3229,7 +3234,7 @@
     "patches/chromium155-windows/0232-renderer-launch-timezone-install.patch": "345ef39c9cc6d987f59c44f3f4a46099391d6c629058f10c1151e02a654796a7",
     "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch": "7f7f691f2d744715e0d48a25dab5ff1e8ac793122657beacd0f99a3e7e8ba908"
   },
-  "patch_sha256": "d46f76bb6fc057950f358d26eb8d860135ef80c281b2308e0e47caceebadb1ed",
+  "patch_sha256": "acf29a764bd3407ebc1484ecc1a41a89e1e9c4f75ffea4faa43d535afa4b028b",
   "qualification": "Source replay only; requires native build and actual account/security tests",
   "generation_inputs": {
     "schema_version": 1,
@@ -3261,7 +3266,8 @@
       "patches/native-browser/0004-translation-init-wait.patch",
       "patches/native-browser/0005-translation-reload-registration.patch",
       "patches/native-cookie/0001-profile-cookie-bootstrap.patch",
-      "patches/native-browser/0006-session-lifecycle.patch"
+      "patches/native-browser/0006-session-lifecycle.patch",
+      "patches/native-browser/0007-process-exit-control.patch"
     ],
     "selected_baseline": {
       "series_sha256": "5c593c739b18ebd8888040483138910a269391e5aecb6dafa044b736097cfbeb",
@@ -4210,8 +4216,8 @@
     "files": {
       "CHROMIUM_WINDOWS_VERSION": "68d92a4dba65e695e0d31f0b0f210ee61ce7145ec89a08def77104b266cccd99",
       "UNGOOGLED_WINDOWS_VERSION": "e21b0fce64ba0f9c2457f30c618fb87e73fb88a8b1cd49af795548eca8f14395",
-      "build/google-services-win155.json": "15338d6dd30254bc3c843be865d0bf2e5192929122e901565f14e49077d35ad8",
-      "build/native-browser-capabilities.json": "a6867de2d0da648e9b1c1c0e1e9164869488d212f75251044750b1b40ffd7827",
+      "build/google-services-win155.json": "b4c171069578542dced358c594bad52e7a1ff02192c08984b1d91b8d17d9e9f6",
+      "build/native-browser-capabilities.json": "41a0f5ddc9692cb9e391e39bcdde96ac79f4c6239e3fb378862d8d94c9e7786f",
       "build/native-cookie-capabilities.json": "16aa4163fc0cc84741f22dc550007faf3be4b06c94558a09a98b1c5e1be25003",
       "build/security-resources/empty_file_type_policy.pb": "98ebc9403565619b3aa2f71f64f5f54adea01d4c4b54d873b2b91c2ac5544112",
       "build/security-resources/etw_events/MSG00001.bin": "51b3d8c734d307af13984bb2c2abde79c859a5acb6386fd233f3e9338f2a7dc5",
@@ -4469,6 +4475,7 @@
       "patches/native-browser/0004-translation-init-wait.patch": "8aabb1df30657adc1d4fe32307e033894b29c4e7c61d7b59c9cacc308d0aac96",
       "patches/native-browser/0005-translation-reload-registration.patch": "81d50ef2556573c478dd46cb5353eefa2e3645025d8abd8a1d0133a66490634d",
       "patches/native-browser/0006-session-lifecycle.patch": "848b1209af2650c38a7fc7c49aabdfc12cdd85c6b9a667799492c24b8b518e60",
+      "patches/native-browser/0007-process-exit-control.patch": "02ce6e46994d345544ce8988b68f878c85acb9bc174974ea60a2a659b4654747",
       "patches/native-cookie/0001-profile-cookie-bootstrap.patch": "a293f1daf7892c06c59ce6faa57d052e3e7a12ce946b3ea2740066b04274e0f8",
       "patches/security/0001-restore-safety-hub-entry.patch": "15c4ca59e9b4841b977067f6c0a55699cf66d6407db2f4965531db416079f1b6",
       "patches/security/0002-preserve-disabled-enterprise-profile-id.patch": "aa0e2d5a6785b8792492afabd9d18859bbeea0852adfe82625fb81ded7c6ae80",
@@ -4490,5 +4497,5 @@
       "tools/verify_translation_init_source.py": "cd40487c7efc16108acf7ccf2f7081846bd033393e36569a35abdbd987cf5728"
     }
   },
-  "generation_inputs_sha256": "75163b1aa3dd4c0c0896cf556b53cfa5b5405e21f416e26a46ee323557e91502"
+  "generation_inputs_sha256": "74bfb31a3e724c1d7939780418cf3f3403528bc880bf807691e506d5485aa237"
 }

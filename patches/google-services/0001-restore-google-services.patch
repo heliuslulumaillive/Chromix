@@ -24933,6 +24933,35 @@
    EXPECT_FALSE(
        prefs->GetBoolean(embedder_support::kAlternateErrorPagesEnabled));
    EXPECT_FALSE(prefs->GetBoolean(prefs::kSearchSuggestEnabled));
+--- a/chrome/browser/process_singleton_win.cc
++++ b/chrome/browser/process_singleton_win.cc
+@@ -3,6 +3,9 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/process_singleton.h"
++#include "base/task/single_thread_task_runner.h"
++#include "chrome/browser/lifetime/application_lifetime.h"
++#include "chrome/browser/profiles/shardx_session_policy.h"
+ 
+ #include <windows.h>
+ 
+@@ -145,6 +148,16 @@
+     WPARAM wparam,
+     LPARAM lparam,
+     LRESULT* result) {
++  // The singleton's message-only window survives the last visible window.
++  // Use the same native quit operation for background-only environments.
++  static const UINT exit_message = ::RegisterWindowMessageW(shardx::kExitEnvironmentMessage);
++  if (exit_message && message == exit_message && wparam == shardx::kExitEnvironmentAck &&
++      shardx::ManagedSessionRestore(*base::CommandLine::ForCurrentProcess()).has_value()) {
++    *result = shardx::kExitEnvironmentAck;
++    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE, base::BindOnce(&chrome::AttemptExit));
++    return true;
++  }
+   if (message != WM_COPYDATA)
+     return false;
+ 
 --- a/chrome/browser/profiles/BUILD.gn
 +++ b/chrome/browser/profiles/BUILD.gn
 @@ -387,6 +387,7 @@
