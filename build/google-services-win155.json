@@ -202,7 +202,8 @@
     "patches/native-browser/0005-translation-reload-registration.patch",
     "patches/native-cookie/0001-profile-cookie-bootstrap.patch",
     "patches/native-browser/0006-session-lifecycle.patch",
-    "patches/native-browser/0007-process-exit-control.patch"
+    "patches/native-browser/0007-process-exit-control.patch",
+    "patches/native-browser/0008-session-exit-snapshot.patch"
   ],
   "extra_sources": [
     "chrome/browser/preloading/preloading_prefs.h",

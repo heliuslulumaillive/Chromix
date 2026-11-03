@@ -78,6 +78,8 @@
     "crash_restore": "native-explicit-opt-in",
     "whole_environment_exit": "ShardX.Lite.ExitEnvironment.v1",
     "beforeunload": "native-cancellable",
-    "background_exit": "native-process-singleton-message-window"
+    "background_exit": "native-process-singleton-message-window",
+    "exit_snapshot": "native-current-windows-before-destruction",
+    "pending_new_tabs": "retain-request-url"
   }
 }

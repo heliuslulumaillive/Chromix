@@ -180,6 +180,21 @@
       "target_preparation_sha256": "b423ce872b98e483a4e575760704b29b9112be3f629cad98d66c5c4c753ee384",
       "target_aggregate_sha256": "acf29a764bd3407ebc1484ecc1a41a89e1e9c4f75ffea4faa43d535afa4b028b",
       "scope": "Add the same managed native Exit receiver to the existing process singleton message-only window so background-only environments can exit normally. Exactly one Chromium source changes. Preserve compiled Cookie/session sources, mtimes and objects; repeat all runtime acceptance."
+    },
+    {
+      "id": "lite156-session-exit-snapshot-v1",
+      "chromium_version": "156.0.8078.79",
+      "core_commit": "28a211ab4ab6b83d919966a4f58a6df23cf4fb29",
+      "windows_commit": "8492884eb30fdd9417ea7816aa92def805c97c74",
+      "arch": "x64",
+      "source_commit": "6295ac896c9bdab365a7570de8332da3c5e7d0c4",
+      "source_recipe_sha256": "51104266b0228590da4357053874b104168f742289b99754aa58845adc499d6c",
+      "source_preparation_sha256": "b423ce872b98e483a4e575760704b29b9112be3f629cad98d66c5c4c753ee384",
+      "source_aggregate_sha256": "acf29a764bd3407ebc1484ecc1a41a89e1e9c4f75ffea4faa43d535afa4b028b",
+      "target_recipe_sha256": "1cbf7fdced885a41e6ce64042ec3ae3c88521090ca72796adda7944b462ac546",
+      "target_preparation_sha256": "d02b006bab253c008af0f59a114d0e60e4d6515f2e32ec8cd435edb58d6e6f9f",
+      "target_aggregate_sha256": "4df365da87ba37d6489044aa4b0be56b6309a5b7e666212d0943df1dee2f2da4",
+      "scope": "Fix the demonstrated loss of newly opened tabs when normal exit precedes first navigation completion: snapshot current native windows before service destruction/window closure and serialize the initial pending request URL. Preserve existing navigation history, off-the-record behavior, compiled objects and unchanged timestamps. Repeat original immediate-close and deterministic withheld-response acceptance without relaxing their URL/window assertions."
     }
   ]
 }

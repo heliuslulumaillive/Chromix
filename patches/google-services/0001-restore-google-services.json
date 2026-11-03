@@ -189,6 +189,8 @@
     "chrome/browser/safe_browsing/url_checker_delegate_impl.cc",
     "chrome/browser/safe_browsing/url_lookup_service_factory.cc",
     "chrome/browser/sessions/session_restore.cc",
+    "chrome/browser/sessions/session_service.cc",
+    "chrome/browser/sessions/session_service_base.cc",
     "chrome/browser/shell_integration_win.cc",
     "chrome/browser/shell_integration_win.h",
     "chrome/browser/signin/account_consistency_mode_manager.cc",
@@ -1186,6 +1188,14 @@
     {
       "path": "chrome/browser/sessions/session_restore.cc",
       "sha256": "07bc199a00526f8fafad4b3119a78ba7597b069a093f5f0e316c2f225578f3fd"
+    },
+    {
+      "path": "chrome/browser/sessions/session_service.cc",
+      "sha256": "c81c16800929ac618834b2e4f50174472dee726b4248899d360f358379fcc80d"
+    },
+    {
+      "path": "chrome/browser/sessions/session_service_base.cc",
+      "sha256": "87a9a1f9600672f4aefc62487a00c028bcae1f7b9bd2015c961a53a272327bf9"
     },
     {
       "path": "chrome/browser/shell_integration_win.cc",
@@ -3234,7 +3244,7 @@
     "patches/chromium155-windows/0232-renderer-launch-timezone-install.patch": "345ef39c9cc6d987f59c44f3f4a46099391d6c629058f10c1151e02a654796a7",
     "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch": "7f7f691f2d744715e0d48a25dab5ff1e8ac793122657beacd0f99a3e7e8ba908"
   },
-  "patch_sha256": "acf29a764bd3407ebc1484ecc1a41a89e1e9c4f75ffea4faa43d535afa4b028b",
+  "patch_sha256": "4df365da87ba37d6489044aa4b0be56b6309a5b7e666212d0943df1dee2f2da4",
   "qualification": "Source replay only; requires native build and actual account/security tests",
   "generation_inputs": {
     "schema_version": 1,
@@ -3267,7 +3277,8 @@
       "patches/native-browser/0005-translation-reload-registration.patch",
       "patches/native-cookie/0001-profile-cookie-bootstrap.patch",
       "patches/native-browser/0006-session-lifecycle.patch",
-      "patches/native-browser/0007-process-exit-control.patch"
+      "patches/native-browser/0007-process-exit-control.patch",
+      "patches/native-browser/0008-session-exit-snapshot.patch"
     ],
     "selected_baseline": {
       "series_sha256": "5c593c739b18ebd8888040483138910a269391e5aecb6dafa044b736097cfbeb",
@@ -4216,8 +4227,8 @@
     "files": {
       "CHROMIUM_WINDOWS_VERSION": "68d92a4dba65e695e0d31f0b0f210ee61ce7145ec89a08def77104b266cccd99",
       "UNGOOGLED_WINDOWS_VERSION": "e21b0fce64ba0f9c2457f30c618fb87e73fb88a8b1cd49af795548eca8f14395",
-      "build/google-services-win155.json": "b4c171069578542dced358c594bad52e7a1ff02192c08984b1d91b8d17d9e9f6",
-      "build/native-browser-capabilities.json": "41a0f5ddc9692cb9e391e39bcdde96ac79f4c6239e3fb378862d8d94c9e7786f",
+      "build/google-services-win155.json": "e059b09b8f0ad869976b57863db7dcfe8f6e7e6e281708866c81ab9937fa5ba5",
+      "build/native-browser-capabilities.json": "377651aefd3638186ba9f932843bc05a8b0dd9f35939b7a7f60417a446d95e6a",
       "build/native-cookie-capabilities.json": "16aa4163fc0cc84741f22dc550007faf3be4b06c94558a09a98b1c5e1be25003",
       "build/security-resources/empty_file_type_policy.pb": "98ebc9403565619b3aa2f71f64f5f54adea01d4c4b54d873b2b91c2ac5544112",
       "build/security-resources/etw_events/MSG00001.bin": "51b3d8c734d307af13984bb2c2abde79c859a5acb6386fd233f3e9338f2a7dc5",
@@ -4476,6 +4487,7 @@
       "patches/native-browser/0005-translation-reload-registration.patch": "81d50ef2556573c478dd46cb5353eefa2e3645025d8abd8a1d0133a66490634d",
       "patches/native-browser/0006-session-lifecycle.patch": "848b1209af2650c38a7fc7c49aabdfc12cdd85c6b9a667799492c24b8b518e60",
       "patches/native-browser/0007-process-exit-control.patch": "02ce6e46994d345544ce8988b68f878c85acb9bc174974ea60a2a659b4654747",
+      "patches/native-browser/0008-session-exit-snapshot.patch": "33cb8e902779fd06aab37943c6e766255fae0b3cb7c387e56b1f8c3b93438508",
       "patches/native-cookie/0001-profile-cookie-bootstrap.patch": "a293f1daf7892c06c59ce6faa57d052e3e7a12ce946b3ea2740066b04274e0f8",
       "patches/security/0001-restore-safety-hub-entry.patch": "15c4ca59e9b4841b977067f6c0a55699cf66d6407db2f4965531db416079f1b6",
       "patches/security/0002-preserve-disabled-enterprise-profile-id.patch": "aa0e2d5a6785b8792492afabd9d18859bbeea0852adfe82625fb81ded7c6ae80",
@@ -4497,5 +4509,5 @@
       "tools/verify_translation_init_source.py": "cd40487c7efc16108acf7ccf2f7081846bd033393e36569a35abdbd987cf5728"
     }
   },
-  "generation_inputs_sha256": "74bfb31a3e724c1d7939780418cf3f3403528bc880bf807691e506d5485aa237"
+  "generation_inputs_sha256": "3a172986f482b9c4f5ac862dad38a8e867ff856256a8476b56ffe058a877ba7b"
 }
