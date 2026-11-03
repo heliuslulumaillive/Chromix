@@ -1,15 +1,16 @@
-"""Require bounded native readiness polling and the original cancellation path."""
+"""Require bounded readiness, current-page reload ownership and cancellation."""
 from pathlib import Path
 
 TARGETS = (
     'components/translate/content/renderer/translate_agent.cc',
     'components/translate/content/renderer/translate_agent.h',
     'components/translate/core/common/translation_init_wait.h',
+    'components/translate/content/browser/content_translate_driver.cc',
 )
 
 
 def verify(src: Path):
-    cc, header, policy = ((src / name).read_text(encoding='utf-8') for name in TARGETS)
+    cc, header, policy, driver = ((src / name).read_text(encoding='utf-8') for name in TARGETS)
     required = (
         (cc, ('TranslationInitWait init_wait(base::TimeTicks::Now());',
               'TranslatePageImpl(init_wait);',
@@ -34,4 +35,10 @@ def verify(src: Path):
             raise ValueError('Native translation readiness/cancellation contract is incomplete')
     if 'kMaxTranslateInitCheckAttempts' in cc or 'TranslatePageImpl(0)' in cc:
         raise ValueError('Obsolete translation attempt budget remains active')
+    reload = driver.split('void ContentTranslateDriver::InitiateTranslation(', 1)[1].split('// TranslateDriver methods', 1)[0]
+    guard = ('if (web_contents()->GetPrimaryMainFrame()->GetPageUkmSourceId() !=\n'
+             '      last_registered_page_id_) {\n    return;\n  }')
+    if (guard not in reload or reload.index(guard) > reload.index('translation_pending()')
+            or 'translate_manager_->InitiateTranslation(' not in reload):
+        raise ValueError('Reload can start with a stale or unregistered page agent')
     return list(TARGETS)

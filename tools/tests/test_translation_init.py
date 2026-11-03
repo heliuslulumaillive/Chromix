@@ -28,12 +28,14 @@ class TranslationInitTests(unittest.TestCase):
 
     def patch(self, reverse):
         program = shutil.which('patch') or 'C:/Program Files/Git/usr/bin/patch.exe'
-        result = subprocess.run([program, '-p1', '--batch', '--fuzz=0', '--binary', '-E',
-            '--no-backup-if-mismatch', '--reverse' if reverse else '--forward',
-            '-i', str(ROOT / 'patches/native-browser/0004-translation-init-wait.patch')],
-            cwd=self.src, capture_output=True, text=True, timeout=30)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIsNone(re.search(r'fuzz|offset|FAILED', result.stdout, re.I))
+        overlays = ['0004-translation-init-wait.patch', '0005-translation-reload-registration.patch']
+        for name in reversed(overlays) if reverse else overlays:
+            result = subprocess.run([program, '-p1', '--batch', '--fuzz=0', '--binary', '-E',
+                '--no-backup-if-mismatch', '--reverse' if reverse else '--forward',
+                '-i', str(ROOT / 'patches/native-browser' / name)],
+                cwd=self.src, capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIsNone(re.search(r'fuzz|offset|FAILED', result.stdout, re.I))
 
     def test_exact_native_overlay_roundtrip(self):
         self.assertEqual(gate.verify(self.src), list(gate.TARGETS))
@@ -51,6 +53,7 @@ class TranslationInitTests(unittest.TestCase):
             (2, 'deadline_(now + base::Seconds(15))', 'deadline_(now + base::Hours(1))'),
             (2, 'const base::TimeTicks deadline_;', 'base::Time deadline_;'),
             (2, 'remaining});', 'base::Seconds(1)});'),
+            (3, 'if (web_contents()->GetPrimaryMainFrame()->GetPageUkmSourceId() !=', 'if (false && web_contents()->GetPrimaryMainFrame()->GetPageUkmSourceId() !='),
         ]
         for index, before, after in mutations:
             path = self.src / gate.TARGETS[index]

@@ -397,6 +397,7 @@
     "components/supervised_user/core/browser/supervised_user_pref_store.cc",
     "components/sync/service/sync_prefs.cc",
     "components/sync_preferences/common_syncable_prefs_database.cc",
+    "components/translate/content/browser/content_translate_driver.cc",
     "components/translate/content/renderer/translate_agent.cc",
     "components/translate/content/renderer/translate_agent.h",
     "components/translate/core/browser/ranker_url_fetcher.cc",
@@ -2051,6 +2052,10 @@
       "sha256": "ac318513ada5d01d0a295a7641bf120d87ff6bdc08654395c852866af5bdfe84"
     },
     {
+      "path": "components/translate/content/browser/content_translate_driver.cc",
+      "sha256": "21248c229344844e7db0831a2571328c8839022da2d9c140738e7c5398527c3f"
+    },
+    {
       "path": "components/translate/content/renderer/translate_agent.cc",
       "sha256": "833570d56dea32a74076f8ab2713f133c25c697eb6681aab01c7737d15afc705"
     },
@@ -3173,7 +3178,7 @@
     "patches/chromium155-windows/0232-renderer-launch-timezone-install.patch": "345ef39c9cc6d987f59c44f3f4a46099391d6c629058f10c1151e02a654796a7",
     "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch": "7f7f691f2d744715e0d48a25dab5ff1e8ac793122657beacd0f99a3e7e8ba908"
   },
-  "patch_sha256": "a216d29f7b2785a9c2e9aba4ed3cd06923de03da99e3ef97447b3b33522df515",
+  "patch_sha256": "71430c6cd358c4a1a50f95974129c113f0ef3389ae23e842927ab9cdb3b0d876",
   "qualification": "Source replay only; requires native build and actual account/security tests",
   "generation_inputs": {
     "schema_version": 1,
@@ -3202,7 +3207,8 @@
       "patches/native-browser/0001-native-windows-shell.patch",
       "patches/native-browser/0002-environment-controls.patch",
       "patches/native-browser/0003-history-retention.patch",
-      "patches/native-browser/0004-translation-init-wait.patch"
+      "patches/native-browser/0004-translation-init-wait.patch",
+      "patches/native-browser/0005-translation-reload-registration.patch"
     ],
     "selected_baseline": {
       "series_sha256": "5c593c739b18ebd8888040483138910a269391e5aecb6dafa044b736097cfbeb",
@@ -4151,7 +4157,7 @@
     "files": {
       "CHROMIUM_WINDOWS_VERSION": "68d92a4dba65e695e0d31f0b0f210ee61ce7145ec89a08def77104b266cccd99",
       "UNGOOGLED_WINDOWS_VERSION": "e21b0fce64ba0f9c2457f30c618fb87e73fb88a8b1cd49af795548eca8f14395",
-      "build/google-services-win155.json": "88f599fa90497b6bb7b88676dd069b01e61be6f8c62e23befd82e06fe411d6e3",
+      "build/google-services-win155.json": "1df75a7dd4ca15dc472e712e1b72ac3e6bf16e0441b6a7d60581ee4200336fde",
       "build/native-browser-capabilities.json": "0d6445aa29e5f70d630038701844d2724a8479be344bdb6d13ec84853cb797d3",
       "build/security-resources/empty_file_type_policy.pb": "98ebc9403565619b3aa2f71f64f5f54adea01d4c4b54d873b2b91c2ac5544112",
       "build/security-resources/etw_events/MSG00001.bin": "51b3d8c734d307af13984bb2c2abde79c859a5acb6386fd233f3e9338f2a7dc5",
@@ -4407,6 +4413,7 @@
       "patches/native-browser/0002-environment-controls.patch": "2f66ef24cffc357b307b9579288342e823b9ed8a28d8a2d169a21d13afff03d0",
       "patches/native-browser/0003-history-retention.patch": "ad70418516ead0950c1ced8f38452f31dcceb8bd0516d386549bd7d6e5186079",
       "patches/native-browser/0004-translation-init-wait.patch": "8aabb1df30657adc1d4fe32307e033894b29c4e7c61d7b59c9cacc308d0aac96",
+      "patches/native-browser/0005-translation-reload-registration.patch": "81d50ef2556573c478dd46cb5353eefa2e3645025d8abd8a1d0133a66490634d",
       "patches/security/0001-restore-safety-hub-entry.patch": "15c4ca59e9b4841b977067f6c0a55699cf66d6407db2f4965531db416079f1b6",
       "patches/security/0002-preserve-disabled-enterprise-profile-id.patch": "aa0e2d5a6785b8792492afabd9d18859bbeea0852adfe82625fb81ded7c6ae80",
       "patches/security/0003-link-signed-web-bundle-payload.patch": "d4cad9e00eb141ea4409c3f22d1804636df4f0895867f9a478379dc526bc2a94",
@@ -4422,8 +4429,8 @@
       "tools/verify_history_retention_source.py": "c5c3f2c10c1e1f59cf7d828bf987334d461dfc234e2e3d7dad3f985eb855e7b1",
       "tools/verify_native_browser_source.py": "44f372382ab4ad8c6ed7ad60d852de62012a222c97495542b2f056426e644f5b",
       "tools/verify_native_environment_controls_source.py": "8f99f09b5c3ba476429cb3155418d59055ed8fad5cb2b025deb10e68f16b9d65",
-      "tools/verify_translation_init_source.py": "d3df1a0fccaf239ab668f2d49476fd5377beac6d08fba66de04d3ed3de5ed9c7"
+      "tools/verify_translation_init_source.py": "cd40487c7efc16108acf7ccf2f7081846bd033393e36569a35abdbd987cf5728"
     }
   },
-  "generation_inputs_sha256": "6c8a5c5a75cee9765db6e12a78b71f2aa440dbe0cddb744fae12626608627887"
+  "generation_inputs_sha256": "1e6f0c5f75d19d720a49df67003bed2ce8bba84fd67b6396f507c867bc979b1a"
 }

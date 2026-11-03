@@ -37691,6 +37691,23 @@
            PrefSensitivity::kNone, MergeBehavior::kNone,
            WriteBehavior::kWriteToBoth}},
  #if BUILDFLAG(IS_ANDROID)
+--- a/components/translate/content/browser/content_translate_driver.cc
++++ b/components/translate/content/browser/content_translate_driver.cc
+@@ -136,6 +136,14 @@
+ 
+ void ContentTranslateDriver::InitiateTranslation(const std::string& page_lang,
+                                                  int attempt) {
++  // A cached script can be ready before this document's agent is registered.
++  // Sending it to the previous page leaves translation_pending stuck. The
++  // current page's RegisterPage() binds its agent and initiates translation.
++  if (web_contents()->GetPrimaryMainFrame()->GetPageUkmSourceId() !=
++      last_registered_page_id_) {
++    return;
++  }
++
+   if (translate_manager_->GetLanguageState()->translation_pending())
+     return;
+ 
 --- a/components/translate/content/renderer/translate_agent.cc
 +++ b/components/translate/content/renderer/translate_agent.cc
 @@ -58,14 +58,6 @@
