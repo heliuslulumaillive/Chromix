@@ -199,7 +199,9 @@
     "patches/native-browser/0002-environment-controls.patch",
     "patches/native-browser/0003-history-retention.patch",
     "patches/native-browser/0004-translation-init-wait.patch",
-    "patches/native-browser/0005-translation-reload-registration.patch"
+    "patches/native-browser/0005-translation-reload-registration.patch",
+    "patches/native-cookie/0001-profile-cookie-bootstrap.patch",
+    "patches/native-browser/0006-session-lifecycle.patch"
   ],
   "extra_sources": [
     "chrome/browser/preloading/preloading_prefs.h",
@@ -596,5 +598,10 @@
     "restore_download_danger_classification": true,
     "restore_download_quarantine": true
   },
-  "domain_rules_sha256": "f59c4316b4ac32f9dfe4f6440c4cf9ad5dab0ab8827769f5dc2587ca07e91f09"
+  "domain_rules_sha256": "f59c4316b4ac32f9dfe4f6440c4cf9ad5dab0ab8827769f5dc2587ca07e91f09",
+  "native_cookie": {
+    "version": 1,
+    "capabilities": "build/native-cookie-capabilities.json",
+    "source_gate_required": true
+  }
 }

@@ -135,6 +135,21 @@
       "target_preparation_sha256": "7594f338247b5310400527c4f6c758f13230fb3ed1689df2ea58ce29a76adb6b",
       "target_aggregate_sha256": "71430c6cd358c4a1a50f95974129c113f0ef3389ae23e842927ab9cdb3b0d876",
       "scope": "Only guard browser reload initiation until the current document has registered its TranslateAgent; retain the already compiled renderer deadline and initiate cached translation from native RegisterPage. Cookie and session changes excluded. Preserve unrelated sources, mtimes and objects; all runtime acceptance must run again."
+    },
+    {
+      "id": "lite156-cookie-session-lifecycle-v1",
+      "chromium_version": "156.0.8078.79",
+      "core_commit": "28a211ab4ab6b83d919966a4f58a6df23cf4fb29",
+      "windows_commit": "8492884eb30fdd9417ea7816aa92def805c97c74",
+      "arch": "x64",
+      "source_commit": "2b1d6b781698c1fd4bac4f10428716bac7cd1f0c",
+      "source_recipe_sha256": "2342f982474e81d79bacf36dd07ca21cfbc4a6fd22d270f23e1d7cfdffbd307a",
+      "source_preparation_sha256": "7594f338247b5310400527c4f6c758f13230fb3ed1689df2ea58ce29a76adb6b",
+      "source_aggregate_sha256": "71430c6cd358c4a1a50f95974129c113f0ef3389ae23e842927ab9cdb3b0d876",
+      "target_recipe_sha256": "8c05a1cf1dd6b29da15e740fd09733d416dc83d499d6f68167ba44d987f6abd8",
+      "target_preparation_sha256": "b4f097da05043deb5f1b97fb4e111572fe401434c64b9a4bc10b9b1bfdab93a9",
+      "target_aggregate_sha256": "d46f76bb6fc057950f358d26eb8d860135ef80c281b2308e0e47caceebadb1ed",
+      "scope": "Native one-shot Cookie merge before navigation, explicit global native session restoration and whole-browser cancellable exit. Exact source roundtrip and unchanged timestamp preservation checked. All native compilation and runtime acceptance must run again; no DLL admission inherited."
     }
   ]
 }

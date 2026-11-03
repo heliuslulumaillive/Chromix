@@ -125,7 +125,10 @@
     "chrome/browser/prefs/chrome_command_line_pref_store.cc",
     "chrome/browser/prefs/chrome_pref_service_factory.cc",
     "chrome/browser/prefs/pref_functional_browsertest.cc",
+    "chrome/browser/profiles/BUILD.gn",
     "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc",
+    "chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc",
+    "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h",
     "chrome/browser/profiles/profile.cc",
     "chrome/browser/profiles/profile_attributes_entry.cc",
     "chrome/browser/profiles/profile_attributes_storage.cc",
@@ -133,7 +136,13 @@
     "chrome/browser/profiles/profile_impl.cc",
     "chrome/browser/profiles/profile_manager.cc",
     "chrome/browser/profiles/profile_shortcut_manager_win.cc",
+    "chrome/browser/profiles/shardx_cookie_bootstrap.cc",
+    "chrome/browser/profiles/shardx_cookie_bootstrap.h",
+    "chrome/browser/profiles/shardx_cookie_bootstrap_internal.cc",
+    "chrome/browser/profiles/shardx_cookie_bootstrap_internal.h",
     "chrome/browser/profiles/shardx_native_browser_unittest.cc",
+    "chrome/browser/profiles/shardx_native_cookie_unittest.cc",
+    "chrome/browser/profiles/shardx_session_policy.h",
     "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
     "chrome/browser/resources/extensions/item_list.html.ts",
     "chrome/browser/resources/extensions/sidebar.html.ts",
@@ -178,6 +187,7 @@
     "chrome/browser/safe_browsing/telemetry/android/android_telemetry_service_unittest.cc",
     "chrome/browser/safe_browsing/url_checker_delegate_impl.cc",
     "chrome/browser/safe_browsing/url_lookup_service_factory.cc",
+    "chrome/browser/sessions/session_restore.cc",
     "chrome/browser/shell_integration_win.cc",
     "chrome/browser/shell_integration_win.h",
     "chrome/browser/signin/account_consistency_mode_manager.cc",
@@ -218,6 +228,8 @@
     "chrome/browser/ui/safety_hub/safe_browsing_result.cc",
     "chrome/browser/ui/signin/dice_migration_service.cc",
     "chrome/browser/ui/signin/signin_view_controller.cc",
+    "chrome/browser/ui/startup/startup_browser_creator.cc",
+    "chrome/browser/ui/startup/startup_browser_creator_impl.cc",
     "chrome/browser/ui/tab_contents/BUILD.gn",
     "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc",
     "chrome/browser/ui/toasts/toast_service.cc",
@@ -306,6 +318,8 @@
     "components/history/core/browser/expire_history_backend.h",
     "components/history/core/browser/history_backend.cc",
     "components/history/core/browser/shardx_history_retention.h",
+    "components/keep_alive_registry/keep_alive_types.cc",
+    "components/keep_alive_registry/keep_alive_types.h",
     "components/page_load_metrics/google/browser/google_url_util.cc",
     "components/password_manager/core/browser/leak_detection/leak_detection_check_impl.cc",
     "components/password_manager/core/browser/leak_detection_delegate.cc",
@@ -510,6 +524,7 @@
     "third_party/blink/renderer/platform/graphics/image_data_buffer.h",
     "third_party/blink/renderer/platform/runtime_enabled_features.json5",
     "third_party/search_engines_data/resources/definitions/prepopulated_engines.json",
+    "tools/metrics/histograms/metadata/profile/enums.xml",
     "v8/src/flags/flag-definitions.h",
     "v8/src/inspector/v8-runtime-agent-impl.cc",
     "v8/src/inspector/v8-runtime-agent-impl.h"
@@ -936,8 +951,20 @@
       "sha256": "7c4c151c39c0cd9540b1cca2ac2ffaf627d6b05f906b67e3463a787fb9fcd229"
     },
     {
+      "path": "chrome/browser/profiles/BUILD.gn",
+      "sha256": "c2d63dad9323512dfb00ee66766e3b9b2f82fc1e8dbfb6a644b60c7057594d4a"
+    },
+    {
       "path": "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc",
       "sha256": "e2a38a2d38bf560dc01ce3f0d51647c7a3ad226cb7e4613a5dcb42a70b518c85"
+    },
+    {
+      "path": "chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc",
+      "sha256": "709bc184d7837ff228b6b186f3e7d348f87b7b28ebc83a5989082d8527bcca2d"
+    },
+    {
+      "path": "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h",
+      "sha256": "682b5461c71387bf3ec6b12871a9c7e6554e4f93571f435fd0b9c7f87225ad15"
     },
     {
       "path": "chrome/browser/profiles/profile.cc",
@@ -1152,6 +1179,10 @@
       "sha256": "bea25ec6ee7bd3db37b7a873075b3b3cccedec4d20a6b5d34480094fa63dd2b2"
     },
     {
+      "path": "chrome/browser/sessions/session_restore.cc",
+      "sha256": "07bc199a00526f8fafad4b3119a78ba7597b069a093f5f0e316c2f225578f3fd"
+    },
+    {
       "path": "chrome/browser/shell_integration_win.cc",
       "sha256": "7fc6634ab04886936701108d0ac53c2f0e3faef9cf661147178834ddfcbb94ee"
     },
@@ -1310,6 +1341,14 @@
     {
       "path": "chrome/browser/ui/signin/signin_view_controller.cc",
       "sha256": "fcfff36500e981e91d7bb34f62fa2e8acec7ef5f667ed616199ad8a9393b3623"
+    },
+    {
+      "path": "chrome/browser/ui/startup/startup_browser_creator.cc",
+      "sha256": "b154ec6cc493d42e7f0201c2d2c250461aa947883d0f9401cb884b7f1ea83d84"
+    },
+    {
+      "path": "chrome/browser/ui/startup/startup_browser_creator_impl.cc",
+      "sha256": "c91a60167e21e1cc78d724306d724e586bb872f24adb8efb7a9655b1791c4c3d"
     },
     {
       "path": "chrome/browser/ui/tab_contents/BUILD.gn",
@@ -1670,6 +1709,14 @@
     {
       "path": "components/history/core/browser/history_backend.cc",
       "sha256": "d976fb7c4d14dad348af7fefaa5f5370df04c8d9f038003b9c18efa0179efd85"
+    },
+    {
+      "path": "components/keep_alive_registry/keep_alive_types.cc",
+      "sha256": "3d50ca809588bb2aef2c41013affb9d1fa97c23db2035129dfb74b99ae39d8b1"
+    },
+    {
+      "path": "components/keep_alive_registry/keep_alive_types.h",
+      "sha256": "1fb3db7ebc063d2cb49baad8d48f397c20bb4d39c3e0be4a5b3a47737a3f3d03"
     },
     {
       "path": "components/page_load_metrics/google/browser/google_url_util.cc",
@@ -2860,6 +2907,10 @@
       "sha256": "2ded8e3243ef86a913d4c3bbc21f900442f3945245fd088bcf911722a36aa672"
     },
     {
+      "path": "tools/metrics/histograms/metadata/profile/enums.xml",
+      "sha256": "8b17f541f9a7024f2ee58f1262649bf64d8152e5fb883ddb6761342d1baa93e2"
+    },
+    {
       "path": "v8/src/flags/flag-definitions.h",
       "sha256": "dc3d9a60f424540ec1658ef823dc095456e006dfb64ce56ff41fbb2945cf01c4",
       "upstream_repository": "https://chromium.googlesource.com/v8/v8",
@@ -3178,7 +3229,7 @@
     "patches/chromium155-windows/0232-renderer-launch-timezone-install.patch": "345ef39c9cc6d987f59c44f3f4a46099391d6c629058f10c1151e02a654796a7",
     "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch": "7f7f691f2d744715e0d48a25dab5ff1e8ac793122657beacd0f99a3e7e8ba908"
   },
-  "patch_sha256": "71430c6cd358c4a1a50f95974129c113f0ef3389ae23e842927ab9cdb3b0d876",
+  "patch_sha256": "d46f76bb6fc057950f358d26eb8d860135ef80c281b2308e0e47caceebadb1ed",
   "qualification": "Source replay only; requires native build and actual account/security tests",
   "generation_inputs": {
     "schema_version": 1,
@@ -3208,7 +3259,9 @@
       "patches/native-browser/0002-environment-controls.patch",
       "patches/native-browser/0003-history-retention.patch",
       "patches/native-browser/0004-translation-init-wait.patch",
-      "patches/native-browser/0005-translation-reload-registration.patch"
+      "patches/native-browser/0005-translation-reload-registration.patch",
+      "patches/native-cookie/0001-profile-cookie-bootstrap.patch",
+      "patches/native-browser/0006-session-lifecycle.patch"
     ],
     "selected_baseline": {
       "series_sha256": "5c593c739b18ebd8888040483138910a269391e5aecb6dafa044b736097cfbeb",
@@ -4157,8 +4210,9 @@
     "files": {
       "CHROMIUM_WINDOWS_VERSION": "68d92a4dba65e695e0d31f0b0f210ee61ce7145ec89a08def77104b266cccd99",
       "UNGOOGLED_WINDOWS_VERSION": "e21b0fce64ba0f9c2457f30c618fb87e73fb88a8b1cd49af795548eca8f14395",
-      "build/google-services-win155.json": "1df75a7dd4ca15dc472e712e1b72ac3e6bf16e0441b6a7d60581ee4200336fde",
-      "build/native-browser-capabilities.json": "0d6445aa29e5f70d630038701844d2724a8479be344bdb6d13ec84853cb797d3",
+      "build/google-services-win155.json": "15338d6dd30254bc3c843be865d0bf2e5192929122e901565f14e49077d35ad8",
+      "build/native-browser-capabilities.json": "a6867de2d0da648e9b1c1c0e1e9164869488d212f75251044750b1b40ffd7827",
+      "build/native-cookie-capabilities.json": "16aa4163fc0cc84741f22dc550007faf3be4b06c94558a09a98b1c5e1be25003",
       "build/security-resources/empty_file_type_policy.pb": "98ebc9403565619b3aa2f71f64f5f54adea01d4c4b54d873b2b91c2ac5544112",
       "build/security-resources/etw_events/MSG00001.bin": "51b3d8c734d307af13984bb2c2abde79c859a5acb6386fd233f3e9338f2a7dc5",
       "build/security-resources/etw_events/chrome_events_winTEMP.BIN": "1de7329c900e3e367a04ea99c1169cde528754c408de077628f5be856cfe0926",
@@ -4414,6 +4468,8 @@
       "patches/native-browser/0003-history-retention.patch": "ad70418516ead0950c1ced8f38452f31dcceb8bd0516d386549bd7d6e5186079",
       "patches/native-browser/0004-translation-init-wait.patch": "8aabb1df30657adc1d4fe32307e033894b29c4e7c61d7b59c9cacc308d0aac96",
       "patches/native-browser/0005-translation-reload-registration.patch": "81d50ef2556573c478dd46cb5353eefa2e3645025d8abd8a1d0133a66490634d",
+      "patches/native-browser/0006-session-lifecycle.patch": "848b1209af2650c38a7fc7c49aabdfc12cdd85c6b9a667799492c24b8b518e60",
+      "patches/native-cookie/0001-profile-cookie-bootstrap.patch": "a293f1daf7892c06c59ce6faa57d052e3e7a12ce946b3ea2740066b04274e0f8",
       "patches/security/0001-restore-safety-hub-entry.patch": "15c4ca59e9b4841b977067f6c0a55699cf66d6407db2f4965531db416079f1b6",
       "patches/security/0002-preserve-disabled-enterprise-profile-id.patch": "aa0e2d5a6785b8792492afabd9d18859bbeea0852adfe82625fb81ded7c6ae80",
       "patches/security/0003-link-signed-web-bundle-payload.patch": "d4cad9e00eb141ea4409c3f22d1804636df4f0895867f9a478379dc526bc2a94",
@@ -4421,16 +4477,18 @@
       "tools/build_google_services_patch.py": "86a7120f4a24b11b21b091901950a632c63f089cfab2c0e0ac5d44111b56564c",
       "tools/build_history_retention_patch.py": "227055200a17293b4f74d1b6e507529981c8876878ec8e356bbef432c5264ebf",
       "tools/build_lite_retirement_patch.py": "65d7bb644d2236c2ab44ebef1e04c1e788c38a0dda89dd01ec920a85446f6cd7",
+      "tools/build_session_lifecycle_patch.py": "f0a452665d8d2b2636bc25f5ef7ef6fe49d8a757e2da94f6db42bfcc40a6405b",
       "tools/build_translation_init_patch.py": "21592b5b161be26fb92d0ac96e129385d08a25df4db5a2cda46caf266fd3dfc0",
-      "tools/google_services_inputs.py": "e3948a571768c035e6e71c5d3eb643d7ee63040cb87aa234fce9f997e771954c",
+      "tools/google_services_inputs.py": "dc983f1e19d72d8a4f45feb6e5287c4bec48135e642e0e531cd6c2c9b1973085",
       "tools/patch_selection.py": "303dc5399fd3a7ae00d6f7a4fe74e9a9f3d52a07094886ae9329a458a76896f5",
       "tools/platform_pins.py": "79f5da2b264015c837e2e77df5e51f64f712f745c3a50f8002949b6419d8cb3c",
       "tools/restored_source_resources.py": "745676ca91071f789a5c1899147bdb80fed84efb40e1f2e8819bea3c241d7662",
       "tools/verify_history_retention_source.py": "c5c3f2c10c1e1f59cf7d828bf987334d461dfc234e2e3d7dad3f985eb855e7b1",
       "tools/verify_native_browser_source.py": "44f372382ab4ad8c6ed7ad60d852de62012a222c97495542b2f056426e644f5b",
+      "tools/verify_native_cookie_source.py": "56fef388062bdd3524be1839aa224d0ef68b01968433878bc67786d68fc854bf",
       "tools/verify_native_environment_controls_source.py": "8f99f09b5c3ba476429cb3155418d59055ed8fad5cb2b025deb10e68f16b9d65",
       "tools/verify_translation_init_source.py": "cd40487c7efc16108acf7ccf2f7081846bd033393e36569a35abdbd987cf5728"
     }
   },
-  "generation_inputs_sha256": "1e6f0c5f75d19d720a49df67003bed2ce8bba84fd67b6396f507c867bc979b1a"
+  "generation_inputs_sha256": "75163b1aa3dd4c0c0896cf556b53cfa5b5405e21f416e26a46ee323557e91502"
 }

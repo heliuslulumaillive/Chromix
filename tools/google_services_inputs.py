@@ -80,7 +80,21 @@ def native_browser_input_names(config: dict) -> tuple[str, ...]:
             'tools/verify_native_environment_controls_source.py',
             'tools/verify_history_retention_source.py', 'tools/build_history_retention_patch.py',
             'tools/verify_translation_init_source.py', 'tools/build_translation_init_patch.py',
-            'tools/build_lite_retirement_patch.py')
+            'tools/build_lite_retirement_patch.py', 'tools/build_session_lifecycle_patch.py')
+
+
+def native_cookie_input_names(config: dict) -> tuple[str, ...]:
+    if 'native_cookie' not in config:
+        return ()
+    expected = {'version': 1, 'capabilities': 'build/native-cookie-capabilities.json',
+                'source_gate_required': True}
+    if (config['native_cookie'] != expected
+            or type(config['native_cookie']['version']) is not int
+            or config['native_cookie']['source_gate_required'] is not True):
+        raise ValueError('Native cookie source/capability contract is invalid')
+    if not native_browser_input_names(config):
+        raise ValueError('Native cookie import requires the managed native-browser contract')
+    return (expected['capabilities'], 'tools/verify_native_cookie_source.py')
 
 
 def aggregate_inputs(repo: Path, config: dict | None = None, selection=None) -> dict:
@@ -98,6 +112,7 @@ def aggregate_inputs(repo: Path, config: dict | None = None, selection=None) -> 
         raise ValueError('Restoration overlays must be an ordered unique list')
     names = set(GENERATOR_INPUTS)
     names.update(native_browser_input_names(config))
+    names.update(native_cookie_input_names(config))
     names.update(relative_path(name) for name in overlays)
     names.update(relative_path(item['path']) for item in selection['patches'])
     names.update(relative_path(item['repository_path'])
@@ -135,6 +150,7 @@ def preparation_input_hashes(repo: Path) -> dict:
     }
     overlays = config.get('restoration_overlays', [])
     names.update(native_browser_input_names(config))
+    names.update(native_cookie_input_names(config))
     names.update(relative_path(name) for name in overlays)
     names.update(relative_path(spec['repository_path'])
                  for spec in config.get('restore_pruned_resources', {}).values())

@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "contract": "shardx-native-cookie-v1",
+  "chromium_version": "156.0.8078.79",
+  "build_variant": "fingerprint-modes-win156",
+  "platform": "windows",
+  "qualification": "Source contract only; compiled native and real first-request acceptance are required.",
+  "flags": {
+    "envelope": "shardx-cookie-import",
+    "envelope_sha256": "shardx-cookie-import-sha256",
+    "environment": "shardx-managed-environment"
+  },
+  "paths": {
+    "request": "<user-data-dir>/ShardX Cookie Imports/requests/<token>.<requestId>.json",
+    "receipt": "<user-data-dir>/ShardX Cookie Imports/receipts/<token>.json",
+    "profile_directory": "Default",
+    "reparse_points": "rejected"
+  },
+  "limits": {
+    "source_file_bytes": 8388608,
+    "envelope_bytes": 16777216,
+    "cookie_count": 10000,
+    "receipt_bytes": 65536,
+    "import_timeout_seconds": 60
+  },
+  "cookie_fields": ["name", "value", "url", "domain", "path", "secure", "httpOnly", "sameSite", "expires", "priority"],
+  "semantics": {
+    "url_and_domain": "mutually exclusive",
+    "source_url": "preserve explicit URL port and path; derive a source URL only for domain-form cookies",
+    "explicit_path": "preserved; missing path uses CanonicalCookie native default-path rules",
+    "secure": "explicit boolean preserved; omitted defaults to false",
+    "domain": "explicit domain attribute; URL form is host-only",
+    "same_site": ["Unspecified", "Strict", "Lax", "None"],
+    "same_site_omitted": "native UNSPECIFIED attribute",
+    "priority": ["Low", "Medium", "High"],
+    "session": "expires omitted or -1 maps to empty native Time",
+    "persistent": "nonnegative finite Unix seconds, including 0 as expired deletion; native expiry bounds apply",
+    "negative_expiry_except_minus_one": "rejected",
+    "partition_and_other_unsupported_semantics": "rejected rather than silently discarded",
+    "conflicting_duplicate_canonical_keys": "rejected before writes",
+    "identical_duplicates": "deduplicated and counted"
+  },
+  "lifecycle": {
+    "owner": "eager ProfileKeyedService for regular original Default only",
+    "starts_without_navigation": true,
+    "same_browser_process": true,
+    "navigation_gate": "NavigationThrottleRegistry waits for receipt publication; failure cancels navigation",
+    "backend": "native CookieManager",
+    "completion": "all SetCanonicalCookie statuses included, Flush acknowledged, GetAllCookies exact readback, atomic receipt published",
+    "shared_deadline": "envelope.deadlineUnixMs binds this attempt; after the deadline no navigation resumes, even if a late completion ledger is retained for later recovery",
+    "previous_completion": "one-shot token ledger; do not reimport session cookies after completion",
+    "session_preferences_modified": false,
+    "devtools_dependency": false
+  },
+  "receipt": {
+    "schemaVersion": 1,
+    "statuses": ["completed", "failed"],
+    "bindings": ["contract", "environmentId", "profileDirectory", "requestId", "token", "sourceSha256", "envelopeSha256", "browserPid", "deadlineUnixMs"],
+    "counts": ["cookieCount", "uniqueCookieCount", "acceptedCookieCount", "verifiedCookieCount", "expiredCookieCount", "duplicateCookieCount", "attemptedCookieCount"],
+    "early_failure_source_sha_optional": true,
+    "partial_failure": "partialApplied and writeOutcomeUnknown; rollbackPerformed is false",
+    "cookie_values_logged": false
+  }
+}

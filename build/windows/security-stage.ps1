@@ -537,6 +537,14 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         '--build-record',(Join-Path $bundle 'google-services-build.json'),'--kind','browser')}
       @{label='native-browser-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_native_browser_runtime.py'),
         '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'native-browser-runtime.json'))}
+      @{label='native-cookie-tests';command=@($pwsh,'-NoProfile','-File',"$PSScriptRoot\run-native-passkey-tests.ps1",'-Executable',(Join-Path $out 'native_passkey_unittests.exe'),
+        '-Summary',(Join-Path $evidence 'native-cookie-unittests.json'),'-Log',(Join-Path $evidence 'native-cookie-tests.log'),
+        '-Receipt',(Join-Path $evidence 'native-cookie-launcher.json'),'-WorkingDirectory',$src,'-TestFilter','ShardXNativeCookieTest.*','-BuildRecord',(Join-Path $bundle 'google-services-build.json'))}
+      @{label='accept-native-cookie-tests';depends=@('native-cookie-tests');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\native_compiled_evidence.py'),
+        '--summary',(Join-Path $evidence 'native-cookie-unittests.json'),'--launcher',(Join-Path $evidence 'native-cookie-launcher.json'),
+        '--build-record',(Join-Path $bundle 'google-services-build.json'),'--kind','cookie')}
+      @{label='native-cookie-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_native_cookie_runtime.py'),
+        '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'native-cookie-runtime.json'))}
       @{label='browser-smoke';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_windows_bundle.py'),'--bundle',$bundle,'--arch','x64','--native','--version',$version,'--report',(Join-Path $evidence 'candidate-smoke.json'))}
       @{label='security-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_security_runtime.py'),
         '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'security-runtime.json'))}
@@ -560,6 +568,7 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       # are outside the immutable browser bundle and therefore do not rebaseline it.
       foreach ($name in @('build-inputs.json','native-passkey-unittests.json','native-passkey-launcher.json',
           'native-browser-unittests.json','native-browser-launcher.json','native-browser-runtime.json',
+          'native-cookie-unittests.json','native-cookie-launcher.json','native-cookie-runtime.json',
           'verification-results.json',
           'candidate-smoke.json','google-services-runtime.json','security-runtime.json','fingerprint-modes-validation.json',
           'modes-native.json','modes-runtime.json','fingerprint-modes-capabilities.json')) {

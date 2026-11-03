@@ -51,11 +51,11 @@ def recipe(repo: Path) -> str:
     config = json.loads((repo / 'build/google-services-win155.json').read_text('utf-8'))
     if 'native_browser' in config:
         try:
-            from .google_services_inputs import native_browser_input_names
+            from .google_services_inputs import native_browser_input_names, native_cookie_input_names
         except ImportError:
-            from google_services_inputs import native_browser_input_names
+            from google_services_inputs import native_browser_input_names, native_cookie_input_names
         # Missing active inputs fail here, rather than disappearing in is_file().
-        for name in native_browser_input_names(config):
+        for name in (*native_browser_input_names(config), *native_cookie_input_names(config)):
             plain(repo / name).read_bytes()
             files.append(repo / name)
     entries = {p.relative_to(repo).as_posix(): sha256(plain(p))

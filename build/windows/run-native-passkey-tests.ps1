@@ -5,7 +5,7 @@ param(
   [Parameter(Mandatory)][string]$Receipt,
   [Parameter(Mandatory)][string]$WorkingDirectory,
   [string]$BuildRecord,
-  [ValidateSet('WinAuthenticatorTest.*:AuthenticatorRequestDialogControllerTest.*','ShardXNativeBrowserTest.*')]
+  [ValidateSet('WinAuthenticatorTest.*:AuthenticatorRequestDialogControllerTest.*','ShardXNativeBrowserTest.*','ShardXNativeCookieTest.*')]
   [string]$TestFilter='WinAuthenticatorTest.*:AuthenticatorRequestDialogControllerTest.*'
 )
 $ErrorActionPreference = 'Stop'

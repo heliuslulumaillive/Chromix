@@ -13,7 +13,7 @@ import tarfile
 from verify_google_services_source import verify as verify_signin_source
 from restored_source_resources import restore as restore_resources
 from restored_source_resources import verify as verify_resources
-from google_services_inputs import native_browser_input_names, preparation_input_hashes, verify_aggregate_inputs
+from google_services_inputs import native_browser_input_names, native_cookie_input_names, preparation_input_hashes, verify_aggregate_inputs
 
 CPP_TOKENS = re.compile(
     r'(?P<raw>R"(?P<delimiter>[^ ()\\\t\r\n]{0,16})\([\s\S]*?\)(?P=delimiter)")'
@@ -178,6 +178,9 @@ def verify_prepared_sources(src: Path, repo: Path, config: dict, **source_checks
     if native_browser_input_names(config):
         from verify_native_browser_source import verify as verify_native_browser
         checked = sorted(set(checked) | set(verify_native_browser(src, repo)))
+    if native_cookie_input_names(config):
+        from verify_native_cookie_source import verify as verify_native_cookie
+        checked = sorted(set(checked) | set(verify_native_cookie(src, repo)))
     return checked
 
 

@@ -60,8 +60,8 @@ class ExactCompiledGateTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
 
-    def test_exact_frozen_67_9_sets_pass(self):
-        self.assertEqual({key: len(value) for key, value in gate.REQUIRED_TESTS.items()}, {'passkey': 67, 'browser': 9})
+    def test_exact_frozen_67_9_10_sets_pass(self):
+        self.assertEqual({key: len(value) for key, value in gate.REQUIRED_TESTS.items()}, {'passkey': 67, 'browser': 9, 'cookie': 10})
         for kind in gate.REQUIRED_TESTS:
             with self.subTest(kind=kind):
                 paths = suite_fixture(self.root, kind)

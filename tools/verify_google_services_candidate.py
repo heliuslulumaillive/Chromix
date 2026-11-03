@@ -97,7 +97,7 @@ REQUIRED_CHECKS = {
 }
 NATIVE_VERIFICATION_LABELS = frozenset({
     'native-passkey', 'native-browser-tests', 'accept-native-browser-tests',
-    'native-browser-runtime',
+    'native-browser-runtime', 'native-cookie-tests', 'accept-native-cookie-tests', 'native-cookie-runtime',
     'browser-smoke', 'security-runtime', 'accept-security-runtime',
     'google-runtime', 'fingerprint-runtime', 'accept-native-passkey', 'accept-fingerprint',
 })
@@ -837,13 +837,18 @@ def validate_verification_results(path):
         raise ValueError('Native verification plan is missing or has incomplete steps')
     labels = [row['label'] for row in rows]
     if set(labels) != NATIVE_VERIFICATION_LABELS or len(set(labels)) != len(labels):
-        raise ValueError('Native verification plan must contain exactly 11 unique required labels')
+        raise ValueError('Native verification plan must contain exactly 14 unique required labels')
     return {'status': 'passed', 'report_sha256': sha256(path), 'labels': sorted(labels)}
 
 
 def validate_native_runtime(report_path, bundle, payload, expected_source, kind):
     """Recompute native observations; never trust a passed-only check manifest."""
-    if kind == 'browser':
+    if kind == 'cookie':
+        try:
+            from . import verify_native_cookie_runtime as probe
+        except ImportError:
+            import verify_native_cookie_runtime as probe
+    elif kind == 'browser':
         try:
             from . import verify_native_browser_runtime as probe
         except ImportError:
@@ -863,10 +868,13 @@ def validate_native_runtime(report_path, bundle, payload, expected_source, kind)
         'source_receipt_sha256': expected_source['source_receipt_sha256'],
         'verifier_sha256': sha256(REPO / 'tools' / ('verify_native_' + kind + '_runtime.py')),
         'security_helper_sha256': sha256(REPO / 'tools/verify_security_runtime.py'),
-        'history_helper_sha256': sha256(REPO / 'tools/native_history_probe.py'),
         'recipe_tool_sha256': sha256(REPO / 'tools/security_build_record.py'),
         'requirements_sha256': sha256(REPO / 'tools/google-services-requirements.txt'),
     }
+    if kind == 'cookie':
+        expected['process_helper_sha256'] = sha256(REPO / 'tools/fingerprint_subprocess.py')
+    else:
+        expected['history_helper_sha256'] = sha256(REPO / 'tools/native_history_probe.py')
     binding = report.get('binding')
     if (payload.get(cap) != expected['capabilities_sha256'] or sha256(bundle / cap) != payload.get(cap)
             or not isinstance(binding, dict) or any(binding.get(key) != value for key, value in expected.items())
@@ -895,20 +903,21 @@ def validate_native_integration(artifact_dir, bundle, payload, expected_source):
         import native_compiled_evidence as compiled
         import verify_security_runtime as security
     names = ('verification-results.json', 'native-passkey-unittests.json', 'native-passkey-launcher.json',
-             'native-browser-unittests.json', 'native-browser-launcher.json', 'native-browser-runtime.json')
+             'native-browser-unittests.json', 'native-browser-launcher.json', 'native-browser-runtime.json',
+             'native-cookie-unittests.json', 'native-cookie-launcher.json', 'native-cookie-runtime.json')
     for name in names:
         if not security.plain(artifact_dir / name).is_file():
             raise ValueError('Mandatory native integration evidence is missing: ' + name)
     before = {name: sha256(artifact_dir / name) for name in names}
     result = {'verification': validate_verification_results(artifact_dir / 'verification-results.json')}
-    for kind in ('passkey', 'browser'):
+    for kind in ('passkey', 'browser', 'cookie'):
         result[kind + '_compiled_tests'] = compiled.validate_compiled_suite(
             artifact_dir / ('native-' + kind + '-unittests.json'),
             artifact_dir / ('native-' + kind + '-launcher.json'),
             bundle / 'google-services-build.json', kind)
-    if len({result[kind + '_compiled_tests']['test_executable_sha256'] for kind in ('passkey', 'browser')}) != 1:
+    if len({result[kind + '_compiled_tests']['test_executable_sha256'] for kind in ('passkey', 'browser', 'cookie')}) != 1:
         raise ValueError('Native suites came from different compiled test executables')
-    for kind in ('browser',):
+    for kind in ('browser', 'cookie'):
         result[kind + '_runtime'] = validate_native_runtime(
             artifact_dir / ('native-' + kind + '-runtime.json'), bundle, payload, expected_source, kind)
     if before != {name: sha256(artifact_dir / name) for name in names}:

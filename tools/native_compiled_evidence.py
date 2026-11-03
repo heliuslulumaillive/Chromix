@@ -10,8 +10,10 @@ import re
 
 try:
     from .verify_native_browser_tests import REQUIRED as BROWSER_TESTS
+    from .verify_native_cookie_tests import REQUIRED as COOKIE_TESTS
 except ImportError:
     from verify_native_browser_tests import REQUIRED as BROWSER_TESTS
+    from verify_native_cookie_tests import REQUIRED as COOKIE_TESTS
 
 HEX = re.compile(r'[a-f0-9]{64}')
 COMMIT = re.compile(r'[a-f0-9]{40}')
@@ -94,10 +96,12 @@ PASSKEY_TESTS = frozenset([
 REQUIRED_TESTS = {
     'passkey': PASSKEY_TESTS,
     'browser': frozenset(BROWSER_TESTS),
+    'cookie': frozenset(COOKIE_TESTS),
 }
 TEST_FILTERS = {
     'passkey': 'WinAuthenticatorTest.*:AuthenticatorRequestDialogControllerTest.*',
     'browser': 'ShardXNativeBrowserTest.*',
+    'cookie': 'ShardXNativeCookieTest.*',
 }
 
 
@@ -148,7 +152,7 @@ def validate_compiled_suite(summary_path, launcher_path, build_record_path, kind
     if kind not in REQUIRED_TESTS:
         raise ValueError('Unknown Windows 156 native suite')
     required = REQUIRED_TESTS[kind]
-    if {name: len(tests) for name, tests in REQUIRED_TESTS.items()} != {'passkey': 67, 'browser': 9}:
+    if {name: len(tests) for name, tests in REQUIRED_TESTS.items()} != {'passkey': 67, 'browser': 9, 'cookie': 10}:
         raise ValueError('Frozen Windows 156 native suite inventory changed')
     summary, summary_hash = _read(summary_path)
     launcher, launcher_hash = _read(launcher_path)

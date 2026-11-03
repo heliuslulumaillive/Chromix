@@ -108,7 +108,7 @@ class AggregateInputsTests(unittest.TestCase):
                           'tools/verify_native_environment_controls_source.py',
                  'tools/verify_history_retention_source.py', 'tools/build_history_retention_patch.py',
                           'tools/verify_translation_init_source.py', 'tools/build_translation_init_patch.py',
-                          'tools/build_lite_retirement_patch.py'))
+                          'tools/build_lite_retirement_patch.py', 'tools/build_session_lifecycle_patch.py'))
         for key, value in [('capabilities', '../outside.json'), ('version', True),
                            ('source_gate_required', False), ('source_gate_required', 1)]:
             with self.subTest(key=key, value=value), self.assertRaises(ValueError):

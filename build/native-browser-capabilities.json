@@ -55,7 +55,7 @@
       ]
     }
   },
-  "session_restore_default": "chromium-upstream-user-overridable",
+  "session_restore_default": "launcher-explicit-global-choice",
   "network_prediction_default": "disabled-user-overridable",
   "history_retention": {
     "flag": "shardx-history-retention-days",
@@ -66,5 +66,17 @@
     "maintenance": "retained",
     "query": "native-history"
   },
-  "clear_data_on_exit_default": false
+  "clear_data_on_exit_default": false,
+  "session_lifecycle": {
+    "restore_flag": "shardx-restore-previous-session",
+    "values": [
+      "true",
+      "false"
+    ],
+    "startup_urls": "append-only-missing",
+    "restore_backend": "native-session-service",
+    "crash_restore": "native-explicit-opt-in",
+    "whole_environment_exit": "ShardX.Lite.ExitEnvironment.v1",
+    "beforeunload": "native-cancellable"
+  }
 }

@@ -13,6 +13,7 @@ with mock.patch.object(sys, 'path', [str(ROOT / 'tools'), *sys.path]):
 from tools import verify_native_browser_tests as browser_tests
 from tools import native_compiled_evidence as compiled
 from tools.tests.test_native_browser_runtime import good_report as good_browser_report
+from tools.tests.test_native_cookie_runtime import good_report as good_cookie_report
 
 
 def write_json(path, value):
@@ -78,15 +79,15 @@ def write_compiled_fixture(root, kind, names, pattern, build_path, build):
 
 def write_native_integration_evidence(root, bundle, source):
     """All data is a protocol fixture, not real compiled/runtime acceptance."""
-    for kind in ('browser',):
+    for kind in ('browser', 'cookie'):
         filename = 'native-' + kind + '-capabilities.json'
         (bundle / filename).write_bytes((ROOT / 'build' / filename).read_bytes())
     write_json(root / 'verification-results.json', {'schema_version': 1, 'status': 'passed',
         'checks': [{'label': name, 'status': 'passed'} for name in sorted(candidate.NATIVE_VERIFICATION_LABELS)]})
     build_path, build = prepare_fixture_build_record(root, bundle)
-    for kind in ('passkey', 'browser'):
+    for kind in ('passkey', 'browser', 'cookie'):
         write_compiled_fixture(root, kind, compiled.REQUIRED_TESTS[kind], compiled.TEST_FILTERS[kind], build_path, build)
-    for kind, value in (('browser', good_browser_report()),):
+    for kind, value in (('browser', good_browser_report()), ('cookie', good_cookie_report())):
         write_json(root / ('native-' + kind + '-runtime.json'), bind_runtime(value, bundle, source, kind))
 
 
@@ -98,19 +99,19 @@ class NativeEvidenceTests(unittest.TestCase):
         self.bundle = self.root / 'bundle'; self.bundle.mkdir()
         (self.bundle / 'chrome.exe').write_bytes(b'Synthetic protocol fixture. Never execute.')
         (self.bundle / 'chrome.dll').write_bytes(b'Synthetic library. Not an accepted kernel.')
-        for kind in ('browser',):
+        for kind in ('browser', 'cookie'):
             name = 'native-' + kind + '-capabilities.json'
             (self.bundle / name).write_bytes((ROOT / 'build' / name).read_bytes())
         self.source = {key: 'a' * 64 for key in ('record_sha256', 'recipe_sha256', 'source_receipt_sha256', 'gn_sha256')}
 
-    def test_exact_eleven_checks_and_every_negative_variant(self):
+    def test_exact_fourteen_checks_and_every_negative_variant(self):
         path = self.root / 'verification-results.json'
         valid = {'schema_version': 1, 'status': 'passed', 'checks': [
             {'label': name, 'status': 'passed'} for name in sorted(candidate.NATIVE_VERIFICATION_LABELS)]}
         write_json(path, valid)
-        self.assertEqual(len(candidate.validate_verification_results(path)['labels']), 11)
+        self.assertEqual(len(candidate.validate_verification_results(path)['labels']), 14)
         bad = [[], valid['checks'][:1], valid['checks'][:-1], valid['checks'] + [valid['checks'][0]],
-               [valid['checks'][0]] * 11]
+               [valid['checks'][0]] * 14]
         for rows in bad:
             write_json(path, {**valid, 'checks': rows})
             with self.assertRaises(ValueError): candidate.validate_verification_results(path)
@@ -143,9 +144,10 @@ class NativeEvidenceTests(unittest.TestCase):
         verify = lambda: candidate.validate_native_integration(self.root, self.bundle, payload, self.source)
         result = verify()
         self.assertEqual({kind: result[kind + '_compiled_tests']['required_count']
-                          for kind in ('passkey', 'browser')}, {'passkey': 67, 'browser': 9})
+                          for kind in ('passkey', 'browser', 'cookie')}, {'passkey': 67, 'browser': 9, 'cookie': 10})
         for name in ('native-browser-unittests.json', 'native-browser-launcher.json',
-                     'native-browser-runtime.json', 'verification-results.json'):
+                     'native-browser-runtime.json', 'verification-results.json',
+                     'native-cookie-unittests.json', 'native-cookie-launcher.json', 'native-cookie-runtime.json'):
             path = self.root / name; original = path.read_bytes(); path.unlink()
             with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'Mandatory'):
                 verify()

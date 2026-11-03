@@ -1,0 +1,199 @@
+--- a/chrome/browser/prefs/chrome_command_line_pref_store.cc
++++ b/chrome/browser/prefs/chrome_command_line_pref_store.cc
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/prefs/chrome_command_line_pref_store.h"
++#include "chrome/browser/profiles/shardx_session_policy.h"
+ 
+ #include <stddef.h>
+ 
+@@ -114,6 +115,10 @@
+   ApplySSLSwitches();
+   ApplyBackgroundModeSwitches();
+   ApplyExplicitlyAllowedPortSwitch();
++  if (const auto restore = shardx::ManagedSessionRestore(*command_line)) {
++    SetValue(prefs::kRestoreOnStartup, base::Value(*restore ? 1 : 5),
++             WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
++  }
+   // A native, per-process preference layer covers every Profile without
+   // rewriting Preferences or overriding unrelated user choices on disk.
+   if (command_line->HasSwitch("shardx-managed-environment")) {
+--- a/chrome/browser/profiles/BUILD.gn
++++ b/chrome/browser/profiles/BUILD.gn
+@@ -387,6 +387,7 @@
+ source_set("profile") {
+   public = [
+     "profile.h",
++    "shardx_session_policy.h",
+     "profile_keyed_service_factory.h",
+     "profile_manager_observer.h",
+     "profile_observer.h",
+--- /dev/null
++++ b/chrome/browser/profiles/shardx_session_policy.h
+@@ -0,0 +1,27 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#ifndef CHROME_BROWSER_PROFILES_SHARDX_SESSION_POLICY_H_
++#define CHROME_BROWSER_PROFILES_SHARDX_SESSION_POLICY_H_
++#include <optional>
++#include "base/check.h"
++#include "base/command_line.h"
++#include "base/uuid.h"
++
++namespace shardx {
++inline constexpr char kRestoreSession[] = "shardx-restore-previous-session";
++inline constexpr wchar_t kExitEnvironmentMessage[] = L"ShardX.Lite.ExitEnvironment.v1";
++inline constexpr unsigned long kExitEnvironmentAck = 0x53484c58;
++
++// An explicit launcher choice overrides native startup preferences for this
++// process only. Unmanaged browsers retain Chromium's own startup behavior.
++inline std::optional<bool> ManagedSessionRestore(const base::CommandLine& command) {
++  if (!command.HasSwitch(kRestoreSession))
++    return std::nullopt;
++  CHECK(base::Uuid::ParseCaseInsensitive(command.GetSwitchValueASCII(
++      "shardx-managed-environment")).is_valid());
++  const auto value = command.GetSwitchValueASCII(kRestoreSession);
++  CHECK(value == "true" || value == "false");
++  return value == "true";
++}
++}  // namespace shardx
++#endif
+--- a/chrome/browser/sessions/session_restore.cc
++++ b/chrome/browser/sessions/session_restore.cc
+@@ -45,6 +45,7 @@
+ #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
+ #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/profiles/shardx_session_policy.h"
+ #include "chrome/browser/profiles/profile_attributes_entry.h"
+ #include "chrome/browser/profiles/profile_attributes_storage.h"
+ #include "chrome/browser/profiles/profile_manager.h"
+@@ -766,6 +767,21 @@
+     DVLOG(1) << "ProcessSessionWindows " << windows->size();
+ 
+     PruneWindows(windows);
++    if (shardx::ManagedSessionRestore(*base::CommandLine::ForCurrentProcess()).value_or(false)) {
++      // Deduplicate only additional startup pages. The saved session may
++      // intentionally contain duplicate tabs and must remain unchanged.
++      std::erase_if(startup_tabs_, [&](const StartupTab& startup) {
++        for (const auto& window : *windows) {
++          for (const auto& tab : window->tabs) {
++            if (tab->navigations.empty()) continue;
++            const int index = std::clamp(tab->current_navigation_index, 0,
++                static_cast<int>(tab->navigations.size()) - 1);
++            if (tab->navigations[index].virtual_url() == startup.url) return true;
++          }
++        }
++        return false;
++      });
++    }
+ 
+     if (windows->empty()) {
+       // Restore was unsuccessful. The cookie/storage systems can also delete
+--- a/chrome/browser/ui/startup/startup_browser_creator.cc
++++ b/chrome/browser/ui/startup/startup_browser_creator.cc
+@@ -51,6 +51,7 @@
+ #include "chrome/browser/prefs/session_startup_pref.h"
+ #include "chrome/browser/profiles/nuke_profile_directory_utils.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/profiles/shardx_session_policy.h"
+ #include "chrome/browser/profiles/profile_attributes_entry.h"
+ #include "chrome/browser/profiles/profile_attributes_storage.h"
+ #include "chrome/browser/profiles/profile_manager.h"
+@@ -899,6 +900,13 @@
+   DCHECK(profile);
+   const PrefService* prefs = profile->GetPrefs();
+   SessionStartupPref pref = SessionStartupPref::GetStartupPref(prefs);
++  if (!profile->IsOffTheRecord() && !profile->IsGuestSession()) {
++    if (const auto restore = shardx::ManagedSessionRestore(command_line)) {
++      pref.type = *restore ? SessionStartupPref::LAST : SessionStartupPref::DEFAULT;
++      pref.urls.clear();
++      return pref;
++    }
++  }
+ 
+   // IsChromeFirstRun() looks for a sentinel file to determine whether the user
+   // is starting Chrome for the first time. On Chrome OS, the sentinel is stored
+--- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
++++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+@@ -29,6 +29,7 @@
+ #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
+ #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/profiles/shardx_session_policy.h"
+ #include "chrome/browser/profiles/profile_io_data.h"
+ #include "chrome/browser/sessions/session_service.h"
+ #include "chrome/browser/sessions/session_service_factory.h"
+@@ -482,6 +483,8 @@
+     bool restore_tabbed_browser) {
+   const bool is_incognito_or_guest = profile_->IsOffTheRecord();
+   bool is_post_crash_launch = HasPendingUncleanExit(profile_);
++  const bool managed_restore = !is_incognito_or_guest &&
++      shardx::ManagedSessionRestore(*command_line_).value_or(false);
+ 
+   // Defer adding info bars until the browser window is ready. The observer
+   // will delete itself once the infobars are added.
+@@ -497,7 +500,7 @@
+                                    is_first_run, /*is_web_app=*/false,
+                                    is_post_crash_launch, was_restarted);
+           },
+-          *command_line_, is_first_run_, is_post_crash_launch,
++          *command_line_, is_first_run_, is_post_crash_launch && !managed_restore,
+           StartupBrowserCreator::WasRestarted(), base::Unretained(profile_));
+ 
+   StartupInfoBarObserver::ObserveProfile(*profile_,
+@@ -540,7 +543,10 @@
+   if (process_startup == chrome::startup::IsProcessStartup::kYes) {
+     behavior_options |= PROCESS_STARTUP;
+   }
+-  if (is_post_crash_launch) {
++  // A managed opt-in requests the native restore path after a crash too.
++  // ExitTypeService acknowledges recovery when restore actually completes;
++  // no Preferences/exit-type files are forged by the launcher.
++  if (is_post_crash_launch && !managed_restore) {
+     behavior_options |= IS_POST_CRASH_LAUNCH;
+   }
+   if (command_line_->HasSwitch(switches::kOpenInNewWindow)) {
+@@ -619,6 +625,12 @@
+       provider.GetCommandLineTabs(*command_line_, cur_dir_, profile_);
+   LaunchResult launch_result =
+       tabs.empty() ? LaunchResult::kNormally : LaunchResult::kWithGivenUrls;
++  if (!is_incognito_or_guest && shardx::ManagedSessionRestore(*command_line_).has_value()) {
++    // The launcher supplies the environment startup page. Native restore
++    // receives no artificial new tab and disabled restore cannot reopen
++    // pinned tabs or native startup URLs behind the global choice.
++    return {std::move(tabs), launch_result};
++  }
+ 
+   if (whats_new_enabled && (launch_result == LaunchResult::kWithGivenUrls ||
+                             is_incognito_or_guest || is_post_crash_launch)) {
+--- a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
++++ b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
+@@ -3,6 +3,9 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.h"
++#include "chrome/browser/lifetime/application_lifetime.h"
++#include "base/task/single_thread_task_runner.h"
++#include "chrome/browser/profiles/shardx_session_policy.h"
+ 
+ #include <windows.h>
+ 
+@@ -413,6 +416,16 @@
+                                                    WPARAM w_param,
+                                                    LPARAM l_param,
+                                                    LRESULT* result) {
++  static const UINT exit_message = ::RegisterWindowMessageW(shardx::kExitEnvironmentMessage);
++  if (exit_message && message == exit_message && w_param == shardx::kExitEnvironmentAck &&
++      shardx::ManagedSessionRestore(*base::CommandLine::ForCurrentProcess()).has_value()) {
++    // Post the native Exit command after acknowledging the owner. This
++    // preserves the whole session and native beforeunload cancellation.
++    *result = shardx::kExitEnvironmentAck;
++    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE, base::BindOnce(&chrome::AttemptExit));
++    return true;
++  }
+   switch (message) {
+     case WM_ENDSESSION:
+       chrome::SessionEnding();

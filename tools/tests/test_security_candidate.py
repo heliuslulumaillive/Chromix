@@ -286,7 +286,7 @@ class SecurityCandidateTests(unittest.TestCase):
         phase=stage.split("    'Verify' {",1)[1].split("    'Archive' {",1)[0]
         labels=re.findall(r"label='([^']+)'",phase)
         self.assertEqual(set(labels),candidate.NATIVE_VERIFICATION_LABELS)
-        self.assertEqual(len(labels),11)
+        self.assertEqual(len(labels),14)
         self.assertLess(labels.index('security-runtime'),labels.index('accept-security-runtime'))
         self.assertIn("label='accept-security-runtime';depends=@('security-runtime')",phase)
         self.assertLess(stage.index('Invoke-VerificationPlan $checks'),stage.index("Invoke-Owned 'archive'"))

@@ -86,6 +86,22 @@ if (Test-Path -LiteralPath $serviceMetadata -PathType Leaf) {
       }
       Copy-Item -LiteralPath $nativePath -Destination (Join-Path $Bundle 'native-browser-capabilities.json')
     }
+    $cookieKey = 'build/native-cookie-capabilities.json'
+    $expectedCookie = $serviceVariant.preparation_inputs.$cookieKey
+    if ($expectedCookie) {
+      $cookiePath = Join-Path $Repo $cookieKey
+      if ($expectedCookie -cnotmatch '^[0-9a-f]{64}$' -or
+          (Get-FileHash -LiteralPath $cookiePath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $expectedCookie) {
+        throw 'Native cookie contract differs from the prepared source receipt'
+      }
+      $cookie = Get-Content -LiteralPath $cookiePath -Raw | ConvertFrom-Json
+      if ($cookie.schema_version -ne 1 -or $cookie.contract -cne 'shardx-native-cookie-v1' -or
+          $cookie.chromium_version -cne $serviceVariant.chromium_version -or
+          $cookie.build_variant -cne $serviceVariant.build_variant) {
+        throw 'Native cookie contract does not match this kernel'
+      }
+      Copy-Item -LiteralPath $cookiePath -Destination (Join-Path $Bundle 'native-cookie-capabilities.json')
+    }
     if ($contract.lite_retirement) {
       if ($contract.lite_retirement.manifest -cne 'retirement-manifest.json') { throw 'Unexpected retirement manifest path' }
       $retirementKey = 'patches/lite-win156/retirement-manifest.json'

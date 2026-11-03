@@ -35,7 +35,7 @@ class NativeBrowserRecipeTests(unittest.TestCase):
     def test_capability_scope_preserves_user_choices_and_native_history(self):
         contract = json.loads((ROOT / gate.CAPABILITIES).read_text(encoding='utf-8'))
         self.assertEqual(contract['contract'], gate.CONTRACT)
-        self.assertEqual(contract['session_restore_default'], 'chromium-upstream-user-overridable')
+        self.assertEqual(contract['session_restore_default'], 'launcher-explicit-global-choice')
         self.assertEqual(contract['history_retention']['permanent'], 0)
         self.assertFalse(contract['windows_avatar']['manager_image_input'])
         self.assertTrue(contract['windows_avatar']['managed_single_regular_profile'])
