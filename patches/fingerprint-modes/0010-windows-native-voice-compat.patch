@@ -1,0 +1,286 @@
+diff --git a/base/BUILD.gn b/base/BUILD.gn
+--- a/base/BUILD.gn
++++ b/base/BUILD.gn
+@@ -1034,3 +1034,4 @@
+     "uxr_surface_modes.h",
++    "uxr_voice_compat.h",
+     "uxr_cloak_hardware.cc",
+     "uxr_cloak_hardware.h",
+@@ -6677,3 +6678,4 @@
+       "uxr_audio_defaults_tests.cc",
++      "uxr_voice_compat_tests.cc",
+     ]
+     deps = [ ":base" ]
+diff --git a/base/uxr_voice_compat.h b/base/uxr_voice_compat.h
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_voice_compat.h
+@@ -0,0 +1,124 @@
++// Chromium-155 voice metadata compatibility backed by real Windows voices.
++// Google names are compatibility aliases, not Google's network speech service.
++#ifndef BASE_UXR_VOICE_COMPAT_H_
++#define BASE_UXR_VOICE_COMPAT_H_
++
++#include <algorithm>
++#include <array>
++#include <string>
++#include <string_view>
++#include <utility>
++#include <vector>
++
++namespace base::uxr_voice_compat {
++
++struct Alias {
++  const char* name;
++  const char* lang;
++};
++
++inline constexpr std::array<Alias, 19> kAliases = {{
++    {"Google Deutsch", "de-DE"},
++    {"Google US English", "en-US"},
++    {"Google UK English Female", "en-GB"},
++    {"Google UK English Male", "en-GB"},
++    {"Google español", "es-ES"},
++    {"Google español de Estados Unidos", "es-US"},
++    {"Google français", "fr-FR"},
++    {"Google हिन्दी", "hi-IN"},
++    {"Google Bahasa Indonesia", "id-ID"},
++    {"Google italiano", "it-IT"},
++    {"Google 日本語", "ja-JP"},
++    {"Google 한국의", "ko-KR"},
++    {"Google Nederlands", "nl-NL"},
++    {"Google polski", "pl-PL"},
++    {"Google português do Brasil", "pt-BR"},
++    {"Google русский", "ru-RU"},
++    {"Google 普通话（中国大陆）", "zh-CN"},
++    {"Google 粤語（香港）", "zh-HK"},
++    {"Google 國語（臺灣）", "zh-TW"},
++}};
++
++inline const Alias* FindAlias(std::string_view name) {
++  for (const auto& alias : kAliases) {
++    if (name == alias.name)
++      return &alias;
++  }
++  return nullptr;
++}
++
++inline bool EqualLanguage(std::string_view left, std::string_view right) {
++  if (left.size() != right.size())
++    return false;
++  const auto lower = [](char c) { return c >= 'A' && c <= 'Z' ? c + 32 : c; };
++  for (size_t i = 0; i < left.size(); ++i) {
++    if (lower(left[i]) != lower(right[i]))
++      return false;
++  }
++  return true;
++}
++
++inline std::string_view PrimaryLanguage(std::string_view language) {
++  return language.substr(0, language.find('-'));
++}
++
++template <typename Voice>
++const Voice* SelectNativeVoice(const std::vector<Voice>& voices,
++                              std::string_view language) {
++  const Voice* fallback = nullptr;
++  const Voice* same_language = nullptr;
++  for (const auto& voice : voices) {
++    if (!voice.native || voice.remote || voice.name.empty())
++      continue;
++    if (!fallback)
++      fallback = &voice;
++    if (EqualLanguage(voice.lang, language))
++      return &voice;
++    if (!same_language && !voice.lang.empty() &&
++        EqualLanguage(PrimaryLanguage(voice.lang), PrimaryLanguage(language))) {
++      same_language = &voice;
++    }
++  }
++  return same_language ? same_language : fallback;
++}
++
++// Append after the platform inventory, retaining its ordering and default.
++// An unavailable platform backend cannot produce usable aliases.
++template <typename Voice>
++void AppendWindowsCompatibilityVoices(std::vector<Voice>* voices) {
++  const auto native_voices = *voices;
++  for (const auto& alias : kAliases) {
++    if (std::any_of(voices->begin(), voices->end(), [&](const Voice& voice) {
++          return voice.name == alias.name;
++        })) {
++      continue;
++    }
++    const auto* backend = SelectNativeVoice(native_voices, alias.lang);
++    if (!backend)
++      continue;
++    Voice voice = *backend;
++    voice.name = alias.name;
++    voice.lang = alias.lang;
++    // Keep the real backend identity through the controller/worker boundary.
++    voice.native_voice_identifier = backend->name;
++    voice.engine_id.clear();
++    voice.native = true;
++    // Preserve the agreed browser-visible compatibility declaration. The
++    // implementation itself remains local and has no network transport.
++    voice.remote = true;
++    voices->push_back(std::move(voice));
++  }
++}
++
++template <typename Voice>
++const std::string& NativeVoiceName(const Voice& voice) {
++  if (voice.native && voice.remote && FindAlias(voice.name) &&
++      !voice.native_voice_identifier.empty()) {
++    return voice.native_voice_identifier;
++  }
++  return voice.name;
++}
++
++}  // namespace base::uxr_voice_compat
++
++#endif  // BASE_UXR_VOICE_COMPAT_H_
+diff --git a/base/uxr_voice_compat_tests.cc b/base/uxr_voice_compat_tests.cc
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_voice_compat_tests.cc
+@@ -0,0 +1,85 @@
++// Exercises the same header instantiated by the Windows TTS backend.
++#include "base/uxr_voice_compat.h"
++
++#include <cstdio>
++#include <set>
++#include <string>
++#include <vector>
++
++namespace {
++struct TestVoice {
++  std::string name;
++  std::string lang;
++  std::string engine_id;
++  std::set<int> events;
++  bool remote = false;
++  bool native = true;
++  std::string native_voice_identifier;
++  bool operator==(const TestVoice&) const = default;
++};
++}  // namespace
++
++int RunVoiceCompatibilityTests() {
++  using namespace base::uxr_voice_compat;
++  int checks = 0;
++  int failures = 0;
++  const auto check = [&](bool passed, const char* description) {
++    ++checks;
++    if (!passed) {
++      ++failures;
++      std::fprintf(stderr, "Voice compatibility failure: %s\n", description);
++    }
++  };
++  const std::vector<TestVoice> installed = {
++      {"Native Chinese", "zh-CN", "", {1, 2, 3}},
++      {"Native English US", "en-US", "", {1, 2}},
++      {"Native English UK", "en-GB", "", {1, 2}},
++  };
++  auto voices = installed;
++  AppendWindowsCompatibilityVoices(&voices);
++  check(voices.size() == installed.size() + 19, "complete catalog appended");
++  for (size_t i = 0; i < installed.size(); ++i)
++    check(voices[i] == installed[i], "native voice and default order preserved");
++  for (size_t i = 0; i < kAliases.size(); ++i) {
++    const auto& voice = voices[installed.size() + i];
++    check(voice.name == kAliases[i].name && voice.lang == kAliases[i].lang,
++          "catalog names languages and order");
++    check(voice.native && voice.remote && voice.engine_id.empty(),
++          "native routing with compatibility metadata");
++    const auto* selected = SelectNativeVoice(installed, voice.lang);
++    check(selected && NativeVoiceName(voice) == selected->name,
++          "every advertised alias resolves to installed backend");
++    check(selected && voice.events == selected->events,
++          "only real backend events advertised");
++  }
++  check(SelectNativeVoice(installed, "en-GB")->name == "Native English UK",
++        "exact region before primary language");
++  check(SelectNativeVoice(installed, "EN-us")->name == "Native English US",
++        "language tags compare case insensitively");
++  check(SelectNativeVoice(installed, "en-AU")->name == "Native English US",
++        "primary language fallback");
++  check(SelectNativeVoice(installed, "ja-JP")->name == "Native Chinese",
++        "unavailable language uses original platform default");
++  const auto once = voices;
++  AppendWindowsCompatibilityVoices(&voices);
++  check(voices == once, "repeat enumeration has no duplicates or identity drift");
++  check(NativeVoiceName(installed[0]) == installed[0].name,
++        "original native routing unchanged");
++  std::vector<TestVoice> empty;
++  AppendWindowsCompatibilityVoices(&empty);
++  check(empty.empty(), "no inventory without an installed backend");
++  auto remote = installed;
++  for (auto& voice : remote) { voice.native = false; voice.remote = true; }
++  const auto external = remote;
++  AppendWindowsCompatibilityVoices(&remote);
++  check(remote == external, "external providers are never backend candidates");
++  auto collision = installed;
++  collision.push_back({"Google US English", "en-US", "external", {9}, true, false});
++  AppendWindowsCompatibilityVoices(&collision);
++  check(std::count_if(collision.begin(), collision.end(), [](const TestVoice& v) {
++    return v.name == "Google US English";
++  }) == 1, "existing same-name provider is preserved");
++  std::printf("{\"status\":\"%s\",\"voice_compat_checks\":%d,\"failures\":%d}\n",
++              failures ? "failed" : "passed", checks, failures);
++  return failures ? 1 : 0;
++}
+diff --git a/base/uxr_surface_modes_test_main.cc b/base/uxr_surface_modes_test_main.cc
+--- a/base/uxr_surface_modes_test_main.cc
++++ b/base/uxr_surface_modes_test_main.cc
+@@ -15,6 +15,7 @@
+ int RunHardwareGoldenTests();
+ int RunFontAllowlistTests();
+ int RunAudioDefaultsTests();
++int RunVoiceCompatibilityTests();
+ 
+ namespace {
+ using Config = base::flat_map<std::string, std::string>;
+@@ -196,12 +197,14 @@
+     const int hardware = RunHardwareGoldenTests();
+     const int fonts = RunFontAllowlistTests();
+     const int audio_defaults = RunAudioDefaultsTests();
++    const int voices = RunVoiceCompatibilityTests();
+     Check(graphics == 0, "graphics production helper goldens");
+     Check(surfaces == 0, "surface production helper goldens");
+     Check(gpu == 0, "GPU production policy goldens");
+     Check(hardware == 0, "hardware production selector goldens");
+     Check(fonts == 0, "font allowlist production predicate checks");
+     Check(audio_defaults == 0, "audio render defaults production policy checks");
++    Check(voices == 0, "Windows voice compatibility routing checks");
+     NewPolicyChecks();
+   }
+   std::printf("{\"status\":\"%s\",\"configuration_checks\":%u,\"failures\":%u}\n",
+diff --git a/content/browser/speech/tts_win.cc b/content/browser/speech/tts_win.cc
+--- a/content/browser/speech/tts_win.cc
++++ b/content/browser/speech/tts_win.cc
+@@ -26,6 +26,7 @@
+ #include "base/thread_annotations.h"
+ #include "base/threading/sequence_bound.h"
+ #include "base/values.h"
++#include "base/uxr_voice_compat.h"
+ #include "base/win/scoped_co_mem.h"
+ #include "content/browser/speech/tts_platform_impl.h"
+ #include "content/browser/speech/tts_win_utils.h"
+@@ -286,7 +287,7 @@
+     const std::string& parsed_utterance) {
+   CHECK(speech_synthesizer_.Get(), base::NotFatalUntil::M159);
+ 
+-  SetVoiceFromName(voice.name);
++  SetVoiceFromName(base::uxr_voice_compat::NativeVoiceName(voice));
+ 
+   if (params.rate >= 0.0) {
+     // Map our multiplicative range of 0.1x to 10.0x onto Microsoft's
+@@ -631,6 +632,7 @@
+         base::NotFatalUntil::M159);
+   CHECK(platform_initialized_, base::NotFatalUntil::M159);
+   out_voices->insert(out_voices->end(), voices_.begin(), voices_.end());
++  base::uxr_voice_compat::AppendWindowsCompatibilityVoices(out_voices);
+ }
+ 
+ void TtsPlatformImplWin::Shutdown() {

@@ -1,0 +1,383 @@
+--- a/chrome/browser/profiles/profile_shortcut_manager_win.cc
++++ b/chrome/browser/profiles/profile_shortcut_manager_win.cc
+@@ -873,6 +873,10 @@
+ 
+ // static
+ bool ProfileShortcutManager::IsFeatureEnabled() {
++  // The settings WebUI uses this same gate to hide unavailable shortcut
++  // controls. Raw browser shortcuts would bypass managed proxy/identity setup.
++  if (shell_integration::win::IsShardXManagedEnvironment())
++    return false;
+   if (disabled_for_unit_tests)
+     return false;
+ 
+--- /dev/null
++++ b/chrome/browser/profiles/shardx_native_browser_unittest.cc
+@@ -0,0 +1,94 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++
++#include <string>
++
++#include "base/command_line.h"
++#include "base/files/file_path.h"
++#include "base/test/scoped_command_line.h"
++#include "chrome/browser/profiles/profile_shortcut_manager.h"
++#include "chrome/browser/shell_integration_win.h"
++#include "net/base/shardx_environment_controls.h"
++#include "testing/gtest/include/gtest/gtest.h"
++
++namespace {
++
++using shell_integration::win::GetAppUserModelIdForApp;
++using shell_integration::win::GetAppUserModelIdForBrowser;
++using shell_integration::win::IsShardXManagedEnvironment;
++
++TEST(ShardXNativeBrowserTest, ManagedEnvironmentOwnsProfileShellIdentity) {
++  base::test::ScopedCommandLine scoped_command_line;
++  auto* command_line = scoped_command_line.GetProcessCommandLine();
++  command_line->AppendSwitchASCII("shardx-managed-environment",
++                                 "12345678-1234-4234-8234-123456789abc");
++  ASSERT_TRUE(IsShardXManagedEnvironment());
++  const base::FilePath first(
++      FILE_PATH_LITERAL("C:\\one\\engines\\chromix\\Default"));
++  const base::FilePath moved(
++      FILE_PATH_LITERAL("D:\\moved\\engines\\chromix\\Default"));
++  const std::wstring identity = GetAppUserModelIdForBrowser(first);
++  EXPECT_EQ(identity, GetAppUserModelIdForBrowser(moved));
++  EXPECT_LE(identity.size(), 128u);
++  EXPECT_EQ(std::wstring::npos, identity.find(L' '));
++  EXPECT_NE(identity, GetAppUserModelIdForBrowser(
++                          first.DirName().AppendASCII("Profile 1")));
++  EXPECT_NE(
++      GetAppUserModelIdForBrowser(first.DirName().AppendASCII("Profile 1")),
++      GetAppUserModelIdForBrowser(first.DirName().AppendASCII("Profile1")));
++  EXPECT_NE(identity, GetAppUserModelIdForApp(L"test-web-app", first));
++  command_line->AppendSwitchASCII("shardx-managed-environment",
++                                 "12345678-1234-4234-8234-123456789ABC");
++  EXPECT_EQ(identity, GetAppUserModelIdForBrowser(first));
++  command_line->AppendSwitchASCII("shardx-managed-environment",
++                                 "87654321-4321-4321-8321-cba987654321");
++  EXPECT_NE(identity, GetAppUserModelIdForBrowser(first));
++}
++
++TEST(ShardXNativeBrowserTest, InvalidManagedMarkerPreservesNativeIdentity) {
++  base::test::ScopedCommandLine scoped_command_line;
++  auto* command_line = scoped_command_line.GetProcessCommandLine();
++  command_line->RemoveSwitch("shardx-managed-environment");
++  const base::FilePath path(FILE_PATH_LITERAL("C:\\data\\Default"));
++  const std::wstring native_identity = GetAppUserModelIdForBrowser(path);
++  for (const char* invalid : {"", "not-a-uuid", "../Default", "12345678"}) {
++    command_line->AppendSwitchASCII("shardx-managed-environment", invalid);
++    EXPECT_FALSE(IsShardXManagedEnvironment());
++    EXPECT_EQ(native_identity, GetAppUserModelIdForBrowser(path));
++  }
++}
++
++TEST(ShardXNativeBrowserTest, ManagedProfileShortcutsRemainUnavailable) {
++  base::test::ScopedCommandLine scoped_command_line;
++  auto* command_line = scoped_command_line.GetProcessCommandLine();
++  command_line->AppendSwitchASCII("shardx-managed-environment",
++                                 "12345678-1234-4234-8234-123456789abc");
++  command_line->AppendSwitch("enable-profile-shortcut-manager");
++  EXPECT_FALSE(ProfileShortcutManager::IsFeatureEnabled());
++}
++
++TEST(ShardXNativeBrowserTest, BlockedPortParserPreservesBoundsAndDenySemantics) {
++  const auto ports = net::shardx::ParseBlockedPorts("443,80,443,1,65535");
++  ASSERT_TRUE(ports.valid);
++  EXPECT_EQ(4u, ports.ports.size());
++  for (int port : {1, 80, 443, 65535}) {
++    EXPECT_TRUE(ports.Contains(port));
++  }
++  EXPECT_FALSE(ports.Contains(8080));
++  EXPECT_FALSE(net::shardx::ParseBlockedPorts("").Contains(80));
++  for (const char* invalid : {"0", "65536", "-1", " 80", "80,", ",80",
++                              "80,,443", "80x"}) {
++    const auto rejected = net::shardx::ParseBlockedPorts(invalid);
++    EXPECT_FALSE(rejected.valid) << invalid;
++    EXPECT_TRUE(rejected.Contains(80)) << invalid;
++  }
++  std::string too_many;
++  for (int i = 0; i < 257; ++i) {
++    if (i)
++      too_many += ',';
++    too_many += '1';
++  }
++  EXPECT_FALSE(net::shardx::ParseBlockedPorts(too_many).valid);
++}
++
++}  // namespace
+--- a/chrome/browser/shell_integration_win.cc
++++ b/chrome/browser/shell_integration_win.cc
+@@ -28,6 +28,7 @@
+ #include "base/files/file_path.h"
+ #include "base/functional/bind.h"
+ #include "base/functional/callback.h"
++#include "base/hash/sha1.h"
+ #include "base/logging.h"
+ #include "base/memory/weak_ptr.h"
+ #include "base/notreached.h"
+@@ -35,12 +36,14 @@
+ #include "base/strings/strcat.h"
+ #include "base/strings/strcat_win.h"
+ #include "base/strings/string_util.h"
++#include "base/strings/string_number_conversions.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/task/thread_pool.h"
+ #include "base/threading/platform_thread.h"
+ #include "base/time/time.h"
+ #include "base/timer/timer.h"
++#include "base/uuid.h"
+ #include "base/win/com_init_util.h"
+ #include "base/win/registry.h"
+ #include "base/win/scoped_co_mem.h"
+@@ -68,6 +71,34 @@
+ 
+ namespace {
+ 
++// The launcher supplies its persistent environment UUID, never a display name
++// or an installation path. Keep this separate from GetProfileIdFromPath():
++// taskbar-shortcut migration must still inspect unrelated shortcuts natively.
++std::string GetShardXManagedEnvironmentId() {
++  const auto uuid = base::Uuid::ParseCaseInsensitive(
++      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
++          "shardx-managed-environment"));
++  return uuid.is_valid() ? uuid.AsLowercaseString() : std::string();
++}
++
++std::optional<std::wstring> GetShardXManagedAppUserModelId(
++    const std::wstring& app_name,
++    const base::FilePath& profile_path) {
++  const std::string environment = GetShardXManagedEnvironmentId();
++  if (environment.empty() || profile_path.empty())
++    return std::nullopt;
++
++  // AppID is a shell grouping identifier, not an integrity/security digest.
++  // Hash the complete tuple rather than strip punctuation from profile names.
++  // Moving the application or data root keeps the same environment identity.
++  const std::string identity = environment + "\n" +
++      base::ToLowerASCII(profile_path.BaseName().AsUTF8Unsafe()) + "\n" +
++      base::WideToUTF8(app_name);
++  return ShellUtil::BuildAppUserModelId(
++      {install_static::GetBaseAppId(), L"ShardX",
++       base::ASCIIToWide(base::HexEncode(base::SHA1HashString(identity)))});
++}
++
+ // Helper function for GetAppId to generates profile id
+ // from profile path. "profile_id" is composed of sanitized basenames of
+ // user data dir and profile dir joined by a ".".
+@@ -711,6 +742,10 @@
+ 
+ namespace win {
+ 
++bool IsShardXManagedEnvironment() {
++  return !GetShardXManagedEnvironmentId().empty();
++}
++
+ void SetAsDefaultBrowserUsingSystemSettings(
+     base::OnceClosure on_finished_callback) {
+   base::FilePath chrome_exe;
+@@ -742,11 +777,19 @@
+ 
+ std::wstring GetAppUserModelIdForApp(const std::wstring& app_name,
+                                      const base::FilePath& profile_path) {
++  if (const auto managed_id =
++          GetShardXManagedAppUserModelId(app_name, profile_path)) {
++    return *managed_id;
++  }
+   return GetAppUserModelIdImpl(install_static::GetBaseAppId(), app_name,
+                                profile_path);
+ }
+ 
+ std::wstring GetAppUserModelIdForBrowser(const base::FilePath& profile_path) {
++  if (const auto managed_id =
++          GetShardXManagedAppUserModelId(L"browser", profile_path)) {
++    return *managed_id;
++  }
+   return GetAppUserModelIdImpl(
+       std::wstring(),
+       ShellUtil::GetBrowserModelId(InstallUtil::IsPerUserInstall()),
+--- a/chrome/browser/shell_integration_win.h
++++ b/chrome/browser/shell_integration_win.h
+@@ -18,6 +18,10 @@
+ }  // namespace base::win
+ 
+ namespace shell_integration::win {
++// True only for the launcher's valid persistent environment UUID. This marker
++// controls shell ownership; it does not grant web permissions or sign-in access.
++bool IsShardXManagedEnvironment();
++
+ 
+ // Initiates the interaction with the system settings for the default browser.
+ // The function takes care of making sure |on_finished_callback| will get called
+--- a/chrome/browser/taskbar/taskbar_decorator_win.cc
++++ b/chrome/browser/taskbar/taskbar_decorator_win.cc
+@@ -26,6 +26,7 @@
+ #include "chrome/browser/profiles/profile_attributes_storage.h"
+ #include "chrome/browser/profiles/profile_avatar_icon_util.h"
+ #include "chrome/browser/profiles/profile_manager.h"
++#include "chrome/browser/shell_integration_win.h"
+ #include "skia/ext/font_utils.h"
+ #include "skia/ext/image_operations.h"
+ #include "skia/ext/legacy_display_globals.h"
+@@ -193,12 +194,17 @@
+ }
+ 
+ void UpdateTaskbarDecoration(Profile* profile, gfx::NativeWindow window) {
++  // Each managed environment owns a separate user-data root. Even a single
++  // regular profile therefore needs its native avatar to identify its window.
++  const bool managed_avatar =
++      shell_integration::win::IsShardXManagedEnvironment() &&
++      profile->IsRegularProfile();
+   if (profile->IsGuestSession() ||
+       // Browser process and profile manager may be null in tests.
+       (g_browser_process && g_browser_process->profile_manager() &&
+        g_browser_process->profile_manager()
+                ->GetProfileAttributesStorage()
+-               .GetNumberOfProfiles() <= 1)) {
++               .GetNumberOfProfiles() <= 1 && !managed_avatar)) {
+     taskbar::DrawTaskbarDecoration(window, nullptr);
+     return;
+   }
+--- a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
++++ b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
+@@ -22,6 +22,7 @@
+ #include "chrome/browser/lifetime/application_lifetime_desktop.h"
+ #include "chrome/browser/profiles/profile_avatar_icon_util.h"
+ #include "chrome/browser/profiles/profile_manager.h"
++#include "chrome/browser/shell_integration_win.h"
+ #include "chrome/browser/themes/theme_service.h"
+ #include "chrome/browser/themes/theme_service_factory.h"
+ #include "chrome/browser/ui/ui_features.h"
+@@ -392,12 +393,13 @@
+       BrowserWindowPropertyManager::CreateBrowserWindowPropertyManager(
+           browser_view_, GetHWND());
+ 
+-  // Use the profile icon as the browser window icon, if there is more
+-  // than one profile. This makes alt-tab preview tabs show the profile-specific
+-  // icon in the multi-profile case.
+-  if (g_browser_process->profile_manager()
+-          ->GetProfileAttributesStorage()
+-          .GetNumberOfProfiles() > 1) {
++  // Use Chromium's profile image for managed environments, including a
++  // single regular profile. Other browsers retain native multi-profile badging.
++  if ((shell_integration::win::IsShardXManagedEnvironment() &&
++       browser_view_->browser()->GetProfile()->IsRegularProfile()) ||
++      g_browser_process->profile_manager()
++              ->GetProfileAttributesStorage()
++              .GetNumberOfProfiles() > 1) {
+     SetWindowIcon(/*badged=*/true);
+   }
+ }
+@@ -555,14 +557,16 @@
+ 
+ void BrowserDesktopWindowTreeHostWin::OnProfileAvatarChanged(
+     const base::FilePath& profile_path) {
+-  // If we're currently badging the window icon (>1 available profile),
+-  // and this window's profile's avatar changed, update the window icon.
++  // Update the native image for this window's profile, including managed
++  // single-profile windows.
+   CHECK(browser_view_);
+   if (browser_view_->browser()->GetProfile()->GetPath() == profile_path &&
+-      g_browser_process->profile_manager()
+-              ->GetProfileAttributesStorage()
+-              .GetNumberOfProfiles() > 1) {
+-    // If we went from 1 to 2 profiles, window icons should be badged.
++      ((shell_integration::win::IsShardXManagedEnvironment() &&
++        browser_view_->browser()->GetProfile()->IsRegularProfile()) ||
++       g_browser_process->profile_manager()
++               ->GetProfileAttributesStorage()
++               .GetNumberOfProfiles() > 1)) {
++    // Profile avatar changes also update managed single-profile windows.
+     SetWindowIcon(/*badged=*/true);
+   }
+ }
+@@ -582,8 +586,11 @@
+   if (g_browser_process->profile_manager()
+           ->GetProfileAttributesStorage()
+           .GetNumberOfProfiles() == 1) {
+-    // If we went from 2 profiles to 1, window icons should not be badged.
+-    SetWindowIcon(/*badged=*/false);
++    // Ordinary single-profile windows lose the badge; managed environments
++    // retain their own native profile image.
++    SetWindowIcon(
++        /*badged=*/shell_integration::win::IsShardXManagedEnvironment() &&
++        browser_view_->browser()->GetProfile()->IsRegularProfile());
+   }
+ }
+ 
+--- a/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
++++ b/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
+@@ -3,6 +3,14 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/ui/views/frame/browser_window_property_manager_win.h"
++
++// clang-format off
++#include <shlobj.h>  // Must precede propkey.h.
++// clang-format on
++#include <propkey.h>
++#include <shellapi.h>
++#include <wrl/client.h>
++#include <initializer_list>
+ 
+ #include "base/command_line.h"
+ #include "base/functional/bind.h"
+@@ -25,6 +33,21 @@
+ #include "ui/views/win/hwnd_util.h"
+ 
+ using extensions::ExtensionRegistry;
++
++namespace {
++void ClearManagedRelaunchDetails(HWND hwnd) {
++  Microsoft::WRL::ComPtr<IPropertyStore> properties;
++  if (FAILED(SHGetPropertyStoreForWindow(hwnd, IID_PPV_ARGS(&properties))))
++    return;
++  const PROPVARIANT empty = {};
++  for (const PROPERTYKEY& key : {PKEY_AppUserModel_RelaunchCommand,
++                                PKEY_AppUserModel_RelaunchDisplayNameResource,
++                                PKEY_AppUserModel_RelaunchIconResource}) {
++    properties->SetValue(key, empty);
++  }
++  properties->Commit();
++}
++}  // namespace
+ 
+ BrowserWindowPropertyManager::BrowserWindowPropertyManager(
+     const BrowserView* view,
+@@ -71,6 +94,15 @@
+                 profile->GetPath())
+           : shell_integration::win::GetAppUserModelIdForBrowser(
+                 profile->GetPath());
++  if (shell_integration::win::IsShardXManagedEnvironment()) {
++    // A raw chrome.exe relaunch omits the manager's proxy/identity contract.
++    // Keep this in Chromium's native property-update lifecycle so profile-icon
++    // changes cannot reinstall a bypassing relaunch command later.
++    ClearManagedRelaunchDetails(hwnd_);
++    ui::win::PreventWindowFromPinning(hwnd_);
++    ui::win::SetAppIdForWindow(app_id, hwnd_);
++    return;
++  }
+   // Apps set their relaunch details based on app's details.
+   if (browser->GetType() == BrowserWindowInterface::Type::TYPE_APP ||
+       browser->GetType() == BrowserWindowInterface::Type::TYPE_APP_POPUP) {
+--- a/chrome/test/BUILD.gn
++++ b/chrome/test/BUILD.gn
+@@ -4696,6 +4696,7 @@
+   test("native_passkey_unittests") {
+     sources = [
+       "base/run_all_unittests.cc",
++      "../browser/profiles/shardx_native_browser_unittest.cc",
+       "../../device/fido/win/authenticator_unittest.cc",
+       "../browser/webauthn/authenticator_request_dialog_model_unittest.cc",
+     ]
+@@ -4739,6 +4740,7 @@
+       "//device/fido:test_support",
+       "//mojo/core/embedder",
+       "//mojo/core/test:test_support",
++      "//net",
+       "//testing/gmock",
+       "//testing/gtest",
+       "//ui/base",

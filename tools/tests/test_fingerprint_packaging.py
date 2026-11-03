@@ -1,0 +1,143 @@
+"""Exercise real staging/inventory guards with explicitly synthetic tiny payloads."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parents[2]
+PWSH = shutil.which("pwsh")
+
+
+@unittest.skipUnless(PWSH, "PowerShell 7 is required for Windows packaging")
+class FingerprintPackagingTest(unittest.TestCase):
+    def test_capabilities_are_staged_before_inventory_and_cannot_change_during_validation(self):
+        for variant in (None, 'fingerprint-modes-win155', 'fingerprint-modes-win156'):
+            fingerprint = variant is not None
+            version = '156.0.8078.79' if variant == 'fingerprint-modes-win156' else '155.0.8059.39'
+            with self.subTest(fingerprint=fingerprint), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                repo, work, dest = root / "repo", root / "work", root / "dist"
+                out = work / "src/out/Default"
+                out.mkdir(parents=True)
+                for relative in ("build/windows/package-win.ps1", "tools/write_google_services_build_record.py"):
+                    target = repo / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(ROOT / relative, target)
+                (repo / "LICENSE").write_text("Synthetic packaging test license\n")
+                (work / "src/LICENSE").write_text("Synthetic Chromium input fixture\n")
+                source = {
+                    "variant": "google-services-self-use", "chromium_version": version,
+                    "patch_sha256": "1" * 64, "preparation_sha256": "2" * 64,
+                }
+                if fingerprint:
+                    source["build_variant"] = variant
+                (work / "google-services-source.json").write_text(json.dumps(source))
+                capability = json.loads((ROOT / "build/fingerprint-modes-capabilities.json").read_bytes())
+                retirement_bytes = None
+                native_bytes = None
+                if variant == 'fingerprint-modes-win156':
+                    key = 'patches/lite-win156/retirement-manifest.json'
+                    retirement_bytes = (ROOT / key).read_bytes()
+                    (repo / key).parent.mkdir(parents=True, exist_ok=True)
+                    (repo / key).write_bytes(retirement_bytes)
+                    source['preparation_inputs'] = {key: hashlib.sha256(retirement_bytes).hexdigest()}
+                    native_key = 'build/native-browser-capabilities.json'
+                    native_bytes = (ROOT / native_key).read_bytes()
+                    (repo / native_key).write_bytes(native_bytes)
+                    source['preparation_inputs'][native_key] = hashlib.sha256(native_bytes).hexdigest()
+                    (work / 'google-services-source.json').write_text(json.dumps(source))
+                else:
+                    capability.pop('lite_retirement', None)
+                if fingerprint:
+                    capability.update(build_variant=variant, chromium_version=version)
+                capability_bytes = json.dumps(capability).encode()
+                (repo / "build/fingerprint-modes-capabilities.json").write_bytes(capability_bytes)
+                for name in (
+                        "chrome.exe", "chrome_elf.dll", "chrome_100_percent.pak",
+                        "chrome_200_percent.pak", "resources.pak", "icudtl.dat",
+                        "libEGL.dll", "libGLESv2.dll", "v8_context_snapshot.bin",
+                        "chrome.exe.manifest"):
+                    (out / name).write_bytes(b"synthetic packaging fixture - not an executable")
+                script = (repo / "build/windows/package-win.ps1").read_text()
+                # Only exercise the packaging contract, not PE/Chromium execution.
+                markers = re.findall(r'"([^"\r\n]*(?:uxr-webgl-|Google Inc\.|ANGLE \()[^"\r\n]*)"', script)
+                (out / "chrome.dll").write_bytes("\n".join(markers).encode())
+                (out / "locales").mkdir()
+                (out / "locales/en-US.pak").write_bytes(b"synthetic locale")
+                (out / "args.gn").write_text("is_debug = false\n")
+                environment = {**os.environ, "GITHUB_SHA": "a" * 40, "GITHUB_RUN_ID": "42",
+                               "GITHUB_REPOSITORY": "fixture/packaging", "GITHUB_RUN_ATTEMPT": "1"}
+
+                def invoke(*options):
+                    return subprocess.run(
+                        [PWSH, "-NoProfile", "-NonInteractive", "-File",
+                         str(repo / "build/windows/package-win.ps1"),
+                         "-Out", str(out), "-Dest", str(dest), "-Arch", "x64", *options],
+                        env=environment, capture_output=True, text=True, encoding="utf-8",
+                        timeout=45)
+
+                if native_bytes:
+                    (repo / native_key).write_bytes(native_bytes + b'\n')
+                    rejected = invoke('-SkipArchive')
+                    self.assertNotEqual(rejected.returncode, 0)
+                    self.assertIn('Native browser contract differs', rejected.stderr + rejected.stdout)
+                    (repo / native_key).write_bytes(native_bytes)
+                    wrong_version = json.loads(native_bytes)
+                    wrong_version['chromium_version'] = '155.0.8059.39'
+                    wrong_bytes = json.dumps(wrong_version).encode()
+                    (repo / native_key).write_bytes(wrong_bytes)
+                    source['preparation_inputs'][native_key] = hashlib.sha256(wrong_bytes).hexdigest()
+                    (work / 'google-services-source.json').write_text(json.dumps(source))
+                    rejected = invoke('-SkipArchive')
+                    self.assertNotEqual(rejected.returncode, 0)
+                    self.assertIn('Native browser contract does not match', rejected.stderr + rejected.stdout)
+                    (repo / native_key).write_bytes(native_bytes)
+                    source['preparation_inputs'][native_key] = hashlib.sha256(native_bytes).hexdigest()
+                    (work / 'google-services-source.json').write_text(json.dumps(source))
+                stage = invoke("-SkipArchive")
+                self.assertEqual(stage.returncode, 0, stage.stdout + stage.stderr)
+                bundle = dest / "chromix"
+                record_path = bundle / "google-services-build.json"
+                record = json.loads(record_path.read_text())
+                receipt_hash = hashlib.sha256(record_path.read_bytes()).hexdigest()
+                name = "fingerprint-modes-capabilities.json"
+                self.assertEqual((bundle / name).exists(), fingerprint)
+                self.assertEqual(name in record["files"], fingerprint)
+                if native_bytes:
+                    native_name = 'native-browser-capabilities.json'
+                    self.assertEqual((bundle / native_name).read_bytes(), native_bytes)
+                    self.assertEqual(record['files'][native_name], hashlib.sha256(native_bytes).hexdigest())
+                    (bundle / native_name).write_bytes(native_bytes + b'\n')
+                    rejected = invoke('-ArchiveOnly', '-ExpectedBuildRecordSHA256', receipt_hash)
+                    self.assertNotEqual(rejected.returncode, 0)
+                    self.assertFalse((dest / 'chromix-win-x64.zip').exists())
+                    (bundle / native_name).write_bytes(native_bytes)
+                if retirement_bytes:
+                    self.assertEqual((bundle / 'retirement-manifest.json').read_bytes(), retirement_bytes)
+                    self.assertEqual(record['files']['retirement-manifest.json'], hashlib.sha256(retirement_bytes).hexdigest())
+                    (bundle / 'retirement-manifest.json').write_bytes(retirement_bytes + b'\n')
+                    tampered = invoke('-ArchiveOnly', '-ExpectedBuildRecordSHA256', receipt_hash)
+                    self.assertNotEqual(tampered.returncode, 0)
+                    self.assertFalse((dest / 'chromix-win-x64.zip').exists())
+                    (bundle / 'retirement-manifest.json').write_bytes(retirement_bytes)
+                if fingerprint:
+                    self.assertEqual((bundle / name).read_bytes(), capability_bytes)
+                    self.assertEqual(record["files"][name], hashlib.sha256(capability_bytes).hexdigest())
+                    (bundle / name).write_bytes(capability_bytes + b"\n")
+                    changed = invoke("-ArchiveOnly", "-ExpectedBuildRecordSHA256", receipt_hash)
+                    self.assertNotEqual(changed.returncode, 0)
+                    self.assertFalse((dest / "chromix-win-x64.zip").exists())
+                    (bundle / name).write_bytes(capability_bytes)
+                archive = invoke("-ArchiveOnly", "-ExpectedBuildRecordSHA256", receipt_hash)
+                self.assertEqual(archive.returncode, 0, archive.stdout + archive.stderr)
+                self.assertTrue((dest / "chromix-win-x64.zip").is_file())
+                self.assertEqual(hashlib.sha256(record_path.read_bytes()).hexdigest(), receipt_hash)
+
+
+if __name__ == "__main__":
+    unittest.main()

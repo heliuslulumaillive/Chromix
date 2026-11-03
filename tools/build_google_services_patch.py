@@ -1,0 +1,390 @@
+#!/usr/bin/env python3
+"""Build a focused restoration patch from pinned Chromium and patch inputs.
+
+The two scratch trees reproduce the same existing Windows/Chromix layers.
+Only the configured Google-service removals differ; fingerprints and Windows
+data-encryption behavior stay in both trees. No account credentials are used.
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+from concurrent.futures import ThreadPoolExecutor
+import difflib
+import hashlib
+import json
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import time
+from urllib.request import Request, urlopen
+
+sys.dont_write_bytecode = True
+from patch_selection import select
+from restored_source_resources import resources as restored_resources
+from google_services_inputs import (PinnedSourceCache, aggregate_inputs, identity,
+                                    owned, plain, write_if_changed)
+
+HEADER = re.compile(r"^--- (a/[^\r\n]+|/dev/null)\r?\n\+\+\+ (b/[^\r\n]+|/dev/null)\r?\n", re.M)
+HUNK = re.compile(r"^@@ [^\n]+\n", re.M)
+INCLUDE = re.compile(r'^#include "([^"\n]+)"\n', re.M)
+
+
+def webrtc_revision_from_deps(data: bytes) -> str:
+    """Read the fixed git dependency without evaluating remote DEPS Python."""
+    text = data.decode('utf-8')
+    if not re.search(r"'webrtc_git'\s*:\s*'https://webrtc\.googlesource\.com'", text):
+        raise ValueError('Unexpected WebRTC repository in pinned Chromium DEPS')
+    match = re.search(
+        r"'src/third_party/webrtc'\s*:\s*Var\('webrtc_git'\)\s*\+\s*'/src\.git'\s*\+\s*'@'\s*\+\s*'([a-f0-9]{40})'",
+        text,
+    )
+    if not match:
+        raise ValueError('Missing fixed WebRTC revision in pinned Chromium DEPS')
+    return match[1]
+
+
+def v8_revision_from_deps(data: bytes) -> str:
+    text = data.decode('utf-8')
+    if not re.search(r"'chromium_git'\s*:\s*'https://chromium\.googlesource\.com'", text):
+        raise ValueError('Unexpected V8 repository in pinned Chromium DEPS')
+    if not re.search(r"'src/v8'\s*:\s*Var\('chromium_git'\)\s*\+\s*'/v8/v8\.git'\s*\+\s*'@'\s*\+\s*Var\('v8_revision'\)", text):
+        raise ValueError('Unexpected V8 dependency expression')
+    match = re.search(r"'v8_revision'\s*:\s*'([a-f0-9]{40})'", text)
+    if not match:
+        raise ValueError('Missing fixed V8 revision in pinned Chromium DEPS')
+    return match[1]
+
+
+def search_engines_revision_from_deps(data: bytes) -> str:
+    """The search definition data is a separate pinned checkout, not src.git."""
+    text = data.decode('utf-8')
+    if not re.search(r"'chromium_git'\s*:\s*'https://chromium\.googlesource\.com'", text):
+        raise ValueError('Unexpected Chromium repository in pinned DEPS')
+    match = re.search(
+        r"'src/third_party/search_engines_data/resources'\s*:\s*"
+        r"Var\('chromium_git'\)\s*\+\s*'/external/search_engines_data\.git'\s*"
+        r"\+\s*'@'\s*\+\s*'([a-f0-9]{40})'", text)
+    if not match:
+        raise ValueError('Missing fixed search engine data revision in pinned Chromium DEPS')
+    return match[1]
+
+
+def prune_selected_sources(tree: Path, paths, *, keep=()):
+    """Replay pruning for the selected inputs before the patch layers."""
+    root = tree.resolve()
+    for name in sorted(set(paths) - set(keep)):
+        path = (root / name).resolve()
+        if not path.is_relative_to(root) or path == root:
+            raise ValueError('Pruning path escapes the replay tree')
+        if path.exists():
+            path.unlink()
+
+
+def filter_pruned_includes(baseline: str, restored: str, unavailable):
+    """Do not revive a removed header through a mixed sign-in cleanup hunk."""
+    removed = []
+    def keep(match):
+        if match[1] in unavailable and match[0] not in baseline:
+            removed.append(match[1])
+            return ''
+        return match[0]
+    return INCLUDE.sub(keep, restored), removed
+
+
+def retain_hunks(section: str, restore_markers: list[str]) -> str:
+    """Omit only reviewed cleanup hunks; preserve unrelated feature removals."""
+    matches = list(HUNK.finditer(section))
+    kept = []
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(section)
+        hunk = section[match.start():end]
+        changes = '\n'.join(line[1:] for line in hunk.splitlines() if line.startswith(('+', '-')))
+        if not any(marker in changes for marker in restore_markers):
+            kept.append(hunk)
+    return section[:matches[0].start()] + ''.join(kept) if kept else ''
+
+
+def sections(data: str):
+    matches = list(HEADER.finditer(data))
+    for index, match in enumerate(matches):
+        name = match[2][2:] if match[2] != "/dev/null" else match[1][2:]
+        if name.startswith("/") or ".." in Path(name).parts:
+            raise ValueError("Unsafe patch source path")
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(data)
+        # A diff --git header belongs to the following file, not this section.
+        text = data[match.start():end]
+        text = re.split(r"^diff --git ", text, flags=re.M)[0]
+        yield name, match[1] == "/dev/null", text
+
+
+def patch_series(root: Path):
+    for line in (root / "patches/series").read_text().splitlines():
+        name = line.split("#", 1)[0].strip()
+        if name:
+            yield name, (root / "patches" / name).read_text(encoding="utf-8")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--repo", type=Path, required=True)
+    parser.add_argument("--core", type=Path, required=True)
+    parser.add_argument("--windows", type=Path, required=True)
+    parser.add_argument("--work", type=Path, required=True)
+    parser.add_argument("--patch-bin", required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--download-workers", type=int, default=8)
+    parser.add_argument('--source-cache', type=Path, action='append', default=[],
+                        help='Read-only pristine tree; pair each occurrence with a source-cache-receipt')
+    parser.add_argument('--source-cache-receipt', type=Path, action='append', default=[],
+                        help='Same-version receipt with exact source_inputs hashes (or files rows)')
+    parser.add_argument('--deps-cache', type=Path,
+                        help='Pinned DEPS bytes, verified against the source receipt before reuse')
+    parser.add_argument("--verify-all-baseline", action="store_true",
+                        help="Replay every selected Windows 156 baseline patch target")
+    args = parser.parse_args()
+    if not 1 <= args.download_workers <= 16:
+        parser.error('--download-workers must be between 1 and 16')
+    if len(args.source_cache) != len(args.source_cache_receipt):
+        parser.error('Pair every --source-cache with one --source-cache-receipt')
+    args.work, args.output = plain(args.work), plain(args.output)
+    for variant in ('baseline', 'restored'):
+        if owned(args.work, variant).exists():
+            raise FileExistsError('Use a fresh work directory: ' + str(args.work / variant))
+    config = json.loads((args.repo / "build/google-services-win155.json").read_text())
+    if args.verify_all_baseline and config['chromium_version'].split('.')[0] != '156':
+        parser.error('--verify-all-baseline currently requires Windows Chromium 156')
+    removed = set(config["remove_patches"])
+    restore = {k: set(v) for k, v in config["restore_sections"].items()}
+    restore_hunks = config.get("restore_hunks", {})
+    windows_restore = {k: set(v) for k, v in config.get("restore_windows_sections", {}).items()}
+    pruning_file = args.core / 'pruning.list'
+    pruning_data = pruning_file.read_bytes().replace(b'\r\n', b'\n')
+    pruned = {line.strip() for line in pruning_data.decode().splitlines() if line.strip() and not line.startswith('#')}
+    restored_pruned = set(config.get('restore_pruned_sources', []))
+    binary_resources = restored_resources(args.repo, config)
+    if not restored_pruned.issubset(pruned):
+        raise ValueError('Requested pruned sources do not match the pinned pruning list')
+    if not set(binary_resources).issubset(restored_pruned):
+        raise ValueError('Binary restoration must name explicitly restored pruned sources')
+    core = list(patch_series(args.core))
+    windows = list(patch_series(args.windows))
+    selection, chromix_bytes = select(args.repo, "windows")
+    generation_inputs = aggregate_inputs(args.repo, config, selection)
+    source_cache = PinnedSourceCache(config['chromium_version'],
+                                    zip(args.source_cache, args.source_cache_receipt))
+    chromix = [(name, data.decode()) for name, data in chromix_bytes]
+    targets = set(config["extra_sources"])
+    baseline_targets = {path for _, data in chromix for path, _, _ in sections(data)}
+    if args.verify_all_baseline:
+        targets.update(baseline_targets)
+    overlays = []
+    for name in config.get('restoration_overlays', []):
+        patch = (args.repo / name).resolve()
+        if not patch.is_relative_to(args.repo.resolve()) or not patch.is_file():
+            raise ValueError('Restoration overlay must be a repository file')
+        overlays.append(patch)
+        targets.update(path for path, _, _ in sections(patch.read_text()))
+    targets.update(restored_pruned)
+    for name, data in core:
+        if name in removed:
+            targets.update(path for path, _, _ in sections(data))
+        targets.update(restore.get(name, set()))
+        targets.update(restore_hunks.get(name, {}))
+    for name, _ in windows:
+        targets.update(windows_restore.get(name, set()))
+    # Keep the existing flag definitions for backward-compatible startup args.
+    # Restoring service behavior does not require removing their UI scaffolding.
+    targets = {p for p in targets if not re.match(r"chrome/browser/(?:ungoogled|bromite)_.*\.h$", p)}
+    if args.verify_all_baseline and not baseline_targets.issubset(targets):
+        raise ValueError('The full baseline replay cannot exclude selected patch targets')
+    all_patches = [("core", *p) for p in core] + [("windows", *p) for p in windows] + [("chromix", *p) for p in chromix]
+    created = {path for _, _, data in all_patches for path, new, _ in sections(data) if new and path in targets}
+    # Overlay-only sources have no upstream Chromium file to download. They
+    # must remain absent in the baseline so the final patch creates them.
+    created.update(path for overlay in overlays
+                   for path, new, _ in sections(overlay.read_text(encoding="utf-8"))
+                   if new and path in targets)
+    pristine = args.work / "pristine"
+    pristine.mkdir(parents=True, exist_ok=True)
+    external_source_pins = {}
+    external_roots = ('third_party/webrtc', 'v8', 'third_party/search_engines_data/resources')
+    if any(name.startswith(tuple(prefix + '/' for prefix in external_roots)) for name in targets - created):
+        deps_url = f"https://raw.githubusercontent.com/chromium/chromium/{config['chromium_version']}/DEPS"
+        def download_deps():
+            with urlopen(Request(deps_url, headers={"User-Agent": "Chromix-Google-services"}), timeout=40) as response:
+                return response.read()
+        deps_data = source_cache.deps(owned(args.work, 'chromium-DEPS'), download_deps,
+                                      args.deps_cache)
+        for prefix, repository, parse in (
+            ('third_party/webrtc', 'https://webrtc.googlesource.com/src', webrtc_revision_from_deps),
+            ('v8', 'https://chromium.googlesource.com/v8/v8', v8_revision_from_deps),
+            ('third_party/search_engines_data/resources',
+             'https://chromium.googlesource.com/external/search_engines_data.git',
+             search_engines_revision_from_deps),
+        ):
+            if any(name.startswith(prefix + '/') for name in targets - created):
+                external_source_pins[prefix] = {
+                    'repository': repository, 'revision': parse(deps_data),
+                    'chromium_deps_sha256': hashlib.sha256(deps_data).hexdigest(),
+                }
+
+    def fetch(name):
+        dependency = next((prefix for prefix in external_source_pins if name.startswith(prefix + '/')), None)
+        external = dependency is not None
+        if external:
+            pin = external_source_pins[dependency]
+            relative = name.removeprefix(dependency + '/')
+            url = f"{pin['repository']}/+/{pin['revision']}/{relative}?format=TEXT"
+        else:
+            url = f"https://raw.githubusercontent.com/chromium/chromium/{config['chromium_version']}/{name}"
+        def download():
+            for attempt in range(3):
+                try:
+                    with urlopen(Request(url, headers={"User-Agent": "Chromix-Google-services"}), timeout=40) as response:
+                        data = response.read()
+                    if external:
+                        data = base64.b64decode(data.strip(), validate=True)
+                    return data
+                except Exception as error:
+                    if attempt == 2:
+                        raise RuntimeError('Cannot fetch pinned source: ' + name) from error
+                    time.sleep(attempt + 1)
+        data = source_cache.materialize(pristine, name, download,
+                                        external=external_source_pins.get(dependency))
+        result = {"path": name, "sha256": hashlib.sha256(data).hexdigest()}
+        if external:
+            result.update(upstream_repository=pin['repository'], upstream_revision=pin['revision'])
+        return result
+
+    with ThreadPoolExecutor(max_workers=args.download_workers) as pool:
+        sources = list(pool.map(fetch, sorted(targets - created)))
+    for name, expected in binary_resources.items():
+        if (pristine / name).read_bytes() != expected:
+            raise ValueError('Pinned binary resource differs from target Chromium: ' + name)
+    trees = []
+    replay_counts = {}
+    for variant in ("baseline", "restored"):
+        tree = args.work / variant
+        if tree.exists():
+            raise FileExistsError(f"Use a fresh work directory: {tree}")
+        shutil.copytree(pristine, tree)
+        prune_selected_sources(tree, targets & pruned, keep=restored_pruned if variant == 'restored' else ())
+        count = 0
+        layer_counts = {'core': 0, 'windows': 0, 'chromix': 0}
+        for layer, name, data in all_patches:
+            selected = []
+            for path, _, section in sections(data):
+                if path not in targets:
+                    continue
+                if variant == "restored" and layer == "core" and (name in removed or path in restore.get(name, set())):
+                    continue
+                if variant == "restored" and layer == "windows" and path in windows_restore.get(name, set()):
+                    continue
+                if variant == "restored" and layer == "core" and path in restore_hunks.get(name, {}):
+                    section = retain_hunks(section, restore_hunks[name][path])
+                    if not section:
+                        continue
+                selected.append(section)
+            if not selected:
+                continue
+            patch = args.work / "current.patch"
+            patch.write_text("".join(selected), encoding="utf-8", newline="\n")
+            run = subprocess.run([args.patch_bin, "-p1", "--batch", "--forward", "--fuzz=0", "--no-backup-if-mismatch", "-i", str(patch.resolve())], cwd=tree, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+            if run.returncode:
+                raise RuntimeError(f"{variant}: {layer}/{name}\n{run.stdout}{run.stderr}")
+            count += 1
+            layer_counts[layer] += 1
+        if args.verify_all_baseline and layer_counts['chromix'] != len(chromix):
+            raise ValueError('Full replay did not apply every selected baseline patch')
+        replay_counts[variant] = layer_counts
+        trees.append(tree)
+        print(f"{variant}: replayed {count} relevant patch fragments", flush=True)
+
+    for patch in overlays:
+        command = [args.patch_bin, '-p1', '--batch', '--forward', '--fuzz=0',
+                   '--no-backup-if-mismatch', '-i', str(patch)]
+        for extra in (['--dry-run'], []):
+            run = subprocess.run(command + extra, cwd=trees[1], capture_output=True,
+                                 text=True, encoding='utf-8', errors='replace', timeout=30)
+            if run.returncode:
+                raise RuntimeError(f'Restoration overlay {patch.name}:\n{run.stdout}{run.stderr}')
+
+    generation = trees[1] / "components/password_manager/core/browser/password_feature_manager_impl.cc"
+    text = generation.read_text()
+    before = "case sync_util::SyncState::kNotActive:\n      return false;"
+    after = "case sync_util::SyncState::kNotActive:\n      // The caller separately checks whether saving and filling are enabled.\n      // Local-only profiles can generate passwords without cloud enrollment.\n      return true;"
+    if text.count(before) != 1:
+        raise ValueError("Password-generation source changed")
+    generation.write_text(text.replace(before, after), encoding="utf-8", newline="\n")
+
+    # The security-events implementation already depends on sync. Add it to
+    # the browser aggregate so restored sync callers link without a GN cycle.
+    browser_build = trees[1] / "chrome/browser/BUILD.gn"
+    text = browser_build.read_text()
+    before = ('    "//chrome/browser/search_provider_logos",\n'
+              '    "//chrome/browser/segmentation_platform",\n')
+    after = ('    "//chrome/browser/search_provider_logos",\n'
+             '    "//chrome/browser/security_events",\n'
+             '    "//chrome/browser/segmentation_platform",\n')
+    if text.count(before) != 1:
+        raise ValueError("Browser implementation dependency list changed")
+    browser_build.write_text(text.replace(before, after), encoding="utf-8", newline="\n")
+
+    removed_includes = {}
+    for name in sorted(targets):
+        old, new = trees[0] / name, trees[1] / name
+        if new.suffix not in {'.cc', '.h'} or not new.is_file():
+            continue
+        text, removed = filter_pruned_includes(old.read_text() if old.exists() else '', new.read_text(), pruned - restored_pruned)
+        if removed:
+            new.write_text(text, encoding='utf-8', newline='\n')
+            removed_includes[name] = removed
+
+    # Keep the unrelated Safe Browsing tracked-pref removal in this mixed hunk.
+    factory = trees[1] / "chrome/browser/prefs/chrome_pref_service_factory.cc"
+    if factory.exists() and not config.get('security_restoration'):
+        text = factory.read_text()
+        unrelated = [
+            '    {18, prefs::kSafeBrowsingIncidentsSent, EnforcementLevel::ENFORCE_ON_LOAD,\n'
+            '     PrefTrackingStrategy::ATOMIC, ValueType::IMPERSONAL},\n',
+        ]
+        for value in unrelated:
+            if text.count(value) != 1:
+                raise ValueError('The mixed preference cleanup changed')
+            text = text.replace(value, '')
+        factory.write_text(text, encoding='utf-8', newline='\n')
+
+    differences, changed = [], []
+    for name in sorted(targets):
+        old, new = trees[0] / name, trees[1] / name
+        # Binary restoration is separately content-bound and materialized by
+        # preparation. Never pass NUL-containing protobuf bytes to GNU patch.
+        if name in binary_resources:
+            if old.exists() or not new.is_file() or new.read_bytes() != binary_resources[name]:
+                raise ValueError('Unexpected binary resource replay state: ' + name)
+            continue
+        a = old.read_text().splitlines(keepends=True) if old.exists() else []
+        b = new.read_text().splitlines(keepends=True) if new.exists() else []
+        if a != b:
+            differences.extend(difflib.unified_diff(a, b, fromfile="a/" + name if old.exists() else "/dev/null", tofile="b/" + name if new.exists() else "/dev/null"))
+            changed.append(name)
+    if aggregate_inputs(args.repo) != generation_inputs:
+        raise ValueError('Aggregate generation inputs changed during replay; output was not updated')
+    patch_bytes = ''.join(differences).encode('utf-8')
+    if args.output.is_file() and args.output.read_bytes() != patch_bytes:
+        previous = args.output.read_bytes()
+        history = args.output.parent / 'history'
+        write_if_changed(history / (hashlib.sha256(previous).hexdigest() + '.patch'), previous)
+    write_if_changed(args.output, patch_bytes)
+    report = {"version": config["chromium_version"], "changed_files": changed, "source_inputs": sources, "external_source_pins": external_source_pins, "pruning_list_sha256": hashlib.sha256(pruning_data).hexdigest(), "baseline_pruned_sources": sorted(targets & pruned), "restored_pruned_sources": sorted(restored_pruned), "restored_pruned_resources": config.get('restore_pruned_resources', {}), "removed_pruned_includes": removed_includes, "verify_all_baseline": args.verify_all_baseline, "replay_counts": replay_counts, "selected_baseline_inputs": {name: hashlib.sha256(data).hexdigest() for name, data in chromix_bytes}, "patch_sha256": hashlib.sha256(args.output.read_bytes()).hexdigest(), "qualification": "Source replay only; requires native build and actual account/security tests"}
+    report['generation_inputs'] = generation_inputs
+    report['generation_inputs_sha256'] = identity(generation_inputs)
+    write_if_changed(args.output.with_suffix('.json'), json.dumps(report, indent=2).encode('utf-8'))
+    print(json.dumps({"changed_files": len(changed), "patch_bytes": args.output.stat().st_size, "output": str(args.output)}, indent=2))
+
+
+if __name__ == "__main__":
+    main()

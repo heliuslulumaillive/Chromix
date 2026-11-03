@@ -4,6 +4,7 @@ param(
   [ValidateSet("x64", "arm64")][string]$Arch = "x64",
   [string]$ChromiumVersion = "",
   [string]$DownloadDir = "",
+  [switch]$Describe,
   [switch]$Install
 )
 $ErrorActionPreference = "Stop"
@@ -20,7 +21,7 @@ switch (([version]$ChromiumVersion).Major) {
     $InstallerUrl = "https://download.microsoft.com/download/f4b30f2a-4fc3-430e-9b03-c842b5f5f9f1/KIT_BUNDLE_WINDOWSSDK_MEDIACREATION/winsdksetup.exe"
     $InstallerSha256 = "6fa0fa27db77a909f5ecb35183cb26a969a6775936780936fe239e4f9c66b458"
   }
-  { $_ -in @(153, 154, 155) } {
+  { $_ -in @(153, 154, 155, 156) } {
     $SdkVersion = "10.0.28000.0"
     $SdkRelease = "10.0.28000.2705"
     $InstallerUrl = "https://download.microsoft.com/download/38ab8f6d-3676-4860-ae84-3361308b9d7f/KIT_BUNDLE_WINDOWSSDK_MEDIACREATION/winsdksetup.exe"
@@ -35,6 +36,10 @@ if (-not $sdk) {
   $sdk = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10"
 }
 $sdk = [IO.Path]::GetFullPath($sdk)
+if ($Describe) {
+  [ordered]@{version=$SdkVersion; release=$SdkRelease; root=$sdk; arch=$Arch; installer_sha256=$InstallerSha256} | ConvertTo-Json -Compress
+  return
+}
 
 function Get-MissingSdkFiles {
   $required = @(
@@ -110,7 +115,7 @@ if ($missing.Count -gt 0) {
     # '+' selects all SDK features, including ARM64 libraries, UWP and Debugging Tools.
     $setup = Start-Process -FilePath $installer -ArgumentList @(
       "/features", "+", "/quiet", "/norestart", "/installpath", ('"{0}"' -f $sdk.TrimEnd('\'))
-    ) -PassThru
+    ) -PassThru -WindowStyle Hidden
     try {
       # Retain the process handle for a reliable exit code and PID ownership.
       $null = $setup.Handle
@@ -118,7 +123,7 @@ if ($missing.Count -gt 0) {
         Write-Warning "Windows SDK installation timed out after 30 minutes; attempting to terminate installer PID $($setup.Id)"
         try {
           $terminator = Start-Process -FilePath (Join-Path $env:SystemRoot "System32\taskkill.exe") `
-            -ArgumentList @("/PID", "$($setup.Id)", "/T", "/F") -PassThru
+            -ArgumentList @("/PID", "$($setup.Id)", "/T", "/F") -PassThru -WindowStyle Hidden
           try {
             $null = $terminator.Handle
             if (-not $terminator.WaitForExit(10000)) {

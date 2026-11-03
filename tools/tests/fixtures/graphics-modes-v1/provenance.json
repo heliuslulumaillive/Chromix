@@ -1,0 +1,252 @@
+{
+  "schema": 1,
+  "oracle": "Historical browser captures. No production helper or reimplemented random algorithm was used to produce expected bytes.",
+  "packing": "Unique native input buffers plus sparse differences between native and captured output; expected full buffers are reconstructed by the runner.",
+  "scope": "Pure pixel algorithm and layout transport. This does not validate live Blink routing, WebGL completion gates, counters before rejected calls, or GPU drivers.",
+  "compatible_expectations": "Logical BGRA and crop/GL-origin expectations are byte-order/rectangle transforms of captured RGBA output, not regenerated pixel algorithms. Stable Shard expectations reuse recorded sequence-zero output.",
+  "fixture_correction": "Chromix read-size-* w/h are the requested rectangle, while graphics-probe.mjs creates a 64x64 backing canvas. The first run incorrectly used the read rectangle as the backing height; 24 comparisons failed. Corrected metadata only, no algorithm or capture bytes changed.",
+  "counts": {
+    "shard_canvas_pixels": 7584,
+    "shard_canvas_crop": 4264,
+    "shard_webgl_pixels": 204,
+    "shard_compatible_stable": 6,
+    "shard_webgl_heldout": 32,
+    "cloak_raw": 84,
+    "cloak_png_bgra": 84,
+    "cloak_compatible_logical": 84,
+    "cloak_compatible_gl_origin": 84,
+    "cloak_compatible_crop": 132,
+    "chromix_legacy_pixels": 60,
+    "pack_safe_transport": 2
+  },
+  "cases": 12620,
+  "packed_bytes": 6549051,
+  "source_files": {
+    "research/shardx-canvas-rea/dynamic/native-model-validation-combined.json": {
+      "sha256": "8d1a2c2d04b4f322f548c50c1ca3a505754f62230897f6b39f8c84a7b07f5ace",
+      "bytes": 706168
+    },
+    "research/shardx-canvas-rea/dynamic/results-initial-v2/on0/raw.json": {
+      "sha256": "3ee2503980a9f629d7de3f04d99326cdb186be27e1ff807f2249e24dc910e1d6",
+      "bytes": 2775617
+    },
+    "research/shardx-canvas-rea/dynamic/results-initial-v2/off/raw.json": {
+      "sha256": "3ee2503980a9f629d7de3f04d99326cdb186be27e1ff807f2249e24dc910e1d6",
+      "bytes": 2775617
+    },
+    "research/shardx-canvas-rea/dynamic/results-initial-v2/on1/raw.json": {
+      "sha256": "b5a78d0391c2394b2ffdc9c441efeb33a0363a4f896b582e1a450f3b69841ec6",
+      "bytes": 2787257
+    },
+    "research/shardx-canvas-rea/dynamic/results-initial-v2/on123456789/raw.json": {
+      "sha256": "eda3c28174129d79ff84182aaaace2a6674ea714afbc34e61663ef1528c85294",
+      "bytes": 2786645
+    },
+    "research/shardx-canvas-rea/dynamic/results-initial-v2/on2/raw.json": {
+      "sha256": "24c0b2c302e21ae2db6581a7d442f16b9b2ca74402d93fca2fd777fb58a49c62",
+      "bytes": 2787221
+    },
+    "research/shardx-canvas-rea/dynamic/results-initial-v2/on42/raw.json": {
+      "sha256": "13006906cfa04cab44f0328c18e27c44f1c8f7cf27a79a0cee8e169a6585934f",
+      "bytes": 2785961
+    },
+    "research/shardx-canvas-rea/dynamic/results-initial-v2/on42repeat/raw.json": {
+      "sha256": "13006906cfa04cab44f0328c18e27c44f1c8f7cf27a79a0cee8e169a6585934f",
+      "bytes": 2785961
+    },
+    "research/shardx-canvas-rea/dynamic/results-threshold-v1/on1/raw.json": {
+      "sha256": "e6d342933e83d4b09333e8073505efa1306b57851670f940f9800138d110fedd",
+      "bytes": 3811460
+    },
+    "research/shardx-canvas-rea/dynamic/results-threshold-v1/off/raw.json": {
+      "sha256": "ed0e8167ad24b8b644e41b4ed079d9a53a4df2f2b39c3a9179d40bdc8788b7a8",
+      "bytes": 3780872
+    },
+    "research/shardx-canvas-rea/dynamic/results-threshold-v1/on2/raw.json": {
+      "sha256": "20c2990d0390a172c9fb7cbc243b0e2b23533a7043a08abb5f45195b999d99cc",
+      "bytes": 3813392
+    },
+    "research/shardx-canvas-rea/dynamic/results-threshold-v1/on42/raw.json": {
+      "sha256": "91b6d8f422cf620ace6fa2dbb05d37f0b12fa9b54c404f05f8a387ad65a97a35",
+      "bytes": 3809744
+    },
+    "research/shardx-canvas-rea/dynamic/results-alpha-v1/on42/raw.json": {
+      "sha256": "3de981e79fa2b3438785eda6a6a28572926e2efe2e91ee3fe905a1ac4ed3a4f4",
+      "bytes": 8876785
+    },
+    "research/shardx-canvas-rea/dynamic/results-alpha-v1/off/raw.json": {
+      "sha256": "cd43ffa581c1306f801f93c9062cba1973c7d6be3bc991ee3beaa5fe31b84952",
+      "bytes": 8778337
+    },
+    "research/shardx-canvas-rea/dynamic/results-large-v1/on1/raw.json": {
+      "sha256": "5d411c2f88f6db112e01a303c6efaca886d480f2a10aed323e3776bce1dd0905",
+      "bytes": 10926165
+    },
+    "research/shardx-canvas-rea/dynamic/results-large-v1/off/raw.json": {
+      "sha256": "b8b5cb58b63463dd2d9724d1b9fe00a296ff3632792af88c7dea0e1d39253c02",
+      "bytes": 10920129
+    },
+    "research/shardx-canvas-rea/dynamic/results-large-v1/on42/raw.json": {
+      "sha256": "d0e37c2c5472e97880dec6f1147e3c951f87461949d23ca2da66f698bd4b1de4",
+      "bytes": 10926393
+    },
+    "research/shardx-canvas-rea/dynamic/results-boundaries-v1/on1/raw.json": {
+      "sha256": "aa90c7acc1b5b8e5e8352f36a08c50a5dab0dbfab82d77a5b43c1c5f0118c671",
+      "bytes": 338201
+    },
+    "research/shardx-canvas-rea/dynamic/results-boundaries-v1/off/raw.json": {
+      "sha256": "093a244de7894389ae6530946adb5a0ec8fa5be6ae91ee6d0b551f367363add3",
+      "bytes": 336353
+    },
+    "research/shardx-canvas-rea/dynamic/results-boundaries-v1/on42/raw.json": {
+      "sha256": "a4309a31dc658b82dbea7c28884a4924f100a591f19579387710acca699ec167",
+      "bytes": 338297
+    },
+    "research/shardx-canvas-rea/dynamic/results-contexts-v1/on42/raw.json": {
+      "sha256": "d2603637ccd0c126b0227db08ad682419263752f21596619c6d413b922a94165",
+      "bytes": 1113997
+    },
+    "research/shardx-canvas-rea/dynamic/results-contexts-v1/off/raw.json": {
+      "sha256": "b2d69a2e1589b7bdf1579a79b9f74a76b19322d710446061e1392a6e556832c7",
+      "bytes": 1104685
+    },
+    "research/shardx-canvas-rea/dynamic/results-contexts-v1/on42repeat/raw.json": {
+      "sha256": "d2603637ccd0c126b0227db08ad682419263752f21596619c6d413b922a94165",
+      "bytes": 1113997
+    },
+    "research/shardx-canvas-rea/dynamic/results-initial-heldout/on0/raw.json": {
+      "sha256": "27d8f2b392fb12a1c2cd3fae7da853e0288f72b7f4f6075834a35cdf485ceee1",
+      "bytes": 2770155
+    },
+    "research/shardx-canvas-rea/dynamic/results-initial-heldout/off/raw.json": {
+      "sha256": "27d8f2b392fb12a1c2cd3fae7da853e0288f72b7f4f6075834a35cdf485ceee1",
+      "bytes": 2770155
+    },
+    "research/shardx-canvas-rea/dynamic/results-initial-heldout/on17/raw.json": {
+      "sha256": "91b21eca7229cd59b892449b7ab7dc1663cf573896ea6dcd4996dbac848781c2",
+      "bytes": 2782167
+    },
+    "research/shardx-canvas-rea/dynamic/results-initial-heldout/on4294967295/raw.json": {
+      "sha256": "0efb68f0e990d69906397a994b10e45f8f62c37dfb5b1f157f239519fa084661",
+      "bytes": 2781123
+    },
+    "research/shardx-canvas-rea/dynamic/results-initial-heldout/on9001/raw.json": {
+      "sha256": "09ef33bb58e1a3924e3decbf832c0e7554f43d6c96f8c75684df6af6a8c71b50",
+      "bytes": 2780955
+    },
+    "research/shardx-canvas-rea/dynamic/results-initial-heldout/on987654321/raw.json": {
+      "sha256": "2e14d008942bfface2a065442eba58bfc873720be788c669d854298034facd66",
+      "bytes": 2782659
+    },
+    "research/shardx-canvas-rea/dynamic/results-boundaries-heldout/on17/raw.json": {
+      "sha256": "d643cc2e28091eba2cb22005ccb32f9939feba296286204cefe756a712537edc",
+      "bytes": 338597
+    },
+    "research/shardx-canvas-rea/dynamic/results-boundaries-heldout/off/raw.json": {
+      "sha256": "093a244de7894389ae6530946adb5a0ec8fa5be6ae91ee6d0b551f367363add3",
+      "bytes": 336353
+    },
+    "research/shardx-canvas-rea/dynamic/results-boundaries-heldout/on4294967295/raw.json": {
+      "sha256": "447f4247ccc987b01b26b548defb7c7885c306652225bcfb78bb849cfc21e1dc",
+      "bytes": 337709
+    },
+    "research/shardx-canvas-rea/dynamic/results-boundaries-heldout/on9001/raw.json": {
+      "sha256": "f7d24655ba176f5ec459dfaf54b44374c3b50385584976dca0cb699bb34ef718",
+      "bytes": 338369
+    },
+    "research/shardx-canvas-rea/dynamic/results-boundaries-heldout/on987654321/raw.json": {
+      "sha256": "36fa5874f914418a4a64773fb6cc9e8460d0147d4cb21a0a63775ee3b2b93dd5",
+      "bytes": 338633
+    },
+    "research/shardx-canvas-rea/dynamic/results-confirmation-headed/on42/raw.json": {
+      "sha256": "77916887133d53555e2ccc3f98636de48edae12deb91d9486913725c38531be6",
+      "bytes": 1075569
+    },
+    "research/shardx-canvas-rea/dynamic/results-confirmation-headed/off/raw.json": {
+      "sha256": "27aa61d80fee058337f450e805c3a6c935f4b9a54d5b1c1690a90159ee8e90e2",
+      "bytes": 1073313
+    },
+    "research/shardx-canvas-rea/dynamic/results-confirmation-headed/on9001/raw.json": {
+      "sha256": "dd30a2ed95c444a82dc8f64ebf8bb6204c9e15cc53ee00e4a13577818e60e28e",
+      "bytes": 1075749
+    },
+    "research/shardx-canvas-rea/full-study/graphics/results-main/shard-template/raw.json": {
+      "sha256": "ebc4a1e01b39d5f6dcaa55baced687807164873c923690a847aff4c22224c2f7",
+      "bytes": 1048170
+    },
+    "research/shardx-canvas-rea/full-study/graphics/webgl-model-existing-validation.json": {
+      "sha256": "e9e4ac73146a6e2c2dd66280f9f6b5854ec75675b11d4c2ce511a77be85bcb9f",
+      "bytes": 87543
+    },
+    "research/shardx-canvas-rea/full-study/graphics/results-main/shard-noise-1/raw.json": {
+      "sha256": "40d131b4240d2a9bb667508343112895c56a7a1260c726f25377a468b1340e4c",
+      "bytes": 1042411
+    },
+    "research/shardx-canvas-rea/full-study/graphics/results-main/shard-noise-42/raw.json": {
+      "sha256": "58b3de091ab345beca43cf41bb6c91738301c1ec33644f0f7d019230bb624cbd",
+      "bytes": 1042411
+    },
+    "research/shardx-canvas-rea/full-study/graphics/results-main/shard-noise-9001/raw.json": {
+      "sha256": "adda66fe9d538feedd7553c0653c0f29b60a7e292d8f86cfab6e77f479b9b853",
+      "bytes": 1042411
+    },
+    "research/shardx-canvas-rea/full-study/graphics/results-webgl-model-heldout/off/raw.json": {
+      "sha256": "749ab6c29ee6eef7eea6c8846eef99653301ba6356a8d0a38fa5067bba4082e2",
+      "bytes": 411060
+    },
+    "research/shardx-canvas-rea/full-study/graphics/webgl-model-heldout-validation.json": {
+      "sha256": "38d5ffd4774fb9896e4a66fae4a66fd521c29ba3f5977edc7a867f840fdbcd98",
+      "bytes": 24620
+    },
+    "research/shardx-canvas-rea/full-study/graphics/results-webgl-model-heldout/seed-314159/raw.json": {
+      "sha256": "199c1657f050990f5f22035040f434551ade9896d3137df3a6215b259609960e",
+      "bytes": 411060
+    },
+    "research/shardx-canvas-rea/full-study/graphics/results-webgl-model-heldout/seed-271828183/raw.json": {
+      "sha256": "f5fb45cc5d54c1ec9f9df1f26fe876e4221a1a8f45b4e0525aa3cc1f9f18adef",
+      "bytes": 411060
+    },
+    "research/cloakbrowser-rea-20261020/runtime-cloak155-rawcdp/seed12345_a/runtime-results.json": {
+      "sha256": "c12a1c25559bfa2fa380c3e0ab61d1618f78183c03a728b98bc0a370c868faec",
+      "bytes": 3712356
+    },
+    "research/cloakbrowser-rea-20261020/runtime-cloak155-rawcdp/noise_false/runtime-results.json": {
+      "sha256": "ccd5ce9c932b6124d684dc8fdbc334f91f90f7bbcbfabe0497ab6db42cdfdea8",
+      "bytes": 3695715
+    },
+    "research/cloakbrowser-rea-20261020/runtime-cloak155-rawcdp/seed12345_b/runtime-results.json": {
+      "sha256": "2e777b631c990291dd76d0f6313c6d5e0a99b1834fcba6c31876ff0ff0c86b6c",
+      "bytes": 3712361
+    },
+    "research/cloakbrowser-rea-20261020/runtime-cloak155-rawcdp/seed12346/runtime-results.json": {
+      "sha256": "2e32f0e771cda4cc2ee4c33f564f37960b55155aa14818dab417c92d0a9e29e5",
+      "bytes": 3711784
+    },
+    "research/cloakbrowser-rea-20261020/runtime-cloak155-rawcdp/seed12346_noise_false/runtime-results.json": {
+      "sha256": "cae9b9b2cac1d8ca94eac4291f703545c9d9bd5ee2004dbcabc3bc1e641b9659",
+      "bytes": 3695830
+    },
+    "research/shardx-canvas-rea/full-study/graphics/results-main/chromix-fixed-native/raw.json": {
+      "sha256": "b75f5444a686140e8d9a83655d5bc69974eed1641ea5e370c65592d8dae0f13b",
+      "bytes": 1048317
+    },
+    "research/shardx-canvas-rea/full-study/graphics/results-main/chromix-noise-42/raw.json": {
+      "sha256": "f314b4db08736bf126f58de0ca2b1691358cda20921e2b59535539d12889ff36",
+      "bytes": 1111050
+    },
+    "research/shardx-canvas-rea/full-study/graphics/results-main/chromix-noise-9001/raw.json": {
+      "sha256": "0e458c0fa77e012b9a88cbe2916863eeff641032c9bcf4f8f95c03d3067e234a",
+      "bytes": 1110958
+    }
+  },
+  "files": {
+    "pixels.bin": {
+      "bytes": 6549051,
+      "sha256": "03ce25014366e5014f8adfff07bba01c922f868d3a47155f6515b1d7fe060a34"
+    },
+    "cases.tsv": {
+      "bytes": 1334302,
+      "sha256": "ccc802fd774ea4995fdc6170ba6a3ef4f8adbe431ac2a20f8d947da5ff587a90"
+    }
+  }
+}

@@ -270,6 +270,7 @@ def test_optional_independent_155_full_stack(tmp_path, repo155, substituted):
 @pytest.mark.parametrize("additions,expected", [(False, 224), (True, 231)])
 def test_windows155_manifest_presence_distinguishes_historical_and_current(tmp_path, additions, expected):
     repo = clone_repo(tmp_path, additions=False)
+    set_platform_pins(repo, "windows", VERSION, CORE, COMMITS["windows"])
     if additions:
         manifest = selection.WINDOWS155_ADDITIONS_MANIFEST
         shutil.copy2(ROOT / manifest, repo / manifest)

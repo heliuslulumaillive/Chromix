@@ -264,6 +264,37 @@ class WindowsMetagenBindingsTest(unittest.TestCase):
         self.assertEqual(result["status"], "verified")
         self.assertEqual(result["library_sha256"], bindings.digest(pe_dll()))
 
+    def test_156_selects_exact_action_toolchain_and_155_cannot_adopt_24(self):
+        contract = {"resource": self.src / 'third_party/llvm-build/Release+Asserts/lib/clang/23'}
+        self.assertEqual(bindings.action_llvm_profile(contract, self.src, '156.0.8078.79'), 'ungoogled-llvm23')
+        contract['resource'] = self.src / 'third_party/llvm-build/Release+Asserts/lib/clang/24'
+        self.assertEqual(bindings.action_llvm_profile(contract, self.src, '156.0.8078.79'), 'chromium-llvm24-62397f8b')
+        with self.assertRaises(ValueError):
+            bindings.action_llvm_profile(contract, self.src, '155.0.8059.39')
+        contract['resource'] = self.src / 'third_party/llvm-build/Release+Asserts/lib/clang/25'
+        with self.assertRaises(ValueError):
+            bindings.action_llvm_profile(contract, self.src, '156.0.8078.79')
+
+    def test_llvm24_hashes_are_separate_and_scope_restores_after_failure(self):
+        before = bindings.LLVM_COMMIT, bindings.LLVM_VERSION, bindings.HASHES
+        with self.assertRaisesRegex(ValueError, 'SHA256 mismatch'):
+            with bindings.llvm_profile('chromium-llvm24-62397f8b'):
+                self.assertEqual(bindings.LLVM_COMMIT, '62397f8b3c3986f54187ce08f00b3448ea1f8880')
+                self.assertEqual(bindings.LLVM_VERSION, '24.0.0')
+                self.assertEqual(bindings.HASHES['cindex.py'], '63d99dac8ecc68dbc10b9d77fda2784fdcc13c4c555d84c6d150b59ede1865d5')
+                bindings.checked(b'changed bindings', 'cindex.py')
+        self.assertEqual((bindings.LLVM_COMMIT, bindings.LLVM_VERSION, bindings.HASHES), before)
+
+    def test_llvm24_requires_full_revision_and_exact_version(self):
+        with bindings.llvm_profile('chromium-llvm24-62397f8b'):
+            for version in ['24.0.0','24.0.0git']:
+                bindings.validate_loaded_llvm('clang version '+version+' ('+bindings.LLVM24_COMMIT+')')
+            for version in ['clang version 24.0.0','clang version 24.0.0 (62397f8b)',
+                            'clang version 24.0.1 ('+bindings.LLVM24_COMMIT+')',
+                            'clang version 25.0.0 ('+bindings.LLVM24_COMMIT+')']:
+                with self.subTest(version=version),self.assertRaises(ValueError):
+                    bindings.validate_loaded_llvm(version)
+
     @mock.patch.object(bindings, "runtime_info")
     def test_probe_import_api_version_and_parse(self, runtime):
         runtime.return_value = self.runtime()

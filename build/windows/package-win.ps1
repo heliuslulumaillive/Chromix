@@ -6,13 +6,51 @@ param(
   [Parameter(Mandatory)] [string]$Out,
   [Parameter(Mandatory)] [string]$Dest,
   [ValidateSet("x64", "arm64")]
-  [string]$Arch = $(if ($env:CHROMIX_TARGET_ARCH) { $env:CHROMIX_TARGET_ARCH } else { "x64" })
+  [string]$Arch = $(if ($env:CHROMIX_TARGET_ARCH) { $env:CHROMIX_TARGET_ARCH } else { "x64" }),
+  [switch]$SkipArchive,
+  [switch]$ArchiveOnly,
+  [string]$ExpectedBuildRecordSHA256 = ''
 )
 $ErrorActionPreference = "Stop"
 if ($Arch -cnotin @("x64", "arm64")) { throw "Arch/CHROMIX_TARGET_ARCH must be x64 or arm64" }
-$Bundle = Join-Path $Dest "chromix"
+if ($SkipArchive -and $ArchiveOnly) { throw 'SkipArchive and ArchiveOnly are mutually exclusive' }
+$Dest = [IO.Path]::GetFullPath($Dest)
+$Bundle = [IO.Path]::GetFullPath((Join-Path $Dest "chromix"))
 $Repo = (Resolve-Path "$PSScriptRoot\..\..").Path
-Remove-Item -Recurse -Force $Bundle -ErrorAction SilentlyContinue
+function Write-BundleArchive {
+  $assetName = if ($Arch -eq 'arm64') { 'chromix-win-arm64.zip' } else { 'chromix-win-x64.zip' }
+  $asset = Join-Path $Dest $assetName
+  if (Test-Path -LiteralPath $asset) { Remove-Item -LiteralPath $asset -Force }
+  Compress-Archive -Path $Bundle -DestinationPath $asset
+  $hash = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
+  "$hash  $assetName" | Set-Content -Encoding ASCII (Join-Path $Dest 'SHA256SUMS')
+  Write-Host "==> $asset  sha256=$hash"
+}
+if ($ArchiveOnly) {
+  # Validate the pre-test inventory instead of silently rebaselining a bundle
+  # that might have been changed by a smoke test.
+  if ((Get-Item -LiteralPath $Bundle -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Staged bundle redirects' }
+  $recordPath = Join-Path $Bundle 'google-services-build.json'
+  if ($ExpectedBuildRecordSHA256 -notmatch '^[0-9a-f]{64}$' -or (Get-FileHash -LiteralPath $recordPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedBuildRecordSHA256) { throw 'Pre-test build receipt changed during validation' }
+  $record = Get-Content -LiteralPath $recordPath -Raw | ConvertFrom-Json
+  $items = @(Get-ChildItem -LiteralPath $Bundle -Recurse -Force)
+  if ($items | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }) { throw 'Bundle contains a reparse point' }
+  $files = @($items | Where-Object { -not $_.PSIsContainer -and $_.FullName -ne (Join-Path $Bundle 'google-services-build.json') })
+  if ($files.Count -ne @($record.files.PSObject.Properties).Count) { throw 'Staged bundle inventory changed during validation' }
+  foreach ($file in $files) {
+    $name = $file.FullName.Substring($Bundle.Length + 1).Replace('\','/')
+    if (-not $record.files.$name -or (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant() -ne $record.files.$name) {
+      throw "Staged bundle changed during validation: $name"
+    }
+  }
+  Write-BundleArchive
+  return
+}
+if ([IO.Path]::GetDirectoryName($Bundle).TrimEnd('\','/') -cne $Dest.TrimEnd('\','/') -or [IO.Path]::GetFileName($Bundle) -cne 'chromix') { throw 'Unexpected packaging directory' }
+if (Test-Path -LiteralPath $Bundle) {
+  if ((Get-Item -LiteralPath $Bundle -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Packaging target redirects' }
+  Remove-Item -LiteralPath $Bundle -Recurse -Force
+}
 New-Item -ItemType Directory -Force -Path $Bundle | Out-Null
 Copy-Item (Join-Path $Repo "LICENSE") (Join-Path $Bundle "LICENSE.chromix")
 $chromiumLicense = Join-Path (Split-Path (Split-Path $Out -Parent) -Parent) "LICENSE"
@@ -20,6 +58,51 @@ if (-not (Test-Path $chromiumLicense)) {
   throw "Chromium license is missing: $chromiumLicense"
 }
 Copy-Item $chromiumLicense (Join-Path $Bundle "LICENSE.chromium")
+$serviceMetadata = Join-Path (Split-Path (Split-Path (Split-Path $Out -Parent) -Parent) -Parent) "google-services-source.json"
+if (Test-Path -LiteralPath $serviceMetadata -PathType Leaf) {
+  $serviceVariant = Get-Content -LiteralPath $serviceMetadata -Raw | ConvertFrom-Json
+  if ($serviceVariant.variant -cne 'google-services-self-use') { throw 'Unsupported Google-service metadata' }
+  Copy-Item -LiteralPath $serviceMetadata -Destination (Join-Path $Bundle 'google-services-source.json')
+  if ($serviceVariant.build_variant -cin @('fingerprint-modes-win155', 'fingerprint-modes-win156')) {
+    # Include the contract before the immutable pre-validation inventory is made.
+    $capabilities = Join-Path $Repo 'build/fingerprint-modes-capabilities.json'
+    $contract = Get-Content -LiteralPath $capabilities -Raw | ConvertFrom-Json
+    if ($contract.build_variant -cne $serviceVariant.build_variant -or $contract.schema_version -ne 1 -or $contract.chromium_version -cne $serviceVariant.chromium_version) {
+      throw 'Fingerprint-mode capability contract does not match this build'
+    }
+    Copy-Item -LiteralPath $capabilities -Destination (Join-Path $Bundle 'fingerprint-modes-capabilities.json')
+    $nativeKey = 'build/native-browser-capabilities.json'
+    $expectedNative = $serviceVariant.preparation_inputs.$nativeKey
+    if ($expectedNative) {
+      $nativePath = Join-Path $Repo $nativeKey
+      if ($expectedNative -cnotmatch '^[0-9a-f]{64}$' -or
+          (Get-FileHash -LiteralPath $nativePath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $expectedNative) {
+        throw 'Native browser contract differs from the prepared source receipt'
+      }
+      $native = Get-Content -LiteralPath $nativePath -Raw | ConvertFrom-Json
+      if ($native.schema_version -ne 1 -or $native.contract -cne 'shardx-native-browser-v1' -or
+          $native.chromium_version -cne $serviceVariant.chromium_version) {
+        throw 'Native browser contract does not match this kernel'
+      }
+      Copy-Item -LiteralPath $nativePath -Destination (Join-Path $Bundle 'native-browser-capabilities.json')
+    }
+    if ($contract.lite_retirement) {
+      if ($contract.lite_retirement.manifest -cne 'retirement-manifest.json') { throw 'Unexpected retirement manifest path' }
+      $retirementKey = 'patches/lite-win156/retirement-manifest.json'
+      $retirement = Join-Path $Repo $retirementKey
+      $expectedRetirement = $serviceVariant.preparation_inputs.$retirementKey
+      if ($expectedRetirement -notmatch '^[0-9a-f]{64}$' -or
+          (Get-FileHash -LiteralPath $retirement -Algorithm SHA256).Hash.ToLowerInvariant() -cne $expectedRetirement) {
+        throw 'Retirement contract does not match the prepared source receipt'
+      }
+      Copy-Item -LiteralPath $retirement -Destination (Join-Path $Bundle 'retirement-manifest.json')
+    }
+    $gpuBinding = Join-Path $Repo 'build/gpu-binding-capabilities.json'
+    if (Test-Path -LiteralPath $gpuBinding -PathType Leaf) {
+      Copy-Item -LiteralPath $gpuBinding -Destination (Join-Path $Bundle 'gpu-binding-capabilities.json')
+    }
+  }
+}
 
 $required = @(
   "chrome.exe", "chrome.dll", "chrome_elf.dll",
@@ -109,10 +192,8 @@ if ($Arch -eq "arm64") {
   python (Join-Path $Repo "tools\verify_windows_bundle.py") --bundle $Bundle --arch $Arch
   if ($LASTEXITCODE -ne 0) { throw "Windows ARM64 bundle metadata verification failed" }
 }
-$assetName = if ($Arch -eq "arm64") { "chromix-win-arm64.zip" } else { "chromix-win-x64.zip" }
-$asset = Join-Path $Dest $assetName
-Remove-Item $asset -ErrorAction SilentlyContinue
-Compress-Archive -Path $Bundle -DestinationPath $asset
-$hash = (Get-FileHash $asset -Algorithm SHA256).Hash.ToLowerInvariant()
-"$hash  $assetName" | Set-Content -Encoding ASCII (Join-Path $Dest "SHA256SUMS")
-Write-Host "==> $asset  sha256=$hash"
+if (Test-Path -LiteralPath $serviceMetadata -PathType Leaf) {
+  python -B (Join-Path $Repo 'tools\write_google_services_build_record.py') --bundle $Bundle --work (Split-Path $serviceMetadata -Parent) --gn-args (Join-Path $Out 'args.gn')
+  if ($LASTEXITCODE -ne 0) { throw 'Google-service build receipt generation failed' }
+}
+if (-not $SkipArchive) { Write-BundleArchive }

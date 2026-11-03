@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "platform": "windows",
+  "policy": "required-physical-adapter-v1",
+  "backend": "angle-d3d11",
+  "flags": [
+    "chromix-gpu-binding",
+    "chromix-gpu-binding-receipt",
+    "chromix-gpu-binding-nonce",
+    "use-adapter-luid"
+  ],
+  "startupBeforeProfileAndSessionRestore": true,
+  "actualAdapterLuidRequired": true,
+  "softwareFallbackAllowed": false,
+  "receiptContainsNonceAndBrowserPid": true,
+  "status": "source-only; exact DLL and local runtime acceptance required"
+}

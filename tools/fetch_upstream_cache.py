@@ -16,8 +16,9 @@ GH_TOKEN authenticates GitHub API requests only. Availability/validation failure
 write a miss and exit zero; invalid arguments or destination paths exit nonzero.
 Schema 1 sources default to available; ``available: false`` requires explicit
 platform identity and forbids run/artifact fields. All sources remain validated.
-Windows ARM64 may pin a distinct run/workflow and a successful producer checkpoint;
-only that checkpoint permits an in-progress attempt, with verified creation times.
+Windows ARM64 and the exact Windows 156 x64 lane may pin a successful producer
+checkpoint; only that checkpoint permits an in-progress attempt, with verified
+creation times. A completed run without a checkpoint still must be successful.
 Linux/macOS require a host zstd executable. The destination must be dedicated to
 this tool; result.json records ownership and the absolute source path on a hit.
 """
@@ -83,6 +84,7 @@ UNAVAILABLE_SOURCE_FIELDS = {
 }
 ARTIFACT_FIELDS = {"id", "name", "size_in_bytes", "digest", "expires_at", "inner_archive"}
 ARTIFACT_OVERRIDES = {"run_id", "workflow_path"}
+WINDOWS156_CHECKPOINT = ('156.0.8078.79', '8492884eb30fdd9417ea7816aa92def805c97c74')
 CHECKPOINT_FIELDS = {"run_attempt", "producer_job_id", "producer_job_name"}
 ORIGINAL_SOURCE_ROOTS = {
     "linux": "/repo/build/src",
@@ -191,6 +193,18 @@ def load_manifest(platform, arch, run_id=None, root=ROOT):
                     else targets == {"x64", "arm64"}, "manifest_targets")
             for artifact_arch, artifact in source["artifacts"].items():
                 fields = ARTIFACT_FIELDS
+                if target == 'windows' and artifact_arch == 'x64':
+                    checkpoint = CHECKPOINT_FIELDS.intersection(artifact)
+                    if checkpoint:
+                        require(checkpoint == CHECKPOINT_FIELDS
+                                and (target_version, source['head_sha']) == WINDOWS156_CHECKPOINT
+                                and artifact['name'] == 'build-artifact', 'manifest_checkpoint')
+                        fields = fields | CHECKPOINT_FIELDS
+                        require(all(type(artifact[key]) is int and artifact[key] > 0
+                                    for key in ('run_attempt', 'producer_job_id'))
+                                and isinstance(artifact['producer_job_name'], str)
+                                and re.fullmatch(r'build / build-[1-9][0-9]*', artifact['producer_job_name']),
+                                'manifest_checkpoint')
                 if target == "windows" and artifact_arch == "arm64":
                     fields = fields | ARTIFACT_OVERRIDES
                     checkpoint = CHECKPOINT_FIELDS.intersection(artifact)
@@ -250,10 +264,14 @@ def validate_metadata(pin, run, artifact, now=None, producer=None):
     expected = pin["artifact"]
     require(isinstance(run, dict) and isinstance(artifact, dict), "invalid_api_metadata")
     checkpoint = CHECKPOINT_FIELDS.intersection(pin)
+    arm_checkpoint = (pin["workflow_path"] == '.github/workflows/build-arm.yml'
+                      and expected['name'] == 'build-artifact-arm')
+    x64_checkpoint = (pin["workflow_path"] == '.github/workflows/build-x64.yml'
+                      and expected['name'] == 'build-artifact'
+                      and (pin['chromium_version'], pin['head_sha']) == WINDOWS156_CHECKPOINT)
     require(not checkpoint or (checkpoint == CHECKPOINT_FIELDS
             and pin["repository"] == "ungoogled-software/ungoogled-chromium-windows"
-            and pin["workflow_path"] == ".github/workflows/build-arm.yml"
-            and expected["name"] == "build-artifact-arm"), "untrusted_checkpoint")
+            and (arm_checkpoint or x64_checkpoint)), "untrusted_checkpoint")
     successful = run.get("status") == "completed" and run.get("conclusion") == "success"
     in_progress = run.get("status") == "in_progress" and run.get("conclusion") is None
     require(all(run.get(key) == pin[key] for key in ("head_sha", "head_branch", "event"))
@@ -286,7 +304,7 @@ def validate_metadata(pin, run, artifact, now=None, producer=None):
                 and producer["run_attempt"] == pin["run_attempt"]
                 and producer.get("head_sha") == pin["head_sha"]
                 and producer.get("head_branch") == pin["head_branch"]
-                and producer.get("workflow_name") == "build-arm"
+                and producer.get("workflow_name") == ("build-arm" if arm_checkpoint else "build-x64")
                 and producer.get("status") == "completed"
                 and producer.get("conclusion") == "success", "untrusted_producer")
         steps = producer.get("steps")

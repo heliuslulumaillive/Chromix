@@ -1,0 +1,556 @@
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -188,6 +188,9 @@
+     if (!is_ios && !is_castos) {
+       if (!is_fuchsia) {
+         deps += [ "//chrome/test:unit_tests" ]
++        if (is_win) {
++          deps += [ "//chrome/test:native_passkey_unittests" ]
++        }
+       }
+       deps += [ "//ui/accessibility:accessibility_unittests" ]
+     }
+--- a/chrome/browser/extensions/BUILD.gn
++++ b/chrome/browser/extensions/BUILD.gn
+@@ -1560,6 +1560,38 @@
+   }
+ }
+ 
++# TestingProfile only needs the fake extension system, not browser-test
++# helpers and their WebUI test resources.
++source_set("test_extension_system") {
++  testonly = true
++  sources = [
++    "test_extension_system.cc",
++    "test_extension_system.h",
++  ]
++
++  public_deps = [
++    "//base",
++    "//build:chromeos_buildflags",
++    "//extensions/browser",
++    "//extensions/buildflags",
++    "//services/data_decoder/public/cpp:test_support",
++  ]
++  deps = [
++    ":extensions",
++    "//chrome/browser/profiles:profile",
++    "//chrome/common",
++    "//components/prefs",
++    "//components/services/unzip:in_process",
++    "//components/services/unzip/content",
++    "//components/value_store:test_support",
++    "//content/public/browser",
++  ]
++  if (is_chromeos) {
++    public_deps += [ "//components/user_manager" ]
++    deps += [ "//components/user_manager:test_support" ]
++  }
++}
++
+ static_library("test_support") {
+   testonly = true
+ 
+@@ -1621,8 +1653,6 @@
+     "test_extension_menu_icon_loader.h",
+     "test_extension_service.cc",
+     "test_extension_service.h",
+-    "test_extension_system.cc",
+-    "test_extension_system.h",
+     "user_scripts_test_util.cc",
+     "user_scripts_test_util.h",
+     "webstore_installer_test.cc",
+@@ -1673,7 +1703,7 @@
+     "//url",
+   ]
+ 
+-  public_deps = []
++  public_deps = [ ":test_extension_system" ]
+ 
+   if (is_android) {
+     sources += [
+--- a/chrome/browser/webauthn/authenticator_request_dialog_controller.cc
++++ b/chrome/browser/webauthn/authenticator_request_dialog_controller.cc
+@@ -2167,6 +2167,16 @@
+ 
+   // If there is a single mechanism, go to that.
+   if (model_->mechanisms.size() == 1) {
++    const auto* credential =
++        std::get_if<Mechanism::Credential>(&model_->mechanisms[0].type);
++    if (transport_availability_.has_win_native_api_authenticator && credential &&
++        credential->value().source == AuthenticatorType::kWinNative) {
++      // The Windows cache need not include every native passkey provider. Do
++      // not automatically narrow the RP's allow-list to the sole cached key;
++      // StartGuidedFlowForMostLikelyTransportOrShowMechanismSelection() will
++      // invoke the Windows picker with the original request instead.
++      return std::nullopt;
++    }
+     return 0;
+   }
+ 
+--- a/chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc
++++ b/chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc
+@@ -1353,6 +1353,47 @@
+   EXPECT_EQ(model->step(), Step::kPlatformAuthenticator);
+   EXPECT_EQ(request_future.Get(), kWinAuthenticatorId);
+ }
++
++// A cached Hello key is not necessarily the only key the RP allows. Windows
++// must be able to offer an uncached native provider using the original list.
++TEST_F(AuthenticatorRequestDialogControllerTest,
++       WinSingleCachedCredentialPreservesOriginalAllowList) {
++  device::FakeWinWebAuthnApi fake_win_webauthn_api;
++  device::WinWebAuthnApi::ScopedOverride win_webauthn_api_override(
++      &fake_win_webauthn_api);
++  fake_win_webauthn_api.set_version(9);
++  for (bool empty_allow_list : {false, true}) {
++    SCOPED_TRACE(empty_allow_list);
++    TransportAvailabilityInfo tai;
++    tai.request_type = device::FidoRequestType::kGetAssertion;
++    tai.available_transports = {AuthenticatorTransport::kInternal};
++    tai.transport_list_did_include_internal = true;
++    tai.request_is_internal_only = !empty_allow_list;
++    tai.has_empty_allow_list = empty_allow_list;
++    tai.win_is_uvpaa = true;
++    tai.has_win_native_api_authenticator = true;
++    tai.has_platform_authenticator_credential = device::FidoRequestHandlerBase::
++        RecognizedCredential::kHasRecognizedCredential;
++    tai.recognized_credentials = {kWinCred1};
++    auto model =
++        base::MakeRefCounted<AuthenticatorRequestDialogModel>(main_rfh());
++    UpdateModelBeforeStartFlow(model.get(), tai, /*is_off_the_record=*/false);
++    AuthenticatorRequestDialogController controller(model.get(), main_rfh());
++    controller.saved_authenticators().emplace_back(
++        "win-native", AuthenticatorTransport::kInternal,
++        device::AuthenticatorType::kWinNative);
++    base::test::TestFuture<std::string> request_future;
++    controller.SetRequestCallback(
++        request_future.GetRepeatingCallback<const std::string&>());
++    controller.SetAccountPreselectedCallback(base::BindLambdaForTesting(
++        [](device::DiscoverableCredentialMetadata) {
++          FAIL() << "Automatic Windows dispatch must preserve the RP allow-list";
++        }));
++    controller.StartFlow(std::move(tai), {});
++    EXPECT_EQ(model->step(), Step::kPlatformAuthenticator);
++    EXPECT_EQ(request_future.Get(), "win-native");
++  }
++}
+ #endif
+ 
+ TEST_F(AuthenticatorRequestDialogControllerTest, NoAvailableTransports) {
+--- a/chrome/test/BUILD.gn
++++ b/chrome/test/BUILD.gn
+@@ -4688,6 +4688,80 @@
+   sources = [ "mojom/echo.test-mojom" ]
+ }
+ 
++if (is_win) {
++  # Compile the two affected suites, not every Chrome/device unit test.
++  test("native_passkey_unittests") {
++    sources = [
++      "base/run_all_unittests.cc",
++      "../../device/fido/win/authenticator_unittest.cc",
++      "../browser/webauthn/authenticator_request_dialog_model_unittest.cc",
++    ]
++    # These native fixtures need the profile harness and Chrome test main,
++    # not the aggregate test support that builds unrelated WebUI test data.
++    assert_no_deps = [
++      "//chrome/test:test_support",
++      "//chrome/test:test_support_unit",
++      "//chrome/test/base:web_ui_mocha_browser_test",
++      "//chrome/test/base:web_ui_test_support",
++      "//chrome/test/data/webui:*",
++      "//chrome/test/data/webui/*",
++    ]
++    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
++    deps = [
++      "//base",
++      "//base/test:test_support",
++      "//chrome/app/vector_icons",
++      "//chrome/app:chrome_dll_resources",
++      "//chrome/app:generated_resources",
++      "//chrome/browser",
++      "//chrome/browser/password_manager",
++      "//chrome/browser/webauthn",
++      "//chrome/browser:chrome_content_browser_client",
++      "//chrome/common",
++      "//chrome/install_static/test:test_support",
++      "//chrome/test/base:chrome_render_view_host_test_harness",
++      "//chrome/test/base:chrome_unit_test_suite",
++      "//chrome/test/base:testing_browser_process_impl",
++      "//chrome/test/base:testing_profile_impl",
++      "//chrome/utility",
++      "//chrome:resources",
++      "//chrome:strings",
++      "//components/prefs",
++      "//components/strings",
++      "//components/vector_icons",
++      "//components/webauthn/core/browser:passkey_model",
++      "//content/test:test_support",
++      "//crypto:test_support",
++      "//device/fido",
++      "//device/fido:test_support",
++      "//mojo/core/embedder",
++      "//mojo/core/test:test_support",
++      "//testing/gmock",
++      "//testing/gtest",
++      "//ui/base",
++      "//url",
++    ]
++    if (is_chrome_branded) {
++      deps += [ "//chrome/test/base:scoped_channel_override" ]
++    }
++    data_deps = [ "//chrome:packed_resources" ]
++    # Match the Windows unit-test entry point's runtime/link requirements.
++    ldflags = [
++      "/DELAYLOAD:api-ms-win-core-winrt-error-l1-1-0.dll",
++      "/DELAYLOAD:api-ms-win-core-winrt-l1-1-0.dll",
++      "/DELAYLOAD:api-ms-win-core-winrt-string-l1-1-0.dll",
++    ]
++    libs = [
++      "comsupp.lib",
++      "oleacc.lib",
++      "rpcrt4.lib",
++      "runtimeobject.lib",
++      "urlmon.lib",
++      "winmm.lib",
++    ]
++  }
++}
++
+ test("unit_tests") {
+   use_xvfb = use_xvfb_in_this_config
+ 
+--- a/chrome/test/base/BUILD.gn
++++ b/chrome/test/base/BUILD.gn
+@@ -350,7 +350,7 @@
+   if (enable_extensions_core) {
+     deps += [
+       "//chrome/browser/extensions",
+-      "//chrome/browser/extensions:test_support",
++      "//chrome/browser/extensions:test_extension_system",
+     ]
+   }
+   if (enable_extensions) {
+--- a/chrome/test/base/testing_browser_process.cc
++++ b/chrome/test/base/testing_browser_process.cc
+@@ -30,7 +30,9 @@
+ #include "chrome/browser/printing/print_job_manager.h"
+ #include "chrome/browser/profiles/profile_manager.h"
+ #include "chrome/browser/resource_coordinator/resource_coordinator_parts.h"
++#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+ #include "chrome/browser/safe_browsing/safe_browsing_service.h"
++#endif
+ #include "chrome/browser/serial/serial_policy_allowed_ports.h"
+ #include "chrome/browser/status_icons/status_tray.h"
+ #include "chrome/common/chrome_paths.h"
+@@ -89,7 +91,6 @@
+ #endif
+ 
+ #if !BUILDFLAG(IS_ANDROID)
+-#include "chrome/browser/speech/speech_recognition_small_expert_model_installer.h"
+ #if BUILDFLAG(IS_CHROMEOS)
+ #include "chrome/browser/hid/hid_pinned_notification.h"
+ #include "chrome/browser/usb/usb_pinned_notification.h"
+@@ -476,10 +477,12 @@
+   return status_tray_.get();
+ }
+ 
++#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+ safe_browsing::SafeBrowsingService*
+ TestingBrowserProcess::safe_browsing_service() {
+   return sb_service_.get();
+ }
++#endif
+ 
+ WebRtcLogUploader* TestingBrowserProcess::webrtc_log_uploader() {
+   return webrtc_log_uploader_.get();
+@@ -792,10 +795,12 @@
+   return platform_part_.get();
+ }
+ 
++#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+ void TestingBrowserProcess::SetSafeBrowsingService(
+     safe_browsing::SafeBrowsingService* sb_service) {
+   sb_service_ = sb_service;
+ }
++#endif
+ 
+ void TestingBrowserProcess::SetWebRtcLogUploader(
+     std::unique_ptr<WebRtcLogUploader> uploader) {
+@@ -817,22 +822,12 @@
+ }
+ 
+ #if !BUILDFLAG(IS_ANDROID)
+-speech::SpeechRecognitionSmallExpertModelInstaller*
+-TestingBrowserProcess::speech_recognition_small_expert_model_installer() {
+-  return speech_recognition_small_expert_model_installer_.get();
+-}
+-
+ void TestingBrowserProcess::SetComponentUpdater(
+     std::unique_ptr<component_updater::ComponentUpdateService>
+         component_updater) {
+   component_updater_ = std::move(component_updater);
+ }
+ 
+-void TestingBrowserProcess::SetSpeechRecognitionSmallExpertModelInstaller(
+-    std::unique_ptr<speech::SpeechRecognitionSmallExpertModelInstaller>
+-        installer) {
+-  speech_recognition_small_expert_model_installer_ = std::move(installer);
+-}
+ #endif
+ 
+ TestingPrefServiceSimple* TestingBrowserProcess::GetTestingLocalState() {
+--- a/chrome/test/base/testing_browser_process.h
++++ b/chrome/test/base/testing_browser_process.h
+@@ -23,6 +23,7 @@
+ #include "chrome/browser/browser_process_platform_part.h"
+ #include "chrome/common/buildflags.h"
+ #include "components/activity_reporter/activity_reporter.h"
++#include "components/safe_browsing/buildflags.h"
+ #include "components/signin/core/browser/active_primary_accounts_metrics_recorder.h"
+ #include "extensions/buildflags/buildflags.h"
+ #include "media/media_buildflags.h"
+@@ -78,10 +79,6 @@
+ #endif
+ class DeviceParentalControls;
+ }  // namespace supervised_user
+-
+-namespace speech {
+-class SpeechRecognitionSmallExpertModelInstaller;
+-}
+ 
+ namespace variations {
+ class VariationsService;
+@@ -147,7 +144,9 @@
+       std::unique_ptr<BackgroundModeManager> manager) override;
+ #endif
+   StatusTray* status_tray() override;
++#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+   safe_browsing::SafeBrowsingService* safe_browsing_service() override;
++#endif
+   subresource_filter::RulesetService* subresource_filter_ruleset_service()
+       override;
+   BrowserProcessPlatformPart* platform_part() override;
+@@ -202,8 +201,6 @@
+   UsbSystemTrayIcon* usb_system_tray_icon() override;
+   void set_usb_system_tray_icon_for_test(
+       std::unique_ptr<UsbSystemTrayIcon> icon) override;
+-  speech::SpeechRecognitionSmallExpertModelInstaller*
+-  speech_recognition_small_expert_model_installer() override;
+ #endif
+   os_crypt_async::OSCryptAsync* os_crypt_async() override;
+   void set_additional_os_crypt_async_provider_for_test(
+@@ -218,7 +215,9 @@
+ 
+   void SetMetricsService(metrics::MetricsService* metrics_service);
+   void SetProfileManager(std::unique_ptr<ProfileManager> profile_manager);
++#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+   void SetSafeBrowsingService(safe_browsing::SafeBrowsingService* sb_service);
++#endif
+   void SetVariationsService(variations::VariationsService* variations_service);
+   void SetWebRtcLogUploader(std::unique_ptr<WebRtcLogUploader> uploader);
+   void SetRulesetService(
+@@ -238,9 +237,6 @@
+   void SetComponentUpdater(
+       std::unique_ptr<component_updater::ComponentUpdateService>
+           component_updater);
+-  void SetSpeechRecognitionSmallExpertModelInstaller(
+-      std::unique_ptr<speech::SpeechRecognitionSmallExpertModelInstaller>
+-          installer);
+ #endif
+ 
+   // Same as local_state() but provides TestingPrefServiceSimple interface.
+@@ -336,7 +332,9 @@
+       device_parental_controls_;
+ #endif
+ 
++#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+   scoped_refptr<safe_browsing::SafeBrowsingService> sb_service_;
++#endif
+   std::unique_ptr<subresource_filter::RulesetService>
+       subresource_filter_ruleset_service_;
+   std::unique_ptr<WebRtcLogUploader> webrtc_log_uploader_;
+@@ -368,8 +366,6 @@
+   std::unique_ptr<HidSystemTrayIcon> hid_system_tray_icon_;
+   std::unique_ptr<UsbSystemTrayIcon> usb_system_tray_icon_;
+   std::unique_ptr<component_updater::ComponentUpdateService> component_updater_;
+-  std::unique_ptr<speech::SpeechRecognitionSmallExpertModelInstaller>
+-      speech_recognition_small_expert_model_installer_;
+   BuildState build_state_;
+ #endif
+ 
+--- a/device/fido/win/authenticator.cc
++++ b/device/fido/win/authenticator.cc
+@@ -383,8 +383,12 @@
+        base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+       base::BindOnce(
+           [](WinWebAuthnApi* api, std::u16string rp_id, bool is_incognito) {
+-            return AuthenticatorEnumerateCredentialsBlocking(api, rp_id,
+-                                                             is_incognito);
++            auto [success, credentials] =
++                AuthenticatorEnumerateCredentialsBlocking(api, rp_id,
++                                                          is_incognito);
++            return PlatformCredentialInfo{
++                success, api->Version() >= WEBAUTHN_API_VERSION_9,
++                std::move(credentials)};
+           },
+           win_api_, base::UTF8ToUTF16(request.rp_id),
+           request_options.is_off_the_record_context),
+@@ -396,9 +400,9 @@
+ void WinWebAuthnApiAuthenticator::GetPlatformCredentialInfoForRequestDone(
+     std::vector<PublicKeyCredentialDescriptor> allow_list,
+     GetPlatformCredentialInfoForRequestCallback callback,
+-    std::pair<bool, std::vector<DiscoverableCredentialMetadata>> result) {
+-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+-  auto& [success, credentials] = result;
++    PlatformCredentialInfo result) {
++  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
++  auto& [success, supports_native_passkey_providers, credentials] = result;
+   if (!success) {
+     std::move(callback).Run(
+         /*credentials=*/{},
+@@ -419,6 +423,19 @@
+   if (!allow_list.empty()) {
+     FilterFoundCredentials(&credentials, allow_list);
+   }
++  if (credentials.empty() && supports_native_passkey_providers) {
++    // Native passkey managers can hold credentials absent from this cache. Do
++    // not turn an empty (or filtered) cache into a definitive "no passkeys"
++    // result: keep the Windows picker available to query those providers
++    // interactively.
++    FIDO_LOG(DEBUG)
++        << "Native passkey provider may hold undiscovered credentials; "
++           "retaining Windows authentication";
++    std::move(callback).Run(
++        /*credentials=*/{},
++        FidoRequestHandlerBase::RecognizedCredential::kUnknown);
++    return;
++  }
+   auto recognized = credentials.empty()
+                         ? FidoRequestHandlerBase::RecognizedCredential::
+                               kNoRecognizedCredential
+--- a/device/fido/win/authenticator.h
++++ b/device/fido/win/authenticator.h
+@@ -131,10 +131,16 @@
+       GetAssertionCallback callback,
+       std::pair<GetAssertionStatus,
+                 std::optional<AuthenticatorGetAssertionResponse>> result);
++  struct PlatformCredentialInfo {
++    bool success;
++    bool supports_native_passkey_providers;
++    std::vector<DiscoverableCredentialMetadata> credentials;
++  };
++
+   void GetPlatformCredentialInfoForRequestDone(
+       std::vector<PublicKeyCredentialDescriptor> allow_list,
+       GetPlatformCredentialInfoForRequestCallback callback,
+-      std::pair<bool, std::vector<DiscoverableCredentialMetadata>> result);
++      PlatformCredentialInfo result);
+ 
+   // options_ is per-instance because the capabilities of `win_api_` can
+   // change at run-time in tests.
+--- a/device/fido/win/authenticator_unittest.cc
++++ b/device/fido/win/authenticator_unittest.cc
+@@ -195,6 +195,101 @@
+ 
+   EXPECT_EQ(std::get<0>(future.Get()),
+             std::vector<DiscoverableCredentialMetadata>{});
++  EXPECT_EQ(
++      std::get<1>(future.Get()),
++      FidoRequestHandlerBase::RecognizedCredential::kNoRecognizedCredential);
++}
++
++TEST_F(WinAuthenticatorTest,
++       GetCredentialInformationForRequest_NativeProvidersEmptyCache) {
++  fido::win::ScopedIsRdpSessionOverride scoped_rdp_override(false);
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  for (bool has_allow_list : {false, true}) {
++    SCOPED_TRACE(has_allow_list);
++    CtapGetAssertionRequest request(kRpId, /*client_data_json=*/"");
++    if (has_allow_list) {
++      PublicKeyCredentialDescriptor credential(CredentialType::kPublicKey,
++                                               kCredentialId);
++      credential.transports = {FidoTransportProtocol::kInternal};
++      request.allow_list.push_back(std::move(credential));
++    }
++    GetCredentialFuture future;
++    authenticator_->GetPlatformCredentialInfoForRequest(
++        std::move(request), CtapGetAssertionOptions(), future.GetCallback());
++    ASSERT_TRUE(future.Wait());
++    EXPECT_TRUE(std::get<0>(future.Get()).empty());
++    EXPECT_EQ(std::get<1>(future.Get()),
++              FidoRequestHandlerBase::RecognizedCredential::kUnknown);
++  }
++}
++
++TEST_F(WinAuthenticatorTest,
++       GetCredentialInformationForRequest_NativeProvidersFilteredCache) {
++  fido::win::ScopedIsRdpSessionOverride scoped_rdp_override(false);
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  fake_webauthn_api_->InjectDiscoverableCredential(
++      kCredentialId, PublicKeyCredentialRpEntity(kRpId),
++      PublicKeyCredentialUserEntity(kUserId, kUserName, kUserDisplayName),
++      kProviderName);
++  CtapGetAssertionRequest request(kRpId, /*client_data_json=*/"");
++  request.allow_list.emplace_back(CredentialType::kPublicKey, kCredentialId2);
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(
++      std::move(request), CtapGetAssertionOptions(), future.GetCallback());
++  ASSERT_TRUE(future.Wait());
++  EXPECT_TRUE(std::get<0>(future.Get()).empty());
++  EXPECT_EQ(std::get<1>(future.Get()),
++            FidoRequestHandlerBase::RecognizedCredential::kUnknown);
++}
++
++TEST_F(WinAuthenticatorTest,
++       GetCredentialInformationForRequest_NativeProvidersPreservesMatch) {
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  fake_webauthn_api_->InjectDiscoverableCredential(
++      kCredentialId, PublicKeyCredentialRpEntity(kRpId),
++      PublicKeyCredentialUserEntity(kUserId, kUserName, kUserDisplayName),
++      kProviderName);
++  CtapGetAssertionRequest request(kRpId, /*client_data_json=*/"");
++  request.allow_list.emplace_back(CredentialType::kPublicKey, kCredentialId);
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(
++      std::move(request), CtapGetAssertionOptions(), future.GetCallback());
++  ASSERT_TRUE(future.Wait());
++  ASSERT_EQ(std::get<0>(future.Get()).size(), 1u);
++  EXPECT_EQ(std::get<0>(future.Get())[0].cred_id, kCredentialId);
++  EXPECT_EQ(
++      std::get<1>(future.Get()),
++      FidoRequestHandlerBase::RecognizedCredential::kHasRecognizedCredential);
++}
++
++TEST_F(WinAuthenticatorTest,
++       GetCredentialInformationForRequest_NativeProvidersRespectsTransports) {
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  CtapGetAssertionRequest request(kRpId, /*client_data_json=*/"");
++  PublicKeyCredentialDescriptor credential(CredentialType::kPublicKey,
++                                           kCredentialId);
++  credential.transports = {FidoTransportProtocol::kUsbHumanInterfaceDevice};
++  request.allow_list.push_back(std::move(credential));
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(
++      std::move(request), CtapGetAssertionOptions(), future.GetCallback());
++  ASSERT_TRUE(future.Wait());
++  EXPECT_TRUE(std::get<0>(future.Get()).empty());
++  EXPECT_EQ(
++      std::get<1>(future.Get()),
++      FidoRequestHandlerBase::RecognizedCredential::kNoRecognizedCredential);
++}
++
++TEST_F(WinAuthenticatorTest,
++       GetCredentialInformationForRequest_NativeProvidersUnavailableBeforeV9) {
++  fido::win::ScopedIsRdpSessionOverride scoped_rdp_override(false);
++  SetVersion(WEBAUTHN_API_VERSION_8);
++  CtapGetAssertionRequest request(kRpId, /*client_data_json=*/"");
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(
++      std::move(request), CtapGetAssertionOptions(), future.GetCallback());
++  ASSERT_TRUE(future.Wait());
++  EXPECT_TRUE(std::get<0>(future.Get()).empty());
+   EXPECT_EQ(
+       std::get<1>(future.Get()),
+       FidoRequestHandlerBase::RecognizedCredential::kNoRecognizedCredential);

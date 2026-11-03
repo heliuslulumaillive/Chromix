@@ -1,0 +1,10 @@
+--- a/chrome/browser/enterprise/signals/context_info_fetcher.cc
++++ b/chrome/browser/enterprise/signals/context_info_fetcher.cc
+@@ -122,7 +122,6 @@
+       device_signals::GetSafeBrowsingProtectionLevel(profile->GetPrefs());
+   info.password_protection_warning_trigger =
+       device_signals::GetPasswordProtectionWarningTrigger(profile->GetPrefs());
+-  info.enterprise_profile_id = GetEnterpriseProfileId(profile);
+ 
+ #if BUILDFLAG(IS_WIN)
+   base::ThreadPool::CreateCOMSTATaskRunner({base::MayBlock()})

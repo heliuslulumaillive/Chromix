@@ -1,0 +1,684 @@
+{
+  "schema_version": 1,
+  "provenance": {
+    "scope": "Independent authorized original-browser captures and captured-byte fixtures; not expectations calculated by production helpers",
+    "research_files_sha256": {
+      "deep/fonts-geometry-family-validation.json": "135e350775720b44f7c7cec087a6b78a1ce7e94aacb28b0769ec987cb4ea6ce4",
+      "deep/fonts-metric-records.json": "eb18cc00aa2b9c2a2dcfd23fa4807f6a22555a4e0c42399087f1b6533f557b12",
+      "runtime-cloak155-rawcdp/seed12345_a/runtime-results.json": "c12a1c25559bfa2fa380c3e0ab61d1618f78183c03a728b98bc0a370c868faec",
+      "runtime-cloak155-rawcdp/locale_timezone/runtime-results.json": "744f111ec301ed922cbf2332360f453e3b86a9955a6e01e25652f0dc905214eb",
+      "deep/runtime-deep-v1/win_default/result.json": "074efa7367d313adf99a85ded725f9128e9fa34a6c0bd46ab5c91d8eebc8923b",
+      "deep/runtime-deep-controls-v2/win/result.json": "a6b907febb38db048110fa3dd7b3712a7d0562132b1334e2d615bd4f795b8d39",
+      "deep/audio-rows-runtime-deep-v1-mac_default-29828.json": "bcd3e471d1bcd83ba8070579bc3242b5454f9eca6d934fb4e879d17196c61a99"
+    },
+    "graphics_cases_sha256": "ccc802fd774ea4995fdc6170ba6a3ef4f8adbe431ac2a20f8d947da5ff587a90",
+    "graphics_pixels_sha256": "03ce25014366e5014f8adfff07bba01c922f868d3a47155f6515b1d7fe060a34"
+  },
+  "shardWebGL": {
+    "case": "shard-gl-heldout-314159-0",
+    "seed": 314159,
+    "width": 64,
+    "height": 64,
+    "xor1_byte_offsets": [
+      252,
+      290,
+      366,
+      1793,
+      1938,
+      2017,
+      2625,
+      3309,
+      3440,
+      3470,
+      3766,
+      4013,
+      4205,
+      4698,
+      4821,
+      5009,
+      5680,
+      5718,
+      5924,
+      5966,
+      5994,
+      6321,
+      7178,
+      7549,
+      7970,
+      8109,
+      8454,
+      8556,
+      8906,
+      8946,
+      8966,
+      9050,
+      9197,
+      9840,
+      10988,
+      11726,
+      12204,
+      12270,
+      12353,
+      12948,
+      13014,
+      13266,
+      13864,
+      14380,
+      14485,
+      14509,
+      14956,
+      15084,
+      15325,
+      15512,
+      15532,
+      15560
+    ],
+    "scope": "Opaque RGBA8; sequence zero; each read starts at the first random value; Shard export stays native"
+  },
+  "cloakOffset": {
+    "seed": 12345,
+    "family": "Arial",
+    "width_delta": 40,
+    "height_delta": -28,
+    "minimum_exclusive": 50
+  },
+  "cloakTextWindows": [
+    {
+      "index": 100,
+      "font_index": 10,
+      "font": "16px Arial, monospace",
+      "text": "mwmwmwmwlli",
+      "expected": {
+        "width": 110.1953125,
+        "actualBoundingBoxRight": 109.640625,
+        "actualBoundingBoxAscent": 12.0,
+        "actualBoundingBoxDescent": 0.0,
+        "actualBoundingBoxLeft": 0.0,
+        "fontBoundingBoxAscent": 14.0,
+        "fontBoundingBoxDescent": 3.0,
+        "emHeightAscent": 14.0,
+        "emHeightDescent": 3.0,
+        "alphabeticBaseline": 0,
+        "hangingBaseline": 11.199999809265137,
+        "ideographicBaseline": -3.0
+      },
+      "record_sha256": "c127b7c36bf934ddeac7ab5069d93f84a6e997d14a2fd563dc25c4ab54f3525a",
+      "family": "Arial"
+    },
+    {
+      "index": 233,
+      "font_index": 133,
+      "font": "100px Consolas, monospace",
+      "text": "mmmmmmmmmmlli",
+      "expected": {
+        "width": 714.74609375,
+        "actualBoundingBoxRight": 707.765625,
+        "actualBoundingBoxAscent": 70.0,
+        "actualBoundingBoxDescent": 0.0,
+        "actualBoundingBoxLeft": -4.0,
+        "fontBoundingBoxAscent": 92.0,
+        "fontBoundingBoxDescent": 25.0,
+        "emHeightAscent": 92.0,
+        "emHeightDescent": 25.0,
+        "alphabeticBaseline": 0,
+        "hangingBaseline": 73.5999984741211,
+        "ideographicBaseline": -25.0
+      },
+      "record_sha256": "aadca4b672d81fc869da1af79c6990af1e1b713fecc76bf8a8ddb40fc02c178c",
+      "family": "Consolas"
+    },
+    {
+      "index": 234,
+      "font_index": 134,
+      "font": "100px Consolas, sans-serif",
+      "text": "mmmmmmmmmmlli",
+      "expected": {
+        "width": 714.74609375,
+        "actualBoundingBoxRight": 707.765625,
+        "actualBoundingBoxAscent": 70.0,
+        "actualBoundingBoxDescent": 0.0,
+        "actualBoundingBoxLeft": -4.0,
+        "fontBoundingBoxAscent": 92.0,
+        "fontBoundingBoxDescent": 25.0,
+        "emHeightAscent": 92.0,
+        "emHeightDescent": 25.0,
+        "alphabeticBaseline": 0,
+        "hangingBaseline": 73.5999984741211,
+        "ideographicBaseline": -25.0
+      },
+      "record_sha256": "0e338fcf9ce4310086813cb643e326cb50fd1e630dcc1fee52ff2d6eb79952eb",
+      "family": "Consolas"
+    },
+    {
+      "index": 235,
+      "font_index": 135,
+      "font": "100px Consolas, serif",
+      "text": "mmmmmmmmmmlli",
+      "expected": {
+        "width": 714.74609375,
+        "actualBoundingBoxRight": 707.765625,
+        "actualBoundingBoxAscent": 70.0,
+        "actualBoundingBoxDescent": 0.0,
+        "actualBoundingBoxLeft": -4.0,
+        "fontBoundingBoxAscent": 92.0,
+        "fontBoundingBoxDescent": 25.0,
+        "emHeightAscent": 92.0,
+        "emHeightDescent": 25.0,
+        "alphabeticBaseline": 0,
+        "hangingBaseline": 73.5999984741211,
+        "ideographicBaseline": -25.0
+      },
+      "record_sha256": "d9092486f40a5fc8fdc1c40db1d615e0428086a4c15badf6677817c5d06183f2",
+      "family": "Consolas"
+    },
+    {
+      "index": 287,
+      "font_index": 187,
+      "font": "72px Arial, monospace",
+      "text": "mmmmmmmmmmlli",
+      "expected": {
+        "width": 647.75390625,
+        "actualBoundingBoxRight": 643.7578125,
+        "actualBoundingBoxAscent": 52.0,
+        "actualBoundingBoxDescent": 0.0,
+        "actualBoundingBoxLeft": -4.0,
+        "fontBoundingBoxAscent": 65.0,
+        "fontBoundingBoxDescent": 15.0,
+        "emHeightAscent": 65.0,
+        "emHeightDescent": 15.0,
+        "alphabeticBaseline": 0,
+        "hangingBaseline": 52.0,
+        "ideographicBaseline": -15.0
+      },
+      "record_sha256": "a2a13b6a33367296ca0ed8b0ba64f2ebee896338bdcdb9a7f3a38fec4c72fee7",
+      "family": "Arial"
+    },
+    {
+      "index": 297,
+      "font_index": 197,
+      "font": "72px Consolas, monospace",
+      "text": "mmmmmmmmmmlli",
+      "expected": {
+        "width": 514.6171875,
+        "actualBoundingBoxRight": 510.03125,
+        "actualBoundingBoxAscent": 50.0,
+        "actualBoundingBoxDescent": 0.0,
+        "actualBoundingBoxLeft": -2.0,
+        "fontBoundingBoxAscent": 66.0,
+        "fontBoundingBoxDescent": 18.0,
+        "emHeightAscent": 66.0,
+        "emHeightDescent": 18.0,
+        "alphabeticBaseline": 0,
+        "hangingBaseline": 52.79999923706055,
+        "ideographicBaseline": -18.0
+      },
+      "record_sha256": "9ac60c3e16f7dfa999506c21dd6d2860a1bf2f1320a4653414e90d1157dcb22b",
+      "family": "Consolas"
+    },
+    {
+      "index": 298,
+      "font_index": 198,
+      "font": "72px Consolas, sans-serif",
+      "text": "mmmmmmmmmmlli",
+      "expected": {
+        "width": 514.6171875,
+        "actualBoundingBoxRight": 510.03125,
+        "actualBoundingBoxAscent": 50.0,
+        "actualBoundingBoxDescent": 0.0,
+        "actualBoundingBoxLeft": -2.0,
+        "fontBoundingBoxAscent": 66.0,
+        "fontBoundingBoxDescent": 18.0,
+        "emHeightAscent": 66.0,
+        "emHeightDescent": 18.0,
+        "alphabeticBaseline": 0,
+        "hangingBaseline": 52.79999923706055,
+        "ideographicBaseline": -18.0
+      },
+      "record_sha256": "b9cf97c25e00375febc25909b672553250ce3d5afcbb5d62d95f4ac68dd43714",
+      "family": "Consolas"
+    },
+    {
+      "index": 329,
+      "font_index": 229,
+      "font": "72px \"Times New Roman\", monospace",
+      "text": "mmmmmmmmmmlli",
+      "expected": {
+        "width": 620.05078125,
+        "actualBoundingBoxRight": 619.046875,
+        "actualBoundingBoxAscent": 50.0,
+        "actualBoundingBoxDescent": 0.0,
+        "actualBoundingBoxLeft": 0.0,
+        "fontBoundingBoxAscent": 64.0,
+        "fontBoundingBoxDescent": 16.0,
+        "emHeightAscent": 64.0,
+        "emHeightDescent": 16.0,
+        "alphabeticBaseline": 0,
+        "hangingBaseline": 51.20000076293945,
+        "ideographicBaseline": -16.0
+      },
+      "record_sha256": "d4a65ba08f8b9aa66792dcf450c562f72b8999fecd31cf2f178407254f43ba8b",
+      "family": "Times New Roman"
+    },
+    {
+      "index": 338,
+      "font_index": 238,
+      "font": "16px \"Times New Roman\", Georgia, serif",
+      "text": "CIP mobile canvas fp",
+      "expected": {
+        "width": 138.1953125,
+        "actualBoundingBoxRight": 138.1953125,
+        "actualBoundingBoxAscent": 11.0,
+        "actualBoundingBoxDescent": 3.0,
+        "actualBoundingBoxLeft": 0.0,
+        "fontBoundingBoxAscent": 14.0,
+        "fontBoundingBoxDescent": 3.0,
+        "emHeightAscent": 14.0,
+        "emHeightDescent": 3.0,
+        "alphabeticBaseline": 0,
+        "hangingBaseline": 11.199999809265137,
+        "ideographicBaseline": -3.0
+      },
+      "record_sha256": "4d0b8fe15c3855d89248f99657b185c9af7f342fc5491df867e74f42778c1870",
+      "family": "Times New Roman"
+    },
+    {
+      "index": 344,
+      "font_index": 238,
+      "font": "16px \"Times New Roman\", Georgia, serif",
+      "text": "mmmmmmmmmmlliWWW@@@",
+      "expected": {
+        "width": 227.296875,
+        "actualBoundingBoxRight": 227.5625,
+        "actualBoundingBoxAscent": 11.0,
+        "actualBoundingBoxDescent": 4.0,
+        "actualBoundingBoxLeft": 1.0,
+        "fontBoundingBoxAscent": 14.0,
+        "fontBoundingBoxDescent": 3.0,
+        "emHeightAscent": 14.0,
+        "emHeightDescent": 3.0,
+        "alphabeticBaseline": 0,
+        "hangingBaseline": 11.199999809265137,
+        "ideographicBaseline": -3.0
+      },
+      "record_sha256": "b9c01136d78d01aa05417ef60a8f45857a9dc828afb1f72134ba09fe92ab2287",
+      "family": "Times New Roman"
+    },
+    {
+      "index": 350,
+      "font_index": 238,
+      "font": "16px \"Times New Roman\", Georgia, serif",
+      "text": "Security Privacy Trust",
+      "expected": {
+        "width": 143.40625,
+        "actualBoundingBoxRight": 143.9609375,
+        "actualBoundingBoxAscent": 11.0,
+        "actualBoundingBoxDescent": 3.0,
+        "actualBoundingBoxLeft": 0.0,
+        "fontBoundingBoxAscent": 14.0,
+        "fontBoundingBoxDescent": 3.0,
+        "emHeightAscent": 14.0,
+        "emHeightDescent": 3.0,
+        "alphabeticBaseline": 0,
+        "hangingBaseline": 11.199999809265137,
+        "ideographicBaseline": -3.0
+      },
+      "record_sha256": "70a1c52aedf6ce01f89daffea8e8ce70ccf810e286a2b2f42278217b8472e0e5",
+      "family": "Times New Roman"
+    }
+  ],
+  "cloakVoicesWindowsEnUS": [
+    {
+      "name": "Microsoft David - English (United States)",
+      "lang": "en-US",
+      "localService": true
+    },
+    {
+      "name": "Microsoft Mark - English (United States)",
+      "lang": "en-US",
+      "localService": true
+    },
+    {
+      "name": "Microsoft Zira - English (United States)",
+      "lang": "en-US",
+      "localService": true
+    },
+    {
+      "name": "Google Deutsch",
+      "lang": "de-DE",
+      "localService": false
+    },
+    {
+      "name": "Google US English",
+      "lang": "en-US",
+      "localService": false
+    },
+    {
+      "name": "Google UK English Female",
+      "lang": "en-GB",
+      "localService": false
+    },
+    {
+      "name": "Google UK English Male",
+      "lang": "en-GB",
+      "localService": false
+    },
+    {
+      "name": "Google español",
+      "lang": "es-ES",
+      "localService": false
+    },
+    {
+      "name": "Google español de Estados Unidos",
+      "lang": "es-US",
+      "localService": false
+    },
+    {
+      "name": "Google français",
+      "lang": "fr-FR",
+      "localService": false
+    },
+    {
+      "name": "Google हिन्दी",
+      "lang": "hi-IN",
+      "localService": false
+    },
+    {
+      "name": "Google Bahasa Indonesia",
+      "lang": "id-ID",
+      "localService": false
+    },
+    {
+      "name": "Google italiano",
+      "lang": "it-IT",
+      "localService": false
+    },
+    {
+      "name": "Google 日本語",
+      "lang": "ja-JP",
+      "localService": false
+    },
+    {
+      "name": "Google 한국의",
+      "lang": "ko-KR",
+      "localService": false
+    },
+    {
+      "name": "Google Nederlands",
+      "lang": "nl-NL",
+      "localService": false
+    },
+    {
+      "name": "Google polski",
+      "lang": "pl-PL",
+      "localService": false
+    },
+    {
+      "name": "Google português do Brasil",
+      "lang": "pt-BR",
+      "localService": false
+    },
+    {
+      "name": "Google русский",
+      "lang": "ru-RU",
+      "localService": false
+    },
+    {
+      "name": "Google 普通话（中国大陆）",
+      "lang": "zh-CN",
+      "localService": false
+    },
+    {
+      "name": "Google 粤語（香港）",
+      "lang": "zh-HK",
+      "localService": false
+    },
+    {
+      "name": "Google 國語（臺灣）",
+      "lang": "zh-TW",
+      "localService": false
+    }
+  ],
+  "cloakVoicesWindowsByLocale": {
+    "en-US": [
+      {
+        "name": "Microsoft David - English (United States)",
+        "lang": "en-US",
+        "localService": true
+      },
+      {
+        "name": "Microsoft Mark - English (United States)",
+        "lang": "en-US",
+        "localService": true
+      },
+      {
+        "name": "Microsoft Zira - English (United States)",
+        "lang": "en-US",
+        "localService": true
+      },
+      {
+        "name": "Google Deutsch",
+        "lang": "de-DE",
+        "localService": false
+      },
+      {
+        "name": "Google US English",
+        "lang": "en-US",
+        "localService": false
+      },
+      {
+        "name": "Google UK English Female",
+        "lang": "en-GB",
+        "localService": false
+      },
+      {
+        "name": "Google UK English Male",
+        "lang": "en-GB",
+        "localService": false
+      },
+      {
+        "name": "Google español",
+        "lang": "es-ES",
+        "localService": false
+      },
+      {
+        "name": "Google español de Estados Unidos",
+        "lang": "es-US",
+        "localService": false
+      },
+      {
+        "name": "Google français",
+        "lang": "fr-FR",
+        "localService": false
+      },
+      {
+        "name": "Google हिन्दी",
+        "lang": "hi-IN",
+        "localService": false
+      },
+      {
+        "name": "Google Bahasa Indonesia",
+        "lang": "id-ID",
+        "localService": false
+      },
+      {
+        "name": "Google italiano",
+        "lang": "it-IT",
+        "localService": false
+      },
+      {
+        "name": "Google 日本語",
+        "lang": "ja-JP",
+        "localService": false
+      },
+      {
+        "name": "Google 한국의",
+        "lang": "ko-KR",
+        "localService": false
+      },
+      {
+        "name": "Google Nederlands",
+        "lang": "nl-NL",
+        "localService": false
+      },
+      {
+        "name": "Google polski",
+        "lang": "pl-PL",
+        "localService": false
+      },
+      {
+        "name": "Google português do Brasil",
+        "lang": "pt-BR",
+        "localService": false
+      },
+      {
+        "name": "Google русский",
+        "lang": "ru-RU",
+        "localService": false
+      },
+      {
+        "name": "Google 普通话（中国大陆）",
+        "lang": "zh-CN",
+        "localService": false
+      },
+      {
+        "name": "Google 粤語（香港）",
+        "lang": "zh-HK",
+        "localService": false
+      },
+      {
+        "name": "Google 國語（臺灣）",
+        "lang": "zh-TW",
+        "localService": false
+      }
+    ],
+    "zh-CN": [
+      {
+        "name": "Microsoft Huihui - Chinese (Simplified, PRC)",
+        "lang": "zh-CN",
+        "localService": true
+      },
+      {
+        "name": "Microsoft Kangkang - Chinese (Simplified, PRC)",
+        "lang": "zh-CN",
+        "localService": true
+      },
+      {
+        "name": "Microsoft Yaoyao - Chinese (Simplified, PRC)",
+        "lang": "zh-CN",
+        "localService": true
+      },
+      {
+        "name": "Google Deutsch",
+        "lang": "de-DE",
+        "localService": false
+      },
+      {
+        "name": "Google US English",
+        "lang": "en-US",
+        "localService": false
+      },
+      {
+        "name": "Google UK English Female",
+        "lang": "en-GB",
+        "localService": false
+      },
+      {
+        "name": "Google UK English Male",
+        "lang": "en-GB",
+        "localService": false
+      },
+      {
+        "name": "Google español",
+        "lang": "es-ES",
+        "localService": false
+      },
+      {
+        "name": "Google español de Estados Unidos",
+        "lang": "es-US",
+        "localService": false
+      },
+      {
+        "name": "Google français",
+        "lang": "fr-FR",
+        "localService": false
+      },
+      {
+        "name": "Google हिन्दी",
+        "lang": "hi-IN",
+        "localService": false
+      },
+      {
+        "name": "Google Bahasa Indonesia",
+        "lang": "id-ID",
+        "localService": false
+      },
+      {
+        "name": "Google italiano",
+        "lang": "it-IT",
+        "localService": false
+      },
+      {
+        "name": "Google 日本語",
+        "lang": "ja-JP",
+        "localService": false
+      },
+      {
+        "name": "Google 한국의",
+        "lang": "ko-KR",
+        "localService": false
+      },
+      {
+        "name": "Google Nederlands",
+        "lang": "nl-NL",
+        "localService": false
+      },
+      {
+        "name": "Google polski",
+        "lang": "pl-PL",
+        "localService": false
+      },
+      {
+        "name": "Google português do Brasil",
+        "lang": "pt-BR",
+        "localService": false
+      },
+      {
+        "name": "Google русский",
+        "lang": "ru-RU",
+        "localService": false
+      },
+      {
+        "name": "Google 普通话（中国大陆）",
+        "lang": "zh-CN",
+        "localService": false
+      },
+      {
+        "name": "Google 粤語（香港）",
+        "lang": "zh-HK",
+        "localService": false
+      },
+      {
+        "name": "Google 國語（臺灣）",
+        "lang": "zh-TW",
+        "localService": false
+      }
+    ]
+  },
+  "audioReferencePairs": [
+    {
+      "length": 5000,
+      "native_sha256": "0d6f33df90bb7c70e12339d9c128f988eee40e58e1c53912b0df4445f927e95e",
+      "reference_sha256": "235ebb31c876b7d81fbbe4c7b65623ac142ed6a6b82c130f3037895df65e9419"
+    },
+    {
+      "length": 1000,
+      "native_sha256": "a744c3000db56fff51a7f8e1525a4c41babf257df0aa52ceaed39e8f68b430e5",
+      "reference_sha256": "99ff666c51fd78f3a507b0541638ed37ed4134916c67edd386fea549c46b45ca"
+    },
+    {
+      "length": 44100,
+      "native_sha256": "d37e25867e9d29fd400f1b4af1baacadeaea46cbb16a4c8a9316690eb7744b35",
+      "reference_sha256": "3ef8a960b6869b916572bcfb85569a918a2498f3296a3e935647e4b6f00da0b9"
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "kind": "windows156-preserved-stack-overrides",
+  "chromium_version": "156.0.8078.79",
+  "core_commit": "28a211ab4ab6b83d919966a4f58a6df23cf4fb29",
+  "windows_commit": "8492884eb30fdd9417ea7816aa92def805c97c74",
+  "baseline_commit": "e3aff9b6c8955710de5ebeaf5e98ede453d35c06",
+  "overrides": [
+    {
+      "base_path": "patches/0020-third_party-blink-renderer-modules-canvas-canvas2d-base_rendering_context_2d-cc.patch",
+      "base_sha256": "84f2d3139cb9adfc70d2c073395fb939b5d59c2f22d5c46450e2586ccceba708",
+      "path": "patches/chromium156-windows/0020-third_party-blink-renderer-modules-canvas-canvas2d-base_rendering_context_2d-cc.patch",
+      "sha256": "0b017e9d1dca855042637076698908996b846ed4f18001867e3cc9e0b93d4f19",
+      "reason": "Adapt to Chromium 156 upstream two-argument ShuffleSubchannelColorData; retain its corrected buffer dimensions and all added Chromix noise logic."
+    },
+    {
+      "base_path": "patches/0024-third_party-blink-renderer-modules-peerconnection-peer_connection_dependency_factory-cc.patch",
+      "base_sha256": "311671ff1e2a73fd7106cd790c35269e49039301791c818a9a8748946cc2324a",
+      "path": "patches/chromium156-windows/0024-third_party-blink-renderer-modules-peerconnection-peer_connection_dependency_factory-cc.patch",
+      "sha256": "4f926e2df631e74eb7bbd51597adbb11dd20e31f0362a25696a1951b808b71de",
+      "reason": "Chromium 156 include context adds base/types/pass_key.h and removes crypto/openssl_util.h; added and removed implementation lines are unchanged."
+    },
+    {
+      "base_path": "patches/0044-third_party-blink-renderer-modules-peerconnection-rtc_peer_connection-cc.patch",
+      "base_sha256": "7303736192ad27af857315a8cd60e440da23f26b323389bf04c9ceaf3e6ac240",
+      "path": "patches/chromium156-windows/0044-third_party-blink-renderer-modules-peerconnection-rtc_peer_connection-cc.patch",
+      "sha256": "136af4eb147a983157a1ba48fd8217ea5e53bdd0effeac0b78c9f1ad72611427",
+      "reason": "Adapt Chromium 156 include context after base/time/time.h; all WebRTC policy implementation additions and removals are unchanged."
+    },
+    {
+      "base_path": "patches/0074-third_party-blink-renderer-core-html-canvas-html_canvas_element-cc.patch",
+      "base_sha256": "1f027e86221793d79b06e68c91b34011ed3ae51fb63bfd365ffa09a595b519a8",
+      "path": "patches/chromium156-windows/0074-third_party-blink-renderer-core-html-canvas-html_canvas_element-cc.patch",
+      "sha256": "ed5d96a264e4da4cc2112bc5b355393a5ca003a8849e64b6856c41f3d100b4d6",
+      "reason": "Retain new upstream base/auto_reset.h include in context; all added vector/pixel bridge logic is unchanged."
+    },
+    {
+      "base_path": "patches/0124-third_party-blink-renderer-platform-image-encoders-image_encoder-cc.patch",
+      "base_sha256": "80549956ea96cd315045a2bdda8a6167b51c6a3e681d490604aa740e0bd54513",
+      "path": "patches/chromium156-windows/0124-third_party-blink-renderer-platform-image-encoders-image_encoder-cc.patch",
+      "sha256": "d3d16b5fc59b9ae0941737e051d9b5ed0205fea6f141b006a326e184f459c5b9",
+      "reason": "Adapt to Chromium 156 upstream two-argument ShuffleSubchannelColorData; retain its corrected buffer dimensions and all added Chromix noise logic."
+    },
+    {
+      "base_path": "patches/0140-webrtc-ip-stats.patch",
+      "base_sha256": "b8a7b27673a70cdaeab689b304d22efeee7735dec73b1ca1023c759fa734f82f",
+      "path": "patches/chromium156-windows/0140-webrtc-ip-stats.patch",
+      "sha256": "4e3ed1ca9a6cb67dde9c02c683d14558a812c51781dc56656270917df3d83fc8",
+      "reason": "Adapt Chromium 156 standard-header context; all added fingerprint address presentation code is unchanged."
+    },
+    {
+      "base_path": "patches/0141-webrtc-ip-offer-promises.patch",
+      "base_sha256": "7e3a5160d0f788c5ca2fcdcad2b323ba592278c0f02bda34096496c455e68f26",
+      "path": "patches/chromium156-windows/0141-webrtc-ip-offer-promises.patch",
+      "sha256": "96fefe6f37fa0c191a5a36bc35cc076badc5a2fb6eba1d34a4428558bff35bd6",
+      "reason": "Adapt Chromium 156 GC/request/error include context; added SDP presentation rewrite remains byte-for-byte unchanged."
+    },
+    {
+      "base_path": "patches/0142-webrtc-ip-offer-callbacks.patch",
+      "base_sha256": "9753eba611a55e2ead0f6e31c7e0014c2a7e9b3a9374281e3800804016832b2f",
+      "path": "patches/chromium156-windows/0142-webrtc-ip-offer-callbacks.patch",
+      "sha256": "daa67441458db4878e3409c7dc51999bf236d06395c62eacb4b317e5820bfa8f",
+      "reason": "Adapt Chromium 156 GC/request/error include context; callback SDP presentation rewrite additions and removals are unchanged."
+    },
+    {
+      "base_path": "patches/0150-canvas-mailbox-readback-geometry.patch",
+      "base_sha256": "af1568a2b75ff288bde5bb8526c902d60ef9a521c0f636b3a07abfcb942cb913",
+      "path": "patches/chromium156-windows/0150-canvas-mailbox-readback-geometry.patch",
+      "sha256": "9419f201bcfa87729d8f9a2c04ae308a9eac2e5533bc5256cc1f8af79ba3d658",
+      "reason": "Pass real shared_image_->size() to Chromium 156 ReadbackImagePixels API; keep caller stride, clipping, destination offset and all overflow validation unchanged."
+    },
+    {
+      "base_path": "patches/0152-devtools-font-provenance-implementation.patch",
+      "base_sha256": "09ba768fcc600e5575f3ced0d4f779533441fec79a3000332b6b5919f631dfd9",
+      "path": "patches/chromium156-windows/0152-devtools-font-provenance-implementation.patch",
+      "sha256": "6f721f63afed92d5962b9876bde266285a2ba636b4994606adcd4b3d71331e7a",
+      "reason": "Retain Chromium 156 dom_node_id.h in include context; all font provenance additions and deletions are unchanged."
+    },
+    {
+      "base_path": "patches/0160-canvas-shared-backend-policy.patch",
+      "base_sha256": "fed44ff89761f06b260d2b62f72886d26ba7029b7fe972cd5f55c9b60243ef69",
+      "path": "patches/chromium156-windows/0160-canvas-shared-backend-policy.patch",
+      "sha256": "448fede880c3acbce793f088fec662d3e07e70761e6e9a221874bf1b1ba3c3e8",
+      "reason": "Adapt to Chromium 156 upstream two-argument ShuffleSubchannelColorData; retain its corrected buffer dimensions and all added Chromix noise logic."
+    },
+    {
+      "base_path": "patches/0184-webrtc-codec-negotiation-policy.patch",
+      "base_sha256": "40420a008ece2d3106712dbe5a40f18634271436a3fb0ef86cf65ae69c31b6e3",
+      "path": "patches/chromium156-windows/0184-webrtc-codec-negotiation-policy.patch",
+      "sha256": "1cd7e674612c57b6260b250f8649a078ebf898c8c41ba040fc34028276bc45f4",
+      "reason": "Adapt Chromium 156 standard/base header reorganization; all codec policy and filtering implementation additions/deletions are unchanged."
+    },
+    {
+      "base_path": "patches/0209-display-native-screen-regressions.patch",
+      "base_sha256": "fb94be385764e9bc6836033744596be85805d44ac9132a113e770da27c723aa1",
+      "path": "patches/chromium156-windows/0209-display-native-screen-regressions.patch",
+      "sha256": "5bbab689723fc75f5501e042076821d09ea6917df05fb21ec599629da3606126",
+      "reason": "Retain Chromium 156 WebFrameWidgetSimTest helper body in surrounding context; every added display/DPR regression is unchanged."
+    },
+    {
+      "base_path": "patches/chromium155/0077-third_party-blink-renderer-modules-canvas-canvas2d-base_rendering_context_2d-h.patch",
+      "base_sha256": "148644312c9f40aa74ce630aefdea9167fd39b7a1f018f2e834995be173b29aa",
+      "path": "patches/chromium156-windows/0077-third_party-blink-renderer-modules-canvas-canvas2d-base_rendering_context_2d-h.patch",
+      "sha256": "781fabe2a5b5860a5a05b70e16cfbeea7415cec608110ee26f24b84633f7e036",
+      "reason": "Retain new Chromium 156 recording/pinned image byte fields and adapt surrounding member context; bridge field/method additions are unchanged."
+    }
+  ]
+}

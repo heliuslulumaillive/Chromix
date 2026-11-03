@@ -54,6 +54,13 @@ OVERRIDES = {
 
 
 VERSION155 = "155.0.8059.39"
+VERSION156 = "156.0.8078.79"
+CORE156 = "28a211ab4ab6b83d919966a4f58a6df23cf4fb29"
+WINDOWS156 = "8492884eb30fdd9417ea7816aa92def805c97c74"
+WINDOWS156_BASELINE = "build/patch-stack-windows155-baseline.json"
+WINDOWS156_BASELINE_SHA256 = "45c5eb84933bbe03a8982b4f38250f63814fe795b8beb01aae57cbaf5db505aa"
+WINDOWS156_OVERRIDES = "build/patch-overrides-windows156.json"
+WINDOWS156_OVERRIDES_SHA256 = "defaf3b5c23e8ae8d7771a122c7a1587c30360cec101c8dc3d61c529dd920de5"
 CORE155 = "ffeb45a2bb88bc56a1dfed31410aeb10e9efcd5a"
 PLATFORM155_COMMITS = {
     "windows": "989b4382364baaddb8b3180e1eb1030ca96a7273",
@@ -128,11 +135,65 @@ def read(repo: Path, name: str) -> bytes:
     path = repo
     for part in name.split("/"):
         path = path / part
-        if path.is_symlink():
+        if path.is_symlink() or (hasattr(path, "is_junction") and path.is_junction()):
             raise SelectionError("symlink patch input: " + name)
     if not path.is_file():
         raise SelectionError("missing patch input: " + name)
     return path.read_bytes()
+
+
+def windows156_preserved_stack(repo: Path, series: bytes) -> tuple[list[str], dict]:
+    """Keep the complete accepted Windows stack; only reviewed ports may replace bytes."""
+    raw = read(repo, WINDOWS156_BASELINE)
+    if digest(raw) != WINDOWS156_BASELINE_SHA256:
+        raise SelectionError("changed Windows156 preservation baseline")
+    baseline = json.loads(raw)
+    if (baseline.get("chromium_version") != VERSION155
+            or baseline.get("base_series_sha256") != digest(series)
+            or len(baseline.get("patches", [])) != 231):
+        raise SelectionError("Windows156 requires the complete accepted 231-patch baseline")
+    originals = baseline["patches"]
+    expected = {entry["path"]: entry["sha256"] for entry in originals}
+    if len(expected) != 231:
+        raise SelectionError("duplicate preservation baseline patch")
+    for name, sha in expected.items():
+        if digest(read(repo, name)) != sha:
+            raise SelectionError("accepted baseline patch changed: " + name)
+    override_raw = read(repo, WINDOWS156_OVERRIDES)
+    if digest(override_raw) != WINDOWS156_OVERRIDES_SHA256:
+        raise SelectionError("changed Windows156 port manifest")
+    overrides = json.loads(override_raw)
+    if (overrides.get("schema_version") != 1
+            or overrides.get("chromium_version") != VERSION156
+            or overrides.get("core_commit") != CORE156
+            or overrides.get("windows_commit") != WINDOWS156
+            or overrides.get("baseline_commit") != baseline["source_commit"]):
+        raise SelectionError("Windows156 port manifest does not match reviewed pins")
+    replacements = {}
+    for entry in overrides.get("overrides", []):
+        source, target = entry.get("base_path"), entry.get("path")
+        if (source not in expected or source in replacements
+                or entry.get("base_sha256") != expected[source]
+                or not isinstance(target, str)
+                or not re.fullmatch(r"patches/chromium156-windows/[A-Za-z0-9_.-]+\.patch", target)
+                or not isinstance(entry.get("reason"), str) or not entry["reason"].strip()):
+            raise SelectionError("invalid or duplicate Windows156 port")
+        if digest(read(repo, target)) != entry.get("sha256"):
+            raise SelectionError("changed Windows156 port: " + target)
+        replacements[source] = target
+    directory = repo / "patches/chromium156-windows"
+    if directory.is_symlink() or (hasattr(directory, "is_junction") and directory.is_junction()):
+        raise SelectionError("linked Windows156 port directory")
+    actual = {p.relative_to(repo).as_posix() for p in directory.glob("*.patch")} if directory.exists() else set()
+    if actual != set(replacements.values()):
+        raise SelectionError("partial or unexpected Windows156 port inventory")
+    selected = [replacements.get(entry["path"], entry["path"]) for entry in originals]
+    if len(set(selected)) != 231:
+        raise SelectionError("duplicate effective Windows156 patch")
+    return selected, {"source_commit": baseline["source_commit"], "original_patch_count": 231,
+                      "reviewed_port_count": len(replacements),
+                      "baseline_manifest_sha256": digest(raw),
+                      "port_manifest_sha256": digest(override_raw)}
 
 
 def source_version(src: Path) -> str:
@@ -281,18 +342,19 @@ def select(repo: Path, platform: str | None = None, *, src: Path | None = None,
     macos152 = platform == "macos" and version == MACOS152_VERSION
     if src is not None and version is not None:
         source_version_path = Path(src) / "chrome/VERSION"
-        if version in (VERSION, VERSION155) or macos152 or source_version_path.is_symlink():
+        if version in (VERSION, VERSION155, VERSION156) or macos152 or source_version_path.is_symlink():
             observed = source_version(Path(src))
             if observed != version:
                 raise SelectionError("source version does not match selected repository pins")
     if core is not None and version is not None:
         core_version_path = Path(core) / "chromium_version.txt"
-        if version in (VERSION, VERSION155) or macos152 or core_version_path.is_symlink():
+        if version in (VERSION, VERSION155, VERSION156) or macos152 or core_version_path.is_symlink():
             observed = read(Path(core), "chromium_version.txt").decode("ascii").strip()
             if observed != version:
                 raise SelectionError("core version does not match selected repository pins")
     selected = names
     selection = None
+    additions156 = []
     if version == VERSION:
         if platform not in PLATFORM_COMMITS:
             raise SelectionError("Chromium 154 overrides require Windows, Linux, or macOS")
@@ -329,6 +391,19 @@ def select(repo: Path, platform: str | None = None, *, src: Path | None = None,
         selection = {"schema_version": 1, "version": VERSION155, "platform": platform,
                      "core_commit": CORE155, "platform_commit": PLATFORM155_COMMITS[platform],
                      "base_series_sha256": digest(series)}
+    elif version == VERSION156:
+        if (platform != "windows" or pins["UngoogledCommit"] != CORE156
+                or pins["UngoogledVersion"] != VERSION156 + "-1"
+                or pins.get("UngoogledWindowsCommit") != WINDOWS156
+                or pins.get("UngoogledWindowsVersion") != VERSION156 + "-1.1"):
+            raise SelectionError("Chromium 156 requires the reviewed Windows/core pin pair")
+        if len(names) != 224:
+            raise SelectionError("Chromium 156 requires the complete 224-patch base series")
+        preserved, preservation = windows156_preserved_stack(repo, series)
+        selected, additions156 = preserved[:224], preserved[224:]
+        selection = {"schema_version": 1, "version": VERSION156, "platform": platform,
+                     "core_commit": CORE156, "platform_commit": WINDOWS156,
+                     "base_series_sha256": digest(series), "preservation": preservation}
     elif macos152:
         if (pins["UngoogledCommit"] != MACOS152_CORE
                 or pins["UngoogledVersion"] != MACOS152_VERSION + "-1"
@@ -375,6 +450,11 @@ def select(repo: Path, platform: str | None = None, *, src: Path | None = None,
                 effective_series += b"\n"
             effective_series += "".join(name + "\n" for name in additions).encode("utf-8")
             selection["additions"] = addition_identity
+    if additions156:
+        selected = [*selected, *additions156]
+        if not effective_series.endswith(b"\n"):
+            effective_series += b"\n"
+        effective_series += "".join(name + "\n" for name in additions156).encode("utf-8")
     patches = [(name, read(repo, name)) for name in selected]
     identity = {"series_sha256": digest(effective_series),
                 "patches": [{"path": name, "sha256": digest(raw)} for name, raw in patches]}

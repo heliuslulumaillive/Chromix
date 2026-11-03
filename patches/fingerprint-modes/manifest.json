@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "strategy": "compatible-v1",
+  "base_commit": "90e6d29bf81408820c7bba89caf8bad7dec8430c",
+  "passkey_latency_optimization": "Explicitly deferred; not included",
+  "original_selected_patches_byte_identical": 231,
+  "ordered_overlays": [
+    {
+      "path": "patches/fingerprint-modes/0001-independent-mode-contract.patch",
+      "sha256": "69cd13a82e00a17c6356cb43451216ac6a858e3ebb9ea54ded7b5f7d58fac726",
+      "files": 16
+    },
+    {
+      "path": "patches/fingerprint-modes-win156/0002-graphics.patch",
+      "sha256": "38d4634adaf7bbcb5f368709c2a80f887dcceca56aa1704a91abd9e95c7b8b95",
+      "files": 12
+    },
+    {
+      "path": "patches/fingerprint-modes/0003-surfaces.patch",
+      "sha256": "310a60fe00d2e6a3dbf34a741add73ff1ef8db9e336f5cdcee8351f530c06c95",
+      "files": 18
+    },
+    {
+      "path": "patches/fingerprint-modes/0004-gpu-compatible-modes-v1.patch",
+      "sha256": "929049be2fb50bbf022cdc4579bccd3b404da8588b7e997e16ef55b2df2908b2",
+      "files": 9
+    },
+    {
+      "path": "patches/fingerprint-modes/0005-installed-font-allowlists.patch",
+      "sha256": "29430a7ed928770e717d1ed0813a1018d9dbeed2192c51d6bacdc670e1d39472",
+      "files": 5
+    },
+    {
+      "path": "patches/fingerprint-modes/0006-audio-defaults.patch",
+      "sha256": "fa40bf2183bb46f1b337592f275cce43fd0c4e72d4b8c2c2383d37f8533aeeaf",
+      "files": 5
+    },
+    {
+      "path": "patches/fingerprint-modes/0007-custom-ua-client-hints.patch",
+      "sha256": "795389a9615f383dc8025e445e94a4eff55e06d5584bee88b0a74ac1cb6ab554",
+      "files": 1
+    },
+    {
+      "path": "patches/fingerprint-modes/0008-required-physical-gpu.patch",
+      "sha256": "5f89a7060130e72f391594cd36af305294095daccd7ef16991bd4723a49ed1b2",
+      "files": 2
+    },
+    {
+      "path": "patches/fingerprint-modes-win156/0009-shardx-webgl-consistent-readback.patch",
+      "sha256": "58d763254894a4a0ac47a97e41cd57ffa9de9f2ea9e6eae6b816434a263003dc",
+      "files": 15
+    },
+    {
+      "path": "patches/fingerprint-modes/0010-windows-native-voice-compat.patch",
+      "sha256": "381ddaab9deada285759f6553adf96972027873a8367e5e1366eff20e3c155f5",
+      "files": 5
+    },
+    {
+      "path": "patches/fingerprint-modes/0011-pixel-semantic-preservation.patch",
+      "sha256": "e1e2dca2ebddc7d4706da19a6357671a2a94dfd17d5b610934b1355773b78e53",
+      "files": 10
+    },
+    {
+      "path": "patches/fingerprint-modes/0014-headless-screen-synchronization.patch",
+      "sha256": "3e7880453418a9a1d4f5478179caf22edbf0a50f0bca5ab693c8f07d942bf14a",
+      "files": 3
+    },
+    {
+      "path": "patches/fingerprint-modes/0015-pixel-mask-first.patch",
+      "sha256": "48806ebce0ca13bbaec3c2cebacf9f486f930b03be610e9e2975d571282cd2a1",
+      "files": 5
+    }
+  ],
+  "sequential_incremental_files": {
+    "third_party/blink/renderer/platform/fonts/font_cache.cc": [
+      "0003-surfaces.patch",
+      "0005-installed-font-allowlists.patch"
+    ],
+    "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc": [
+      "0002-graphics.patch",
+      "0004-gpu-compatible-modes-v1.patch",
+      "0009-shardx-webgl-consistent-readback.patch"
+    ],
+    "components/embedder_support/user_agent_utils.cc": [
+      "0001-independent-mode-contract.patch",
+      "0007-custom-ua-client-hints.patch"
+    ],
+    "base/uxr_graphics_noise.cc": [
+      "0002-graphics.patch",
+      "0009-shardx-webgl-consistent-readback.patch"
+    ]
+  },
+  "combined_patch_sha256": "1eb245065d8fe8910c1a9646b6ab247a860529f7d6dcd886e10302ec5fefc892",
+  "combined_patch_changed_files": 485,
+  "source_upgrade": {
+    "from_run": 39498745053,
+    "from_commit": "4c5f53ca8efef6acca5c8037aaf18ab609550651",
+    "from_patch_sha256": "cb77d7c9fb5f07cfb68e16208108a7ec33fd76bb262b58f2426a4f49df89040b",
+    "unchanged_file_timestamps_preserved": 255,
+    "changed_existing_files": [
+      "components/embedder_support/user_agent_utils.cc",
+      "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
+      "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc"
+    ],
+    "idempotent": true,
+    "current_accepted_source": {
+      "from_run": 39555973258,
+      "from_commit": "6a42263b8898daadfbccf622c8ba86745b88efe4",
+      "from_patch_sha256": "91240908cc0b26881a34ff9f74a99c3bfb602fbce0e49df3ba8686018a8006e7",
+      "changed_existing_files": [
+        "components/embedder_support/user_agent_utils.cc"
+      ],
+      "unchanged_file_timestamps_preserved": 257
+    },
+    "qualification": "Selected-source replay with both exact receipts; object preservation checked using synthetic sentinels."
+  },
+  "qualification": "Pinned source replay and donor-upgrade identity only; compiled and runtime evidence is separate.",
+  "shardx_webgl_v2": {
+    "revision": 2,
+    "algorithm": "absolute-coordinate sparse RGB LSB assignment; idempotent; seed stable",
+    "readback": [
+      "RGBA8",
+      "RGBA32F"
+    ],
+    "paths": [
+      "default framebuffer alpha true/false",
+      "FBO",
+      "PBO copy chains",
+      "Window",
+      "OffscreenCanvas",
+      "Worker",
+      "PNG data URL and Blob export"
+    ],
+    "native_fallbacks": [
+      "HALF_FLOAT",
+      "packed pixel types",
+      "integer pixel formats",
+      "unavailable native completion metadata"
+    ],
+    "limitations": [
+      "No claim of full detector acceptance, every GPU workload or non-linkability",
+      "Copying WebGL to Canvas2D uses the separate Canvas policy"
+    ],
+    "source_contract": "Descriptive source revision only. Requires exact DLL runtime acceptance before admission.",
+    "alpha": "Premultiplied contexts use representable storage-lattice assignments with explicit export convention. Endpoint-only alpha1 stays unchanged; scenes with representable interior colors require positive perturbation.",
+    "pbo_memory": "Compact actual-pixel staging without PACK padding allocation; checked allocation reports OUT_OF_MEMORY without modifying the original PBO.",
+    "offscreen_straight_alpha": "Use the same raw RGBA snapshot as HTML Canvas only for active ShardX straight-alpha WebGL; avoid GetImage premultiplication before sparse export.",
+    "color_endpoints": "RGBA8 preserves straight0/255 and premultiplied0/alpha, matching FLOAT0/1 boundary preservation. Interior colors remain eligible for sparse perturbation. Alpha1 has no interior premultiplied values."
+  },
+  "surface_semantics_integration": {
+    "schema_version": 1,
+    "base_commit": "75599a0755ebeb1f57129d2a118c0d1f9ed2e636",
+    "base_aggregate_sha256": "6d01b4985fd5c03fe4f8818d99b31d1bf42b29c01923278c11e79bcd56385115",
+    "overlays": [
+      "patches/fingerprint-modes/0011-pixel-semantic-preservation.patch",
+      "patches/fingerprint-modes/0014-headless-screen-synchronization.patch",
+      "patches/fingerprint-modes/0015-pixel-mask-first.patch"
+    ],
+    "target_paths": [
+      "base/BUILD.gn",
+      "base/uxr_graphics_mode_goldens.cc",
+      "base/uxr_graphics_noise.cc",
+      "base/uxr_graphics_noise.h",
+      "base/uxr_headless_screen.h",
+      "base/uxr_mask_first_equivalence.h",
+      "base/uxr_mask_first_reference.h",
+      "base/uxr_pixel_semantic_properties.h",
+      "chrome/app/chrome_main.cc",
+      "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+      "third_party/blink/renderer/modules/webgl/uxr_shard_readback.h",
+      "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
+      "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
+      "third_party/blink/renderer/platform/graphics/image_data_buffer.cc"
+    ],
+    "requires_new_exact_dll_acceptance": true
+  }
+}
