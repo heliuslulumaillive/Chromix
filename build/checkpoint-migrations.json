@@ -90,6 +90,21 @@
       "target_preparation_sha256": "a86a417898baca37e515f7e3834bf632919658d793dc499e00346f2b17634049",
       "target_aggregate_sha256": "daa2206518e778e4f671ce209c2a3480dd78364a3a931cd236de07590370975d",
       "scope": "Reviewed native history age policy and common media request deny before real/fake UI selection; Cookie and session changes excluded. Preserve unrelated source bytes, mtimes and compiled objects. No failed-runtime acceptance inherited."
+    },
+    {
+      "id": "lite156-native-translation-init-v1",
+      "chromium_version": "156.0.8078.79",
+      "core_commit": "28a211ab4ab6b83d919966a4f58a6df23cf4fb29",
+      "windows_commit": "8492884eb30fdd9417ea7816aa92def805c97c74",
+      "arch": "x64",
+      "source_commit": "d81f9b2ac34237b1762778b1765e9d9721237c33",
+      "source_recipe_sha256": "6ab3b5b069de439de54f63ca705f67c42195f6d2deada9aaf1eec8f336a72d50",
+      "source_preparation_sha256": "a86a417898baca37e515f7e3834bf632919658d793dc499e00346f2b17634049",
+      "source_aggregate_sha256": "daa2206518e778e4f671ce209c2a3480dd78364a3a931cd236de07590370975d",
+      "target_recipe_sha256": "e9da109696b6f1262958d704cff6ab872b3c0903d46d5e06bd0c6c6ff7962274",
+      "target_preparation_sha256": "07f420eaf0fcdbd7bd79f44891c1e1b8a54399cd59235aacbf7eb449a424b593",
+      "target_aggregate_sha256": "a216d29f7b2785a9c2e9aba4ed3cd06923de03da99e3ef97447b3b33522df515",
+      "scope": "Reviewed renderer translation readiness wait with a monotonic 15 second deadline, capped polls and unchanged native error/navigation cancellation. Cookie and session changes excluded. Preserve unrelated sources, mtimes and objects; all runtime acceptance must run again."
     }
   ]
 }

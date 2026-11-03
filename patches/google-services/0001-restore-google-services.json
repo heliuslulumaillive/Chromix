@@ -397,11 +397,15 @@
     "components/supervised_user/core/browser/supervised_user_pref_store.cc",
     "components/sync/service/sync_prefs.cc",
     "components/sync_preferences/common_syncable_prefs_database.cc",
+    "components/translate/content/renderer/translate_agent.cc",
+    "components/translate/content/renderer/translate_agent.h",
     "components/translate/core/browser/ranker_url_fetcher.cc",
     "components/translate/core/browser/translate_language_list.cc",
     "components/translate/core/browser/translate_manager.cc",
     "components/translate/core/browser/translate_ranker_impl.cc",
     "components/translate/core/browser/translate_script.cc",
+    "components/translate/core/common/BUILD.gn",
+    "components/translate/core/common/translation_init_wait.h",
     "components/ungoogled/persona_profile.cc",
     "components/update_client/update_checker.cc",
     "components/variations/net/variations_http_headers.cc",
@@ -2047,6 +2051,14 @@
       "sha256": "ac318513ada5d01d0a295a7641bf120d87ff6bdc08654395c852866af5bdfe84"
     },
     {
+      "path": "components/translate/content/renderer/translate_agent.cc",
+      "sha256": "833570d56dea32a74076f8ab2713f133c25c697eb6681aab01c7737d15afc705"
+    },
+    {
+      "path": "components/translate/content/renderer/translate_agent.h",
+      "sha256": "1c5627548b42fbffd9ede1da5ea1d074c13cd786e2071176bfb590e3bf1f2d1f"
+    },
+    {
       "path": "components/translate/core/browser/ranker_url_fetcher.cc",
       "sha256": "ca357c7c24c536db89ebba447f62e255ab3c30eed591f382de4b1af5ccd6c56f"
     },
@@ -2065,6 +2077,10 @@
     {
       "path": "components/translate/core/browser/translate_script.cc",
       "sha256": "c864de384cf3a144f255db892be582239fbebcb393dc3e08c7c5a43dc328145d"
+    },
+    {
+      "path": "components/translate/core/common/BUILD.gn",
+      "sha256": "699dcce9e06600ca36050b552b66af90658ab161d332d9e37e0bb7239547b0e7"
     },
     {
       "path": "components/update_client/update_checker.cc",
@@ -3157,7 +3173,7 @@
     "patches/chromium155-windows/0232-renderer-launch-timezone-install.patch": "345ef39c9cc6d987f59c44f3f4a46099391d6c629058f10c1151e02a654796a7",
     "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch": "7f7f691f2d744715e0d48a25dab5ff1e8ac793122657beacd0f99a3e7e8ba908"
   },
-  "patch_sha256": "daa2206518e778e4f671ce209c2a3480dd78364a3a931cd236de07590370975d",
+  "patch_sha256": "a216d29f7b2785a9c2e9aba4ed3cd06923de03da99e3ef97447b3b33522df515",
   "qualification": "Source replay only; requires native build and actual account/security tests",
   "generation_inputs": {
     "schema_version": 1,
@@ -3185,7 +3201,8 @@
       "patches/lite-win156/0001-retire-bridge-runtime-synthetic.patch",
       "patches/native-browser/0001-native-windows-shell.patch",
       "patches/native-browser/0002-environment-controls.patch",
-      "patches/native-browser/0003-history-retention.patch"
+      "patches/native-browser/0003-history-retention.patch",
+      "patches/native-browser/0004-translation-init-wait.patch"
     ],
     "selected_baseline": {
       "series_sha256": "5c593c739b18ebd8888040483138910a269391e5aecb6dafa044b736097cfbeb",
@@ -4134,7 +4151,7 @@
     "files": {
       "CHROMIUM_WINDOWS_VERSION": "68d92a4dba65e695e0d31f0b0f210ee61ce7145ec89a08def77104b266cccd99",
       "UNGOOGLED_WINDOWS_VERSION": "e21b0fce64ba0f9c2457f30c618fb87e73fb88a8b1cd49af795548eca8f14395",
-      "build/google-services-win155.json": "dfb82a7a3f458107c2bb642aef8fd031b3e9f3f6e553b391d0c160bb914500f1",
+      "build/google-services-win155.json": "88f599fa90497b6bb7b88676dd069b01e61be6f8c62e23befd82e06fe411d6e3",
       "build/native-browser-capabilities.json": "0d6445aa29e5f70d630038701844d2724a8479be344bdb6d13ec84853cb797d3",
       "build/security-resources/empty_file_type_policy.pb": "98ebc9403565619b3aa2f71f64f5f54adea01d4c4b54d873b2b91c2ac5544112",
       "build/security-resources/etw_events/MSG00001.bin": "51b3d8c734d307af13984bb2c2abde79c859a5acb6386fd233f3e9338f2a7dc5",
@@ -4389,6 +4406,7 @@
       "patches/native-browser/0001-native-windows-shell.patch": "4227a857c72fc51910229fa36710ad393f882fae9bfe3983d609f470d280f000",
       "patches/native-browser/0002-environment-controls.patch": "2f66ef24cffc357b307b9579288342e823b9ed8a28d8a2d169a21d13afff03d0",
       "patches/native-browser/0003-history-retention.patch": "ad70418516ead0950c1ced8f38452f31dcceb8bd0516d386549bd7d6e5186079",
+      "patches/native-browser/0004-translation-init-wait.patch": "8aabb1df30657adc1d4fe32307e033894b29c4e7c61d7b59c9cacc308d0aac96",
       "patches/security/0001-restore-safety-hub-entry.patch": "15c4ca59e9b4841b977067f6c0a55699cf66d6407db2f4965531db416079f1b6",
       "patches/security/0002-preserve-disabled-enterprise-profile-id.patch": "aa0e2d5a6785b8792492afabd9d18859bbeea0852adfe82625fb81ded7c6ae80",
       "patches/security/0003-link-signed-web-bundle-payload.patch": "d4cad9e00eb141ea4409c3f22d1804636df4f0895867f9a478379dc526bc2a94",
@@ -4396,14 +4414,16 @@
       "tools/build_google_services_patch.py": "86a7120f4a24b11b21b091901950a632c63f089cfab2c0e0ac5d44111b56564c",
       "tools/build_history_retention_patch.py": "227055200a17293b4f74d1b6e507529981c8876878ec8e356bbef432c5264ebf",
       "tools/build_lite_retirement_patch.py": "65d7bb644d2236c2ab44ebef1e04c1e788c38a0dda89dd01ec920a85446f6cd7",
-      "tools/google_services_inputs.py": "910cfd0e97cfb44bb254d8907459d98293d750e883eabb78be1ee4cdd78d7e6e",
+      "tools/build_translation_init_patch.py": "21592b5b161be26fb92d0ac96e129385d08a25df4db5a2cda46caf266fd3dfc0",
+      "tools/google_services_inputs.py": "e3948a571768c035e6e71c5d3eb643d7ee63040cb87aa234fce9f997e771954c",
       "tools/patch_selection.py": "303dc5399fd3a7ae00d6f7a4fe74e9a9f3d52a07094886ae9329a458a76896f5",
       "tools/platform_pins.py": "79f5da2b264015c837e2e77df5e51f64f712f745c3a50f8002949b6419d8cb3c",
       "tools/restored_source_resources.py": "745676ca91071f789a5c1899147bdb80fed84efb40e1f2e8819bea3c241d7662",
       "tools/verify_history_retention_source.py": "c5c3f2c10c1e1f59cf7d828bf987334d461dfc234e2e3d7dad3f985eb855e7b1",
-      "tools/verify_native_browser_source.py": "cf1c43252480e9fe5d410df82565d71f7db9d03ec3f571dfd5fbb2117c856ca1",
-      "tools/verify_native_environment_controls_source.py": "8f99f09b5c3ba476429cb3155418d59055ed8fad5cb2b025deb10e68f16b9d65"
+      "tools/verify_native_browser_source.py": "44f372382ab4ad8c6ed7ad60d852de62012a222c97495542b2f056426e644f5b",
+      "tools/verify_native_environment_controls_source.py": "8f99f09b5c3ba476429cb3155418d59055ed8fad5cb2b025deb10e68f16b9d65",
+      "tools/verify_translation_init_source.py": "d3df1a0fccaf239ab668f2d49476fd5377beac6d08fba66de04d3ed3de5ed9c7"
     }
   },
-  "generation_inputs_sha256": "f02e64f747b0cac8f441d5e2e6f1973eec3dfd534ab73908a493a66822f09835"
+  "generation_inputs_sha256": "6c8a5c5a75cee9765db6e12a78b71f2aa440dbe0cddb744fae12626608627887"
 }

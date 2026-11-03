@@ -143,7 +143,7 @@ class NativeEvidenceTests(unittest.TestCase):
         verify = lambda: candidate.validate_native_integration(self.root, self.bundle, payload, self.source)
         result = verify()
         self.assertEqual({kind: result[kind + '_compiled_tests']['required_count']
-                          for kind in ('passkey', 'browser')}, {'passkey': 67, 'browser': 6})
+                          for kind in ('passkey', 'browser')}, {'passkey': 67, 'browser': 9})
         for name in ('native-browser-unittests.json', 'native-browser-launcher.json',
                      'native-browser-runtime.json', 'verification-results.json'):
             path = self.root / name; original = path.read_bytes(); path.unlink()

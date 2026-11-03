@@ -197,7 +197,8 @@
     "patches/lite-win156/0001-retire-bridge-runtime-synthetic.patch",
     "patches/native-browser/0001-native-windows-shell.patch",
     "patches/native-browser/0002-environment-controls.patch",
-    "patches/native-browser/0003-history-retention.patch"
+    "patches/native-browser/0003-history-retention.patch",
+    "patches/native-browser/0004-translation-init-wait.patch"
   ],
   "extra_sources": [
     "chrome/browser/preloading/preloading_prefs.h",

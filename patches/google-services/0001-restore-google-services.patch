@@ -25067,7 +25067,7 @@
  
 --- /dev/null
 +++ b/chrome/browser/profiles/shardx_native_browser_unittest.cc
-@@ -0,0 +1,124 @@
+@@ -0,0 +1,168 @@
 +// Copyright 2026 The ShardX Authors
 +// Use of this source code is governed by a BSD-style license.
 +
@@ -25076,6 +25076,7 @@
 +#include "base/command_line.h"
 +#include "base/files/file_path.h"
 +#include "base/test/scoped_command_line.h"
++#include "components/translate/core/common/translation_init_wait.h"
 +#include "components/history/core/browser/shardx_history_retention.h"
 +#include "chrome/browser/profiles/profile_shortcut_manager.h"
 +#include "chrome/browser/shell_integration_win.h"
@@ -25189,6 +25190,49 @@
 +  EXPECT_FALSE(history::shardx::HistoryDays(command_line).has_value());
 +  command_line.AppendSwitchASCII("shardx-managed-environment", "invalid");
 +  EXPECT_FALSE(history::shardx::HistoryDays(command_line).has_value());
++}
++
++
++TEST(ShardXNativeBrowserTest, TranslationInitWaitAllowsSlowLibrary) {
++  const auto start = base::TimeTicks() + base::Seconds(1);
++  translate::TranslationInitWait wait(start);
++  auto now = start;
++  // The old five checks timed out at 1500ms. A 2545ms library is still eligible.
++  while (now - start < base::Milliseconds(2545)) {
++    const auto delay = wait.NextDelay(now);
++    ASSERT_TRUE(delay.has_value());
++    EXPECT_GT(*delay, base::TimeDelta());
++    EXPECT_LE(*delay, base::Seconds(1));
++    now += *delay;
++  }
++  EXPECT_TRUE(wait.NextDelay(now).has_value());
++}
++
++TEST(ShardXNativeBrowserTest, TranslationInitWaitExpiresAtDeadline) {
++  const auto start = base::TimeTicks() + base::Seconds(1);
++  translate::TranslationInitWait wait(start);
++  auto now = start;
++  int checks = 0;
++  while (const auto delay = wait.NextDelay(now)) {
++    ASSERT_GT(*delay, base::TimeDelta());
++    ASSERT_LE(*delay, base::Seconds(1));
++    now += *delay;
++    ASSERT_LT(++checks, 30);
++  }
++  EXPECT_EQ(base::Seconds(15), now - start);
++  EXPECT_FALSE(wait.NextDelay(start + base::Seconds(60)).has_value());
++  translate::TranslationInitWait final_poll(start);
++  EXPECT_EQ(base::Milliseconds(1),
++            final_poll.NextDelay(start + base::Milliseconds(14999)));
++}
++
++TEST(ShardXNativeBrowserTest, TranslationInitWaitIsPerRequest) {
++  const auto start = base::TimeTicks() + base::Seconds(1);
++  translate::TranslationInitWait old_request(start);
++  translate::TranslationInitWait new_request(start + base::Seconds(16));
++  EXPECT_FALSE(old_request.NextDelay(start + base::Seconds(16)).has_value());
++  EXPECT_EQ(base::Milliseconds(150),
++            new_request.NextDelay(start + base::Seconds(16)));
 +}
 +
 +}  // namespace
@@ -30384,7 +30428,7 @@
        "//components/safe_browsing/content/browser:safe_browsing_service",
        "//components/safe_browsing/content/browser/password_protection",
        "//components/safe_browsing/content/browser/password_protection:test_support",
-@@ -4687,6 +4689,83 @@
+@@ -4687,6 +4689,84 @@
  mojom("test_interfaces") {
    testonly = true
    sources = [ "mojom/echo.test-mojom" ]
@@ -30430,6 +30474,7 @@
 +      "//chrome:resources",
 +      "//chrome:strings",
 +      "//components/history/core/browser",
++      "//components/translate/core/common",
 +      "//components/prefs",
 +      "//components/strings",
 +      "//components/vector_icons",
@@ -30468,7 +30513,7 @@
  }
  
  test("unit_tests") {
-@@ -5351,6 +5430,7 @@
+@@ -5351,6 +5431,7 @@
      "//components/resources",
      "//components/safe_browsing:buildflags",
      "//components/safe_browsing/content/browser",
@@ -30476,7 +30521,7 @@
      "//components/safe_browsing/content/browser/password_protection",
      "//components/safe_browsing/content/browser/password_protection:mock_password_protection",
      "//components/safe_browsing/content/browser/web_ui",
-@@ -8424,6 +8504,7 @@
+@@ -8424,6 +8505,7 @@
        "//components/privacy_sandbox:privacy_sandbox_prefs",
        "//components/reading_list/core",
        "//components/resources",
@@ -37646,6 +37691,97 @@
            PrefSensitivity::kNone, MergeBehavior::kNone,
            WriteBehavior::kWriteToBoth}},
  #if BUILDFLAG(IS_ANDROID)
+--- a/components/translate/content/renderer/translate_agent.cc
++++ b/components/translate/content/renderer/translate_agent.cc
+@@ -58,14 +58,6 @@
+ 
+ namespace {
+ 
+-// The delay in milliseconds that we'll wait before checking to see if the
+-// translate library injected in the page is ready.
+-const int kTranslateInitCheckDelayMs = 150;
+-
+-// The maximum number of times we'll check to see if the translate library
+-// injected in the page is ready.
+-const int kMaxTranslateInitCheckAttempts = 5;
+-
+ // The delay we wait in milliseconds before checking whether the translation has
+ // finished.
+ const int kTranslateStatusCheckDelayMs = 400;
+@@ -509,6 +501,8 @@
+                      : kAutoDetectionLanguage;
+   target_lang_ = target_lang;
+ 
++  TranslationInitWait init_wait(base::TimeTicks::Now());
++
+   // Set up v8 isolated world.
+   EnsureIsolatedWorldInitialized(world_id_);
+ 
+@@ -531,7 +525,7 @@
+     return;
+   }
+ 
+-  TranslatePageImpl(0);
++  TranslatePageImpl(init_wait);
+ }
+ 
+ void TranslateAgent::RevertTranslation() {
+@@ -626,8 +620,7 @@
+       AdjustDelay(kTranslateStatusCheckDelayMs));
+ }
+ 
+-void TranslateAgent::TranslatePageImpl(int count) {
+-  DCHECK_LT(count, kMaxTranslateInitCheckAttempts);
++void TranslateAgent::TranslatePageImpl(TranslationInitWait init_wait) {
+   // Executing script may spin a nested run loop that detaches the frame and
+   // deletes |this|.
+   auto weak_this = weak_pointer_factory_.GetWeakPtr();
+@@ -646,17 +639,18 @@
+       return;
+     }
+ 
+-    // The library is not ready, try again later, unless we have tried several
+-    // times unsuccessfully already.
+-    if (++count >= kMaxTranslateInitCheckAttempts) {
++    // Keep the original deadline across retries. Navigation, revert and a
++    // replacement request still cancel this task via weak_method_factory_.
++    const auto delay = init_wait.NextDelay(base::TimeTicks::Now());
++    if (!delay) {
+       NotifyBrowserTranslationFailed(TranslateErrors::TRANSLATION_TIMEOUT);
+       return;
+     }
+     translate_task_runner_->PostDelayedTask(
+         FROM_HERE,
+         base::BindOnce(&TranslateAgent::TranslatePageImpl,
+-                       weak_method_factory_.GetWeakPtr(), count),
+-        AdjustDelay(count * kTranslateInitCheckDelayMs));
++                       weak_method_factory_.GetWeakPtr(), init_wait),
++        AdjustDelay(static_cast<int>(delay->InMilliseconds())));
+     return;
+   }
+   if (!weak_this) {
+--- a/components/translate/content/renderer/translate_agent.h
++++ b/components/translate/content/renderer/translate_agent.h
+@@ -17,6 +17,7 @@
+ #include "components/language_detection/content/renderer/language_detection_agent.h"
+ #include "components/translate/content/common/translate.mojom.h"
+ #include "components/translate/core/common/translate_errors.h"
++#include "components/translate/core/common/translation_init_wait.h"
+ #include "components/translate/core/language_detection/language_detection_model.h"
+ #include "content/public/renderer/render_frame_observer.h"
+ #include "mojo/public/cpp/bindings/receiver.h"
+@@ -165,9 +166,8 @@
+   // posts a task to check again later.
+   void CheckTranslateStatus();
+ 
+-  // Called by TranslatePage to do the actual translation.  |count| is used to
+-  // limit the number of retries.
+-  void TranslatePageImpl(int count);
++  // Polls readiness until the current request is ready, errors or expires.
++  void TranslatePageImpl(TranslationInitWait init_wait);
+ 
+   // Sends a message to the browser to notify it that the translation failed
+   // with |error|.
 --- a/components/translate/core/browser/ranker_url_fetcher.cc
 +++ b/components/translate/core/browser/ranker_url_fetcher.cc
 @@ -31,7 +31,6 @@
@@ -37739,6 +37875,55 @@
  
      // Load embedded translate.js.
      data_.append(ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
+--- a/components/translate/core/common/BUILD.gn
++++ b/components/translate/core/common/BUILD.gn
+@@ -15,6 +15,7 @@
+     "translate_constants.cc",
+     "translate_constants.h",
+     "translate_errors.h",
++    "translation_init_wait.h",
+     "translate_features.cc",
+     "translate_features.h",
+     "translate_language_matcher.cc",
+--- /dev/null
++++ b/components/translate/core/common/translation_init_wait.h
+@@ -0,0 +1,36 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#ifndef COMPONENTS_TRANSLATE_CORE_COMMON_TRANSLATION_INIT_WAIT_H_
++#define COMPONENTS_TRANSLATE_CORE_COMMON_TRANSLATION_INIT_WAIT_H_
++
++#include <algorithm>
++#include <optional>
++
++#include "base/time/time.h"
++
++namespace translate {
++
++// The downloaded element loads additional resources before libReady becomes
++// true. A monotonic deadline permits slow initialization without unbounded
++// polling. This value is copied only into the current request's cancellable task.
++class TranslationInitWait {
++ public:
++  explicit TranslationInitWait(base::TimeTicks now)
++      : deadline_(now + base::Seconds(15)) {}
++
++  std::optional<base::TimeDelta> NextDelay(base::TimeTicks now) {
++    const base::TimeDelta remaining = deadline_ - now;
++    if (remaining <= base::TimeDelta())
++      return std::nullopt;
++    attempt_ = std::min(attempt_ + 1, 7);
++    return std::min({base::Milliseconds(attempt_ * 150), base::Seconds(1),
++                     remaining});
++  }
++
++ private:
++  const base::TimeTicks deadline_;
++  int attempt_ = 0;
++};
++
++}  // namespace translate
++#endif  // COMPONENTS_TRANSLATE_CORE_COMMON_TRANSLATION_INIT_WAIT_H_
 --- a/components/ungoogled/persona_profile.cc
 +++ b/components/ungoogled/persona_profile.cc
 @@ -222,13 +222,11 @@

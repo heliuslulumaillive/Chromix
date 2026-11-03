@@ -164,6 +164,11 @@ def verify(src: Path, repo: Path):
     except ImportError:
         from verify_history_retention_source import verify as verify_history
     checked.extend(verify_history(src))
+    try:
+        from .verify_translation_init_source import verify as verify_translation
+    except ImportError:
+        from verify_translation_init_source import verify as verify_translation
+    checked.extend(verify_translation(src))
     return list(dict.fromkeys(checked))
 
 

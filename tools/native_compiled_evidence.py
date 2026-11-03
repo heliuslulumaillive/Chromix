@@ -148,7 +148,7 @@ def validate_compiled_suite(summary_path, launcher_path, build_record_path, kind
     if kind not in REQUIRED_TESTS:
         raise ValueError('Unknown Windows 156 native suite')
     required = REQUIRED_TESTS[kind]
-    if {name: len(tests) for name, tests in REQUIRED_TESTS.items()} != {'passkey': 67, 'browser': 6}:
+    if {name: len(tests) for name, tests in REQUIRED_TESTS.items()} != {'passkey': 67, 'browser': 9}:
         raise ValueError('Frozen Windows 156 native suite inventory changed')
     summary, summary_hash = _read(summary_path)
     launcher, launcher_hash = _read(launcher_path)

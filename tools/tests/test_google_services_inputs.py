@@ -107,6 +107,7 @@ class AggregateInputsTests(unittest.TestCase):
                          ('build/native-browser-capabilities.json', 'tools/verify_native_browser_source.py',
                           'tools/verify_native_environment_controls_source.py',
                  'tools/verify_history_retention_source.py', 'tools/build_history_retention_patch.py',
+                          'tools/verify_translation_init_source.py', 'tools/build_translation_init_patch.py',
                           'tools/build_lite_retirement_patch.py'))
         for key, value in [('capabilities', '../outside.json'), ('version', True),
                            ('source_gate_required', False), ('source_gate_required', 1)]:
