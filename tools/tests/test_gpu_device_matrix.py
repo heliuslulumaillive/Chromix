@@ -149,7 +149,7 @@ def test_control_can_be_diagnostic_but_never_counts_even_if_oracle_passes(tmp_pa
 
 
 def test_committed_matrix_is_an_unsampled_plan_not_a_fabricated_corpus():
-    plan=Path(__file__).resolve().parents[2]/'docs/gpu-device-matrix.json'
+    plan=Path(__file__).with_name('fixtures')/'gpu-device-matrix.json'
     result=matrix.build_matrix(plan)
     assert result['status']=='incomplete' and len(result['cells'])==33
     assert all(c['status']=='not_sampled' and c['observed_devices']==0 for c in result['cells'])
@@ -168,7 +168,7 @@ def test_software_ambiguous_and_opaque_identities_are_not_physical_vendor_bindin
 
 
 def test_matrix_cli_preserves_new_diagnostics_and_refuses_clobber(tmp_path):
-    plan=Path(__file__).resolve().parents[2]/'docs/gpu-device-matrix.json';out=tmp_path/'report.json'
+    plan=Path(__file__).with_name('fixtures')/'gpu-device-matrix.json';out=tmp_path/'report.json'
     args=['--matrix',str(plan),'--output',str(out)]
     assert matrix.main(args)==1
     before=out.read_bytes()
