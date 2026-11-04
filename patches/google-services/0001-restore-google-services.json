@@ -3244,7 +3244,7 @@
     "patches/chromium155-windows/0232-renderer-launch-timezone-install.patch": "345ef39c9cc6d987f59c44f3f4a46099391d6c629058f10c1151e02a654796a7",
     "patches/chromium155-windows/0233-renderer-timezone-webstring-api.patch": "7f7f691f2d744715e0d48a25dab5ff1e8ac793122657beacd0f99a3e7e8ba908"
   },
-  "patch_sha256": "4df365da87ba37d6489044aa4b0be56b6309a5b7e666212d0943df1dee2f2da4",
+  "patch_sha256": "2ff6f9cae432da837dd1b1e7f7025660fdb8a5202393561fe6456cf0e4c7b36c",
   "qualification": "Source replay only; requires native build and actual account/security tests",
   "generation_inputs": {
     "schema_version": 1,
@@ -4487,7 +4487,7 @@
       "patches/native-browser/0005-translation-reload-registration.patch": "81d50ef2556573c478dd46cb5353eefa2e3645025d8abd8a1d0133a66490634d",
       "patches/native-browser/0006-session-lifecycle.patch": "848b1209af2650c38a7fc7c49aabdfc12cdd85c6b9a667799492c24b8b518e60",
       "patches/native-browser/0007-process-exit-control.patch": "02ce6e46994d345544ce8988b68f878c85acb9bc174974ea60a2a659b4654747",
-      "patches/native-browser/0008-session-exit-snapshot.patch": "33cb8e902779fd06aab37943c6e766255fae0b3cb7c387e56b1f8c3b93438508",
+      "patches/native-browser/0008-session-exit-snapshot.patch": "f9742de2878bf003d3106e5443876effb8b3398a3c811731f1284a78f300c5a8",
       "patches/native-cookie/0001-profile-cookie-bootstrap.patch": "a293f1daf7892c06c59ce6faa57d052e3e7a12ce946b3ea2740066b04274e0f8",
       "patches/security/0001-restore-safety-hub-entry.patch": "15c4ca59e9b4841b977067f6c0a55699cf66d6407db2f4965531db416079f1b6",
       "patches/security/0002-preserve-disabled-enterprise-profile-id.patch": "aa0e2d5a6785b8792492afabd9d18859bbeea0852adfe82625fb81ded7c6ae80",
@@ -4509,5 +4509,5 @@
       "tools/verify_translation_init_source.py": "cd40487c7efc16108acf7ccf2f7081846bd033393e36569a35abdbd987cf5728"
     }
   },
-  "generation_inputs_sha256": "3a172986f482b9c4f5ac862dad38a8e867ff856256a8476b56ffe058a877ba7b"
+  "generation_inputs_sha256": "3c5cd21bcf792f9d521467a6e90a65548044bd196e195db36d77b240c85ea16f"
 }

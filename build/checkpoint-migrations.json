@@ -195,6 +195,21 @@
       "target_preparation_sha256": "d02b006bab253c008af0f59a114d0e60e4d6515f2e32ec8cd435edb58d6e6f9f",
       "target_aggregate_sha256": "4df365da87ba37d6489044aa4b0be56b6309a5b7e666212d0943df1dee2f2da4",
       "scope": "Fix the demonstrated loss of newly opened tabs when normal exit precedes first navigation completion: snapshot current native windows before service destruction/window closure and serialize the initial pending request URL. Preserve existing navigation history, off-the-record behavior, compiled objects and unchanged timestamps. Repeat original immediate-close and deterministic withheld-response acceptance without relaxing their URL/window assertions."
+    },
+    {
+      "id": "lite156-session-window-reentry-v1",
+      "chromium_version": "156.0.8078.79",
+      "core_commit": "28a211ab4ab6b83d919966a4f58a6df23cf4fb29",
+      "windows_commit": "8492884eb30fdd9417ea7816aa92def805c97c74",
+      "arch": "x64",
+      "source_commit": "cf822c64e5ad67593942fb3690132c72654e00fe",
+      "source_recipe_sha256": "1cbf7fdced885a41e6ce64042ec3ae3c88521090ca72796adda7944b462ac546",
+      "source_preparation_sha256": "d02b006bab253c008af0f59a114d0e60e4d6515f2e32ec8cd435edb58d6e6f9f",
+      "source_aggregate_sha256": "4df365da87ba37d6489044aa4b0be56b6309a5b7e666212d0943df1dee2f2da4",
+      "target_recipe_sha256": "26512624e15fff74ee2d33b11dae4bcc05e7daf1e8b287d10787893699e80299",
+      "target_preparation_sha256": "4fa6ce46a2d78e71533fab3473cd8b1cb73ed265640666620c2d2229af014ec7",
+      "target_aggregate_sha256": "2ff6f9cae432da837dd1b1e7f7025660fdb8a5202393561fe6456cf0e4c7b36c",
+      "scope": "Preserve the first native window-close snapshot when UnloadController reenters after CloseAllTabs: skip replacement for windows already recorded as closing. Keep original immediate-close, pending-response and last-window-close assertions; retain every unchanged source timestamp and compiled object."
     }
   ]
 }
