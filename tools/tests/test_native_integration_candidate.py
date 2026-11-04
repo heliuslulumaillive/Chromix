@@ -15,6 +15,7 @@ from tools import native_compiled_evidence as compiled
 from tools import verify_native_session_runtime as session
 from tools.tests.test_native_browser_runtime import good_report as good_browser_report
 from tools.tests.test_native_cookie_runtime import good_report as good_cookie_report
+from tools.tests.test_native_session_runtime import good_execution
 
 
 def write_json(path, value):
@@ -100,10 +101,7 @@ def write_native_integration_evidence(root, bundle, source):
         'required_tests': sorted(session.REQUIRED), 'executed_tests': sorted(session.REQUIRED),
         'events_sha256': candidate.sha256(events), 'bindings_unchanged': True, 'owned_profiles_removed': True,
         'started_at_utc': '2026-11-02T00:00:01Z', 'completed_at_utc': '2026-11-02T00:00:02Z',
-        'execution': {'private_desktop': 'ShardXSessionAcceptance-' + 'a'*32,
-            'input_desktop_before': 'Default', 'input_desktop_after': 'Default',
-            'exit_code': 0, 'timed_out': False, 'processes_before_cleanup': 0, 'cleanup_errors': [],
-            'switch_desktop_called': False, 'input_desktop_unchanged': True},
+        'execution': good_execution(),
         'binding': {'browser_sha256': candidate.sha256(bundle / 'chrome.exe'),
             'chrome_dll_sha256': candidate.sha256(bundle / 'chrome.dll'),
             'capabilities_sha256': candidate.sha256(bundle / 'native-browser-capabilities.json'),

@@ -5,8 +5,12 @@ import contextlib
 import fnmatch
 import io
 import json
+import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -14,7 +18,72 @@ from unittest import mock
 from tools import verify_native_session_runtime as session
 
 
+def good_execution():
+    private = 'ShardXSessionAcceptance-' + 'a'*32
+    return {'exit_code': 0, 'timed_out': False, 'processes_before_cleanup': 0,
+            'cleanup_errors': [], 'switch_desktop_called': False,
+            'private_desktop': private, 'private_desktop_observed': private,
+            'startup_desktop': 'WinSta0\\' + private,
+            'session_id_before': 1, 'session_id_after': 1,
+            'window_station_before': 'WinSta0', 'window_station_after': 'WinSta0',
+            'window_station_visible_before': True, 'window_station_visible_after': True,
+            'input_desktop_check': 'observed', 'input_desktop_before': 'Default',
+            'input_desktop_after': 'Default', 'input_desktop_unchanged': True}
+
+
 class SessionAcceptanceTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == 'nt', 'Windows junction regression')
+    def test_host_go_junction_is_canonicalized_without_relaxing_payload_paths(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            real = root / 'real-tool'; real.mkdir()
+            # A genuine x64 PE fixture for path validation only; never execute
+            # it as Go. The host preflight separately requires the pinned version.
+            shutil.copyfile(sys.executable, real / 'go.exe')
+            alias = root / 'hosted-tool-cache'
+            created = subprocess.run([os.environ.get('COMSPEC', 'cmd.exe'), '/d', '/c',
+                'mklink', '/J', str(alias), str(real)], capture_output=True, text=True, timeout=10)
+            self.assertEqual(created.returncode, 0, created.stdout + created.stderr)
+            try:
+                with self.assertRaises(ValueError):
+                    session.security.plain(alias / 'go.exe')
+                diagnostic = {}
+                resolved = session.resolve_go_tool(str(alias / 'go.exe'), diagnostic)
+                self.assertEqual(resolved, (real / 'go.exe').resolve())
+                self.assertEqual(diagnostic['go_canonical_path'], str(resolved))
+                self.assertTrue(diagnostic['go_alias_resolved'])
+                with self.assertRaises(ValueError):
+                    session.security.plain(alias / 'go.exe')
+            finally:
+                # Remove only the junction itself; do not recurse into its target.
+                os.rmdir(alias)
+
+    def test_host_tool_rejects_missing_directories_shims_and_non_pe_files(self):
+        with mock.patch.object(session.shutil, 'which', return_value=None):
+            with self.assertRaises(session.GoToolResolutionError) as error:
+                session.resolve_go_tool('missing-go', {})
+            self.assertEqual(error.exception.reason, 'go_not_found')
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            directory = root / 'directory.exe'; directory.mkdir()
+            shim = root / 'go.cmd'; shim.write_text('@echo off\n')
+            invalid = root / 'go.exe'; invalid.write_bytes(b'not an executable')
+            for path, reason in ((directory, 'go_not_native_executable'),
+                                 (shim, 'go_not_native_executable'), (invalid, 'go_invalid_pe')):
+                with self.subTest(path=path.name), mock.patch.object(session.shutil, 'which', return_value=str(path)):
+                    with self.assertRaises(session.GoToolResolutionError) as error:
+                        session.resolve_go_tool(str(path), {})
+                    self.assertEqual(error.exception.reason, reason)
+
+    def test_tool_failure_diagnostic_is_bounded_and_does_not_echo_error_payloads(self):
+        report = {}
+        session.record_failure(report, session.GoToolResolutionError('go_not_found'), 'resolve_go_tool')
+        self.assertEqual(report['failure_reason'], 'go_not_found')
+        self.assertEqual(report['failure_phase'], 'resolve_go_tool')
+        session.record_failure(report, ValueError('sensitive arbitrary error payload'), 'candidate_input_identity')
+        self.assertEqual(report['failure_reason'], 'operation_failed')
+        self.assertNotIn('sensitive', json.dumps(report))
+
     def events(self):
         rows = []
         for name in sorted(session.REQUIRED):
@@ -45,9 +114,7 @@ class SessionAcceptanceTests(unittest.TestCase):
                 self.parse(rows)
 
     def test_timeout_force_cleanup_and_desktop_switch_cannot_pass(self):
-        passed = {'exit_code': 0, 'timed_out': False, 'processes_before_cleanup': 0,
-                  'cleanup_errors': [], 'switch_desktop_called': False,
-                  'input_desktop_unchanged': True}
+        passed = good_execution()
         self.assertTrue(session.execution_passed(passed))
         for key, value in [('exit_code', 1), ('timed_out', True),
                            ('processes_before_cleanup', 1), ('cleanup_errors', ['error']),
@@ -58,6 +125,27 @@ class SessionAcceptanceTests(unittest.TestCase):
                 missing = passed.copy()
                 del missing[key]
                 self.assertFalse(session.execution_passed(missing))
+
+    def test_no_input_desktop_requires_session_zero_and_noninteractive_service_station(self):
+        service = {**good_execution(), 'session_id_before': 0, 'session_id_after': 0,
+            'window_station_before': 'Service-0x0-3e7$', 'window_station_after': 'Service-0x0-3e7$',
+            'window_station_visible_before': False, 'window_station_visible_after': False,
+            'input_desktop_check': 'service_session0_no_input', 'input_desktop_before': None,
+            'input_desktop_after': None, 'input_desktop_unchanged': None,
+            'input_desktop_before_error': 5, 'input_desktop_after_error': 5}
+        service['startup_desktop'] = service['window_station_before'] + '\\' + service['private_desktop']
+        self.assertTrue(session.execution_passed(service))
+        for key, value in (('session_id_before', 1), ('window_station_before', 'WinSta0'),
+                           ('window_station_visible_before', True), ('input_desktop_after_error', 1),
+                           ('input_desktop_before_error', 0), ('private_desktop_observed', 'Default'),
+                           ('startup_desktop', 'WinSta0\\Default'), ('error_type', 'OSError')):
+            with self.subTest(key=key):
+                self.assertFalse(session.execution_passed({**service, key: value}))
+        denied = {**good_execution(), 'input_desktop_before': None, 'input_desktop_after': None,
+                  'input_desktop_before_error': 5, 'input_desktop_after_error': 5,
+                  'input_desktop_unchanged': None}
+        for check in ('observed', 'service_session0_no_input'):
+            self.assertFalse(session.execution_passed({**denied, 'input_desktop_check': check}))
 
     def test_build_links_payload_to_source_before_launch(self):
         source = {'source_commit': 'a'*40, 'run_id': '123', 'gn': {'sha256': 'b'*64}}
