@@ -589,6 +589,10 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
           'modes-native.json','modes-runtime.json','fingerprint-modes-capabilities.json')) {
         Copy-Item -LiteralPath (Join-Path $evidence $name) -Destination (Join-Path 'C:\c\dist' $name)
       }
+      $sessionDiagnostic = Join-Path $evidence 'native-session-runtime.debug.log'
+      if (Test-Path -LiteralPath $sessionDiagnostic -PathType Leaf) {
+        Copy-Item -LiteralPath $sessionDiagnostic -Destination 'C:\c\dist\native-session-runtime.debug.log'
+      }
       Copy-Item -LiteralPath (Join-Path $work 'google-services-source.json') -Destination 'C:\c\dist\google-services-source.json'
       $state.finished = $true; $state.status = 'candidate-created'
     }

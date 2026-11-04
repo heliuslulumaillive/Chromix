@@ -138,6 +138,7 @@ jobs:
             C:/c/dist/SHA256SUMS
             C:/c/dist/*.json
             C:/c/dist/native-session-runtime.events.jsonl
+            C:/c/dist/native-session-runtime.debug.log
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
@@ -155,6 +156,14 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
+      - name: Upload early failure evidence before checkpoint compression
+        if: ${{ !cancelled() && failure() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: security-win156-early-evidence-s${{ inputs.stage }}
+          path: C:/security-evidence
+          if-no-files-found: warn
+          retention-days: 30
       - name: Preserve one complete resumable checkpoint when needed or requested
         id: checkpoint
         if: ${{ !cancelled() && (steps.candidate.outcome != 'success' || inputs.retain_checkpoint) }}

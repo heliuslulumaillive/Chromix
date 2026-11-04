@@ -946,7 +946,10 @@ def validate_native_integration(artifact_dir, bundle, payload, expected_source):
     result['session_runtime'] = session.validate_existing(
         artifact_dir / 'native-session-runtime.json', artifact_dir / 'native-session-runtime.events.jsonl',
         bundle, payload, expected_source)
-    if before != {name: sha256(artifact_dir / name) for name in names}:
+    diagnostic = result['session_runtime'].get('diagnostic')
+    if diagnostic:
+        before[diagnostic['name']] = diagnostic['sha256']
+    if before != {name: sha256(artifact_dir / name) for name in before}:
         raise ValueError('Native integration evidence changed while verifying it')
     return {'status': 'passed', 'evidence_sha256': before, **result}
 

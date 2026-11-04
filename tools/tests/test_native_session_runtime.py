@@ -32,6 +32,60 @@ def good_execution():
 
 
 class SessionAcceptanceTests(unittest.TestCase):
+    def runtime_fixture(self, root):
+        bundle = root / 'bundle'; bundle.mkdir()
+        (bundle / 'chrome.exe').write_bytes(b'synthetic payload; never execute')
+        (bundle / 'locales').mkdir()
+        (bundle / 'locales/en.pak').write_bytes(b'synthetic resource')
+        files = session.bundle_inventory(bundle)['files']
+        (bundle / 'google-services-build.json').write_text(json.dumps({'files': files}), encoding='utf-8')
+        original = session.bundle_inventory(bundle)
+        runtime = root / 'runtime'
+        isolation = session.prepare_runtime_copy(bundle, runtime, original)
+        return bundle, runtime, original, isolation
+
+    def test_runtime_copy_keeps_original_and_payload_immutable_and_retains_only_bounded_diagnostic(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bundle, runtime, original, isolation = self.runtime_fixture(root)
+            report = root / 'native-session-runtime.json'
+            log = '[1104/103342.802:ERROR:third_party\\crashpad\\crashpad\\client\\crashpad_client_win.cc:829] not connected\n'
+            (runtime / 'debug.log').write_text(log, encoding='utf-8')
+            session.finish_runtime_copy(bundle, runtime, original, report, isolation)
+            self.assertEqual(session.bundle_inventory(bundle), original)
+            self.assertFalse((bundle / 'debug.log').exists())
+            self.assertEqual(report.with_suffix('.debug.log').read_text(encoding='utf-8'), log)
+            self.assertEqual(session.validate_runtime_isolation(report, bundle, isolation)['name'], 'native-session-runtime.debug.log')
+            report.with_suffix('.debug.log').write_text(log.replace('not connected', 'different error'), encoding='utf-8')
+            with self.assertRaises(ValueError):
+                session.validate_runtime_isolation(report, bundle, isolation)
+
+    def test_runtime_copy_rejects_modified_payload_original_and_unexpected_generated_files(self):
+        for fault in ('copy_changed', 'copy_missing', 'original_changed', 'original_extra', 'extra_file', 'wrong_debug', 'large_debug'):
+            with self.subTest(fault=fault), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                bundle, runtime, original, isolation = self.runtime_fixture(root)
+                if fault == 'copy_changed': (runtime / 'chrome.exe').write_bytes(b'changed')
+                elif fault == 'copy_missing': (runtime / 'chrome.exe').unlink()
+                elif fault == 'original_changed': (bundle / 'chrome.exe').write_bytes(b'changed')
+                elif fault == 'original_extra': (bundle / 'debug.log').write_bytes(b'original must never be repaired or cleaned')
+                elif fault == 'extra_file': (runtime / 'unexpected.log').write_bytes(b'unexpected')
+                elif fault == 'wrong_debug': (runtime / 'debug.log').write_bytes(b'unreviewed error')
+                elif fault == 'large_debug': (runtime / 'debug.log').write_bytes(b'x' * (session.MAX_DEBUG_LOG_BYTES + 1))
+                with self.assertRaises(ValueError):
+                    session.finish_runtime_copy(bundle, runtime, original, root / 'native-session-runtime.json', isolation)
+                if fault == 'original_extra':
+                    self.assertTrue((bundle / 'debug.log').exists())
+
+    def test_existing_original_extra_file_is_rejected_without_removal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bundle, _, _, _ = self.runtime_fixture(root)
+            added = bundle / 'debug.log'; added.write_bytes(b'preserve old evidence')
+            with self.assertRaises(ValueError):
+                session.prepare_runtime_copy(bundle, root / 'another-copy', session.bundle_inventory(bundle))
+            self.assertEqual(added.read_bytes(), b'preserve old evidence')
+
     @unittest.skipUnless(os.name == 'nt', 'Windows junction regression')
     def test_host_go_junction_is_canonicalized_without_relaxing_payload_paths(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -207,6 +261,18 @@ class SessionAcceptanceTests(unittest.TestCase):
         archive = (root / 'build/windows/security-stage.ps1').read_text(encoding='utf-8').split("    'Archive' {", 1)[1]
         for name in required:
             self.assertIn("'" + name + "'", archive)
+        self.assertTrue(any(fnmatch.fnmatchcase('C:/c/dist/native-session-runtime.debug.log', pattern) for pattern in patterns))
+        self.assertIn("Test-Path -LiteralPath $sessionDiagnostic -PathType Leaf", archive)
+
+    def test_early_failure_upload_precedes_checkpoint_and_preserves_final_evidence(self):
+        root = Path(__file__).resolve().parents[2]
+        worker = (root / '.github/workflows/security-win156-worker.yml').read_text(encoding='utf-8')
+        early = worker.split('      - name: Upload early failure evidence before checkpoint compression', 1)[1].split('      - name:', 1)[0]
+        self.assertIn('!cancelled() && failure()', early)
+        self.assertIn('name: security-win156-early-evidence-s${{ inputs.stage }}', early)
+        self.assertIn('path: C:/security-evidence', early)
+        self.assertLess(worker.index('Upload early failure evidence before checkpoint compression'), worker.index('Preserve one complete resumable checkpoint'))
+        self.assertIn('name: security-win156-evidence-s${{ inputs.stage }}', worker)
 
 
 if __name__ == '__main__':

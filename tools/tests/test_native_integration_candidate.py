@@ -96,12 +96,22 @@ def write_native_integration_evidence(root, bundle, source):
             for name in sorted(session.REQUIRED) for action in ('run', 'pass')]
     rows.append({'Package': session.PACKAGE, 'Action': 'pass'})
     events.write_text('\n'.join(json.dumps(row) for row in rows), encoding='utf-8')
+    inventory = session.bundle_inventory(bundle)
+    inventory_hash = session.inventory_digest(inventory['files'])
+    isolation = {'mode': 'verified-runtime-copy', 'original_inventory_sha256': inventory_hash,
+        'original_final_inventory_sha256': inventory_hash, 'copy_initial_inventory_sha256': inventory_hash,
+        'copy_payload_final_inventory_sha256': inventory_hash, 'original_file_count': len(inventory['files']),
+        'original_final_file_count': len(inventory['files']), 'copy_initial_file_count': len(inventory['files']),
+        'copy_payload_file_count': len(inventory['files']), 'original_directories': inventory['directories'],
+        'original_final_directories': inventory['directories'], 'original_unchanged': True,
+        'copy_payload_unchanged': True, 'copy_added_files': [], 'diagnostic': None}
     write_json(root / 'native-session-runtime.json', {
         'schema_version': 1, 'contract': session.CONTRACT, 'status': 'passed', 'source': source,
         'required_tests': sorted(session.REQUIRED), 'executed_tests': sorted(session.REQUIRED),
         'events_sha256': candidate.sha256(events), 'bindings_unchanged': True, 'owned_profiles_removed': True,
         'started_at_utc': '2026-11-02T00:00:01Z', 'completed_at_utc': '2026-11-02T00:00:02Z',
         'execution': good_execution(),
+        'runtime_isolation': isolation,
         'binding': {'browser_sha256': candidate.sha256(bundle / 'chrome.exe'),
             'chrome_dll_sha256': candidate.sha256(bundle / 'chrome.dll'),
             'capabilities_sha256': candidate.sha256(bundle / 'native-browser-capabilities.json'),
@@ -188,7 +198,7 @@ class NativeEvidenceTests(unittest.TestCase):
         payload = candidate.inventory(self.bundle)
         verify = lambda: session.validate_existing(report_path, events_path, self.bundle, payload, self.source)
         self.assertEqual(verify()['tests'], sorted(session.REQUIRED))
-        for fault in ('dll', 'verifier', 'cleanup', 'skipped', 'duplicate', 'time', 'desktop'):
+        for fault in ('dll', 'verifier', 'cleanup', 'skipped', 'duplicate', 'time', 'desktop', 'original_inventory', 'copy_payload'):
             changed = copy.deepcopy(report)
             if fault == 'dll':
                 changed['binding']['chrome_dll_sha256'] = 'f'*64
@@ -204,6 +214,10 @@ class NativeEvidenceTests(unittest.TestCase):
                 changed['started_at_utc'] = '2026-11-01T00:00:00Z'
             elif fault == 'desktop':
                 changed['execution']['input_desktop_after'] = 'Changed'
+            elif fault == 'original_inventory':
+                changed['runtime_isolation']['original_final_inventory_sha256'] = 'f'*64
+            elif fault == 'copy_payload':
+                changed['runtime_isolation']['copy_payload_unchanged'] = False
             write_json(report_path, changed)
             with self.subTest(fault=fault), self.assertRaises(ValueError):
                 verify()
@@ -212,6 +226,22 @@ class NativeEvidenceTests(unittest.TestCase):
         report['events_sha256'] = candidate.sha256(events_path)
         write_json(report_path, report)
         with self.assertRaises(ValueError): verify()
+
+    def test_optional_session_diagnostic_is_bound_and_required_when_declared(self):
+        write_native_integration_evidence(self.root, self.bundle, self.source)
+        path = self.root / 'native-session-runtime.json'
+        report = json.loads(path.read_text(encoding='utf-8'))
+        diagnostic = path.with_suffix('.debug.log')
+        diagnostic.write_text('[1104/103342.802:ERROR:third_party\\crashpad\\crashpad\\client\\crashpad_client_win.cc:829] not connected\n', encoding='utf-8')
+        report['runtime_isolation'].update(copy_added_files=['debug.log'],
+            diagnostic={'artifact': diagnostic.name, **session.inspect_debug_log(diagnostic)})
+        write_json(path, report)
+        payload = candidate.inventory(self.bundle)
+        result = candidate.validate_native_integration(self.root, self.bundle, payload, self.source)
+        self.assertEqual(result['evidence_sha256'][diagnostic.name], candidate.sha256(diagnostic))
+        diagnostic.unlink()
+        with self.assertRaises((OSError, ValueError)):
+            candidate.validate_native_integration(self.root, self.bundle, payload, self.source)
 
 
 if __name__ == '__main__': unittest.main()

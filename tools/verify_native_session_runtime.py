@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -33,6 +34,8 @@ REPO = Path(__file__).resolve().parents[1]
 MODULE = REPO / 'tools/native-session'
 PACKAGE = 'shardx-lite/native-session'
 CONTRACT = 'shardx-native-session-runtime-v1'
+MAX_DEBUG_LOG_BYTES = 64 * 1024
+DEBUG_LINE = re.compile(r'\[\d{4}/\d{6}\.\d{3}:ERROR:third_party[\\/]crashpad[\\/]crashpad[\\/]client[\\/]crashpad_client_win\.cc:\d+\] not connected')
 REQUIRED = {
     'TestCandidateNativeSessionLifecycle',
     'TestCandidateNativeExitRespectsBeforeUnloadCancellation',
@@ -102,6 +105,148 @@ def record_failure(report, error, phase):
     code = getattr(error, 'winerror', None) or getattr(error, 'errno', None)
     if isinstance(code, int):
         report['os_error_code'] = code
+
+
+def bundle_inventory(bundle):
+    root = security.plain(bundle)
+    if not root.is_dir():
+        raise ValueError('Native-session bundle is not a directory')
+    files, directories = {}, []
+    for current, dirs, names in os.walk(root, followlinks=False):
+        for name in dirs:
+            path = security.plain(Path(current) / name)
+            directories.append(path.relative_to(root).as_posix())
+        for name in names:
+            path = security.plain(Path(current) / name)
+            if not stat.S_ISREG(path.stat().st_mode):
+                raise ValueError('Native-session bundle contains a nonregular file')
+            files[path.relative_to(root).as_posix()] = security.digest(path)
+    return {'files': dict(sorted(files.items())), 'directories': sorted(directories)}
+
+
+def inventory_digest(files):
+    return hashlib.sha256(json.dumps(files, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def require_original_inventory(bundle, inventory):
+    record_path = security.plain(bundle / 'google-services-build.json')
+    record = json.loads(record_path.read_text(encoding='utf-8-sig'))
+    expected = record.get('files')
+    if not isinstance(expected, dict) or 'google-services-build.json' in expected:
+        raise ValueError('Invalid immutable native-session build inventory')
+    expected = {**expected, 'google-services-build.json': security.digest(record_path)}
+    if inventory['files'] != expected:
+        raise ValueError('Original native-session bundle differs from its pretest inventory')
+
+
+def prepare_runtime_copy(bundle, destination, original):
+    security.plain(destination)
+    if destination.exists():
+        raise FileExistsError('Native-session runtime copy must be new')
+    require_original_inventory(bundle, original)
+    shutil.copytree(bundle, destination, copy_function=shutil.copy2)
+    copied = bundle_inventory(destination)
+    if copied != original:
+        raise ValueError('Native-session runtime copy differs from the complete original inventory')
+    return {'mode': 'verified-runtime-copy',
+            'original_inventory_sha256': inventory_digest(original['files']),
+            'original_file_count': len(original['files']),
+            'original_directories': original['directories'],
+            'copy_initial_inventory_sha256': inventory_digest(copied['files']),
+            'copy_initial_file_count': len(copied['files'])}
+
+
+def inspect_debug_log(path):
+    path = security.plain(path)
+    size = path.stat().st_size
+    if not path.is_file() or size > MAX_DEBUG_LOG_BYTES:
+        raise ValueError('Unexpected native-session diagnostic size or type')
+    data = path.read_bytes()
+    lines = data.decode('utf-8').splitlines()
+    if len(lines) > 256 or any(DEBUG_LINE.fullmatch(line) is None for line in lines):
+        raise ValueError('Native-session diagnostic contains an unexpected error')
+    return {'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data), 'lines': len(lines),
+            'format': 'crashpad-not-connected'}
+
+
+def preserve_copy_debug(copy, report_path):
+    source = copy / 'debug.log'
+    if not source.exists():
+        return None
+    security.plain(source)
+    if not source.is_file() or source.stat().st_size > MAX_DEBUG_LOG_BYTES:
+        raise ValueError('Runtime-copy diagnostic exceeds the retained-log bound')
+    destination = report_path.with_suffix('.debug.log')
+    if destination.exists():
+        if security.digest(security.plain(destination)) != security.digest(source):
+            raise ValueError('A retained diagnostic would be overwritten')
+    else:
+        shutil.copy2(source, destination)
+    return destination
+
+
+def finish_runtime_copy(bundle, copy, original, report_path, isolation):
+    unchanged = bundle_inventory(bundle)
+    isolation.update(original_final_inventory_sha256=inventory_digest(unchanged['files']),
+                     original_final_file_count=len(unchanged['files']),
+                     original_final_directories=unchanged['directories'],
+                     original_unchanged=unchanged == original)
+    if unchanged != original:
+        raise ValueError('The immutable original bundle changed during native-session tests')
+    # A short-lived renderer can log after Crashpad has disconnected. Keep that
+    # exact bounded diagnostic outside the immutable deliverable; never delete a
+    # log from the original package or relax the package inventory check.
+    diagnostic_path = report_path.with_suffix('.debug.log')
+    if diagnostic_path.exists():
+        raise FileExistsError('Native-session diagnostic destination must be new')
+    preserve_copy_debug(copy, report_path)
+    final = bundle_inventory(copy)
+    original_files = original['files']
+    payload = {name: final['files'].get(name) for name in original_files}
+    added = sorted(set(final['files']) - set(original_files))
+    isolation.update(copy_payload_final_inventory_sha256=inventory_digest(payload),
+                     copy_payload_file_count=len(payload), copy_payload_unchanged=payload == original_files,
+                     copy_added_files=added)
+    if payload != original_files:
+        raise ValueError('An original payload file changed or disappeared in the runtime copy')
+    if added not in ([], ['debug.log']):
+        raise ValueError('Unexpected files were generated in the native-session runtime copy')
+    isolation['diagnostic'] = ({'artifact': diagnostic_path.name, **inspect_debug_log(diagnostic_path)}
+                               if added else None)
+    return isolation
+
+
+def validate_runtime_isolation(report_path, bundle, isolation):
+    if not isinstance(isolation, dict) or isolation.get('mode') != 'verified-runtime-copy':
+        raise ValueError('Native-session acceptance requires a verified runtime copy')
+    original = bundle_inventory(bundle)
+    require_original_inventory(bundle, original)
+    expected, count = inventory_digest(original['files']), len(original['files'])
+    for key in ('original_inventory_sha256', 'original_final_inventory_sha256',
+                'copy_initial_inventory_sha256', 'copy_payload_final_inventory_sha256'):
+        if isolation.get(key) != expected:
+            raise ValueError('Native-session copied/original inventory identity differs')
+    for key in ('original_file_count', 'original_final_file_count', 'copy_initial_file_count', 'copy_payload_file_count'):
+        if type(isolation.get(key)) is not int or isolation[key] != count:
+            raise ValueError('Native-session copied/original inventory is incomplete')
+    directories = isolation.get('original_directories')
+    if (isolation.get('original_unchanged') is not True or isolation.get('copy_payload_unchanged') is not True
+            or not isinstance(directories, list) or not all(isinstance(name, str) for name in directories)
+            or directories != original['directories']
+            or isolation.get('original_final_directories') != directories):
+        raise ValueError('Native-session original payload or directories changed')
+    debug_path = report_path.with_suffix('.debug.log')
+    added, diagnostic = isolation.get('copy_added_files'), isolation.get('diagnostic')
+    if added == [] and diagnostic is None:
+        if debug_path.exists():
+            raise ValueError('Unclaimed native-session diagnostic')
+        return None
+    if added != ['debug.log'] or not isinstance(diagnostic, dict) or diagnostic.get('artifact') != debug_path.name:
+        raise ValueError('Unexpected native-session generated-file inventory')
+    observed = inspect_debug_log(debug_path)
+    if any(diagnostic.get(key) != value for key, value in observed.items()):
+        raise ValueError('Native-session diagnostic differs from its recorded identity')
+    return {'name': debug_path.name, **observed}
 
 
 def parse_results(text):
@@ -404,6 +549,7 @@ def validate_existing(report_path, events_path, bundle, payload, expected_source
             or any(not re.fullmatch('[a-f0-9]{64}', str(binding.get(key, '')))
                    for key in ('go_sha256', 'test_executable_sha256'))):
         raise ValueError('Native-session candidate or verifier identity differs')
+    diagnostic = validate_runtime_isolation(report_path, bundle, report.get('runtime_isolation'))
     build = json.loads((bundle / 'google-services-build.json').read_text(encoding='utf-8-sig'))
     try:
         created, started, completed = (datetime.fromisoformat(value.replace('Z', '+00:00')) for value in (
@@ -416,6 +562,7 @@ def validate_existing(report_path, events_path, bundle, payload, expected_source
         raise ValueError('Native-session timestamps are missing') from error
     return {'status': 'passed', 'report_sha256': security.digest(report_path),
             'events_sha256': security.digest(events_path), 'tests': tests, 'binding': binding,
+            'runtime_isolation': report['runtime_isolation'], 'diagnostic': diagnostic,
             'producer_identity': 'Producer hashes retained; not assumed equal to the verification host'}
 
 
@@ -503,6 +650,7 @@ def main(argv=None):
               'status': 'failed', 'required_tests': sorted(REQUIRED),
               'started_at_utc': datetime.now(timezone.utc).isoformat()}
     temporary = None
+    original = runtime_copy = None
     phase = 'platform'
     try:
         if os.name != 'nt':
@@ -514,9 +662,13 @@ def main(argv=None):
         report['source'], report['binding'] = input_identity(browser, args.source_record)
         report['binding']['go_sha256'] = security.digest(go)
         temporary = Path(tempfile.mkdtemp(prefix='security-runtime-native-session-', dir=destination.parent))
+        phase = 'prepare_verified_runtime_copy'
+        original = bundle_inventory(browser.parent)
+        runtime_copy = temporary / 'runtime'
+        report['runtime_isolation'] = prepare_runtime_copy(browser.parent, runtime_copy, original)
         environment = safe_environment(temporary)
         environment.update(GOTOOLCHAIN='local', GOFLAGS='', GOWORK='off',
-            CHROMIX_LITE_SESSION_CANDIDATE=str(browser),
+            CHROMIX_LITE_SESSION_CANDIDATE=str(runtime_copy / browser.name),
             CHROMIX_LITE_SESSION_CANDIDATE_DLL_SHA256=report['binding']['chrome_dll_sha256'])
         executable = temporary / 'native-session.test.exe'
         build_log = destination.with_suffix('.build.log')
@@ -536,12 +688,14 @@ def main(argv=None):
         report['execution'] = run_private_desktop(
             [str(go), 'tool', 'test2json', '-t', '-p', PACKAGE, str(executable),
              '-test.v=test2json', '-test.count=1', '-test.timeout=150s'],
-            environment=environment, cwd=MODULE, log=log)
+            environment=environment, cwd=runtime_copy, log=log)
         phase = 'validate_events_and_bindings'
         if not execution_passed(report['execution']):
             raise RuntimeError('Native session execution or owned cleanup failed')
         report['events_sha256'] = security.digest(log)
         report['executed_tests'] = parse_results(log.read_text(encoding='utf-8'))
+        phase = 'validate_runtime_copy_and_original_inventory'
+        finish_runtime_copy(browser.parent, runtime_copy, original, destination, report['runtime_isolation'])
         source_after, inputs_after = input_identity(browser, args.source_record)
         expected = {key: value for key, value in report['binding'].items()
                     if key not in ('go_sha256', 'test_executable_sha256')}
@@ -556,6 +710,8 @@ def main(argv=None):
     finally:
         if temporary:
             try:
+                if runtime_copy and runtime_copy.is_dir():
+                    preserve_copy_debug(runtime_copy, destination)
                 report['owned_profiles_removed'] = remove_owned_directory(temporary, destination.parent)
             except (OSError, ValueError) as error:
                 report['status'] = 'failed'
