@@ -10,10 +10,14 @@ from pathlib import Path
 import re
 import subprocess
 import tarfile
-from verify_google_services_source import verify as verify_signin_source
-from restored_source_resources import restore as restore_resources
-from restored_source_resources import verify as verify_resources
-from google_services_inputs import native_browser_input_names, native_cookie_input_names, preparation_input_hashes, verify_aggregate_inputs
+try:
+    from .verify_google_services_source import verify as verify_signin_source
+    from .restored_source_resources import restore as restore_resources, verify as verify_resources
+    from .google_services_inputs import native_browser_input_names, native_cookie_input_names, preparation_input_hashes, verify_aggregate_inputs
+except ImportError:
+    from verify_google_services_source import verify as verify_signin_source
+    from restored_source_resources import restore as restore_resources, verify as verify_resources
+    from google_services_inputs import native_browser_input_names, native_cookie_input_names, preparation_input_hashes, verify_aggregate_inputs
 
 CPP_TOKENS = re.compile(
     r'(?P<raw>R"(?P<delimiter>[^ ()\\\t\r\n]{0,16})\([\s\S]*?\)(?P=delimiter)")'
@@ -168,19 +172,34 @@ def apply_patch(src: Path, executable: str, patch: Path, *, reverse=False):
             raise RuntimeError(run.stdout + run.stderr)
 
 
-def recipe_identity(repo: Path):
-    inputs = preparation_input_hashes(repo)
+def recipe_identity(repo: Path, *, profile='legacy'):
+    if profile == 'lite':
+        try:
+            from .lite_patch_stack import input_hashes
+        except ImportError:
+            from lite_patch_stack import input_hashes
+        inputs = input_hashes(repo)
+    elif profile == 'legacy':
+        inputs = preparation_input_hashes(repo)
+    else:
+        raise ValueError('Unknown preparation profile')
     return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest(), inputs
 
 
-def verify_prepared_sources(src: Path, repo: Path, config: dict, **source_checks):
+def verify_prepared_sources(src: Path, repo: Path, config: dict, *, product=False, **source_checks):
     checked = verify_signin_source(src, **source_checks)
     if native_browser_input_names(config):
-        from verify_native_browser_source import verify as verify_native_browser
-        checked = sorted(set(checked) | set(verify_native_browser(src, repo)))
+        try:
+            from .verify_native_browser_source import verify as verify_native_browser
+        except ImportError:
+            from verify_native_browser_source import verify as verify_native_browser
+        checked = sorted(set(checked) | set(verify_native_browser(src, repo, **({'config': config} if product else {}))))
     if native_cookie_input_names(config):
-        from verify_native_cookie_source import verify as verify_native_cookie
-        checked = sorted(set(checked) | set(verify_native_cookie(src, repo)))
+        try:
+            from .verify_native_cookie_source import verify as verify_native_cookie
+        except ImportError:
+            from verify_native_cookie_source import verify as verify_native_cookie
+        checked = sorted(set(checked) | set(verify_native_cookie(src, repo, **({'config': config} if product else {}))))
     return checked
 
 
@@ -193,9 +212,18 @@ def main():
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--repo", type=Path, required=True)
     parser.add_argument("--patch-bin", required=True)
+    parser.add_argument('--profile', choices=('legacy', 'lite'), default='legacy')
     parser.add_argument('--reuse-prepared-domains', action='store_true',
                         help='Only after a registered same-version migration admits the old prepared receipt')
     args = parser.parse_args()
+    if args.profile == 'lite':
+        try:
+            from .prepare_lite_product import prepare
+        except ImportError:
+            from prepare_lite_product import prepare
+        result = prepare(args.repo.resolve(), args.work.resolve(), migration=args.reuse_prepared_domains)
+        print(json.dumps({'status': 'product-source-verified', 'patch_sha256': result['patch_sha256']}))
+        return
     src = args.work / "src"
     config = json.loads((args.repo / 'build/google-services-win155.json').read_text(encoding='utf-8'))
     require_security = bool(config.get('security_restoration'))

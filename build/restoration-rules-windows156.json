@@ -1,0 +1,4013 @@
+{
+  "schema_version": 1,
+  "chromium_version": "156.0.8078.79",
+  "core_commit": "28a211ab4ab6b83d919966a4f58a6df23cf4fb29",
+  "windows_commit": "8492884eb30fdd9417ea7816aa92def805c97c74",
+  "upstream_patch_order": {
+    "core": [
+      "upstream-fixes/missing-dependencies.patch",
+      "upstream-fixes/wasm-interpreter-fixes.patch",
+      "core/inox-patchset/0001-fix-building-without-safebrowsing.patch",
+      "core/inox-patchset/0003-disable-autofill-download-manager.patch",
+      "core/inox-patchset/0005-disable-default-extensions.patch",
+      "core/inox-patchset/0015-disable-update-pings.patch",
+      "core/inox-patchset/0021-disable-rlz.patch",
+      "core/iridium-browser/safe_browsing-disable-incident-reporting.patch",
+      "core/iridium-browser/safe_browsing-disable-reporting-of-safebrowsing-over.patch",
+      "core/ungoogled-chromium/disable-crash-reporter.patch",
+      "core/ungoogled-chromium/disable-google-host-detection.patch",
+      "core/ungoogled-chromium/replace-google-search-engine-with-nosearch.patch",
+      "core/ungoogled-chromium/toggle-translation-via-switch.patch",
+      "core/ungoogled-chromium/disable-untraceable-urls.patch",
+      "core/ungoogled-chromium/disable-profile-avatar-downloading.patch",
+      "core/ungoogled-chromium/disable-gcm.patch",
+      "core/ungoogled-chromium/disable-domain-reliability.patch",
+      "core/ungoogled-chromium/block-trk-and-subdomains.patch",
+      "core/ungoogled-chromium/disable-gaia.patch",
+      "core/ungoogled-chromium/disable-fonts-googleapis-references.patch",
+      "core/ungoogled-chromium/disable-webstore-urls.patch",
+      "core/ungoogled-chromium/fix-learn-doubleclick-hsts.patch",
+      "core/ungoogled-chromium/disable-webrtc-log-uploader.patch",
+      "core/ungoogled-chromium/disable-ai.patch",
+      "core/ungoogled-chromium/fix-building-with-prunned-binaries.patch",
+      "core/ungoogled-chromium/disable-network-time-tracker.patch",
+      "core/ungoogled-chromium/disable-mei-preload.patch",
+      "core/ungoogled-chromium/fix-building-without-safebrowsing.patch",
+      "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "core/ungoogled-chromium/block-requests.patch",
+      "core/ungoogled-chromium/disable-privacy-sandbox.patch",
+      "core/ungoogled-chromium/doh-changes.patch",
+      "core/ungoogled-chromium/extensions-manifestv2.patch",
+      "core/ungoogled-chromium/remove-f1-shortcut.patch",
+      "core/ungoogled-chromium/move-js-optimizer-unfamiliar-sites.patch",
+      "core/ungoogled-chromium/remove-navigation-source-param.patch",
+      "core/ungoogled-chromium/disable-tos-dialog.patch",
+      "core/bromite/disable-fetching-field-trials.patch",
+      "extra/ungoogled-chromium/add-ungoogled-flag-headers.patch",
+      "extra/inox-patchset/0006-modify-default-prefs.patch",
+      "extra/inox-patchset/0008-restore-classic-ntp.patch",
+      "extra/inox-patchset/0013-disable-missing-key-warning.patch",
+      "extra/inox-patchset/0016-chromium-sandbox-pie.patch",
+      "extra/inox-patchset/0019-disable-battery-status-service.patch",
+      "extra/debian/disable/google-api-warning.patch",
+      "extra/iridium-browser/mime_util-force-text-x-suse-ymp-to-be-downloaded.patch",
+      "extra/iridium-browser/prefs-always-prompt-for-download-directory-by-defaul.patch",
+      "extra/iridium-browser/updater-disable-auto-update.patch",
+      "extra/iridium-browser/Remove-EV-certificates.patch",
+      "extra/iridium-browser/browser-disable-profile-auto-import-on-first-run.patch",
+      "extra/bromite/fingerprinting-flags-client-rects-and-measuretext.patch",
+      "extra/bromite/flag-max-connections-per-host.patch",
+      "extra/bromite/flag-fingerprinting-canvas-image-data-noise.patch",
+      "extra/ungoogled-chromium/add-components-ungoogled.patch",
+      "extra/ungoogled-chromium/disable-formatting-in-omnibox.patch",
+      "extra/ungoogled-chromium/add-ipv6-probing-option.patch",
+      "extra/ungoogled-chromium/remove-disable-setuid-sandbox-as-bad-flag.patch",
+      "extra/ungoogled-chromium/disable-intranet-redirect-detector.patch",
+      "extra/ungoogled-chromium/disable-download-quarantine.patch",
+      "extra/ungoogled-chromium/fix-building-without-mdns-and-service-discovery.patch",
+      "extra/ungoogled-chromium/add-flag-to-configure-extension-downloading.patch",
+      "extra/ungoogled-chromium/add-flag-for-search-engine-collection.patch",
+      "extra/ungoogled-chromium/add-flag-to-disable-beforeunload.patch",
+      "extra/ungoogled-chromium/add-flag-to-force-punycode-hostnames.patch",
+      "extra/ungoogled-chromium/add-flag-to-show-avatar-button.patch",
+      "extra/ungoogled-chromium/add-suggestions-url-field.patch",
+      "extra/ungoogled-chromium/add-flag-to-hide-crashed-bubble.patch",
+      "extra/ungoogled-chromium/add-flag-to-scroll-tabs.patch",
+      "extra/ungoogled-chromium/enable-paste-and-go-new-tab-button.patch",
+      "extra/ungoogled-chromium/add-flag-for-bookmark-bar-ntp.patch",
+      "extra/ungoogled-chromium/enable-menu-on-reload-button.patch",
+      "extra/ungoogled-chromium/add-flag-for-omnibox-autocomplete-filtering.patch",
+      "extra/ungoogled-chromium/disable-dial-repeating-discovery.patch",
+      "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "extra/ungoogled-chromium/add-flag-to-close-window-with-last-tab.patch",
+      "extra/ungoogled-chromium/add-flag-to-convert-popups-to-tabs.patch",
+      "extra/ungoogled-chromium/add-flag-to-disable-local-history-expiration.patch",
+      "extra/ungoogled-chromium/add-extra-channel-info.patch",
+      "extra/ungoogled-chromium/prepopulated-search-engines.patch",
+      "extra/ungoogled-chromium/add-flag-to-clear-data-on-exit.patch",
+      "extra/ungoogled-chromium/add-flag-for-qr-generator.patch",
+      "extra/ungoogled-chromium/add-flag-for-grab-handle.patch",
+      "extra/ungoogled-chromium/add-flag-for-close-confirmation.patch",
+      "extra/ungoogled-chromium/keep-expired-flags.patch",
+      "extra/ungoogled-chromium/add-flag-for-custom-ntp.patch",
+      "extra/ungoogled-chromium/add-flag-for-tab-hover-cards.patch",
+      "extra/ungoogled-chromium/add-flag-to-hide-tab-close-buttons.patch",
+      "extra/ungoogled-chromium/add-flag-to-disable-tls-grease.patch",
+      "extra/ungoogled-chromium/add-flag-to-change-http-accept-header.patch",
+      "extra/ungoogled-chromium/add-flag-for-disabling-link-drag.patch",
+      "extra/ungoogled-chromium/add-flag-to-hide-extensions-menu.patch",
+      "extra/ungoogled-chromium/add-flag-to-hide-fullscreen-exit-ui.patch",
+      "extra/ungoogled-chromium/add-flag-for-incognito-themes.patch",
+      "extra/ungoogled-chromium/add-flags-for-referrer-customization.patch",
+      "extra/ungoogled-chromium/default-webrtc-ip-handling-policy.patch",
+      "extra/ungoogled-chromium/add-flags-for-existing-switches.patch",
+      "extra/ungoogled-chromium/first-run-page.patch",
+      "extra/ungoogled-chromium/add-flag-to-reduce-system-info.patch",
+      "extra/ungoogled-chromium/add-flag-to-remove-client-hints.patch",
+      "extra/ungoogled-chromium/enable-extra-locales.patch",
+      "extra/ungoogled-chromium/remove-pac-size-limit.patch",
+      "extra/ungoogled-chromium/enable-certificate-transparency-and-add-flag.patch",
+      "extra/ungoogled-chromium/add-flag-to-spoof-webgl-renderer-info.patch",
+      "extra/ungoogled-chromium/add-flag-to-increase-incognito-storage-quota.patch",
+      "extra/ungoogled-chromium/add-credits.patch",
+      "extra/ungoogled-chromium/disable-ai-search-shortcuts.patch",
+      "extra/ungoogled-chromium/disable-fedcm-by-default.patch",
+      "extra/ungoogled-chromium/bundle-hyphenation-patterns.patch",
+      "extra/ungoogled-chromium/add-flag-for-disabling-jit.patch",
+      "extra/ungoogled-chromium/add-flag-to-hide-window-buttons.patch"
+    ],
+    "windows": [
+      "ungoogled-chromium/windows/windows-disable-reorder-fix-linking.patch",
+      "ungoogled-chromium/windows/windows-disable-win-build-output.patch",
+      "ungoogled-chromium/windows/windows-disable-rcpy.patch",
+      "ungoogled-chromium/windows/windows-fix-building-gn.patch",
+      "ungoogled-chromium/windows/windows-disable-encryption.patch",
+      "ungoogled-chromium/windows/windows-disable-machine-id.patch",
+      "ungoogled-chromium/windows/windows-compile-mini-installer.patch",
+      "ungoogled-chromium/windows/windows-no-unknown-warnings.patch",
+      "ungoogled-chromium/windows/windows-fix-rc.patch",
+      "ungoogled-chromium/windows/windows-disable-event-log.patch",
+      "ungoogled-chromium/windows/windows-fix-clang-format-exe.patch",
+      "ungoogled-chromium/windows/windows-disable-rlz.patch",
+      "ungoogled-chromium/windows/windows-fix-command-ids.patch",
+      "ungoogled-chromium/windows/windows-disable-download-warning-prompt.patch",
+      "ungoogled-chromium/windows/windows-fix-rc-terminating-error.patch",
+      "ungoogled-chromium/windows/windows-fix-building-without-safebrowsing.patch",
+      "ungoogled-chromium/windows/windows-disable-clang-version-check.patch",
+      "ungoogled-chromium/windows/windows-fix-licenses-gn-path.patch",
+      "ungoogled-chromium/windows/windows-fix-building-with-rust.patch",
+      "ungoogled-chromium/windows/windows-fix-complex-builtins.patch",
+      "ungoogled-chromium/windows/windows-fix-remove-unused-preferences-fields.patch",
+      "ungoogled-chromium/windows/windows-fix-missing-includes.patch",
+      "ungoogled-chromium/windows/windows-fix-unsupported-llvm-flags.patch",
+      "ungoogled-chromium/windows/windows-fix-building-without-crubit.patch",
+      "ungoogled-chromium/windows/windows-fix-python.patch",
+      "ungoogled-chromium/windows/windows-fix-typescript-lib-dom.patch",
+      "ungoogled-chromium/windows/windows-disable-private-verification-tokens.patch"
+    ]
+  },
+  "rules_sha256": "3521f36dd240ef327517941dee6ec4e0669cb858b5ba8481078fafc14d2e03c3",
+  "upstream_patch_sha256": {
+    "core/core/inox-patchset/0003-disable-autofill-download-manager.patch": "4758d5faebbe0c7d0fd5f341fee4cfca4c62a1e3b7d779a700de1ce32970306d",
+    "core/core/inox-patchset/0005-disable-default-extensions.patch": "1ced9fa0b1e815ef2cc5d0c822c8561f791e3a79d6bb4fa27a1c14a44a96e3a7",
+    "core/core/ungoogled-chromium/disable-google-host-detection.patch": "a92ee071ba769f25000df9f93ac1fdb67f7fc2fd7872b0d91833f5a76a9d8960",
+    "core/core/ungoogled-chromium/replace-google-search-engine-with-nosearch.patch": "3a53918f5fd17dec4b0a2fe09ec15c3d1e20f0f2858773948a9f756abe1d0322",
+    "core/core/ungoogled-chromium/toggle-translation-via-switch.patch": "94e2d09b3382bc566de1970518292fafae108172e822ba97c4eeb11238aa39fd",
+    "core/core/ungoogled-chromium/disable-profile-avatar-downloading.patch": "84cc8372fb564555d3fbda4c9579429ee7a3c3119f7625b6bc89dda30ff5c289",
+    "core/core/ungoogled-chromium/disable-gcm.patch": "9a01b5535c3b497b73f80d03e7d596936d8c7676293e7ef1f5abd70474184cb2",
+    "core/core/ungoogled-chromium/disable-gaia.patch": "046ed0cf962254b1963da43ce57c2b2cab399bab722d3a0565cc59bf3c035112",
+    "core/core/ungoogled-chromium/disable-webstore-urls.patch": "46511a69a9337a5d05675c1d700001c55644ca2a770545f36677134c285fb89b",
+    "core/core/ungoogled-chromium/disable-tos-dialog.patch": "b8d1364f3b6aaf641827a23474338fa97358eda9738ba3df6e09c1e6f349c640",
+    "core/extra/ungoogled-chromium/add-flag-to-configure-extension-downloading.patch": "412d7e69bdedf53ed7477f04a7e27b0c1aa47f9447f571a7d18c5ecaa5ee8c1b",
+    "core/core/inox-patchset/0001-fix-building-without-safebrowsing.patch": "4677f296734e97724f22a1a614b36491dab792548a822044e027a5c4af4e9ad9",
+    "core/core/ungoogled-chromium/fix-building-without-safebrowsing.patch": "8a95adc5a6770ccf8db2a184c2e07f84df704968d3a52d8dd6e01055314ba059",
+    "core/core/iridium-browser/safe_browsing-disable-incident-reporting.patch": "a0db3e85556e074c7920469fa22bf7773c4e5d237cb8c97a561814efdf1646b7",
+    "core/core/iridium-browser/safe_browsing-disable-reporting-of-safebrowsing-over.patch": "f7c5a21a183418e51980420b00286c5d3d4a636e3196313a0ed57db5e049e745",
+    "core/extra/ungoogled-chromium/disable-download-quarantine.patch": "04883e16e2e4f191437756e66f11f4b8bbf7fa78be53b8386722512bf3aa8c89",
+    "core/core/ungoogled-chromium/move-js-optimizer-unfamiliar-sites.patch": "05960ff43b77d1b7b4ad335aaeb94d773b500573537f6cc1388b8a995f711bdf",
+    "core/extra/ungoogled-chromium/add-flag-to-disable-local-history-expiration.patch": "4e8e78a520cc3c54c5c3e3bbfec0fdc5be793572a2b54fdad1cb8a9b52538da4",
+    "core/core/ungoogled-chromium/block-requests.patch": "fa85c544e31b7b724d9ce2d24c771a4e0b865532489a271dd930b92e8e0d1ae3",
+    "core/extra/inox-patchset/0006-modify-default-prefs.patch": "b440496a84bb037be2111934558b9277359d84a77eed2bce8de4e8ad1f5f5e56",
+    "core/extra/ungoogled-chromium/remove-uneeded-ui.patch": "877d906e76310ff6dac0844127039aa843789afa6a655388e2c6958aa8cbd653",
+    "core/core/ungoogled-chromium/remove-unused-preferences-fields.patch": "b00d48aa7b8053220fbb7c22cbe06dbb28faf41faefdd8d6aa69500a3be21133",
+    "windows/ungoogled-chromium/windows/windows-fix-remove-unused-preferences-fields.patch": "0b7ec55034e3cf080bec7f59e135b6be47ae974a5f88b41aa277154a3829cb03",
+    "windows/ungoogled-chromium/windows/windows-fix-building-without-safebrowsing.patch": "2adf0fffdb7ae3e163a20db07f29611e70b28c886d7bee3137e3f7e82e3795b3",
+    "windows/ungoogled-chromium/windows/windows-disable-download-warning-prompt.patch": "4afac31a2f93ba79172777a21618e9a73410d51edd7225ec6b6f205d768f6e1b"
+  },
+  "rules": [
+    {
+      "kind": "remove_patch",
+      "patch": "core/inox-patchset/0003-disable-autofill-download-manager.patch",
+      "section_count": 1,
+      "hunk_count": 5,
+      "hunks_sha256": [
+        "43a0bc5b5b24b41f4e4106649246be482edf33945e9f1852ed2f9b5e22d89454",
+        "d34f638cd34726acaf2a9bca03e527bcc325b7b6d14bfaf680ef9f9d6b4d46ef",
+        "c22db3a15efcb298c5b594ea12f3c52239af1625676d2466ec55913b8518f211",
+        "9eb4b2a4fd5982ce602d79c1895ae04c04ce79b0cbc7c9b9b08c9ee690436bba",
+        "f7e0a54682b6821cf6c411064a4969549ad7be9a54252494e9139b6ca3658b14"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/inox-patchset/0005-disable-default-extensions.patch",
+      "section_count": 4,
+      "hunk_count": 6,
+      "hunks_sha256": [
+        "465d1a90d1a09beba8c154e9f561e46a298b01f43ef4f80ec4056f4f1d818413",
+        "2de003125816aa68dc94a8d8978b04dc57ff36b60364c3f06628a3d01801f864",
+        "a1845acbe991f46ad7295bff34c0bc9b6c9ece94cf5984ec11cced40c8390db0",
+        "54cfc9d61eea0001ce3df684c9700bf07fa1cac3583d032cf436bc057945a4d9",
+        "1579252e64973453eeb0194e77ea0416686bac374a44cc55c4042077eda44838",
+        "5e445cac89d82f8581817fcf923bad6924e87878c6dfdd4c66ea9b8ac98a8b48"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/ungoogled-chromium/disable-google-host-detection.patch",
+      "section_count": 10,
+      "hunk_count": 22,
+      "hunks_sha256": [
+        "7d926fe8c2a204ee66a2bf72ea9e614e6061c4e2da1953b15300196e5a0ea173",
+        "375f59bf833907c4535c0168d3505c6936ff8620f303f3eff0851af459df9161",
+        "ec2565dda453a252a762560d97f0cd82739986e4e0c6d2a45120b18e906ef672",
+        "32a49332c36cebb53ec0d47b72e46201021e3928c576995ef1897bb6ed0a325f",
+        "bd29d7a2f3f54f06a5aafbdaf803de00bca7d5b88cdfa850b116695185ef603e",
+        "6a50d612ae080e98acb63ca5ee87e8eb67aafecb34686c6b14f39f8d030d6dce",
+        "ccbc54adc456c024271afed36842717f66a42887fb6f4c5216b256104fbfae80",
+        "359ea36476b09a7ec1558763eda2cdf4836313e672733d54460ef1adc57ce941",
+        "186468d17c81096f3c377702b0e0c7f6fcf1853962f4ead71117b7a6d5baae7b",
+        "e7234eaa2d900e6b204dc5e1b2eaa43d8aa8844e29f5c53cc4b9a9ba40e99846",
+        "aa7fa40f434fedf23b923f423e7df6dbdef1b65f6f4684e5a8a9d5f9786c1c73",
+        "e7235afef6a183bddb7a16d9ecbc5c3e0cca3fdc4813ec323fca42f8549fa376",
+        "9ff71b9887f5f87f8ba7cb84e280165542d461e438b707bd2e7a4e1d0a352d80",
+        "b5bf3872757ffd780237ec4850f0c9cd3edb347603fb2f42cc1e99983ce73717",
+        "9eb6f1f6e24ed469a9f0a6c42a976c133861bf027197d7cc5f7612338ecb8c6b",
+        "12e9c946ee5d5f87e9f1a8e652dfd677c426688665af9a70e0428b241ed7fa25",
+        "4be48ff1b6faa7b3f748844cd924ddc60206f43595e96eccab83f73eab0b2023",
+        "6b56caae722adac354a0e867e73afbe5799f72917b105f2bb7edfaffe86c8223",
+        "b9ccc82422b378a99c358b3a108a3665fbb17a69bda2477166ab2e91fbe869df",
+        "f0fc77a5cba8f4cc853e766f13d0ad55e76d664e98abd424d90f0ecfc72aac9d",
+        "dda51e400e0814c273e347abd6d115d78fa34f434620f9fc88ba1e5f432fff6d",
+        "469da3998d5f288b93bf22ffa9da6a08222b5c74d5f973060f2eac50a0ea6804"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/ungoogled-chromium/replace-google-search-engine-with-nosearch.patch",
+      "section_count": 1,
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "0d6c9af7b0c9197e88a6234ff2faccae3df39a62ceca0b71cc75fbaf3fb01013"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/ungoogled-chromium/toggle-translation-via-switch.patch",
+      "section_count": 5,
+      "hunk_count": 9,
+      "hunks_sha256": [
+        "e33f39ab138977a12410e06e46251f4382b4b7823cb31f9dad1e05262e30c504",
+        "8516f551144e5e5790c1393c371b30fc4ed9162070966d47cf51810efbdcf72a",
+        "0d3831abb7e9a9e43117d310a82acf86300fa751762367dca6e07053a6fb79cb",
+        "7ca08407e1ae3d96d28015785c9c5365b541891b97e66e674f832e59a9f090ad",
+        "7355c7da07873f5790ffe5e3d5e2371b6d3a33113695ec0b530f224325f2d23d",
+        "e119f78b4d55378e8dc66c96d88c26fb8219e525ab0bdde3cb542e30ebb0b894",
+        "f39310aa32ea4057b4b4fa6b1a4292a858b1cc5e13f7de2c570b70ebf380d7fd",
+        "ef1ff5dd4de44d8c87e47ef61fcd2b478c74c5e1dcb4410b5756b13934aed49e",
+        "3793ed75c038816a6234b6d52d09bc813cd6e4bf30f3a9d3388f877a892a021f"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/ungoogled-chromium/disable-profile-avatar-downloading.patch",
+      "section_count": 1,
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "a1307b18e8fc3c7249b6540a7b6a10334f48cf9a97d0724f7b88254e78bd697c"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/ungoogled-chromium/disable-gcm.patch",
+      "section_count": 2,
+      "hunk_count": 10,
+      "hunks_sha256": [
+        "30f547f5d2df5e70f8db4a1a9ccddb76a1e563ee6fe21473572438b1a4d29bb6",
+        "cc27480cb7ca0cf8c8c2b24759ea9af432ac63014ebd2f41bf8e58acc1bfdd6c",
+        "3f8dd7fbd2d3ba987bbc9827ced6fe2e22cc47351e4d7ef327f950533794959f",
+        "ff90a19a7b6f6d97838ea0630961c3189bca18546e8de6bd7bc9a9a548e7d690",
+        "69b2799f6c3ef432cd3ac150f1d7eea0b804e49c1cd672edc369496d9ac387b8",
+        "2de689268819e2d2a6042d25114530f96b8370d716a4f9436a7b7c6a267785f2",
+        "09874392c93793d5323598f307dffba9b4e845caa44eb2845c89265d0d9124ab",
+        "d168908724ca1f9f0f8d5bf1cf339950bd882ca278adbfbd2b646254043da279",
+        "af3782371ca60b66e316bd8a248e800684eaa864cda7926bc85a5d3f95163bfa",
+        "7e8b3721e2c3477be6bcc9edf8f062fad01ae4000c1e71f66f5e2c6f455061cf"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/ungoogled-chromium/disable-gaia.patch",
+      "section_count": 1,
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "f15b8fb6682e7d46321df7c2b2607fd8c2873d8ba7e8e2bd5cb93c855e3e14f0"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/ungoogled-chromium/disable-webstore-urls.patch",
+      "section_count": 6,
+      "hunk_count": 13,
+      "hunks_sha256": [
+        "2c938f71085eb6565bbde171ab47e10ee35974709364de36d0f91cd50888e946",
+        "6afebdc6e708fd41396be6a790f5085039cdb0eecbf9dfc1d9535b538e426b11",
+        "a311fdfb3678fc54356262744dd571ff502b50a4f62817dc42434f677d95bec3",
+        "410e309fa53ed11d5a61f9a690070cfaa6b52efd314b8301a8488e009bfaaa28",
+        "fa9c1206e0daff9474c6fad8cf79487e67374bbb32fa0666c69fc919b59678d3",
+        "5ba65bd2047e725f9546588bc352894fd81585d9273e22fc37d9f7c395d2f306",
+        "677026382108a4b4452bc6ce0f20eed25cb6a2c91a7b3d6b35819e50d30acd17",
+        "ef0fa586c24338dd0cacb33b699df00bd7dac4e520d69e9abe5130759a19e38a",
+        "015b36281b60a0375dd3da68093cdf097bb3020483e2bb6c51c771cebbf6fc7f",
+        "d39ce3b7748446b5d75657402dc538f60a0d39b810e746f4e35ac1ac01f65a0a",
+        "288d88a73a2cf488e4a322ed031be4c45408952035cd1d16fd5d0f1ea72eabd5",
+        "c7bc35cbec414110ab7cc9030e27e530ad5eb58002a36e147e31dc7f95a36112",
+        "9aa08c361e0712c9e2f75bdfa677eb0bbb1ee11db94b643f564bf28c42e840d4"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/ungoogled-chromium/disable-tos-dialog.patch",
+      "section_count": 1,
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "b348fb117f75f582e1905d18fed7fa93f637aa3ccc31d76167b231291056d664"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "extra/ungoogled-chromium/add-flag-to-configure-extension-downloading.patch",
+      "section_count": 6,
+      "hunk_count": 8,
+      "hunks_sha256": [
+        "cd5a9d493114f76300a2894b550af9ff4a928640ba1b7ec0c376d18c55d39af0",
+        "a7e5633c63dbeaf77523759dd02f7dc0d76725076213f3103f82d054ceb1987b",
+        "4cc136cb995d61edcdb4055a2d025e7ad02e7f4ec91c81f06577be5bb88740f2",
+        "6800e4f72cc39b60e957a4436d97de62ee3bc76f4a1ea292da27be8077ab8fcf",
+        "58a61214a2021c5be8f2df6abf9acfb83826129abe9160fa28e4f5a2d50d911a",
+        "91f911fc9b059112e91cda13d68840c0b1d6a4dc6180ff15612a2b7f30925299",
+        "b8161d578e4f01debbad1a98c0f0d0aa676baa1a2661184f8befa8818b85bacc",
+        "f22e5765ba163993c9c1ec8b33280d998ab7a761cc88e4b640a4db68ca194b5d"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/inox-patchset/0001-fix-building-without-safebrowsing.patch",
+      "section_count": 9,
+      "hunk_count": 15,
+      "hunks_sha256": [
+        "0398653a67e2b9ba9614f80c4ec5d8728d9a8385e36d94c2a5294d23177a4d51",
+        "d968c78b2075981f73bf2710e27a3282078177d1701e3508233f330be3362e62",
+        "efc54360352b32cec2f3d4989a306a0862978d80b4ecec7842af6b53f3abc2b5",
+        "8eadf8ce7c087afbf40d41d1ea882a38cbae7be0ebd431660bbb08bf0f814475",
+        "aa1f4ae7cda340ef1255f2a61b87202f986c0a36cc229219b3821fb2fdc3371a",
+        "855133f6a4e39c5e31a11c81b3f670a076b39451f094aa5020231f4be5a4c843",
+        "145d557c3e93d77d0345400d0aa29f5c972e26074e0c978af04fe33c4a1a9c5d",
+        "cac9ff0c567cdb6f9b3c1a6a27d9729f4eda2847a9dd973d8a543d97cb076b10",
+        "69a9ce71c233b4d3b743c060fb02e484bb4e7c4c1c865c4d665df7ccad7c51fe",
+        "14acd89ba3d36880b6fa44693f781f5f7bf3ea121779cf215be2e353a9c6a791",
+        "ab1c577c69c86ea9e1ab57cf4a90f50dff69403b65d659bb40cbe84711578afb",
+        "7fef4f8e152faf20f4de4687fc027ab977fdec59cf014c9d79b65660ba947565",
+        "38e82844404382a87c710d28edc89d2507c59798b01f428a2729e80de5f33496",
+        "cae2cb86d8cb3fda76c5e545cc1872957c112e1eca8f9f88db684e78146ceca3",
+        "f0a5ad1d044f24f6c5f0f0c5d595ad8f439b70db7cb5f1ca9c383194e3f4aed2"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/ungoogled-chromium/fix-building-without-safebrowsing.patch",
+      "section_count": 127,
+      "hunk_count": 216,
+      "hunks_sha256": [
+        "3657e971f2ff88366ea6851953fb8203f1199f34ef9cafd4905505d5851b6fae",
+        "83c61a4f89bee7aa21f59d23ea4eba0c27d45f5ec063014e769133a10d1f32f1",
+        "3a54bb696495383f5f642b285f50feed74387080ea1d7cf6057403a84b540d92",
+        "6f7f78b41947694488043098a946ec3404bcc4fdbb8368fd6b6040c2aa011ffe",
+        "3a6e4e54c776a2ef58dba2604376101492bf42f900a640454ce2f3bb10c85608",
+        "b65bcb07ada917b7796dcb4cebfde31df6ecf6659da54906840b22c985768c96",
+        "a2dfa9317e2f9ce49b0a295c36c0d424ea12fd5a53c774a3724c597035857d12",
+        "d357701013f052d8795c2a30b059c34d473182aac622daafe119ff1dd9eee598",
+        "0a4138e837f021955ba1337b0d364fc319f0b04aba04dbbe12c63e4b55c78fce",
+        "68c1c7902acd7755ff5d19bbc65b54e5a76c21cbf91d7dd6f6e57092d88e0c6c",
+        "35f29e819f385c759b1dc37822d08fc1b3b1fa63746f443ed078a73316086b27",
+        "f370107b5f1f669e061e8e58973f1cccbfa6d9e75a505c18ea712254a3461231",
+        "344cf37a2a6e3b53996b51acca60ca24572ba58f431a2820062a844afe713b6b",
+        "bef5cf4db1afd90d0973ba83cafb27d5a443a27c3f39acd4a89d0df60b2e3d6d",
+        "68bfcb6ddc939375c162f6680d7b71987802c4aca6cf5abe52da9d9d032a23de",
+        "202839fc2c4adfb3b0b598447c6eb90c2e59acf0e9ce53f5586b8ba269422f5b",
+        "f7d25c41f2712001dd4ad3629a41e5b4da5b93e7bd90df50b55ca351fac85ce4",
+        "cde40a18ba40d23b8780179c92080b0eb63b4080d790e8f8a95b96586a6038aa",
+        "a62f3217f0bf9bf11ec75c6e4e372013ae382e54183d89424ceddf6741f4cab1",
+        "8d3ba5513ca81d6eab20bb538d842c123f8bdee04177decc29641e57707887d7",
+        "b5a837ae6405a2313f55cfd245a26646f35df57ce067d704054ef271f8c054d2",
+        "d37f1621013198d5cc3cfde9f2a1ca76603ab3fa84d1e0de9de83603a84293da",
+        "3256852e274120c77435a1dc0a7a8b82dcc5ccbd872622945950cdc5c8d17ea7",
+        "cae9a75742a470487c5409af06136d65ec26e4f0607ce48f1094687e36fdba4e",
+        "38ac4e90726b36c434b5d99ea7abf809449156b0c62b6d1b6bc0db132b381fac",
+        "c55bb5507720b8d0404d8598d6d48d0209985bcb7b1ce4e01273ce21cd3cfe56",
+        "8585fc3a4a733b128b1fa7a439ac5d6e9a11d7aedfab8de388d8dd7dfc34386d",
+        "d0f472dbf09f0663ec428f291d489937ccc85819bbdba6a8c1e3aecb12767f2c",
+        "3ff3f7626345bd6d6d7cc63e0ac5052839ea499858df70da0362625eece67783",
+        "52ad4f9556b2a2e38ac7d1c7d2f8d01cc04370864ecb6290bf323d8241ae89c4",
+        "b34d95402fbb9b2f793bbdf3b7f23ec93d095d7b34d8316a953ab4e2796e77d6",
+        "1be168ace830a1d9a7dca3ec59b16fce619f03613f901ca087534e2e9d8ddf5c",
+        "d536e261d283910fd38f430f88b5cb06c856f89cce23278bf15e362ed4acc7f5",
+        "176fee923aadc73d4a3395b3b5062d9e6d0a6dae74809f4e945be6958c0204b0",
+        "74bd3110ac5728d77f87ab8fcd30b01b48292332df773e750c977831ca909afc",
+        "502c8032d25a5bcc095370eed88583c67afcd0909744f9d2c639548917cb9517",
+        "cf25e6d74ff92021e1abb779ca5480e1555fa8b36d20758103059e2cb78ac04a",
+        "f100a0fe84d16a702790ff7ed8f8ead12a631cf04f687f1c031d225d3233e5aa",
+        "4c3b1635d1e335f35c2b33680330fff9a8707b6b30d7bdae17530c485e2ab3fa",
+        "ac81c4e97c143f3b274de0d3a5f7e819b8fe95bb191e00bb9b6f5b98f8b7a8b2",
+        "6afd63d3587566ba1d260b6d12390530d60598dfc35c141936cdb8f8f6e955d9",
+        "fd7d3962483fded95bc489d4df722a1e153ff40138c8d708eaa662fb6e07e635",
+        "02359378a13940ca73592683fd96416fddfabe95cd5c6e9a1d9d60a4f9fc0186",
+        "c7b788b6ab4926d5d8fdfc8997272f77c41242f9109fb657b6ac57c0da329729",
+        "7291152933d9f4c90e2ed346f0070e913515183b17ad2fb39ca174b48a04dbde",
+        "9d2cd5f6151006a4f9b9bc9fda72547a274a3f2e0961fa3a15b745aef554061a",
+        "bb96f5c9c77f7151e9439d60667dfd54d1ff919e1eea95dead79da5da5408d44",
+        "2a9f594c0a2e8b243992e1bdf2cae66f04864cb940aa4d4c1b01513d5fe2d89e",
+        "64ad6c769ec03ffecb75a67d9443d82b326ef2f59c8cc0688545fdb4665ef1d0",
+        "8087c3621812cca0cbe1c89f5bbaf4886675820df2d2d79d010f145c7d7e465c",
+        "f31336c97c17a5a398a429c742071f90cf229ba6a5c14595ac6901b0852b1b91",
+        "64f80bb77802666a7ec8112cd16ee50fb1098813c6a37a84306238ad8344390d",
+        "a3899c551dfbb7d0e6349c60b74850b5452095a9642fc5b754653eef69337522",
+        "763f021791bf6f9c98d2d9ac805fa39cfc7d8c2c427a3d2a812cea767f59245b",
+        "a8c7a3379e5780f739a033033a55f93c604243d6a036d93b901356f91c184583",
+        "88ccde508b4ee3b5413174a7bed16b55a2b194e29155c488d2f0448cbcdc6965",
+        "9c00c7a180aed1fb3bfb83206348c4d649188cf9c9dec7ad2e4c0681ccc26f80",
+        "caf0ddb75096039ef41f30035420dec021a6e7a36f57bd5e1ee05d9c3c0c563e",
+        "90a123265f4c3d7a3d2d9a0cfabd4b29eb15d7712ae6dd38ad4d6a3106503e25",
+        "5bcd345a91683ef2f03ec6f22c39aededdd63cd7123fe9e10889b5353778a51f",
+        "f4576b645a07b82de9cebc6626483625f1d5c8d41ae91b4b9e879dc20be2edde",
+        "669d676a2c746fb7a555ba3d24149eaaccab9e266c43910d9fc00ceea19c4e96",
+        "c19b46b3984701e9a2fa177c5e2a2c23eadac55da5434b0e6ea6510d0ebbdb29",
+        "3c10f55bfb9d72756e3c01e108aa04438ec6fbe3d309bc0dbb6ea645e5df336b",
+        "75a501dd666e91d0edf4fab7e127183e644581988ba3c6f529383373fe018892",
+        "de60c24d6b7754f3e2eb61db52866174c27addd7fdec6fe22d789efe6a3a6a95",
+        "707e6d15e303ff5e28a344228723959976373cd4df501b6305199e269762d042",
+        "0b76c3734a184c1a64aa9f81faef8f5173fcd6ebe0fa8814352383182cd45eb0",
+        "a7198eec3b1dab85deb04bdea51a8a17ca1fd4bc0b16ac61da50f7b83d354b78",
+        "f11c4c847eb7173f164e33a8c9ae5779f25efb9c61df71f9975c8bba25668280",
+        "4a990b741cebf9946f8bed93135cc667c08bd8a8170c2ab4ef53923d4287f06f",
+        "7b8ff208bf452b11b71848861cbb51d754377ee155c2bad68100d631a68048c8",
+        "1b2f06436dd982b94a7cf0fded05b060e10f36bdb382ebc8ae6951fed2320424",
+        "d0ea94d4dcc0217f8641f4f4fa9b0fa998c78f5d26700fbdf3307854e1d6c129",
+        "26b9c15e45a73fd382002cce63c9666b2492ec89151ab4985679efb96cf87bf5",
+        "b131c6429be0dcc2a265b4cbb5a9d34faf9d451839eb9b25288321ad8eb412cf",
+        "0afce2bdee8fef8c19cf94490795006f45d0f34ddb79c594761a571dad7d99af",
+        "997eca733ae297f3d00f764d51f201d004aa5868868165fe3d5c68fd903a46fc",
+        "390f980647f721322757ec919b9ad508e67cc1b150d9395edd9c4c1eaf609484",
+        "b3d906efa23a284795a45a473a4e910dac27ecefc8d87f11ade16f9f739fb5a8",
+        "d6d7e05fd622f207e06ab4cfcf0309e91016077c2cee983e3be698406d54cab2",
+        "571908a353cae997d4d6ba37e80808e9194123ae5bf8df6a6934f084c6545fa3",
+        "df28e7983617547742ecd22dbce346e94284e72f4d765cf39077e1368845ec52",
+        "f232502bbde11e54204caf81d6f9e65f612e4dfd845c3981ec2ee7640a652fa5",
+        "b3437a600f7c753839215dcd331e78ceeef35fb124ad9e3f4dc4f061500ad6a2",
+        "6320f6f200d309307f6da72493fff23f7e61406f4ab9e5b608c798da013a4bd7",
+        "f02ddccf1474672a174d64cbe76064ed8aa1dd96e6343df96f9a852053a87438",
+        "7862d37c2357793bc1b899cb59768bc87fcc8b9ca31bc86fc447aa8a047891c6",
+        "84017d3063f7e81fac6ff3b10ddf25445990f4fe47aadf3d6849b254cc7a4388",
+        "dcafb9a32db7b128844f1e9884f40ceaf98157780c22a7116aa27c050c9a3dfb",
+        "7d3ed6f848dc966c1a5c055fc19589bb28570373b151bfbdc2f069049823f2a3",
+        "5d7f3f7ec5894541f18d4c0bfdbaefe9c621172004ef1b6ece37abbd2b8678fc",
+        "33da4cd69eaf4eb0c1e012674fd669a4ccff94163b9955c8ae89716434ab6f9b",
+        "9d8c5405dc4af7480b7bacdea4176e43be37dd6a5ccdd828d2cd2cd7f7955cde",
+        "47db5faa123dcd4eb5698e30ea7f76c297f7bf220e3a2e279088379ac294080d",
+        "cb03f6a3fbf01e59db3c19bc597abeddf8804ccd5edb4a6fcdc00b231ff98429",
+        "f32330df6df4ddc3cf08d98f6f559c6b80022a49e956846e2168bb919c723910",
+        "95b54a2e750b3caf44b3116ab6605550159fbd31dd40e6a55426d7a37373edbf",
+        "0b2f4be9a0fe4b81817ac8d77ac3ccff8bcf013cc552d5528e17ed2e6e15ddaa",
+        "1fef2cc48ba57be6cf149dd3e41c120529c2a55aed17e8f87b32e1924ca28933",
+        "57a7555c2a18463365a807bed87a4702d5e383fac4dee5d0c561ceeb4760a269",
+        "4022f634811666867f3a7563a6c8e219cc25f34c0dcfc36daeb55e59674cd6fb",
+        "8db54908f63c62ae981fe82c4fc40455d6f96628b4a4893c1a79121311fed654",
+        "4996963901c8916f8b001a6f6b1389dddaf89ef19991fe68d100a1ae2e02afdf",
+        "e9d5eb37238a648c5c250133f1b62ac65e99141ff809fc48f1eb3fae1aac6911",
+        "d2b38c9e5e1ea68e377210f26b1fd952d4e415997accec05a975a3e0af9b3c9a",
+        "1ae1707b31c79849c1f617974ac26172a41b642ca72ad57b01810aa6992d8fa5",
+        "af196c1ade7e72c4ff2fd44753c89dbbdc9d28c6cd938c03842881e8e6559e84",
+        "b20033a533fc889484b105cbb645d87b47ecdc3e58a900bd89b7730ece577911",
+        "c002ef9691ed61290c25b53a09a5c08544cb1bcd276ca395d5f789f5439b4846",
+        "7be65316b65c29843731007d6720601a1b90408a60929e8fa8c6883723efa34e",
+        "3f8ae9d30006024248e90b5b8e96a2460ad0e27e424c66c55a36a25bbeff5e05",
+        "11b9fc26c5fc879d7f12d336aa08c012edd229d20bc2cdae2f69c873a3d54df1",
+        "ec07cfe7ff608a63cfc3b22bf72f2dc9de7922c15bdd78718acce0098b90ece1",
+        "6fc8a343795b547a68b538e7d18dac135cc5c5d831b2a542c2342baccbc04f10",
+        "b94db972b6f4f4e24063ff9333c4bd4dd89ff016e4146aaa4da6397813acb389",
+        "ee13137dfc5cdc8c976d8e22623826039e2a062ad38de1fc6f31b31e6a1e8108",
+        "d0bc708fa2a6d6ffc533ab6eaa00c840934c27a3d640f7a6a6ac1f59c0ef2dd6",
+        "309422e6a32240e49b76df2ddc9f21dfe8346c65cc1f85844c1bccd8bada6a3e",
+        "539e2446780f711501ae0c167348cf009626926771e7c462c88c02faafcd860c",
+        "c4898845e2eb06428cb47b226b7f2121dc88ddac78ab47750c5d39d33c27e8bd",
+        "fd758a6cff4d95bfc3616c52a86f752713da1b46fbfa0fd9caf4101fb3791740",
+        "0534f61118b68463798e2c4544a3ad93da0ba54f42627944e79669e3ccbfbb12",
+        "2be27180718a397b3ec23ab84fab01420aff9e8ce09294f7cf2077b6b589fdf6",
+        "51e6fe43ab0ddb7615fd8f123c23c764d29738f61a8692fe8c86433a578260c5",
+        "6d535a26ab1df1fef3c6998cddd5f77360c9b3294bf118c09029c864164a0286",
+        "5f8eabea2b5c705712f64ae05c5f71f22eea9d3e29d33e3785ce655359ebad99",
+        "cdc45fad68408da8f8d343c94f0b109b89d6d20c7643d2989a8b0aaefac5f7c3",
+        "7687bc0941888ef4e4359cff5195cd69b5b13920d4024bf889bea044aea0220d",
+        "27aefc5cadb403e98bedfd3ffce4c76c8eea8748908806bcc9a379004e00f5b8",
+        "9abc75889c72d62fd0f2a248790b3fbbbae24fa3a65efaefdb28460611d85576",
+        "0707a0d0407b97abeee767aed7eeebd380d582a8c48324310e00ac7b58aaa8ce",
+        "7405d757f767b18934899029f8dbd43225cfc9373e368a4b663877f1b1fb7f0b",
+        "f9710a275f531c57fe2645e88a86d8395aea4d16a2c4a92224f4b30786f416ae",
+        "130becf58ab9dbc8dc42c2051c85fbb964c7028c1960fdacdb92ed3374d6feb4",
+        "1ce8e7e0cde2cc3586b791b3b42d561aae28441c22eb79053ca08e08724ea890",
+        "c3653864274581bb8c61d4f27f9efa0eec1194b0c5cb580c5a150b16cd1c6972",
+        "8eda6d3848c46143349c700d1c965ff1d7a537db6be230f546e26f556f788c96",
+        "690cae2d409c901c4870e56e389182ea34432f20b9db5ef4259e53c8618c727d",
+        "801463616ecdbbdf93e2052cea9d31e903780c7f17d389d103b7888fc3327230",
+        "b64227ab46b8b11995141a390eeac92211a19091f55ca5714ad19a79759e39be",
+        "bbdee20977530b524bc36a7f3c3d65ddfaa9dc688c82a804b9d2a8dc06bf4f0a",
+        "44873c455e8a669a3a05242dc224ca1a052507b4cebf745fc4d7b29df4dd6688",
+        "fc40454e23f7e8d438654c8e57900b11ef4d12c53d7fabf29a6c8fe620bd708a",
+        "8f37fa50dd4f8b2bc4c189c1c1ab5d1b29d3ba3930640bde8280122eb54a1e9b",
+        "f7ef68631405eb9fc8825e8c0d0f7d743132cf2b8e712dd33a71416c8ffc376e",
+        "4bb2d1c02823279b06cac64e478b8f3a0f2c6faed3332f1033e3e614663cbeba",
+        "74d5285c3374c43219bc985957aea689e5ad6b0ac1fa2282f48a87749f626a0d",
+        "64b959c427ede485b195c98d6ac0132419d18ac0f7db176604c8fe63b7b73359",
+        "4abcc6d9e6e836c1219b190df9a28db599f3938690eca908242af7a7d5c373b9",
+        "93c4180e1cbdfd177ec847368e5477c99bc3e296a00eb427ea54bf3e1404bc73",
+        "ee2a1532475f76f92959ecf884a236c83a679371142c6be59f437cf16d65c455",
+        "e731e4d21909a156209c84258e34669cfb8c85af4ad92ca242becfafb5b52a04",
+        "80afc566924151b185740ae93974a048696c8dec49f9e15a984555af88a970b6",
+        "50efc94e07932c34daac9d82627dbd87cc1a02c23408885ebfc2775b521fa304",
+        "0ccceb0703d881bebdd3e67cc368880c0b79a4f64e402635cb313a7a9674e222",
+        "fd92b9c150653e9c6f402c6df7e7659476994f61b6a6eb22e89deca908a7c922",
+        "e26706d2bce1b5f21f4f6a0c68ac85c297b05d6ef97d0eb4251b445359eb2c5b",
+        "cd4b79177347133fc0b367538dc32895174b7e749732164bfa0b2d8c3a5da5f9",
+        "f6c9d5193a1ac635f6db8b18bc107d7be62845a29f795bbdd3a657b3e6c8f963",
+        "eb5e8feea0651b8a129b2a7f598a632daf3b32ca5baa6e33b02207f9e87d321b",
+        "3ba0793a740b50d02be4f558737d751a42804a7c8f9ebef9800bd613c09651dc",
+        "6a1feae39a1918a5f704e58d9ac283d138531321725eba7f952daea645cd5719",
+        "4f73a8bab6079559c05d4e134cf3936b9050e8536cbef708a2bd2ebec8ff7d28",
+        "f86fa075760b0d29f08fa083a012c888b358e5b752a343273dce11c743b0a9ec",
+        "49df469088d8dcb4bedb1b581fac8dd3f5ec47f3c45fa662f171323948a3e440",
+        "59d0d8836160709b8db1e8493eb8e142cfd4c56d1f1aa7a3cf5312cf584af22f",
+        "276eec2a790534f05140a8bb0ec22d28bf0817a5123b90616a3d7351e1d42e7a",
+        "9287f4d9765e04b47a59e173fe4e3b4dd4b43d19694a6fe96e8dded725a066cc",
+        "486c672e75e48a45221bbfea82cf7845011c451780855002e6692a7587a95b19",
+        "f4c52f37ea3d1c5a9460a30a73f1eb1074675e3ab8f9d3efb81fed5a613fadcb",
+        "58d11fc6f850ec78562f3974a4a7b2cbe7ea246ea2cfc8a8ec775301ad976256",
+        "7da24ab820ed30114f5a8669b2f0c988f126a8e4484a6aa1232c6b7429356da8",
+        "2f62253d9bee8fe0c76140fda94b6a19ab179e368418952483342872a9cf0399",
+        "7c393a8b91f55ba319168810b0bafab06f153d241dbd3d67aa0b6285280b2d4b",
+        "0fe6e789bc83bc04e727831b61677a5b60d850fcf039450cfcfeafabf4c706fb",
+        "936ec36d77e5a7d029c99f8e0a6810ab06c054f90205cb6f29274cb6b3615579",
+        "1a4924f01b729ba6d953f69a34f4b2722f86d7601955e89aa50c2918150d3134",
+        "67cf16869606b93fc50a5bde6bdca1d8d663d33f8774057b6ed6be705cec03d6",
+        "537077d70d0ec70437824fe795983aa3641f6306a7d61f34d534f74cb7c9800e",
+        "7b3a557ce71f8574b56e6ec9f2f0c6bd30ea0aec92e940eb8d6831ff90a0360b",
+        "9bec614547ad73a4de36edf36d2a1b1a127e11798ec3765d932d06a1765830f2",
+        "486a6d96cf3a094d20b858f6fc41c5f893264dac758b21deb38361e673bc1225",
+        "396ec3e5ad7bd2c1215f439795f34fe60f90e1cb94695e81cc3b59ea3ffa45f9",
+        "688c60d1b10ea79f52177e4b1361b42f5fd57b14b8a251d38f08120894c656e6",
+        "8bb5d673eb6e490e414346f8b0032f0ed122f0a89127d7dc9ed90085298420db",
+        "a1331142d1cc1511cb01ba6c7b36b42d0d20620a4a3d9422cca5d4c23033515a",
+        "86856d44809d9687f3dfcb2e24795290fadafe151509e0901f98510bfc4450a2",
+        "0855c6b2882e7368d96452f715218138b5465dea27761a3dd27629f8f09bdcc4",
+        "d7281c6d185b3b9046b22283d1dd688a0579e5b1654692a29017f582214bf568",
+        "f309ab22517dd08b112c68e225e8fd81cf291754e8f0177b03ac502d84581882",
+        "fba6242726979426e5823640f047de8d5976bbac74ff037bad335e2a8b044acb",
+        "83cbf1b189ed9fe06adc79f490fcc05dcf99a356e1ac605f8c3ec2e0799b0ea2",
+        "efd2fdaa42b16ef980b616be5e6cb18dffd8920461464df1088d5c28af187593",
+        "9349de3175223392a4b4d479fda7d930a5ebf925fcccd88060821d7c6031e4c4",
+        "97a6872245c38846068288599fcee6a9343b7dcae2e1a2b047a6e1f7a849b78a",
+        "0459f39b36edf703728b3a1b80b8ed7e3cdb10dae1fd6b81a422beec72dd5362",
+        "05a79c953256d212b71740da309f6ec6f59d95a660aa67a046814f22ebcb52c5",
+        "82ea6087ad72dda7658390b87361cb5def6710c403a3066a9a764e1f91f87c4c",
+        "20fea8ffa0521d9c6a1e2f0d9c1908e2f46dafda1c5482fb0ae5954d58fae480",
+        "03fd2cfd7fe080116856446a18de11b9c334be82afd3ac4bd9cd06fdc471511e",
+        "f739c07d5ccd482b5e1f56d45a379ad2d7ed832acd1bc059acfe647d99cabc7d",
+        "fc1de12f2603e3e88b9473ca46c01aa8718a53648358531d5d9c0eca8c8924a4",
+        "702dfd613d7f1f7941784d374e696d8df2c7ddbc09de9c2e67034816b791a06f",
+        "23c3c5da95b8a32edbbc6c9588b59ab7cc8701356b2aafc51f6b86d34ffb85e8",
+        "a47a02c4437717ba9d8583e097bad9995482cb0f557bca5358da75cdd4a238ba",
+        "8bc284c4a60bd16e494cd6424fda2c351196f2edf8ee37d9b9958b7d5aeb72dc",
+        "11ee59b0310c316019630f2aaa2c133bc4c1da0b6764cd170fc4cbdb137a92c5",
+        "5f18fa2ed04f18f2949c2152e5d1ea7f3bf9f8d94a65415cf6160e328a469246",
+        "767832abd0aa91864aa5265990f29fbfd32603bc86245361ee34362707bf81a7",
+        "9a70c115ceee151b314d8a785e8a98a05299d4e69b5d77dfaee37b746ab9a332",
+        "767d45daef17ff2bd43807c1c453a3c62ccc71d11ad7b97c2eddeba6f6192b54",
+        "ab8194c23c4563d49dd68a05d1cd6809324fde3ad399557cc3438a1ce4a235ef",
+        "db1db3bf2219dbc16d9c02876a492cd261c191789ef9d5db96f277f46d3ca5fe",
+        "0b9f254f2256e88c983df618d9e0aefe0597506e96f0c937a6e30228582966f0",
+        "5e6f2b33ff08b08bb365d64b395a8cf105eba6aeb52906fc5dbc818ca2a94e8f"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/iridium-browser/safe_browsing-disable-incident-reporting.patch",
+      "section_count": 5,
+      "hunk_count": 5,
+      "hunks_sha256": [
+        "844c253c76f6f9a8ec6be16dcd69d844dcbc08bba53757405f19b5f721f39f6b",
+        "14254015731978708aea62baddad8e50c106a3355c9c412aa5bc168c56c7e90d",
+        "cb979dcc07ea9e5a9fd5958472c4693d38788c52dfe84121158e6a6004214063",
+        "1fe256705e235a1d6079137663bcfd2188237e4d8d3396f291b655c3b3f9f9f2",
+        "1fb01726c6f2070c050f82b6ad4be76d20fe51a62b08e5c1490c1d664a852f6f"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/iridium-browser/safe_browsing-disable-reporting-of-safebrowsing-over.patch",
+      "section_count": 1,
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "e8273a35f189da2680b3f7cf1a8f53796a10875b4ae7fd4d4841a9d410df81c5"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "extra/ungoogled-chromium/disable-download-quarantine.patch",
+      "section_count": 4,
+      "hunk_count": 9,
+      "hunks_sha256": [
+        "66a24d93621b5fc4731f270a3cd816bbadc30cc30766c1e5697b3aecb6fa2e0f",
+        "f6b34bc7475946552e61469f745a3511910be3fec70c1e082aa66c82da94f1ca",
+        "9f9b2295d75eb5a0cb42ce0f058147d54dcde54136d6f7fa732a02377c67fd14",
+        "cbf8fb62f32ac02e26f5be9081fa7ab4e4a607641a18ae73ded776344a67a1e7",
+        "dcebd1dac39735cb12ba78f7bc3248608de461c9f5d12f23663f6ab6fe24f83f",
+        "8c1b6005400985dac7a55a281a63379ec76807a9ba8a88779cb9b3ac4344bf8b",
+        "adc025f9d69f79d27e57a68d4e63e85189fd99e914c7ff52aaa57acf35e6f6a8",
+        "cec223554fcdba06689ca746e60160eab7c3fd2ed52f6b51b2dbda9f0f11028f",
+        "1a466ffeb3b8a2aee63921cf42442afe6d209b026dbb932d20370e11ac5ed8a5"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "core/ungoogled-chromium/move-js-optimizer-unfamiliar-sites.patch",
+      "section_count": 5,
+      "hunk_count": 6,
+      "hunks_sha256": [
+        "dce216242358f75a3efec9e0a0a140a625d054c56c993f17a13c19232c0c21b5",
+        "dc198a6eddc8bb5d31e27728366520c54c849cc5610e74caa8dcb87b44bf5119",
+        "f3905c0e3bc081e55c119ae130368f16d09a4b1964ed8e61f6cabf82b9fa91d8",
+        "2f8e90f6ad8ec5418721e04714ed0315bbeba5511ad9715aa22c88b31765c24d",
+        "038d7ff6913ba4cf60767ffe440dbefc40c3170470498ffea451cb8d3a4be4f1",
+        "67852b77591cca958f2804f4d071624f759fb48572c62ef3c126ad0071116d91"
+      ]
+    },
+    {
+      "kind": "remove_patch",
+      "patch": "extra/ungoogled-chromium/add-flag-to-disable-local-history-expiration.patch",
+      "section_count": 2,
+      "hunk_count": 4,
+      "hunks_sha256": [
+        "ada06fa0f5b7cde4e2fbfa0e58673d43cc31a22f34a654cc47473fbcc45ea7f6",
+        "a16359f0ed2b81de3a3249fe731b505673aa5b7443bd36e581caad7e878a3c23",
+        "b3924cb0b3963be6ac9a0e826ef4e5972d8ab5d75f1316ccaaf39de5d64c076e",
+        "a8941609f20f07245943e5d722347d6a3c862902afd8d0571fb37077f14608c0"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/block-requests.patch",
+      "path": "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
+      "section_sha256": "8bfa0c54a93a6c416a85a5bb3adb6e8c5a654b887092d89d7f9678d9176d2c41",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "c07d5014872902a2fb3eb83bae33046e52eba1f8dcebb6b6851d9d9cbf3c340d"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/block-requests.patch",
+      "path": "components/affiliations/core/browser/hash_affiliation_fetcher.h",
+      "section_sha256": "ddd147902c0bbf013794481112bff86f221733a71f101456294bea5e8112985c",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "9ebe0b1f70cab1c91cce0c528ba08fca031392f0ff01fbbc32d389903e47b99d"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/block-requests.patch",
+      "path": "components/update_client/update_checker.cc",
+      "section_sha256": "3068fb8d1d48ca5e7e51ecfff41cb71f5df3805562f388297679b56692f74baa",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "5fc17c8935a23590957db3869591bc88d69e2a5afbcbcd1b5075e7c00348c84c"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/block-requests.patch",
+      "path": "components/translate/core/browser/ranker_url_fetcher.cc",
+      "section_sha256": "eab02ed29c0333462af5049052a3379f9fc7089558eb8335f940a877c2004e79",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "75a40b9ba0f72705e5b5d30da97e2f4dc236dc6d5d7de7b3be9f442eb7e9c81a"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/inox-patchset/0006-modify-default-prefs.patch",
+      "path": "components/password_manager/core/browser/password_manager.cc",
+      "section_sha256": "de9b73d377dcfdfd2c5c5b78469d8219d9c7242ade207c8a80597f75c7726f7f",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "1d7f39fe5233e5e962fc838e86c4aa260417c370bb1969a9d7d02ce7030097e5"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/inox-patchset/0006-modify-default-prefs.patch",
+      "path": "chrome/browser/profiles/profile.cc",
+      "section_sha256": "269c26c395dfae52073b39f6074bbb680c7c82e3f82d62539750b31ad9eb9082",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "38c73ec42ae19409fe04312cedd18035a6f349545a6555908ef88c53469ba6e1"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/inox-patchset/0006-modify-default-prefs.patch",
+      "path": "chrome/browser/ui/browser_ui_prefs.cc",
+      "section_sha256": "ea528e2d6dd4cfcfa5d04ba8093f411909ad5470771ed1ae4ea9435dfd7470eb",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "575a9e718df49b74d2663aedb4ba62eafc9aae0e5a6b991c5fd19cf2aa9959de"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/app/settings_chromium_strings.grdp",
+      "section_sha256": "702a6878003e29720e7f2892c72cb9faa9cacfa1120fde7508994977eafc15e5",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "2064f4a117fca3b5dd284432d39e7953d7c32cf9928011c02c6b8657960490b5"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/app/settings_strings.grdp",
+      "section_sha256": "1db9ee967ab19344280fd920736e8564d22f1599bfc02e1b08dc1960feed1a9b",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "cc104671bb4d24ac949b3e7507afe5cdef25274996a1e616c9d6487043934a0b",
+        "42f3b2299fae96cd49e08197b9013ef02b835f7fc4c7c500cc432541272f93b0",
+        "ef81a7cdea10606df77b260abca84749329aa44f25c3be56f69b21a33b544ffd"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/browser/resources/extensions/item_list.html.ts",
+      "section_sha256": "f3461bd6b4b2a00937b73fc25006c84c100c40cbdee94dea1bd5795e23dc1ee1",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "f40993d45e3ebf5595ff07867f04dc9b04c970a9270cd7ba3fe6e19f451aa028"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/browser/resources/extensions/sidebar.html.ts",
+      "section_sha256": "660af7cc38b5ddaf5a6ee7457cdcb46344a0e24d89ed84bde15d677c49a92331",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "4baeb9f5a28a4fa0651327625f423cbf3dd08d545ad652dcb1874c3fcfc7b767"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/browser/resources/extensions/sidebar.ts",
+      "section_sha256": "6522bd661a43c99fe40d7f3a7485ad8798b38567576f758380eb0025f88d821d",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "912618bbfd7795c48e4c39daf00ec2d7635fe7bcfefddaa0650cea8ece73ebb9",
+        "2eddbf0418eec4f8e1d93404661ecd9aaabb02670123d3993419150f159ec560"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/browser/resources/history/side_bar.html.ts",
+      "section_sha256": "d8a2dced3378fda31ab62359322487d909937b8b5ed2c213d65b42048cd3c683",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "223609b3521b98f0e2fa76ca266503ebd943e59185025e1217751b3c857e9107"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/browser/resources/history/side_bar.ts",
+      "section_sha256": "60cb87f80091f5e066844080295d96ccbc4fd4c9888c9d84a4123fe9ad1c2d93",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "ca9373c25350912cd7f418b6b94f9acb3f01785b88d4c3846582d81a8159a467"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/browser/resources/settings/privacy_page/personalization_options.html",
+      "section_sha256": "10ffca861c844cac05a84441de16b2335c9e5be784ce1ea42bfd248553b2b0e8",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "bd6ec30fa8732750179ffe9b584defb018195854b55aa25e6013ca8520797d55",
+        "36e495c66ae31bb082f8e0c3729cbc7fc3df756450a5110c40e2d1e04068c453"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/browser/resources/settings/privacy_page/personalization_options.ts",
+      "section_sha256": "24ab5927ee94188a9f789e84711a843c6cb6c7dba337bd9b91d198ac2f81a4a8",
+      "hunk_count": 4,
+      "hunks_sha256": [
+        "900bf2088f975889d8346193ca4c974f32d92be2bb3d9e5147c970df8046bd1c",
+        "6b769ea277a21ef231cbf8cba889dabd8259f93149e63ed207099ed58bb6ff86",
+        "34d2dab93b354433ade360eaf8cf3a95fa22b6944313f4b66269a40fd98d8f3b",
+        "0468fb3a419ac383114282ad7790184e3e6d7ac609f793165599a3db4558c54d"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.cc",
+      "section_sha256": "878a52bab864d7b2f822237735b2df55d484a622091497fba736ef7f35109426",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "cfb5a31cb5943df362306d9e9b096db0b57b4fa6f7471865afb76b1e89a3e45a"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/browser/ui/toolbar/app_menu_model.cc",
+      "section_sha256": "7c18c81a370801d2daabe3314a4e6a7f7dda7dc96f541e49a2f2f0f4848ed65a",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "9aa269aa423de0a2074feb50744f95c479f5156c9228aaa5a84e8a989e80a4ff"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc",
+      "section_sha256": "fb43d1e576ad84faba6ff0a1623de0ac5ab205a433e42c57e34d9df9d586750d",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "c37ba39bdc85f41077d6efeb125315d3b4c229326049eb4efd267618c74df27d",
+        "bdcc61e2ccd44dd955e2d246b2ed14f6e830d0d17fba4e9cf345aa86e84d2da4"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/browser/ui/webui/settings/settings_ui.cc",
+      "section_sha256": "b7e3fac7b8f17aad0024d8893653ce315c5bbc3ca87c1baff7f49e5941d5d28e",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "5bcfbef46a36c439f0e6703c1ead69097c704acd1c6bd58867a10cbe25df7008",
+        "75a6c0c50df4ed3a7af07bec9f63b8cc454cb226a7ab2b943c509c4ec26d4fdf"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "extra/ungoogled-chromium/remove-uneeded-ui.patch",
+      "path": "chrome/browser/resources/settings/privacy_page/security/security_page.html",
+      "section_sha256": "0d4fbed41ac04335c5bcc14c6e9586c3a875d39da821e0e2371040c7ff3614fa",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "8894fdd509c5be55e4ab73545531f8489819ffa35a0323e0ff0519c6c94375b8",
+        "3dc6984b167c7f8b517f5ce41b579e2ee59cc8c17454e0cf16c5494b394a987b"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/enterprise/BUILD.gn",
+      "section_sha256": "62eb959ad17796573f7be128dfa2d1dd163599cb9737bef8271de0307c31fc2b",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "0d9164d2f6eea13e4d622bc1d977b785d3946cea41b019c655f0d1bfa786edef"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/enterprise/signin/managed_profile_creation_controller.cc",
+      "section_sha256": "62aac95e1466c9b10ad487e07f8a827b51028d8d1dd61b87c280e1e08ae0a05e",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "4af4bb0c2ecc38fe5fb4d4dba6170f45549ffb35bfa295a1699a57e3e7d9bb05",
+        "30117280776c49e9e3b8a1a43e9f331fdede761ccd0b2fb41664de083255a420"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/enterprise/signin/oidc_authentication_signin_interceptor.cc",
+      "section_sha256": "afcd5d1ec1a1c42c6c3ab2e1192250a416e3f120385f84abe767e1084a61005f",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "ddb49e328899de8a7a78bcb0aaf3a65822902323c953b8fbaa264e27f5972d3e",
+        "00c867872938d73f15139d089eb153c07cbca085d0e161968afcc82bdc504faf"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/enterprise/signin/oidc_managed_profile_creation_delegate.cc",
+      "section_sha256": "7c1008e10c67bbfa7f5b97b7ed6bafeee9fca215e8431ac8d9628c6a00b8dd27",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "57d6f0687430d1d64f4d375675616ad1231374a1de184207b321b89cfb62a303",
+        "7a193ecef3d416834e89a0a878e88bbe9e830515b501a00dfe4947d698150321"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/enterprise/signin/profile_management_disclaimer_service.cc",
+      "section_sha256": "d7ac4dcc60ded34f1666f84fce6c79b42e4495d6fac1235472084462b7d1bf97",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "9b2f22fd87d5bf0420fb0aafbad10be23c1e5a8076d91076c75b36029e5af948",
+        "c4b7b2ccc8d24235c9b1ba4dc98b8f9095a51db96c73525de8c8f0d2aaa624e8",
+        "e399244ea185b17d4fb861f280ecc9aba6cfc10768b8bf685d05561d3b987eb6"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/enterprise/signin/token_managed_profile_creation_delegate.cc",
+      "section_sha256": "881123c1fa85dd3984c944c0cb4819135a5b5fee7ddbc74d9113f9eebca23ffa",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "03fa839a8ae6cb02275e1654b9e28c331739ae67e7aa13b1db74e973d25c72a3",
+        "c3e71e33a737723447c1170dfad742149aea95d76428ec74130a7456182b27df"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/policy/browser_signin_policy_handler.cc",
+      "section_sha256": "410e0b45b2a92e7ad5b161f78e59544649c84d97a3115527886a05554b7d1c82",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "c0516ad2563aeb83b04c46583a4611a90a4d17272ac3fd6ba3ea9c48c9eb7256",
+        "9f753ea4bf19ffbb3f66af1f460f8b7791bfd655d7acb5176772e751b2938195"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/prefs/chrome_pref_service_factory.cc",
+      "section_sha256": "0f53e7178e6759f1c049f102cfd3da114ff8c748ff52a5ee991ac7b95e1d35ae",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "3b7abe2fc7ce99519b4c0efcb7001d61b63cb9de9d1c5facf8fd0e22c04c20cc",
+        "213f0aa2cc9a50ba8d86b7b0eedc22c55ac40761c6ace13e426b0041a32276c3",
+        "5859e52c3cd86db31eaf7f39ff80808b3f5405941a4e22f68b94d76959e46a05"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/profiles/profile_attributes_entry.cc",
+      "section_sha256": "09566e5e70b3bc8b0f13f35fde33a134cb796a003aabe00ac05a5654707f2b08",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "3ea6fdf0faef035652af67992e0125287925c2ab167785d5f617392edcc2e7d1",
+        "20fb272808634ada048be09090e9246214fc4e1cb18c5c15a75e54b0280e672d",
+        "fa4cf7a3601df553f7f27622e0a709675bca2ce446097b684104168bec00c277"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/profiles/profile_attributes_storage.cc",
+      "section_sha256": "8e3e5a8bb2ef72d52c4bf95684b9f698e23862b41e416600d503b18e2da4b40c",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "63782c075d28f902f20b3f465141e1ac27d5b903f35f07d5ed1b68212ab10776",
+        "f48766966286bf54020b9c1a60b583de8aa739c2d0c383fb60a664b9011aebcd"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/profiles/profile_impl.cc",
+      "section_sha256": "cf33029b8218015498e24c21c27cfdb23359db8bbfb7d09a18c092f274e4e7fe",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "75e2ace70bc4f7342dabec1a3b838cef677e895d12f5f7223b888540f6838ebe",
+        "92d0b2d2501eebee6d2fdd109a9d820b7316f808f2acc1bc19246260c6f6033c"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/profiles/profile_manager.cc",
+      "section_sha256": "f3d83e1169419d245988c3f2bfd848425902c36609d66d7abb142357b1c3268c",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "73e6dd6f4ddbbb289509fc30d7d67dec90ccf34ca9a15acb661f78ff6bee8be0",
+        "1adac560e12aafab15dd187d44cdff4a9a1f9140ebf0ff47e87e9b0e3fb4d8e0",
+        "a6f418409dcc2ace95b6ad7e498868d9abcdb0c5746f6b02e530b9d97ebae37f"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/signin/account_consistency_mode_manager.cc",
+      "section_sha256": "4299088a5da97709d12bbe85d35a115ce73e1d1cd747b0d3b3219ec5f2bcac06",
+      "hunk_count": 4,
+      "hunks_sha256": [
+        "374becb8ef978fe9d041ab2c054fedfa77a3abd40d97c142165989fced51252c",
+        "8ad94c2642188db39fce731a3e0f5af55a78e6d7b7cc1591cfef3607eebd3368",
+        "9c4e5226671f4913a70f8b329c951d245a6d81dfe673bd27f8e0569599f31319",
+        "26e3cca5ed1f00d71cb542f7b3e1955691c8e8d7f5961914743a4a70ffadc714"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/signin/account_preview_data_service_factory.cc",
+      "section_sha256": "b08345bb1dfc994e6f4256bba756df624c1ed56190f536dcad1b7c400e4f0fd8",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "19584c61a41daa72c37d704491a5a0ed59137416179dbbb134c33d87a12c1b41"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/signin/accounts_policy_manager.cc",
+      "section_sha256": "2367e02a37e9d06b6a31363135a3b7ca0870c8645722a46448e9f779c4a9b61f",
+      "hunk_count": 4,
+      "hunks_sha256": [
+        "ed6944c44f095538fd0d439fe6eaa166d6ab0031c3eff61d9eea313a08f0b641",
+        "ad38ab7e34fb1d424269095b630932f5082af4db38cc2caf21290f395fb2ae77",
+        "369556e687ce0f0ae216be54a27a4abd6e3a202c62db384a16a045abb66a1719",
+        "93cd56d135ce10e40b2064eaa5cfdb5c4985125572919511e6d917b097c43867"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/signin/accounts_policy_manager.h",
+      "section_sha256": "eba0569a3427d83a719b05ccd329aa955c0d282ab6ce70731a70f2e44d428bb5",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "c434069d5f83c652ad9961e89d809a965e1f5f93c1a507f7ac5dadb181e8bc6a"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/signin/bound_session_credentials/bound_session_cookie_refresh_service_factory.cc",
+      "section_sha256": "7f5fb0a12ec9586703ba59c68cef51cc5896de167d60b1080c54ea507c739bcf",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "77d96399778a2250a02e8eda7b4adf1adca7b3b2e50e0ba6f0c12b6cef7fdce0",
+        "729fb5d1d04bcc2f25707f0ad2fec8e20076cf1926a6968ff8fd9f9fd39bd4b5"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/signin/chrome_device_id_helper.cc",
+      "section_sha256": "65eb6b31fd5b8fa2f949ea08fbd8ce0be5bbeb8f939073f1d87c4382b2d59ccb",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "6a2ea8d76a8120033fb42c59a4d71fdcad51d5e16960fcaa83fc67cbe5869517",
+        "d259b8a66445772d5b7131e99d3a0099d492302561ca1c89c420ca5ad6081ea3"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/signin/dice_web_signin_interceptor.cc",
+      "section_sha256": "f88dab97e251fbe5d19e47861f6af3120bf92325658a8540ac786642292772eb",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "efdffa92b1c07e04cbce732ba0f4a326a5486bbb7e9a84f37fab6ea2af9ede94",
+        "5781c63dd079925fef9f0eb67d6de91b2e93b418aa89db2e4e84d1ea02eb0fb6",
+        "77439e9a73a2ae1b8152de7483dee7f9e10458de43640edb4c8ca8e96411e80f"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/signin/header_modification_delegate_impl.cc",
+      "section_sha256": "925588c81268a3b2d0109873b7acc7cdc4f6bc42e579907b1b5b4a0225e9b40c",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "279cb5ddee8f3d50069129ffef17ce3d42b8d0f72179412729a10645c6567ae8",
+        "5810dcea3efe878e82462e41ad7c54fec3d9e6ac0474942349362ff509c4d611"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/signin/signin_promo.cc",
+      "section_sha256": "5b172c108355a01b9820b4b83351004b5b70aa564b469f1c17e34ea8e42aae4a",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "cf15c89254bade8f961a4e6eacf95a6d070f107af80a02258c3966f69e2d0805",
+        "91377b005f61b081507848cd8f9376ba5065130edf6034f72b79d5f96afece07"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/signin/signin_promo_util.cc",
+      "section_sha256": "6e9cfeac5e2e0b893e3bb55cf742fab9b2b10182db92e3a89e5a025c1e0d676e",
+      "hunk_count": 10,
+      "hunks_sha256": [
+        "d4ae2b6367683a40272eb5d251336ca27cb8bff025e0a968f1c8ae1ab835a0c6",
+        "da693f38fd8c0b53b1f318448f74a3da163560cde0a670fdece8de9b8b041f19",
+        "4a084ad7d6dce31d8d45cb2deaf8206066fb2ee848f922eab01dba746e5ed978",
+        "dc3af2607e07c8fdbeff9579d6e459a2aaebf2afc25cc1235e7a2caa4b6828d8",
+        "d2a29ebc4047f9805793a47e4e5f122761402c6bf6f3ab2876162db2e88e54b9",
+        "94688bff53d181d4304598c310b89ef8e161a2d7dd426a665acd960ed9e79065",
+        "d92c300a05061f7f3217e0304332ee6265d448fd32b216513f755180c96f5520",
+        "e476a5faf19270c32083273cd2ef5595c95337717aa57b36c08a407d85993eee",
+        "4684090e963189b068f2785659523888c5018b6a201d2ec99c23c8cb81e64595",
+        "04358eb3caba5962b4601d7b87d55b85454d6b224c7a7689e85950b142564a3a"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/signin/signin_util.cc",
+      "section_sha256": "908115f0288b2449b32dd987e61a6ce39bed88339df1afe56b3b6ee846aa5b65",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "53b8b45039fd9f29ea61bccaf57590469f66e3351dd4f24fbd7ac1ab5cbcb63d",
+        "94d27a2d47d8c958200e658be0ca9ef31ee7cdb45c56794606073eae2a0292e7"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/signin/signin_util_win.cc",
+      "section_sha256": "850619232c185a002a9d412cce37d9328f4333a03a2e5636b19784d41823f3db",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "c1123993d567371ca8af1038605a50914a72a169490a6aeece2891d98111b7d9",
+        "07d26cfeb7569bf8f83fe4d32c52deafd11f27a052517a5fae3f389ac8c98dc7",
+        "1c0a9f05d8d1aba3cddfacf09c42440f6e834a3242e4024ea55ffe0ff4e33a03"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/sync/sync_service_factory.cc",
+      "section_sha256": "b7836b35bd0b26d487f2e1848130e59dda234b9453d72798a4aaf1c5f5a57851",
+      "hunk_count": 5,
+      "hunks_sha256": [
+        "0b99d60981d593f55dcf0a1e6247dbebe3d0886c078461716a4ddb3c1d9cb553",
+        "d9976724f213740c68d35be2cfacb40a0f9ccecc037472606d370996a1b9c817",
+        "846684e028d9d9f055ac157a470b63dac44c4355accc754676149ce7d2fa2c9d",
+        "18b93689b9590165f23dc8dbcc246060e719af33c017d359896de7f009c3f9df",
+        "ce6cb4b2e631024c5bf0c056112ffb464d679a14a7bd92a2b021a6f160b1aaf5"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/profiles/profile_picker.cc",
+      "section_sha256": "467713a454e728d30ea9a8c71f7a5738bc35e972f01226f106b1e72e1523e6e8",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "2ffce73a2bed830fa6bea3a519aeb7342a499359f9292b18381cb50cbf6862ee",
+        "b2ce158022d8a592654817a7ccd32332b63efba08160f3b04cc4b8f7c25d599c",
+        "404a726f9905ee5a7f5397f6f9bafdd979fbc18d3b2207a0e0d691c2ac9fecc8"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/signin/dice_migration_service.cc",
+      "section_sha256": "e0acac111b0ad3b95b9c4dd70b461196c668c41b0a0d260fbf8544fd92ff4cc3",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "e86f240e280cac955f6f4cb069c3caeaddca9b6cfe66c646427ac0ea1b6684c2",
+        "5915ea2bf63b8bfc2a858c0af75e4219eb8661542b223f6ce2fe7948011ce03f"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/signin/signin_view_controller.cc",
+      "section_sha256": "3283797262102dd2f802031226ed417af777bc57e948692ccc26a1c6dd3be5c4",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "56c19f91a687e489052049e43d41287e6660344654523cf4b6efdb77b50967d9",
+        "ee199f20fb71fd53f5f5bad0389dc77a566c675710b5d428a1dec8f12a4ac9e1"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/toolbar/app_menu_model.cc",
+      "section_sha256": "2a2f84d1c7a3e198473f64e8f0ec4e40a6c720cd5a48ab80b6405409d49914d1",
+      "hunk_count": 4,
+      "hunks_sha256": [
+        "beab4ca288340a4de1afa0a9a08be707ac65509286ed938b7d605710de91ab5b",
+        "44535529f5818e8b7093f1b04f5cd629073cebcfa74bbafec3f6efe35137129c",
+        "edba8d908e142c06932b98aa8e55f22fe16ae1557a1ac3da4e6a82fa8423f9c3",
+        "35c947bab74f002da535031e6dd6ad26a9438b2e7aacbebb2fa0ccb78ef5f62c"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc",
+      "section_sha256": "22994e44cc7018b2d9a8791dc772cc26d6f029cf041cac440a3a60b02cf789d7",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "96cebedad85f1a308a033d022afbf417412c8a0d9332a6b4e373fbc87a635f73",
+        "eeeb151bead8d253f6195ee3d75d77a0182059439174af21b72183ff5ff44996"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/views/profiles/profile_menu_view.cc",
+      "section_sha256": "07b4bc01cbf5b821f73e61f5c64d1d34d1cbd05825402aefdade844a4a8b641c",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "f3230fdf3ee83fcb8c6138788eccc441f6498f6a02891827dc4011e516efb983",
+        "8d98db3a0a07b7fa13e595c9513352085f99203a2c45074a349a02fa6ba91019",
+        "ed9802d68465eb35461fe1275e08b37d33cfb11a2757cee427898ed9452e74a3"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/settings/people_handler.cc",
+      "section_sha256": "fe91c7d9f3a9c93bbd72e69fa58efe94c0069ea9e80a03fdcb2c27c7942108d5",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "af8a67ae774df36e73e7faa8235cee4ef1d5c093ba17bc354c775e39799f89ee",
+        "e9ea9d6c3d3463d3f3b491c7f23b7fd5dfea9533370549f93785d2210ced864e"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/signin/inline_login_handler.cc",
+      "section_sha256": "3964495ec6a6d382aee694843350e4fca429adde2eff18a75cb0fe48b87956ce",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "b7c44aa331f734f9f7c360600a6ab00ecf12869322b58846ab1ea10cfa90e149",
+        "67b8c1990be6735a4c7d4c0c24b0b2e478b627565df386ab839ecdabaef247f7"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/signin/managed_user_profile_notice_handler.cc",
+      "section_sha256": "2dba2e0cba009f904a7e67dd2d17bc8b5b856579c9ddf48b182d0b589d0a0064",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "620db52bde4faefa8742d849aceeb06ea6da7c8b47f0f9afea0b5bc351473b5d",
+        "add7da0da331497aa0f95a526c3554a4c8762d12352d31c7a63ce92da77daf22"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/signin/managed_user_profile_notice_ui.cc",
+      "section_sha256": "4c56c2b2ec100b731327adb342378e4f62824af81b5427ba185b574898b76625",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "9a8b310a3796a22015f3a4f725d26139359b99ece62ec52122c9b46cd5d3ebc4",
+        "8266607729d20abc39a5469b4845006266270076465d87fc7313c36b2a949cf9"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/signin/signin_utils_desktop.cc",
+      "section_sha256": "0a6ce9fc770a9d5be7c496ba751bc372d5bf87ab76d6319c285f9901e80dd959",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "ce9f9c42d679869adda86a8f34ccac4d239e0c915053309e968cebb920537357",
+        "a4b8f0589840bbe93a48ff5793465b8890e3b251e5b20ef4aaa9e8b293c3d740"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/signin/turn_sync_on_helper.cc",
+      "section_sha256": "0847614709337711a934a7508913935e99d010cdab451b15cbdc00736e2a35c7",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "09babe3446e68d2737bcc0f02fa500d40a36a8196981c0c9a7189866ff0174a4",
+        "87f68e5b9c8f5e2c87427f455a58502e91245b2cd9338eda2b344267b401d5fd"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/signin/turn_sync_on_helper_delegate_impl.cc",
+      "section_sha256": "bb4e3e321bd1656f584ff0c16c3bbc2d26111fa00184b89fddc5c2c650878210",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "f4bad6471d9af0c682909e03c7abe1f78a0f7e17aa20485afb5acb5e41f7e1a8",
+        "8b0d7ff3c83f2121ea17b5e02ddd5ce7124a099801a80dd3fc913edfb545ac84"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/password_manager/core/browser/sync_credentials_filter.cc",
+      "section_sha256": "0a62ebb77cf2645be90c3a04c6106217b7fbd48f851eb8ce189a4b2176712ba8",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "0516a44a488c13ab8515220e4c30d92ef3cc2ac49f0314d442d83760d973be08",
+        "57a2be0fe60705be31cd3c77b0e53152c7c8a49409876561f85b8a4cf41ad967"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/send_tab_to_self/entry_point_display_reason.cc",
+      "section_sha256": "bc9f2bc1aa8b088d498a850efcddfe245cf53dd47f21a4897b75dbf3b875c48d",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "8aab7181314b14264da91d2fa69914e5a39510b2aafff4ea72ad84204699e01b",
+        "9a5a4296dc19dc802274cf318250b673bd5dfa788ac3994d94e59daa6b86e240"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/browser_sync/BUILD.gn",
+      "section_sha256": "6c47a98495668b18b3d7372f1fc19f0344898fd639e48ebef6adb9f9cc14e359",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "532c87a145f4f74a217238085a04bfb27d68458b925d8311e54d87caeadd91b2"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/core/browser/BUILD.gn",
+      "section_sha256": "54ede43c085ee0e93cd776f275f92524fd22b5b5248b94c4a81809186db6c3c8",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "8365aa95680c5e09e8298d084fc913f0be8ad1266cb15f05551b4a8d5a2b3133"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/core/browser/account_investigator.cc",
+      "section_sha256": "b3467313169669ab2b999ba73a83365f687e924af4febcce261ba709b8c806f1",
+      "hunk_count": 5,
+      "hunks_sha256": [
+        "33f0fadfa71945d9e6a8e4843be28abba388e20cbc22c0bd36b8c2b53b5297b1",
+        "c6358c8acee3f9802874391ee25233eaaae5b2a96806c3d047035fd8c5f11ff5",
+        "db4311b8ee12fb3e927bc9d7c571f803c13b882b49ecbda82687ffacce506cbc",
+        "1eefeefcf89df564ccb4bd157fd216ad4188f26298861723cd196b469a28fe04",
+        "9033be3255173de8ae62079168fbc2d3eb666387e526c51709fa54eb140db849"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/core/browser/account_investigator.h",
+      "section_sha256": "d840e10f78345f86b00faab293eb31dac6742217b90c635d1e3d23407107a25d",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "72ab60e7b296891756b416bed6ae4f9583278f37070cb1b90af65c79b94979e1"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/core/browser/account_preview_data_service.cc",
+      "section_sha256": "863cfcf42d677190471616d15eabf7fa27d460202f5fbb3fae420d8e341db1df",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "76d0c1d45f68d526c7a7633e6d04faf3dbc9ada3cb8914e1450aa27c861b4e3b",
+        "f3d4329167e86dc8b11156cad84d748386c21494156b29217b6e4d8e801215fc"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/core/browser/account_preview_data_service_impl.cc",
+      "section_sha256": "cc8d8a21ac0b305fd500d251c3772718b3d6af68dc29a5384af7d520135b3dc3",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "a99f42593e53bcd898a77514d4952838d87909013976e3aa5c7aa9a745dceb80",
+        "84e7198db3a3ea7a097a965a8140d02f03c18183db72ee71616cfe1f8f4289e6",
+        "160476bba4eebf3b67b24165ee4f125a700d9316247c266df5bf537cda2ed213"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/core/browser/account_preview_metrics_recorder.cc",
+      "section_sha256": "d15d6cddb6229206d95a8d0766e0b69bbaaec3c3966a6fc5678f4072c2b7eee1",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "b830ae03347d732e7a50d28ebd0fd2eacbd27851b35e23f459e2252aac522a2c",
+        "ba632da750e678efd3429bfdc2ac9866d12ab6182b985d39d1656b31db230e81"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/core/browser/signin_metrics_service.cc",
+      "section_sha256": "a3bd313114fffb28dcb7dd122a1957001c58e1bbe9417f7dff9e28b1c8a1de63",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "78507b3b11de40b7e55f3cc0a474587f8bc2b934ee6bb9aa8b0d24b458408253",
+        "d7fff5146a4c0a923006aeb99791016700360e99151e824b4b298629538db24e"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/internal/identity_manager/account_tracker_service.cc",
+      "section_sha256": "72319ad1198ecd39c7fb827f83b36b047ee3bd86d65fd073e1db705f871fa6bf",
+      "hunk_count": 7,
+      "hunks_sha256": [
+        "3b50179c9ead66a6e0d8377874c9432068864d092245d6877a6d8301c75c3a47",
+        "a1c0f91d291a133043a522d5aed98418ad440189c341335e438ac3d922dd118d",
+        "f0f3f7b0a2a4ec471d5a1e5f4de2394629145035bc7508ed13c2ddd6ca297ea2",
+        "e7a061d04f93cf4cce4c45fb5b650e3ae7d658e20d76624b36f15a7c321aa828",
+        "45ded934340a3c8a2e6d8966e8b7286b2b09d883786a2c1782ba59b8e271404b",
+        "25955c634440135bf4503547f3370fd9a9ca32e7b8782fdaf1752122a68a6db5",
+        "722913825e8aa775e8a359b6d25b4cef51de233b76d17bb2e9d1d1acab11f255"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/internal/identity_manager/gaia_cookie_manager_service.cc",
+      "section_sha256": "af7a9d82c30a297f4e8c1bc24ce1f7407eff5cd193ed55c14c96c3a18d64d924",
+      "hunk_count": 5,
+      "hunks_sha256": [
+        "96445ee7530973b4f60a1cd44bee8a0231c78470999a0920c15cea0410cc81aa",
+        "8a358ed36eb1c5cb8ebd89c8aa4a45998759c0d4b4377b0f9b8f05b824881a25",
+        "9e033199d9043fb4e3c83fcbb7212a9acfc61c89dd1199c3bf4646140372982f",
+        "97f238d10f6e664fee1ba8739966fa686c5715efcc2d5c10d703311663930565",
+        "0bd63f39195c5161e70293437ba1298df3ff9efba5f8bb2b56e4f876bc106038"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/internal/identity_manager/primary_account_manager.cc",
+      "section_sha256": "36e5b5533e199029d7c5a24d6e5623cbcfdabb9f6cf8728482bcdba9adf3c782",
+      "hunk_count": 10,
+      "hunks_sha256": [
+        "2e9c23696b9d64f097a49d3c252b05fbbba059bf5d66ceada71ac912680a6ff8",
+        "7a138df9b61b8120f4dff4c7392a65bb31259664870d877fc540ff68b01a6e2b",
+        "6977aa498859abd1599e915562a0eadff63d2db480e1c8e0314fe901ae13bffb",
+        "bc60ceed674a695a4f7961b2674087f66131fef3768aa6c787b8fc8d4d3f380d",
+        "f31f03d3315b69ba711338281b7e9fe7ae4a934b8d411b81b1be0276deb56e8c",
+        "10f6c5f1edde58ec1f7643e20db0b76e7067b7a7dc44e635c8f2715dc544d55d",
+        "1acde5bee0e3d9c86118bad494691acdca6b0943488c0eec9ba96d195c9b6784",
+        "62c75223b41a0d9b8e772a8bc37799a49c2fa6a9256dd672f0550843200406fc",
+        "dd132f52923f8e38a4902264db805a26274379ab98897fdd2b35d6a87c089e75",
+        "a10e90dcc7e64230879a2f92b5e727634b3c9e646050d8ee3ea73acd4c04a81d"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/internal/identity_manager/primary_account_mutator_impl.cc",
+      "section_sha256": "bf57d5fd6a6aac1fa9c0feb7b286af5f08ddcbabee220bf4503b05c3aeabe007",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "c7910aef8d3f1f3e06a1875b22d5ce7981262f5468ec4c62168add1d2abd14c0",
+        "f45b461a75997584f6c65158b5293db85f9563b6a15bca44cc0f4eea8fa5d36f"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/internal/identity_manager/profile_oauth2_token_service.cc",
+      "section_sha256": "57c2c41eb53791e9c772204f66281565a3b9754e019de0cc381b8e7b18d7eb69",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "fc17397c69c35088c15412ed7c7bfbd8def047face672c4d041082f8de5e8d77",
+        "ee2170a80bee9f6f910bd9659cfd44249f109d9ef7bbcd3401529569d331d91e"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/public/base/BUILD.gn",
+      "section_sha256": "aed0034f81d9284c2d838de4edee4da9b1adf3c16cc07fc85b9df95bf83db3f7",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "3639b604ae99085f54fe718b996896631e97d8c50b3ca57361c67ebbc5d325cb"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/public/base/device_id_helper.cc",
+      "section_sha256": "3af782ae23f64a94df0f56de300fb51564b0f28562c19248245e1dacd475a2e8",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "e358afd3ae2711cfa76090cece31436b7b93a5e93732e290475474764ff148bc",
+        "6e1a58ce82fa67b32539302608bec74ad3d93513b41472da67d7a973890bab04"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/public/base/signin_prefs.cc",
+      "section_sha256": "bf13402a947ded3ccfcdd9f9626171c4378b2ede940cdcae1063d181af2bfff0",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "e90d55fa4fbad42561ff272e0805927b70e3fca9279c8ef955c43e357a23f041",
+        "d8d4970f3b9e6a891f8a055bc0442b0eb0b2a65d8163c11d57e9f2ef36e974c9",
+        "42e9b3ece9070cc42b680538fbb62f8e0870827aedc0bf71d1430a2fb326e6e1"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/public/base/signin_switches.cc",
+      "section_sha256": "97e2eea372b0f03fd64062453940cff8931a5bf6232bc871a987fa8d25c5ab4d",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "9cb355f930e36920a26110dfcfeb2682bac75c181932ae02a0ce8babad44fa32",
+        "683ca140ef46ef2b10f2b2e0f573ea39dae925f13b2349a8a23f3583e52e5e70",
+        "d017797d4af5d3b61e88b9e98260bb78b0db4ddaf4e8d3ee5c07f46854c8b959"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/signin/public/identity_manager/identity_utils.cc",
+      "section_sha256": "364d470305964617de13db9d1b14620a75adaf7155a11454e2c239d2cff9d99c",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "3e34451bebb57f1369fb746fee2f318e12bb01d50d607c269fc9699d41e7033b",
+        "6c0fe04c5e00fbde7a27a6d08d666d9699a07c4da7a1f760864efc5b96335a51"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/sync/service/sync_prefs.cc",
+      "section_sha256": "f2f449784a8ef73a623f0735d7863d1e19fcba77c89413fc25a95ae411a39352",
+      "hunk_count": 4,
+      "hunks_sha256": [
+        "205af0d57a9c5de7ce7a3754e30193b3c770d150addde5641a0de8d51e724ea7",
+        "2904f9a60b0aae86c509ad8f4019353b4e317458ed36964e138d3b9cbf74e876",
+        "32d5bdf74df168cd6fdf39a32fab210ee59db01d6d6b35d81e18983928aa3148",
+        "5de74e31f6c8c06c334859cbe74f7514cfa33d004b8b431baa1a6c52d8ccc118"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/password_manager/generated_password_leak_detection_pref.cc",
+      "section_sha256": "974c36d88560a74dfcdf6b83a71e5e1a6511299b3c5dfb71947fc208a83aa675",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "8b9a01bd2596fdee5b0d00fc69c0fcbaac82d1d156165231be0990802fc71d39",
+        "5309f42df3b4e3107309dc74d3c73f41383906c5f14866d9009405c64777b2e7"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/advanced_protection_status_manager_desktop.cc",
+      "section_sha256": "4a006f262f8095104bc54e8eebdfd21c0d95844c77c128c851e58fe1a43d0f88",
+      "hunk_count": 4,
+      "hunks_sha256": [
+        "3a703ad94696055a34d3236f0078542daa51c52dd3b425b85a1334d7d90e7a8b",
+        "e9c61d12bc88245b362a0a3a53dadf9dc6b58daebbee143698cb84c510d5b233",
+        "73d03ca65deb8eeb93e4a4f8013edfedd3470d1c46b0edc74e1e9ba8dbef00ac",
+        "e3c0d3583eaf6a60a4968e40b24d16cb2afaf0fa51863027e99903718c7d2b8e"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/advanced_protection_status_manager_unittest.cc",
+      "section_sha256": "b532b19a8fdeb4a92ede6f9d1916df4abee0eaa83e88dd40efc0649ea85a6495",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "a3077dc79dcc8b06e66287322ce56c68789236ed69dff4fdeb3651e987112f25"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/android/services_delegate_android.h",
+      "section_sha256": "3401b069472c1a2bc2595bdddfd820aad857d1c02463dcf1e78c9453c2c42772",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "b7c0dca2a88773e2fdb6f868197c6c727ccffbff0788e5f728ea41a2dfa8c36b"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/chrome_password_protection_service.cc",
+      "section_sha256": "7e7aca7c140e63fc3dbad58c48b8846849fe3e5a04b393b28f4e69d0c929e55e",
+      "hunk_count": 5,
+      "hunks_sha256": [
+        "ed16f777d418e184a995ba6ffcca6fa0c430d1511e62e9204e337a48a40ca366",
+        "14c99439b5f6c2cb23d89e28c2da2f32b480f3680d37992b674868d8350def11",
+        "a77d1377aa93dafdf81ec9e2a0b84feb7f145692802f43d7b5751c5e8acf9489",
+        "6e274cda596e788cc12a37d79783df7b99c8eb274ff68735a3775fd099461090",
+        "d591d4825306272a949011c3ba48e72e62f93025231de214bfb13e1817c5b91e"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/chrome_password_protection_service.h",
+      "section_sha256": "897130efae7830dd0ce29730905843b23ef87ed06ac41767c25acd36072358e3",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "70908aae8554e017ffe802487efaa3efb72ce5b56651e8f0b0c52dd0a9a5dd1f"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/chrome_password_protection_service_browsertest.cc",
+      "section_sha256": "a74dc08aa82809445c4aaf208b281d10c8c1d65cdf4338a3b2897be52470042f",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "36e7a42367e2d3fea70c120e307d3d4414df6a600a95c55c76e9b6783331bb47"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/chrome_password_protection_service_sync_browsertest.cc",
+      "section_sha256": "8cfb84bc4b17d9cdab2383e569ea6e38fb5f71ed1fab6e3d10dbc6b353ea9938",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "0d2dd5bcdc219cd0b2132481e27563ff30a13b05146e2fbbf22b880a5fb0ba7a"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/download_protection/check_client_download_request.cc",
+      "section_sha256": "9a8b1138cf17573719e1c695a89aa5274d54ce066f3e8da66cb2c95b22e3547d",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "eea5b31ec9d7057260fececa73d8c022be4e7b5c6aa43955f3e534d998a3aaea"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/download_protection/check_client_download_request_base.cc",
+      "section_sha256": "3eb266dd6c183c17e34ec19497055b3d29da5695e83714d4b036d63aff23dec5",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "ed05a92864cffd970d5222043ddbd8a21e4ea2ff746a4db66413daf074d9f6ed"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/download_protection/download_protection_service_unittest.cc",
+      "section_sha256": "e5b2499b1b0ecc318e17f2595a03b8e4c5cea7ac6816fa840c2d38fcdf03631e",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "c0e27158b37fefe83c60fb291f2bcca900916ab70e2fe8b74047182d9283a90e"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/incident_reporting/extension_data_collection_unittest.cc",
+      "section_sha256": "ae8a5dd9611f59ba959eea363de8654859ad910120a3161f82bd9eba05551c39",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "90a5edc5d66030a756e2cabb8814c66e3121f9df019c2483f611985c337dcbdd"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/incident_reporting/incident_reporting_service.cc",
+      "section_sha256": "3ba30f2d2d7a8987e1590b874de072c0b33e14f09d7ffb3ac2ae608a15d5ce43",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "a5654ff7085aa9bdc3db588bb0150e9d6056dad20aa74fd28fd9ace425803f28"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/incident_reporting/incident_reporting_service_unittest.cc",
+      "section_sha256": "ac5ff861e186e8861356c3eeb8bc01af650d6964027d7efbad6a8df240d9f233",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "d7f79a5fa8e36c0aa2d9987cfbcf9de3766965458991e0d005e447ed2d5b8fe5"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/incident_reporting/last_download_finder_unittest.cc",
+      "section_sha256": "11350d8c7d2f91151acc1d3854260dfd1cc47dc9aa0d1d39130bde8f7780b218",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "88bc5fb535f2ec2ffbfa9901d9fec0df452ac333b3c750c6874b503c89920e52"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/incident_reporting/state_store.cc",
+      "section_sha256": "f7ae67f260df1521b6227b5e1e482783a34ec2dd771f422a8d404fd2add78a8f",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "89b357d23f208c556b54bd7142f47c4abcd274e5d172e2955089f9dc0628d65f"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/incident_reporting/state_store_unittest.cc",
+      "section_sha256": "53dda9836b6706572089066ffb253afd38f9d1ca928c5695d3a9dbb018b0a14c",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "35cdeb41ce3c0b8732efc38bfc2f95d116edec949101c797716ce11b549e5a3d"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/metrics/safe_browsing_metrics_provider.cc",
+      "section_sha256": "9b9fbe6dc5c4c0a1756b31e3ef8a3cbddbf09048e50621e6a117b40306d77f8d",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "ca4f61d7c30e5f75ba4fbad5812034035db5d4aa69fd7e9fa2ce3551ebe512a7"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/safe_browsing_blocking_page_test.cc",
+      "section_sha256": "bc8f9f97be5beb32cade0626602b572a25667e7981d04aa8eeab5ca675e174f3",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "9c5d67630d60f1f582493a6e908eaea8f09ef5274a7f819f703cc841c1c22106"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/safe_browsing_service.cc",
+      "section_sha256": "992092b553da0441ab775fd18fb88167b408f2fb1a575ffe6edc700b30c886cd",
+      "hunk_count": 5,
+      "hunks_sha256": [
+        "45cc1d6ba813bf43afd2f49f308d0a3222236950b723fac07359efb2e067a04b",
+        "557198cdb32592c0e76a7317c73f90b1926ad84a8c135d551b5c131bf99dd9b0",
+        "07aa78c80f32a6687b1256f44c06c71ec059cb74205b9a84affdcb9fdf4c5263",
+        "845769408fc373c54b8a3566cfa70a3ac3099db21b0de6dfd1a0e8ae6608e8a1",
+        "8e387e543e641238de90aaf7d3c3adf4a222592981d045b03d6b7e4b894e19e5"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/safe_browsing_service.h",
+      "section_sha256": "3665720469cf215478175a772a53c6b49dc4d6fd3852e745d74c130cb050b44e",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "b2b5164a941381b671484cd205ea91b720b4c6b9c8d6f27c69f1032b1b4a4ba7",
+        "8c8a1465a0700c54a6a01368480ce635bf2312099a56dbe23cee1740ad45dd1f",
+        "0b1bc9ad3918d9fc34c28b090b4e8a0fd2a1fe998d5f500f8a64c187068a7cfe"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/telemetry/android/android_telemetry_service.cc",
+      "section_sha256": "9f50d2374ac0348793a555e39f101c6851fd3c477711e46eb122bff5fa8f8bfc",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "c880bf4890247b50c268da70823aaa05a54d351d80dff99e3ef045a18ce2372f",
+        "d3d0b9e3f748e773171339b17bd8ea10b9a181339870e5f2d62fd034e374df5d"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/telemetry/android/android_telemetry_service_unittest.cc",
+      "section_sha256": "04895dfba6b8e159d0036505994311bb76b5de013ddde776f02120d654237634",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "7a13e7a33c778229cbcef35770f1ec53002cfc4b8601b4a56ce0703f065995b8"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/safe_browsing/url_checker_delegate_impl.cc",
+      "section_sha256": "33a858f17cafe677dcf0fdf65a281b117c4d69048e3adaf1e75e0f4affe46174",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "3851696fdffb00159514fa41ce8d6559a086d644b4ca59c47f5285839841239c"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/password_manager/core/browser/leak_detection/leak_detection_check_impl.cc",
+      "section_sha256": "f32167c127cc4562e74f8f8c9028d13471aa1432a23ce8bcbf2643805bde89d5",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "792b27cd67246dc1ead29b8d14b78a3783b6a3347bec7edc1abd1af6f4942ec4",
+        "e7f5066674127b9aaf5de308f22430c47653bec438e347f4448c9027fa9e47df"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/password_manager/core/browser/leak_detection_delegate.cc",
+      "section_sha256": "3daa973e5bb1cd752d68cfbd490a1fd8d1c3d3c0e5c79260b608c793adcfca3e",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "f7be17a34312aa715887e2b2b784450a9926458d909c803bfd9eb45a3d5c050b"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/content/browser/base_blocking_page.cc",
+      "section_sha256": "9c8aa0e493933ea4efb57b75b2b322a083814b0d659cdc363f0d3264d1364f0a",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "0d44aaae5a22a6df0bcb0beb212d05e52317e2372e8b9b190736c5678936b78c"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/content/browser/client_side_detection_service.cc",
+      "section_sha256": "7ec92050561c197bc07444254336634da36f9effe883a0f3364d850d0fd1c37e",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "1b476bd259d439c812a38b6d0709b0d06057c7db3b35a7f367c35da6ec2153c4"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.cc",
+      "section_sha256": "8302435682e8bcf522f881d2f814f509f00b13cb1cfad65cccfa6a2d39d97b57",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "f5153dcdca4ac4b97d49adcf21c5741a6ce5b6b4f9591eb4e18ccc3075a106d9",
+        "cc0e338b395ca333c1156b182f857297d83a76d4a2af639fb53eb245edd0f1b8"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/content/browser/triggers/suspicious_site_trigger_unittest.cc",
+      "section_sha256": "8d5ed6d24b22e9e48ff3d9dbb673ac673b84f70a1261c427a7b263c059755023",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "0d3a13e24e818e7b155ffd54a6dfd8853280d69ec694ccad47efb877827549b2"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/content/browser/triggers/trigger_manager.cc",
+      "section_sha256": "cbc47719485c2c2ec2d79ba82da61b7067091213e66e7dd8d877372ceb8df099",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "f748a83811f25fc7f24a96992d3668aa1f38ba277ea4df5fe41d550dde172ca5"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/content/browser/triggers/trigger_throttler.cc",
+      "section_sha256": "857e9fe5a987109689985db6ecd4006fb6f3a12cc626bfb75a509fee980ed0ce",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "3b7f3c3ba5bd8548579aefc3814706223470a64bdf8af4400fc434afc807356b",
+        "030caf660858615b2f6e6f40025376cf556ea905342f721b4ef8b11d663b1611"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/content/browser/triggers/trigger_throttler_unittest.cc",
+      "section_sha256": "d3b09b52a1e95ec429ec65cfe988b879692e1de1c475e1e11d2e1273b057e2e8",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "5fee72651dd12894baa206e8065582921a50ec689eb89ae67f8744cc52d1b286"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/content/browser/ui_manager.cc",
+      "section_sha256": "55372ab1eb6f6be4328a997c52c7eab99f562f77115075b31d520666343a819e",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "c05fe3f473952fcae501a08d2b124f08639ec6f6e230cb50626495b65b5185dc"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/content/browser/ui_manager_unittest.cc",
+      "section_sha256": "c0b0640688a46197b1664592b0d448c17da7a2bbd61edfdfa6dd5db2b0085559",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "df2aa5ffc7c1924e52085f2f817f06c9b4eb40ce0dd070f1547bff264a4bec89"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/db/sb_local_database_manager.cc",
+      "section_sha256": "fa82dd06ba9a408716f21406fc619fd21600c62e99456df4911e7f27a41ceef7",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "72c681a20fb1c448aa3cb174fb650573618057dd83aabe5574a753ea09d460b3",
+        "ab7d1a55087397c07fa2cb4c4e3bb6ce56fc84fb1a8ab6b2172206259ef5a015",
+        "e9f06e79ef3f369066c6585729ef5735a1b448eeda98da08c1b33d78a8e826b8"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/db/sb_local_database_manager.h",
+      "section_sha256": "86647221358e9f1a434c5eeb3cdc0611c7feffb30dad3c40a745b94138c66f79",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "9cfd8e6c28e079a170fa1994e962bcf01b10b3892d9af8528733c51bec3095cc",
+        "e36d3818973db051ddb736ec9ecdf1ab14744a825bbcb1561d46dcbc4d8925ac",
+        "df9d0ca56822b5aba0798f2e9c887f0c4af96109cc2e8d75bffbb0b86f03347b"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/db/sb_protocol_manager_util.cc",
+      "section_sha256": "061ce08f68cf7e61531de3273cf252c4f970bd2cb59a8c66567ac87974120b37",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "3ad5154566b1c92e01dd53a8efed748b4a9ba7d1f8e8f48f6465f6a30de0f2cb",
+        "bc2a4683dc11025a122f53f603281098368751e409b9dccdd9eba14a8ea25f73"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/db/sb_protocol_manager_util.h",
+      "section_sha256": "8c90ddcdfb4f0ebdd901da37662fbaa053a1d5304d0f5d0a69f5b59d2685c881",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "76d1316161eab53b268533a02d170638bce58880ca3a3a4e7f09a38746747596",
+        "b5bd4b588f1e0294d3abc148ca6c0f440c777787bb0738ec619266831b47928b"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/db/util.h",
+      "section_sha256": "3c1f56ce7356bfad0fedca4defc831ec2c2b41b52dfa25b797d0551808af9494",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "59f48c84a9f8c6c3a37f60ea34db56314da3cbd9dc511e9e649d33e75ed232cf"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/db/v4_update_protocol_manager.cc",
+      "section_sha256": "a12f6667d5d675fe9615ae1bbb159815a7e8d0d2046696421f8f60d180c0010c",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "6e03d310f258fa950f5f12b19ee026e42598811965e196f7edc649b01cd7620e",
+        "bfcd7e7b6f1a4f557852a91320f4262d1ea1b8be51ed1ed81acb9ce613c8b2e4"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/db/v4_update_protocol_manager.h",
+      "section_sha256": "afd4121579e64f918996f9ad3ccfc356e9a4dc0671718c7db9630fb36b040118",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "e84d59d19ae147946e991a51a7cd2b736bd038f489333fa969a077e70eba3a35",
+        "79c65ed15696ef062f4dd28f99c92d7e236829a996e1ed51eddf30c072680701"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/password_protection/password_protection_service_base.h",
+      "section_sha256": "bf66f95cf67cc7cee72cb1e2cdd8223eebd97c6ac90b528860402efabb93bd02",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "53ce044ff83b4c28eeda66f239174b6132ab6f97f7d0ca398bb56e7b9c3724c7",
+        "aeee07ab1d075606a4ac2dc5a41a895e09f009c39d910685478149843bcba7dd"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/realtime/policy_engine.cc",
+      "section_sha256": "103c79482a3592523f19b2c7c0c6c910d735e2cca12050faf5197e0c9e61965a",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "b34709715893972c5a6f2eef3dc84d1a09a3a8f03042798587eb917d8bc1f6e9",
+        "d9c85ca938e32e95b11d51eedd8c2055b296f468a3614985c4089193c4160045",
+        "95eea6f787daa8a225de7057a26c1f97f309c9921b2ee04f787230564fe36850"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/realtime/url_lookup_service.cc",
+      "section_sha256": "c89945d2d4d1165c8c0eba218e79b8e226820aecd27838aa93b7b3f8fc758afc",
+      "hunk_count": 5,
+      "hunks_sha256": [
+        "e1c903060ca99d83aa22e48bbb4f256f9ac3244460dc3ea5b93127a289a1955d",
+        "994aad98d5ff58977a74e1af5cdcb61c0e52717aba96d370387d46fdb77ffd2e",
+        "b057175fb4297418167850ee770f0907a5bf01a9a56fd1a3940b33b2c9dc6191",
+        "9bf193a13f63e62f677faffa7f312d7d663ac5a19eae1ab5876d21f47195036a",
+        "b8dba451d4501c01e45ff13c58c180c67df5c051d5e0f48f59ba0e9df4b870e3"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/realtime/url_lookup_service_base.cc",
+      "section_sha256": "1220139766ea22ee086ba4e61be41678fa753c7c6bcd1daf8c18d12e5ff0183c",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "64ed0391f83efb610cf376825030ef2664f2a2088ffca238362372fc2b7bc2e5"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/safe_browsing_metrics_collector.cc",
+      "section_sha256": "01627dec4ce970b4c7c034224ec980ff2e5ec9455a34ecce3e7772ddbbf0d65c",
+      "hunk_count": 9,
+      "hunks_sha256": [
+        "a8a2dfb7aee94e00a413768cad200be6d710b3c4a72c535be59127504a6f5966",
+        "ab4a97be1c9e825b305d18fba70440174d69b8566c0414e4e5dc47edb0ad5832",
+        "e1153d2af43e84ab014961f72f598154521ad4b3fae44d46294c879816aa335a",
+        "114393e0013131816452b0bf572dbae329ef03dc24a9fd2f5049f8c16b85789b",
+        "10cf1a8b0c19ce447d154377625fb8a03af083da96a355bbfcc3841ee9b9e03c",
+        "27f71834db36c1d968804a2b1eebd615ffbb51691ca795da47d64f1da95e5042",
+        "619e9251ec97fcbf641ccf0ba3ab91729b98652cd69a49350994df4a6cb7d1c4",
+        "828831cb4054a1c18afe97fa2a5546af2ffed1c0f8ecd0a7790a8d6bf2b15804",
+        "11d807a583b09536094ba1bc3bf9d45d1e5b516f88aeb58e688f83c48d480bd9"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service.cc",
+      "section_sha256": "b3c572333c7021beb31b748b2bbdb7edc4e147fc69a11cf56a509ddc9be0385d",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "c777d68dadc8b7b89c128372d53dd71f12341cf484612c2cf6063686189eace4",
+        "a7a0f113b340bda29b30c2d1dfd407d62c9017a2fddee5734a1bce413f591769",
+        "598e80c75e4f7e4341ceba2840ac1cdb6afd00ea009efa4b68a57a08448b9079"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service_observer_util.cc",
+      "section_sha256": "0df26c8433a750d3c7b9d330d9f19f6b58b017bf8cb721a55eedc8de5ba94697",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "15b1b583972f11654bdaa37f13300a77715fa8de602e5af8f889b5032226c0c8",
+        "d54ff1fd5f9c87491e8156215bb5ad1b87298ca275f86aea8f0eb982466a4144"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/browser/web_ui/safe_browsing_ui_handler.cc",
+      "section_sha256": "329944215a8f62b891f10b76319f38249a1604702ee29b5b759a50ad20fb88ad",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "6e97ac4205825b4c9df6acf08e5c829def5a476a31cf1460cdbd14323bcf8862"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/common/BUILD.gn",
+      "section_sha256": "c122dc71af869d13d6b3e91fc3e7b032c81036bbdb2db13da7ec68df4078bc36",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "ffedb692112fdedaa245d4ce7a6e59f66c208edf5ec3ad6b7403c2497924212d"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.cc",
+      "section_sha256": "c54f03284150e8fd99518b665882c25904d393fc76e97ea2c70e9010333efda1",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "6bec45df1bc005792c92dfc3a9a67052fdd0e6e14a458220a2989704d9f07566",
+        "4e381f2a140f0a0ffcc428d979eacae7dbacdcf4bc2a521dfe67bdc5c8d2aace"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/common/safe_browsing_policy_handler.cc",
+      "section_sha256": "dddf18ad8c2391e833ac44a66178a190d618bd67b2bc43129ce60491a09e42a2",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "b9eb0b989875daacef4ac5b83932e7f4fd3c7d339c5225b699378ed582464087",
+        "80b25a50c67a6484aaefb99dc7c4314cdd5e7efaad1f3fe57bc2b9661f8281ab",
+        "c391ed5ff03f137053d807f1ecbe64424f5ac8374983b1f53fcc0a354f7b62f3"
+      ]
+    },
+    {
+      "kind": "restore_sections",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safe_browsing/core/common/safe_browsing_prefs_unittest.cc",
+      "section_sha256": "96be830700ffdd0956c969e1e1341d22e23a2a869f13a94dd04cd5428cdc34f5",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "371444c3add3dcd4e80658a2d82f671eafe80531698c5e64c45f7ba28668f9cb"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
+      "section_sha256": "0c13e98595b35fb09f77f71a89173948ddb89136d587d144cf2655cb3d178a23",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "7ab616cb063f9626ab39c809427d232a3d8becf57d5de6968eef1c25e2a51772",
+        "5f471a3cfb3f1ca1accdccc51974b37e1052d4e9cda4ab81be7f4a4ce7dc5b99"
+      ],
+      "markers": [
+        "kSigninAllowed",
+        "kSigninAllowedOnNextStartup",
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "kSigninAllowed": 1,
+        "kSigninAllowedOnNextStartup": 1,
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "7ab616cb063f9626ab39c809427d232a3d8becf57d5de6968eef1c25e2a51772",
+        "5f471a3cfb3f1ca1accdccc51974b37e1052d4e9cda4ab81be7f4a4ce7dc5b99"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/extensions/api/identity/identity_get_auth_token_function.cc",
+      "section_sha256": "ed1d31a74df868e69a22ecde9c6f4bc884fe1b3814432f6e341c62b9eb5ec2ee",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "2664c9fa48efe75918d9999f5053083c6cb76daafd5d8e7d60ab20666fc211e9",
+        "0c972c6eb7e50d6164add7f28becbd162f7d862aecd51e25dd141014cda8929d"
+      ],
+      "markers": [
+        "kSigninAllowed",
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "kSigninAllowed": 1,
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "2664c9fa48efe75918d9999f5053083c6cb76daafd5d8e7d60ab20666fc211e9",
+        "0c972c6eb7e50d6164add7f28becbd162f7d862aecd51e25dd141014cda8929d"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/extensions/api/settings_private/prefs_util.cc",
+      "section_sha256": "9e502ca000e01cd50d04652a8ff252ef6e4fcb4350b65e01beb3a03d9dedc81c",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "c28683e783a0516f4c48e8803b6e822b0ca66488f546a90525599cc24a149db2",
+        "70bb12b6b34d3ed4bb3e031186c63c0568405aa359bdbeb66d7810e499ea7dbd",
+        "761caa1d089c2ff48d88c75b5632c8f8225c4a901bb4830462e5754557202d38"
+      ],
+      "markers": [
+        "kSigninAllowed",
+        "kSigninAllowedOnNextStartup",
+        "signin_pref_names.h",
+        "safe_browsing",
+        "SafeBrowsing",
+        "PasswordLeakDetection",
+        "LeakDetection"
+      ],
+      "marker_hunk_counts": {
+        "kSigninAllowed": 1,
+        "kSigninAllowedOnNextStartup": 1,
+        "signin_pref_names.h": 1,
+        "safe_browsing": 2,
+        "SafeBrowsing": 1,
+        "PasswordLeakDetection": 1,
+        "LeakDetection": 1
+      },
+      "restored_hunks_sha256": [
+        "c28683e783a0516f4c48e8803b6e822b0ca66488f546a90525599cc24a149db2",
+        "70bb12b6b34d3ed4bb3e031186c63c0568405aa359bdbeb66d7810e499ea7dbd",
+        "761caa1d089c2ff48d88c75b5632c8f8225c4a901bb4830462e5754557202d38"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/policy/configuration_policy_handler_list_factory.cc",
+      "section_sha256": "8c10a614d60b624384f2813ecd715743445e536d906d8b7dc1dc2b08843e3979",
+      "hunk_count": 12,
+      "hunks_sha256": [
+        "a100c869864da577dc1ca8e8435141dce9404715f8e169bc5329caa443ee44e3",
+        "8ce18770bdedca551f285008e81fdbe68798457a3b1093de8302d9e4da816eb8",
+        "ff3cf2134c9094bad11b4139e9478ec24350e789498fca486bb41539595c0e75",
+        "b670c23f49f76f4e1076d5eb0c0d48bafa8b700e7f9e2ebbccd9b6dbcb94db95",
+        "fbaf4295a61eb0f65dbed44bffba09a1388aab785d6a2f7284ad9e1244678562",
+        "7945549aab2f9224b1513c6109300095cedb01b76251155587b59502a3314f26",
+        "29fb5c8a5e2a3467470773769d6c78462c60cc75c5b21b82ddd2c99cd4ba4556",
+        "c5b8af959718b2bc18f5d1549160f1e49a61a33e1d49a03d1f73cd79738738a9",
+        "2f2d1fc5b236048fd6e21b794a518b699ea8ff34d6908c1dff9e00af39902cf8",
+        "e116cde9d3fcf4740bd6f9fcdba7c3a5eccf6b1f11583bc8599499a079d6d807",
+        "d97f213f33a0339fcc42255ffac67512432be79a4ae3479867c66e3583eed1c1",
+        "0350c6a1d13823439c0fa141bfd62f876cc423269e6f90a7cb8b2d699d7426f6"
+      ],
+      "markers": [
+        "kGoogleServicesUsernamePattern",
+        "kProfileSeparationDataMigrationSettings",
+        "kProfileSeparationDomainExceptionList",
+        "kProfileSeparationSettings",
+        "kSigninAllowed",
+        "kSigninAllowedOnNextStartup",
+        "signin_pref_names.h",
+        "safe_browsing",
+        "SafeBrowsing",
+        "PasswordProtection"
+      ],
+      "marker_hunk_counts": {
+        "kGoogleServicesUsernamePattern": 1,
+        "kProfileSeparationDataMigrationSettings": 1,
+        "kProfileSeparationDomainExceptionList": 2,
+        "kProfileSeparationSettings": 1,
+        "kSigninAllowed": 1,
+        "kSigninAllowedOnNextStartup": 1,
+        "signin_pref_names.h": 1,
+        "safe_browsing": 1,
+        "SafeBrowsing": 4,
+        "PasswordProtection": 1
+      },
+      "restored_hunks_sha256": [
+        "a100c869864da577dc1ca8e8435141dce9404715f8e169bc5329caa443ee44e3",
+        "8ce18770bdedca551f285008e81fdbe68798457a3b1093de8302d9e4da816eb8",
+        "ff3cf2134c9094bad11b4139e9478ec24350e789498fca486bb41539595c0e75",
+        "fbaf4295a61eb0f65dbed44bffba09a1388aab785d6a2f7284ad9e1244678562",
+        "7945549aab2f9224b1513c6109300095cedb01b76251155587b59502a3314f26",
+        "29fb5c8a5e2a3467470773769d6c78462c60cc75c5b21b82ddd2c99cd4ba4556",
+        "c5b8af959718b2bc18f5d1549160f1e49a61a33e1d49a03d1f73cd79738738a9",
+        "2f2d1fc5b236048fd6e21b794a518b699ea8ff34d6908c1dff9e00af39902cf8",
+        "e116cde9d3fcf4740bd6f9fcdba7c3a5eccf6b1f11583bc8599499a079d6d807",
+        "0350c6a1d13823439c0fa141bfd62f876cc423269e6f90a7cb8b2d699d7426f6"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/prefs/browser_prefs.cc",
+      "section_sha256": "fd00856154e5ec1639b0fb5bac90b97ff3f160860984befce438a2abc830cbfe",
+      "hunk_count": 4,
+      "hunks_sha256": [
+        "d97ce8625da02465bfe0a68f54d51e094490a7c3f9af3ad80ac45b8ebece6cc6",
+        "1c0226ce976ba3317e8620d42356bd247c93e4dd0c2b2c46a40fbd5d3a540600",
+        "5c9e976d05f2cb2b74b008774a41bbc4cf10a3c7d6c36b818a87975f283646c3",
+        "92c299c30c6783a44a4debdd51a37bff3f45fdbb37d78287fe8c267388df38d6"
+      ],
+      "markers": [
+        "signin_pref_names.h",
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "signin_pref_names.h": 1,
+        "safe_browsing": 3
+      },
+      "restored_hunks_sha256": [
+        "d97ce8625da02465bfe0a68f54d51e094490a7c3f9af3ad80ac45b8ebece6cc6",
+        "1c0226ce976ba3317e8620d42356bd247c93e4dd0c2b2c46a40fbd5d3a540600",
+        "5c9e976d05f2cb2b74b008774a41bbc4cf10a3c7d6c36b818a87975f283646c3",
+        "92c299c30c6783a44a4debdd51a37bff3f45fdbb37d78287fe8c267388df38d6"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.cc",
+      "section_sha256": "ad2a44e364349e3fcef2bf926b294f8b3e7792415f4b51debe483b85d2405352",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "ea526fef78cfc3bf993ae0683f1732ef877ab26be5d1c108404960accd1a5e2e"
+      ],
+      "markers": [
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "ea526fef78cfc3bf993ae0683f1732ef877ab26be5d1c108404960accd1a5e2e"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/browser_command_controller.cc",
+      "section_sha256": "27490a82f6983e2bb0603f537da9961a35b7879de847eea2780b096301e2e6e4",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "5a8996caeebb080d54b7940b36232de6d7eb4661fdfcfab4a56d35d5e20deb91"
+      ],
+      "markers": [
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "5a8996caeebb080d54b7940b36232de6d7eb4661fdfcfab4a56d35d5e20deb91"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/chrome_pages.cc",
+      "section_sha256": "7340cb26c870c3f7b8e9ad9ca4acb9d30d4f5cf9ca88d6bcb1930ba559dc5cd4",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "914bea800a08f3528d3fce744fec4da54d3a1db803ed21ee4574df9d0ec5dfd0"
+      ],
+      "markers": [
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "914bea800a08f3528d3fce744fec4da54d3a1db803ed21ee4574df9d0ec5dfd0"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/extensions/extension_post_install_dialog_model.cc",
+      "section_sha256": "ca0ed3de4c1c5400bf9216215f6fbb7816604c969e4fd824ed775e23e6225c0f",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "25a667a3e374e5547ef45b7df8138f86c279eb6c3a1a96cfc46cd147e0f81ebe"
+      ],
+      "markers": [
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "25a667a3e374e5547ef45b7df8138f86c279eb6c3a1a96cfc46cd147e0f81ebe"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/hats/trust_safety_sentiment_service.cc",
+      "section_sha256": "b7b8e18b6b3e15d04183f4ce48a51eb34c7903468026e470876f4a7473b85a80",
+      "hunk_count": 6,
+      "hunks_sha256": [
+        "bcbd81d4109d9f067465012af0c85689873366d50ca4377e35f45274cb7ea280",
+        "37e15b46efb2ba6e273667177797fb3bd02bd69adcbc8571b717adcb496a9de4",
+        "5de0df9e7edf2be791a2b8253711827401aacd42d3d23314060e201a27188b01",
+        "5bba079300cc4bb86e3b5dc26add81065cd4fbf7350e02bcf22c2e74a7b83753",
+        "8cbde7ba2d427b8679a7c2b676d67367a01f54ffde6eb95b9ad12193237d1db4",
+        "ad1170e905955722fc7551d3dc793fa1e1a6445c31e14f301a3cca8ad07ad257"
+      ],
+      "markers": [
+        "kGoogleServicesConsentedToSync",
+        "signin_pref_names.h",
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "kGoogleServicesConsentedToSync": 1,
+        "signin_pref_names.h": 1,
+        "safe_browsing": 3,
+        "SafeBrowsing": 2
+      },
+      "restored_hunks_sha256": [
+        "bcbd81d4109d9f067465012af0c85689873366d50ca4377e35f45274cb7ea280",
+        "37e15b46efb2ba6e273667177797fb3bd02bd69adcbc8571b717adcb496a9de4",
+        "5de0df9e7edf2be791a2b8253711827401aacd42d3d23314060e201a27188b01",
+        "8cbde7ba2d427b8679a7c2b676d67367a01f54ffde6eb95b9ad12193237d1db4",
+        "ad1170e905955722fc7551d3dc793fa1e1a6445c31e14f301a3cca8ad07ad257"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/views/toolbar/app_menu.cc",
+      "section_sha256": "efabd187f0f4e94175b64cc4c2447b0d85891525a4b2a2f3bae88ef9e94c92a4",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "9ab35ce3f3dc066e50d4f3eba80089f7472869901bd502747936f0bb2e5ee037",
+        "ba0b8a5a6ede378db77ba40a4cf220f26ff3ba18e85a8e7f4dcccb262a23aa20"
+      ],
+      "markers": [
+        "kSigninAllowed",
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "kSigninAllowed": 1,
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "9ab35ce3f3dc066e50d4f3eba80089f7472869901bd502747936f0bb2e5ee037",
+        "ba0b8a5a6ede378db77ba40a4cf220f26ff3ba18e85a8e7f4dcccb262a23aa20"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/views/user_education/browser_ntp_promos.cc",
+      "section_sha256": "a7dd2d81c8b69c5bb044213f962688907074593055db8e16fce9a1b4b853ed9e",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "db8700883c55a8aa83e17358cb202236c52e863a50d693f49932cdf007f0d5ae",
+        "e49f514c03a82a3e3322f7fea9593c3593ae120edc27ec2092a69fe094c49b3e"
+      ],
+      "markers": [
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "db8700883c55a8aa83e17358cb202236c52e863a50d693f49932cdf007f0d5ae"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/cr_components/history/history_util.cc",
+      "section_sha256": "a5548fb0f53e17ff4d64180c18ee7ff8c54c927740ad92c043fa2b7c41f6772c",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "0507250eede87d78797ffd338360695e0f9db1bdd382e16af380956f78df69d5",
+        "36ff4ebbbbc26841d7d0d1a4fa5f232c473f4e31485dd69bf1e218f5c8c186c7"
+      ],
+      "markers": [
+        "kSigninAllowed",
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "kSigninAllowed": 1,
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "0507250eede87d78797ffd338360695e0f9db1bdd382e16af380956f78df69d5",
+        "36ff4ebbbbc26841d7d0d1a4fa5f232c473f4e31485dd69bf1e218f5c8c186c7"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/history/browsing_history_handler.cc",
+      "section_sha256": "78ae94ccaa55428dfd1756ffd126c877b3e36439141be51f2bcfb1d6d9bee183",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "b14c89ba9f0f2ec5990153cbd7afcc7c436f51595ddb84e665a8c4d59424f45b"
+      ],
+      "markers": [
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "b14c89ba9f0f2ec5990153cbd7afcc7c436f51595ddb84e665a8c4d59424f45b"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/policy/policy_ui_handler.cc",
+      "section_sha256": "b711448f30cc366c75060e60a3c5fc8a79db9023dd1a68ffb519d33794083c82",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "94811526b39d4e0f4d9508f85893b9ae52f16a5ea44100a4d24783c6f789a190",
+        "bd3dd73264666e21897c2c2e7cf3f96909fa37b2ef59fd4a8f40e74c23876e16",
+        "bacc582492ef7fa9a833e852de471078cebd1c1e706ce27808bb71da9eba530e"
+      ],
+      "markers": [
+        "kUserCloudSigninPolicyResponseFromPolicyTestPage",
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "kUserCloudSigninPolicyResponseFromPolicyTestPage": 2,
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "94811526b39d4e0f4d9508f85893b9ae52f16a5ea44100a4d24783c6f789a190",
+        "bd3dd73264666e21897c2c2e7cf3f96909fa37b2ef59fd4a8f40e74c23876e16",
+        "bacc582492ef7fa9a833e852de471078cebd1c1e706ce27808bb71da9eba530e"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/settings/settings_ui.cc",
+      "section_sha256": "cfbb8ecb1f5739a249d79640dc52ee30a97f1a9cd84aadd9602631b930ebbf84",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "4c906d5fc806a5fc44b080292657aa49bb7f4ebef36f2ae51d170c915243b8c3",
+        "3ae8ef1884dd954b0cb016af22dc12cd918f6209afb7275cb4278c68dae4392f"
+      ],
+      "markers": [
+        "kSigninAllowed",
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "kSigninAllowed": 1,
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "4c906d5fc806a5fc44b080292657aa49bb7f4ebef36f2ae51d170c915243b8c3",
+        "3ae8ef1884dd954b0cb016af22dc12cd918f6209afb7275cb4278c68dae4392f"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/collaboration/internal/collaboration_service_impl.cc",
+      "section_sha256": "7375c19081fa2526e54556fe7e3bb40649c6c4a5a07ba399bcf0ecdf9f5058a7",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "6a526e1f33c40863e4375ae166480b6bd4f99908c1a5a281ec382db2594a64cf",
+        "c5626666f0c470b1d922eb33e7c11294a452c9869c35f94a85208a17b58ecb1c",
+        "2d359cad56badd9b512c37b809f3aab67090a115f0c3c909ec268f83a9482c9c"
+      ],
+      "markers": [
+        "kBrowserSigninPolicy",
+        "kSigninAllowed",
+        "kSigninAllowedOnNextStartup",
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "kBrowserSigninPolicy": 1,
+        "kSigninAllowed": 2,
+        "kSigninAllowedOnNextStartup": 1,
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "6a526e1f33c40863e4375ae166480b6bd4f99908c1a5a281ec382db2594a64cf",
+        "c5626666f0c470b1d922eb33e7c11294a452c9869c35f94a85208a17b58ecb1c",
+        "2d359cad56badd9b512c37b809f3aab67090a115f0c3c909ec268f83a9482c9c"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/commerce/core/shopping_service.cc",
+      "section_sha256": "22f94629e203c8a18aa509d26085748e69e0c10e50158d504ddb0a06e998affb",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "518d29aebf9f67d597729d8fb4029788cb545f3287337030befb66ea4b78f195"
+      ],
+      "markers": [
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "518d29aebf9f67d597729d8fb4029788cb545f3287337030befb66ea4b78f195"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/commerce/core/subscriptions/subscriptions_server_proxy.cc",
+      "section_sha256": "9a2eb1fd48764271432def0585e5b249df95a2e94e8307a2cd1507577cb40636",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "bd2d44b97d26d9a6fb7b0c4590834395f525f384eb23b84b86a5e9729743248e"
+      ],
+      "markers": [
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "bd2d44b97d26d9a6fb7b0c4590834395f525f384eb23b84b86a5e9729743248e"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/feed/core/v2/feed_stream.cc",
+      "section_sha256": "34f3523da2a9ec2c11bbd7aff841e5b9078a3a9a17b3271b257678f5e28072f4",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "fc62d9b5836e25ceb1517328395ce01ea5315117a3ca782bdcaba4794e4b0d27",
+        "e50eb883deed99d8374d8811000e98417a4cf48ce9c9360c6bcee2bcabdd12d3"
+      ],
+      "markers": [
+        "kSigninAllowed",
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "kSigninAllowed": 1,
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "fc62d9b5836e25ceb1517328395ce01ea5315117a3ca782bdcaba4794e4b0d27",
+        "e50eb883deed99d8374d8811000e98417a4cf48ce9c9360c6bcee2bcabdd12d3"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/feed/core/v2/public/feed_service.cc",
+      "section_sha256": "c280ae1aae6e2906f7ece438f2d39d5f2c495eb389eece21af87eb46b406da89",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "b2e11ffa7c2a5a87548e01ae407e2b279bb5367b79a113f928f4e5ae9c179d54",
+        "bfc58ddb0c1498514fc816d0b2bfd917dc40f8d7439e3fa21d3c0f60c4c3b93c"
+      ],
+      "markers": [
+        "kSigninAllowed",
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "kSigninAllowed": 1,
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "b2e11ffa7c2a5a87548e01ae407e2b279bb5367b79a113f928f4e5ae9c179d54",
+        "bfc58ddb0c1498514fc816d0b2bfd917dc40f8d7439e3fa21d3c0f60c4c3b93c"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/supervised_user/core/browser/supervised_user_pref_store.cc",
+      "section_sha256": "a1d516726d137ded8590c42220224ccc54956e443a68596edbd9d5b1a82dee5c",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "1c1df348c6d786c36f323bfe4450126d62146248ccd7d631a58ccbeea88bf223",
+        "595cd72ad09f88d3a0920b21ddffdcd75988f7cdfc108eef97bcd8cf70d4d442"
+      ],
+      "markers": [
+        "kSigninAllowed",
+        "kSigninAllowedOnNextStartup",
+        "signin_pref_names.h"
+      ],
+      "marker_hunk_counts": {
+        "kSigninAllowed": 1,
+        "kSigninAllowedOnNextStartup": 1,
+        "signin_pref_names.h": 1
+      },
+      "restored_hunks_sha256": [
+        "1c1df348c6d786c36f323bfe4450126d62146248ccd7d631a58ccbeea88bf223",
+        "595cd72ad09f88d3a0920b21ddffdcd75988f7cdfc108eef97bcd8cf70d4d442"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/chrome_content_browser_client.cc",
+      "section_sha256": "912d868c9da1a1c864091d3bf8a821024060056072269e2ca31f95cae402c066",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "7505c3e4f78025b0c25875c22cf33790d91c1ef84f4b7fe33947dcb110b4b04c"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "7505c3e4f78025b0c25875c22cf33790d91c1ef84f4b7fe33947dcb110b4b04c"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/content_settings/generated_javascript_optimizer_pref.cc",
+      "section_sha256": "ed7f8dda850d4549c83f8d685e8f9c1a6e8bd54c7a0c16e29528a65c6f65f0ac",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "319dcfcfb91340a6c3998dcea11ed9a0ff02b9dc23129cefcb782e87ae7e2cbf"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "319dcfcfb91340a6c3998dcea11ed9a0ff02b9dc23129cefcb782e87ae7e2cbf"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/download/download_browsertest.cc",
+      "section_sha256": "60625faef752731bfe15f94142b104763567b6113ed843cd5f5519b56ace1519",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "a247f83d08aade1b1190e79efb5eeb0e1217056850db7c10470b69d3923b0baf"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "a247f83d08aade1b1190e79efb5eeb0e1217056850db7c10470b69d3923b0baf"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/download/download_ui_model.cc",
+      "section_sha256": "bad80fc01c831b8e5a74e84e001018390d641471dc64717147e1c31dfe6ed294",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "a240538ba7d74bd279dd80b525ee85e24de7f14e31a2f7eee471a502310b94f9"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "a240538ba7d74bd279dd80b525ee85e24de7f14e31a2f7eee471a502310b94f9"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/download/download_ui_safe_browsing_util.cc",
+      "section_sha256": "736b5c5dd1512c63de559fc2d08c28178b7ab06e360a41232d5f570c7e8d597c",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "2d571474d50486ac167c97820d877071bded83b34aac00439141f2e177617d91"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "2d571474d50486ac167c97820d877071bded83b34aac00439141f2e177617d91"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/enterprise/connectors/analysis/content_analysis_delegate.cc",
+      "section_sha256": "032436551372519bc6dfc9faa114272c1fd501d5ad921fb19a2e15dae0673d6d",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "6f401a8544f61c5795718e819f9f99bdb00c7e9f180929e2fcb3a087f9b962ec"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "6f401a8544f61c5795718e819f9f99bdb00c7e9f180929e2fcb3a087f9b962ec"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/enterprise/signals/context_info_fetcher.cc",
+      "section_sha256": "bb25e6679ea2fce453bcc7a5c8861cd3cf0fb69da87a765d7e8a5dd5e6a34f92",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "c6be66d8164250ca5d7d1cb7e6dae8e2bd47c1324f8039949458d046a7e6489f",
+        "e9f21d5fa2ff22869c20b4db4ce80902bb1658b148ca1f264033862ffaf676c2"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing",
+        "PasswordProtection"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1,
+        "SafeBrowsing": 1,
+        "PasswordProtection": 1
+      },
+      "restored_hunks_sha256": [
+        "e9f21d5fa2ff22869c20b4db4ce80902bb1658b148ca1f264033862ffaf676c2"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/enterprise/signals/context_info_fetcher.h",
+      "section_sha256": "2e7f2b48bc4820564a907fd96d9e3beae5e83622d16f7f069bd588eb032a29c6",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "6cd337664341eb1cd72e3e0f0e0f28b876368d1bad2e2d7c462d6f249d821934",
+        "01d3e423dc6500b26a3d877e04df4942f19ffb9419e04784d68e5281b8561bae"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing",
+        "PasswordProtection"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 2,
+        "SafeBrowsing": 1,
+        "PasswordProtection": 1
+      },
+      "restored_hunks_sha256": [
+        "6cd337664341eb1cd72e3e0f0e0f28b876368d1bad2e2d7c462d6f249d821934",
+        "01d3e423dc6500b26a3d877e04df4942f19ffb9419e04784d68e5281b8561bae"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/extensions/api/enterprise_reporting_private/enterprise_reporting_private_api.cc",
+      "section_sha256": "c88531ade7be318ac4ed2bca658f147c35c73062bcf1cd3b83cc677e59b79736",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "10073345e9e5b1f4e2ac7c9365cc135573c29b2e49a2a775ed6adc19947961ef"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing",
+        "PasswordProtection"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1,
+        "SafeBrowsing": 1,
+        "PasswordProtection": 1
+      },
+      "restored_hunks_sha256": [
+        "10073345e9e5b1f4e2ac7c9365cc135573c29b2e49a2a775ed6adc19947961ef"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/extensions/api/preference/preference_api.cc",
+      "section_sha256": "c09fd849d3e999c937d5be13a7b40dbce0fdbd57a4cfde88a3c3f889637c5c81",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "e1f0663ce9677b0ac3f61ed67862737f4d4b3d7804cc296cca6281ab837e9361",
+        "e3e038819cc5474c378c1caae6821dfeb932c552b63982e88e6e481665917a09",
+        "1ac8e49d6df0dada095866fe6ec13bf78f017061dae653399ae2c901a5e005dc"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1,
+        "SafeBrowsing": 2
+      },
+      "restored_hunks_sha256": [
+        "e1f0663ce9677b0ac3f61ed67862737f4d4b3d7804cc296cca6281ab837e9361",
+        "e3e038819cc5474c378c1caae6821dfeb932c552b63982e88e6e481665917a09",
+        "1ac8e49d6df0dada095866fe6ec13bf78f017061dae653399ae2c901a5e005dc"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/extensions/api/preference/preference_apitest.cc",
+      "section_sha256": "2f4de91f61c25bc550ba97c33a92c2954b1aa747b7a2352c27b22025a739edd6",
+      "hunk_count": 4,
+      "hunks_sha256": [
+        "99efa12bb45fb9bd6ab031bbed5dde9c4889ed0b281dfc56b9e2ac02eb360b3a",
+        "71a5c41321d6655bf7c99e33f186eca5e824ad71389efbfa71560397a841f855",
+        "bee8e81fb7a24376e97b7a1a544a1b008a7a03aa642ad7e33aba16a9f5d532bb",
+        "9a05f5b0c16fb1c3af58f58b8456f2a146f4d931095fc2be0e6bffed93b0b18d"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1,
+        "SafeBrowsing": 3
+      },
+      "restored_hunks_sha256": [
+        "99efa12bb45fb9bd6ab031bbed5dde9c4889ed0b281dfc56b9e2ac02eb360b3a",
+        "71a5c41321d6655bf7c99e33f186eca5e824ad71389efbfa71560397a841f855",
+        "bee8e81fb7a24376e97b7a1a544a1b008a7a03aa642ad7e33aba16a9f5d532bb",
+        "9a05f5b0c16fb1c3af58f58b8456f2a146f4d931095fc2be0e6bffed93b0b18d"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router.cc",
+      "section_sha256": "4940dcb13fd7ce68460e9536424fb598353211d8314749d539647e7b3d1da8c6",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "acec17d434817e13b2711224c71955bf6bd1c908b082f765b61c84c25f1e3f84"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "acec17d434817e13b2711224c71955bf6bd1c908b082f765b61c84c25f1e3f84"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router_unittest.cc",
+      "section_sha256": "0ae6cca94d76d5d38fd2e19aeabaadd7b1e14a935a6ffd1ff2117c32dcc6135c",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "8cd2ce2ad0e96a8e27ab71fb3d5085fa9a2b88951a43954528a48ace6c4f619c"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "8cd2ce2ad0e96a8e27ab71fb3d5085fa9a2b88951a43954528a48ace6c4f619c"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/extensions/api/webstore_private/webstore_private_apitest.cc",
+      "section_sha256": "3abb51f85b4aacea17b51fa1561c612d69b8ccc7d56e02af3b906aae96a188b2",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "16561817c5dc3c19903de5b10689fcf632a6ac5493ebbc1832ff22c7168daed3"
+      ],
+      "markers": [
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "16561817c5dc3c19903de5b10689fcf632a6ac5493ebbc1832ff22c7168daed3"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/extensions/extension_service.cc",
+      "section_sha256": "ac3284b70dfce22f803362fba220b4c59d130be9bdf42bfb823c886ca12b3528",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "7fb4d1a49ea2412b3c27be8be5f1066b097581403e8efab05f935be8161e4490"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "7fb4d1a49ea2412b3c27be8be5f1066b097581403e8efab05f935be8161e4490"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/extensions/installed_loader.cc",
+      "section_sha256": "573a76b9ee8cc52664511c808850ddd99860bb817d7ed862cae828a22b5e5a27",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "9282a2c8016187fb6cfc40d48907e135c3113fe1679b02161c2c164cac90d4cf",
+        "0cebede396d26bcbae0b80ba28e780fad2a892a016720d936e343b4dc38dae18"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 2
+      },
+      "restored_hunks_sha256": [
+        "9282a2c8016187fb6cfc40d48907e135c3113fe1679b02161c2c164cac90d4cf",
+        "0cebede396d26bcbae0b80ba28e780fad2a892a016720d936e343b4dc38dae18"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/extensions/pref_mapping.cc",
+      "section_sha256": "658469b09fd6dd9badb4b319f85359aa66871c5302e2e7e378a2ad9b100d8fc7",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "ab53b3b3bd30921f27f743e3ea2c9b97e8e11048f5e0cde42adabbe6e8952b8c",
+        "5f145aa31f99cb76b63c58f2cfd5375682e8ae36ea5e98ffdd9ddb81aadcef23"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1,
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "ab53b3b3bd30921f27f743e3ea2c9b97e8e11048f5e0cde42adabbe6e8952b8c",
+        "5f145aa31f99cb76b63c58f2cfd5375682e8ae36ea5e98ffdd9ddb81aadcef23"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/notifications/platform_notification_service_impl.cc",
+      "section_sha256": "0a8bca3b5fea628ba0f1d03ce456239dee47e6e454c23a3dd5472ad9379b4744",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "3515beb2135632e0837231ab4ae78dbf9979841395c4c81f8f75e32dc4d5ec53",
+        "b5a044c6e69e6b99d39e0489233c70e62d4ce49dcc681f2616f65fe12c176680"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 2
+      },
+      "restored_hunks_sha256": [
+        "3515beb2135632e0837231ab4ae78dbf9979841395c4c81f8f75e32dc4d5ec53",
+        "b5a044c6e69e6b99d39e0489233c70e62d4ce49dcc681f2616f65fe12c176680"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/prefs/chrome_command_line_pref_store.cc",
+      "section_sha256": "519947f2e31d5b0e468ef8cf63f9a347adcadd12946cf3b0336ce77b989daf19",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "d9b781c30f1ce23389fa0410d22baf084972039017a9c60ec0d65e228a3751da",
+        "c2e87b7e4c2349da6928df2c01caac353d4eb4339f024f39bb466ca7741ac10e"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 2,
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "d9b781c30f1ce23389fa0410d22baf084972039017a9c60ec0d65e228a3751da",
+        "c2e87b7e4c2349da6928df2c01caac353d4eb4339f024f39bb466ca7741ac10e"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/prefs/pref_functional_browsertest.cc",
+      "section_sha256": "637075aad50cadc36f1b8fbaa1050540a6dbbd50a809c69bf0433f8c7252d2c3",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "02929dd86873538e0852034b678eb95a5508f000b1118affc3abef0b8fc2f914",
+        "99e7b0f136b6988f67a5e0f52fe42adf643d452cd3eb6dd56e59846c5775ad3e",
+        "3beed3164f18ef643e54bbc9e7b4f9c33d2979b604b307e7cf04c04b2f5df512"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1,
+        "SafeBrowsing": 2
+      },
+      "restored_hunks_sha256": [
+        "02929dd86873538e0852034b678eb95a5508f000b1118affc3abef0b8fc2f914",
+        "99e7b0f136b6988f67a5e0f52fe42adf643d452cd3eb6dd56e59846c5775ad3e",
+        "3beed3164f18ef643e54bbc9e7b4f9c33d2979b604b307e7cf04c04b2f5df512"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/resources/settings/privacy_page/security/security_page.html",
+      "section_sha256": "c50358efa2cb259ac5df330adbb8800c4880110c6b71ab835ca2c902a6495ac6",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "b12780e48429e1139ad4c8b499d6ae682a3c9a880ca8020032574f6e81ff789a",
+        "52978f87a88adc9dc1bcf6024676620edeb014a44eddaeea8a4ada2373e29ad8"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing",
+        "safebrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1,
+        "SafeBrowsing": 1,
+        "safebrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "b12780e48429e1139ad4c8b499d6ae682a3c9a880ca8020032574f6e81ff789a"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/resources/settings/privacy_page/security/security_page.ts",
+      "section_sha256": "a345a489f1bf2a9db4d89f8eabc50dc97cc349651733d83d588651f14d96af24",
+      "hunk_count": 4,
+      "hunks_sha256": [
+        "9e3fc0c47d8ff7ba38b6eefcd60adde7fbbd2e9709a1e37ddffb48fd0aa2edd6",
+        "a59377ee6b983b83940d1bc1c79679fcfa623e25682d245d928647d1eaf71311",
+        "b9cf6ce939344669b2d88123126b7dc96f326930cead3d1babe4ac3890813bf9",
+        "911d71aa2418e4e59dc824d57008af8cd220e98b4e0a1e1b667cbf4d8915d0dd"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing",
+        "LeakDetection"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 2,
+        "SafeBrowsing": 2,
+        "LeakDetection": 1
+      },
+      "restored_hunks_sha256": [
+        "9e3fc0c47d8ff7ba38b6eefcd60adde7fbbd2e9709a1e37ddffb48fd0aa2edd6",
+        "b9cf6ce939344669b2d88123126b7dc96f326930cead3d1babe4ac3890813bf9",
+        "911d71aa2418e4e59dc824d57008af8cd220e98b4e0a1e1b667cbf4d8915d0dd"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/resources/settings/site_settings/site_settings_page.ts",
+      "section_sha256": "9cd5b0b39d845901e13ba18f5077b551c89d15c8fefff1558b74332b4dff3eee",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "a572ee36c6fcf5a9ab25b41990e75affdfcc3c16c9acc718e94c15e72f8b2889"
+      ],
+      "markers": [
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "a572ee36c6fcf5a9ab25b41990e75affdfcc3c16c9acc718e94c15e72f8b2889"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/site_protection/site_familiarity_utils.cc",
+      "section_sha256": "deb66d1a742ad19fca86cf4d99fc387bf78afb0775a9528e01f3cd8fd77aaf59",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "6adbbd01de319fdfc02365582f8014c613d3e077c4b9622807d440f7bbc155f3"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "6adbbd01de319fdfc02365582f8014c613d3e077c4b9622807d440f7bbc155f3"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ssl/sct_reporting_service.cc",
+      "section_sha256": "aa38d84b03f190e7f308cb1256f8495ee313e60b686abf6d3db71bde15a055fd",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "c8c62f30713733fdef4e5fbd5f0ea8097e6f9af1fcf33d2a3d6382d68cac7032",
+        "968819f610854b49dc00f3bfc696d54ba2dd96c839948fc06c730895368ce137"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 2,
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "c8c62f30713733fdef4e5fbd5f0ea8097e6f9af1fcf33d2a3d6382d68cac7032",
+        "968819f610854b49dc00f3bfc696d54ba2dd96c839948fc06c730895368ce137"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ssl/ssl_browsertest.cc",
+      "section_sha256": "422dca5ec6bd9e1db6fb8b0d03d4704455de2d0617dbfd56d98b36da944f0537",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "4e9b4f23ebb7d324d252971f846bbf8eecef49b05bca58e7f64013970157f835"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "4e9b4f23ebb7d324d252971f846bbf8eecef49b05bca58e7f64013970157f835"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ssl/ssl_error_controller_client.cc",
+      "section_sha256": "613fe69458f413aae0e2c65cb6b56a8e83b079b747a356c141515b84fbf24a1c",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "da73438d813fc68be3c286994deeb717bbcd5c4f6817ab1ed0d6b3f0871c590a"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "da73438d813fc68be3c286994deeb717bbcd5c4f6817ab1ed0d6b3f0871c590a"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/safety_hub/menu_notification_service.cc",
+      "section_sha256": "e72cd41e859326a25ec7b58437c7e03bcdda4af83eabc8978314a8843fa4d050",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "029e7fc1d53ddf3496349695f0bf2b9e744f1054bc60d3f62416f6fa212044f4",
+        "06dd888e7fa84f279e40ca6b274a68d08d17b997fc99b3383e5904cd1f7ca568"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1,
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "029e7fc1d53ddf3496349695f0bf2b9e744f1054bc60d3f62416f6fa212044f4",
+        "06dd888e7fa84f279e40ca6b274a68d08d17b997fc99b3383e5904cd1f7ca568"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/safety_hub/safe_browsing_result.cc",
+      "section_sha256": "21ac1ef3366ced9a287b70b8ad941849ae1d479c813e06fafb131848046c2ff9",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "09487ad3317c985d4a174a232ad0f0f28f6b385bf6754fba44441d6cf77203ae",
+        "4b420ad779d637cd890e818558b756bc1cab20f6c34ac2c525a08523e6e35551"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 2,
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "09487ad3317c985d4a174a232ad0f0f28f6b385bf6754fba44441d6cf77203ae",
+        "4b420ad779d637cd890e818558b756bc1cab20f6c34ac2c525a08523e6e35551"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc",
+      "section_sha256": "d7d4f6faf8fc90f445141859aefaf1dc410616cc0871a62e5110a37f09b5f6fa",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "1e0940b909083cc579b05609676042780eb04b9d3093e109cd6675f5df347d0c"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "1e0940b909083cc579b05609676042780eb04b9d3093e109cd6675f5df347d0c"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/views/safe_browsing/password_reuse_modal_warning_dialog.h",
+      "section_sha256": "df3356d6619e3149903de2eba50fb1457a98539c4cf076f6acf69dbc6aa76e83",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "7874561106ec462ced63490aff01b791cab9280344d14cc9bbf0dfd3d46ea593"
+      ],
+      "markers": [
+        "PasswordProtection"
+      ],
+      "marker_hunk_counts": {
+        "PasswordProtection": 1
+      },
+      "restored_hunks_sha256": [
+        "7874561106ec462ced63490aff01b791cab9280344d14cc9bbf0dfd3d46ea593"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/browser_command/browser_command_handler.cc",
+      "section_sha256": "2726e22f6a3ce82bc09479f040e2653e220ef13a58c1b9b7012632f53980ccca",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "c8c121d57ea23e395e8fd0601b8016e2541b86e5761c2ee37b38cd16261b4f3d",
+        "dda86098cd0cc13e37543b90e85d8f702082026e74db908d0b8caf7be7c320cd"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 2,
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "c8c121d57ea23e395e8fd0601b8016e2541b86e5761c2ee37b38cd16261b4f3d",
+        "dda86098cd0cc13e37543b90e85d8f702082026e74db908d0b8caf7be7c320cd"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/downloads/downloads_dom_handler.cc",
+      "section_sha256": "196e754f50703758ff4732f7c15dfed829ceae360bc15ed7daab2894d162663e",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "37ea76b11c62ee5c99c85c94e10912ee85296462c4568e8cb5e1f55571fe0a9c"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "37ea76b11c62ee5c99c85c94e10912ee85296462c4568e8cb5e1f55571fe0a9c"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/management/management_ui_handler.cc",
+      "section_sha256": "079981987bc4f3f7dc4532932f860906d160ca59af42942c513a0f43240ae538",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "e81fb7f342fe3893f6a9591b84f19b4c722748b973e8e3faf58b2fdbed45c0f3"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "e81fb7f342fe3893f6a9591b84f19b4c722748b973e8e3faf58b2fdbed45c0f3"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/reset_password/reset_password_ui.cc",
+      "section_sha256": "4dae94768a3565c61670a90d47b0004bcbbbb1a58542afd88b646fe7f7112d0a",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "9af6d8ce0fd0d92bd6ff65e74804defed50f2b578121d459ed50cde3cd6fa1a0"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "9af6d8ce0fd0d92bd6ff65e74804defed50f2b578121d459ed50cde3cd6fa1a0"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/settings/safety_hub_handler.cc",
+      "section_sha256": "6ed0ddb051e1f3275e831f1c1f21e86be11c251af7cfbbdec992be64a476f309",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "c97ff6e3ffec5c6805e81c0e4664a7a50ccf46bc1e80204f63a68250684ba487"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "c97ff6e3ffec5c6805e81c0e4664a7a50ccf46bc1e80204f63a68250684ba487"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc",
+      "section_sha256": "43878d18e26a7ca8ebefb3b82716b1cfd319f59610bc09f3b22f07b0f9578aec",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "cd64e417b9a40add55b3172d27d055457b296a99da6a12874e8a9b4cd7103493",
+        "43e81c528f0711f7db73cfd29a5ed8172c076275e5881850753f9f2058ed1207"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1,
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "cd64e417b9a40add55b3172d27d055457b296a99da6a12874e8a9b4cd7103493",
+        "43e81c528f0711f7db73cfd29a5ed8172c076275e5881850753f9f2058ed1207"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/unified_consent/unified_consent_service_factory.cc",
+      "section_sha256": "d9d7f78e08017f46a2e879c21dbfdf981bc0e55caa88ce2084f2cf368bf71d0c",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "4939260be04b2ebb1cfcef36435d5155a185e96f92b906d602cb7e9a262e9f79",
+        "88946a1132799d117312abd06dbac7a9635b6ea96bad9695530c95c324c8ac7a"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1,
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "4939260be04b2ebb1cfcef36435d5155a185e96f92b906d602cb7e9a262e9f79",
+        "88946a1132799d117312abd06dbac7a9635b6ea96bad9695530c95c324c8ac7a"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "chrome/common/extensions/api/privacy.json",
+      "section_sha256": "339dd48706dd4a058bdb46b3e00f34cfd27fce3a039e1d053d8849c60d541567",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "7d7c30d279527cc899809a356fe23cfa11848982a75b2736a0ef59eea6bc6975"
+      ],
+      "markers": [
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "7d7c30d279527cc899809a356fe23cfa11848982a75b2736a0ef59eea6bc6975"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/device_signals/core/browser/browser_utils.h",
+      "section_sha256": "a5d6ee3bfae45ceb51d10f827774688affa51d2e9b53433bdab8709ddd4ad944",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "7ca6a477334e21136a1995efa79fb836bfbeac1a96f17ede4b98ff4415c9b930"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "7ca6a477334e21136a1995efa79fb836bfbeac1a96f17ede4b98ff4415c9b930"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/password_manager/core/browser/password_reuse_detector_impl.cc",
+      "section_sha256": "acd5f814b567b06a7c46765522bb05d139fea2b76df8167f93aeec8aefa1e05f",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "2d417c9f8502b13ccc50b7c0e2dbc6663d6494df901c914ecc95f929fbb71deb",
+        "a11bcd1542b88964c4cd8ef9d849683fbb814a86251332bea1bfb9b77fab2105"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 2
+      },
+      "restored_hunks_sha256": [
+        "2d417c9f8502b13ccc50b7c0e2dbc6663d6494df901c914ecc95f929fbb71deb",
+        "a11bcd1542b88964c4cd8ef9d849683fbb814a86251332bea1bfb9b77fab2105"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/password_manager/core/browser/password_reuse_manager_impl.cc",
+      "section_sha256": "343dadb41a7a208ba8b6da2ec1164c755a073ce48a8839848bfc4197ae7161fd",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "2087ccd562b4d063ea8c3ae21d865417544d191e416b80e93ad3d954b721ba6e",
+        "3a2f214f52509ad73e923a3d2324dbf0b55796b53969af54c1136132058435cb"
+      ],
+      "markers": [
+        "safe_browsing",
+        "PasswordProtection"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 2,
+        "PasswordProtection": 1
+      },
+      "restored_hunks_sha256": [
+        "2087ccd562b4d063ea8c3ae21d865417544d191e416b80e93ad3d954b721ba6e",
+        "3a2f214f52509ad73e923a3d2324dbf0b55796b53969af54c1136132058435cb"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/password_manager/core/browser/password_sync_util.cc",
+      "section_sha256": "ceb1ce52cfb334c7e9e6c703cba98909d8ec43ac3931ac4f35122fc5fae656df",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "a9bc49847eacb33a038a2d2dbeeebe9d6137d510920aca3a71dc27986508d050",
+        "e11438dfc5fef1638fe911e33784f2c3d55872b8a5f2136dee7059d14f6a6b0f"
+      ],
+      "markers": [
+        "safe_browsing",
+        "PasswordProtection"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 2,
+        "PasswordProtection": 1
+      },
+      "restored_hunks_sha256": [
+        "a9bc49847eacb33a038a2d2dbeeebe9d6137d510920aca3a71dc27986508d050",
+        "e11438dfc5fef1638fe911e33784f2c3d55872b8a5f2136dee7059d14f6a6b0f"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/password_manager/core/browser/store_metrics_reporter.cc",
+      "section_sha256": "a7a0073a3748264d9d01f8a2f0754130e95a6f14c6daef74c1e96facd290b20b",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "631bdbe19f5439bb808919a4ba196453b14a04d5087ddd69a0136935a91d27a9",
+        "5246cb1c8e4cdbb71b0d6948af6c3678cb81914e1367f34836c9f8bb5238f381"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 2,
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "631bdbe19f5439bb808919a4ba196453b14a04d5087ddd69a0136935a91d27a9",
+        "5246cb1c8e4cdbb71b0d6948af6c3678cb81914e1367f34836c9f8bb5238f381"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/password_manager/core/browser/sync_credentials_filter_unittest.cc",
+      "section_sha256": "e733057a73e1efa59501b0dbdd8becd26582c4f73fb149166921e70e67c3a384",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "046a677bb810bb6e7837c4393d0b6fc934d525d3ef1c4400403c8a965c394edc"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "046a677bb810bb6e7837c4393d0b6fc934d525d3ef1c4400403c8a965c394edc"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/safety_check/safety_check.cc",
+      "section_sha256": "db345024871bdeb8931dcf97c9880e6532189a1b9e0ffb22f5950da2601fd648",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "121154744769d2b8911b9140c7bc703eb00ce183a19ec503b5252b0a38ae982d",
+        "3a4de92aa9a3397477c6afa197828d18f423d19b1ee0bb8409635d32004e7479"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1,
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "121154744769d2b8911b9140c7bc703eb00ce183a19ec503b5252b0a38ae982d",
+        "3a4de92aa9a3397477c6afa197828d18f423d19b1ee0bb8409635d32004e7479"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/security_interstitials/content/bad_clock_blocking_page.cc",
+      "section_sha256": "f6e677b32c12cf2c1d47ccac8e7361d76d7e2fe8eb35adfbf666af0d04bb99d6",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "c1444254f56859c93ffaa144a556f9a3a67e7e192cdffec3f473d82681670193"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "c1444254f56859c93ffaa144a556f9a3a67e7e192cdffec3f473d82681670193"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/security_interstitials/content/captive_portal_blocking_page.cc",
+      "section_sha256": "e7d315397bb600a75fec2bf9bb17e8246d5d337c357df9b828b390b5d035b441",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "9150f6eb6120098242d9a1980065653667a6aa24929edbcb24744001655b0766"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "9150f6eb6120098242d9a1980065653667a6aa24929edbcb24744001655b0766"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/security_interstitials/content/mitm_software_blocking_page.cc",
+      "section_sha256": "a6751bff3162381555481e5dd662340d62ac1186878d74382c1ad3f2ff43ef38",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "16bd35a95304ea9756e1ff0ce35aa55a6bf7098064d89ad354fd6f569435ea29"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "16bd35a95304ea9756e1ff0ce35aa55a6bf7098064d89ad354fd6f569435ea29"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/security_interstitials/content/security_interstitial_controller_client.cc",
+      "section_sha256": "0179c8fa03caf20aeccdefa2584448c85290c9975f0f0a4f1c26e37c59f84cdc",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "ced39cd5017c8ab745714c1bb0d3f3ad4ee785f4845c1d5bde5271426ac3e648",
+        "9328a9c5bd7891a5794ec32d44cd3f763b8d9a85f9038a89ee93b5de3e867e74"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1,
+        "SafeBrowsing": 1
+      },
+      "restored_hunks_sha256": [
+        "ced39cd5017c8ab745714c1bb0d3f3ad4ee785f4845c1d5bde5271426ac3e648",
+        "9328a9c5bd7891a5794ec32d44cd3f763b8d9a85f9038a89ee93b5de3e867e74"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/security_interstitials/content/security_interstitial_controller_client.h",
+      "section_sha256": "b159de2125f2049ac5ef2c14f57b1b9ae553dd801fd25573cce97af995601376",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "14ce908f159510aa553ace26be3a75806cf9d53ad4396467e66ea4c622d66073"
+      ],
+      "markers": [
+        "GetExtendedReportingPrefName"
+      ],
+      "marker_hunk_counts": {
+        "GetExtendedReportingPrefName": 1
+      },
+      "restored_hunks_sha256": [
+        "14ce908f159510aa553ace26be3a75806cf9d53ad4396467e66ea4c622d66073"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/security_interstitials/content/security_interstitial_page.cc",
+      "section_sha256": "ad2a292cc5dd8eec2d9628386ce0d2ae6d890d842e979534d0c9fc6062002434",
+      "hunk_count": 3,
+      "hunks_sha256": [
+        "e8e959c9bf99226cdc79fb968d4ced3095473b2dfe99ee5f2ca550f24ca24634",
+        "58347edc30aa1d7bd8ed925ab80951dbfb4aa93bb2b1e96d3fc9734e8525d3f9",
+        "1ac1df50767cea392e38a2f2b7f91099df24662062b0bf632985bf3950a3f1ee"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 3
+      },
+      "restored_hunks_sha256": [
+        "e8e959c9bf99226cdc79fb968d4ced3095473b2dfe99ee5f2ca550f24ca24634",
+        "58347edc30aa1d7bd8ed925ab80951dbfb4aa93bb2b1e96d3fc9734e8525d3f9",
+        "1ac1df50767cea392e38a2f2b7f91099df24662062b0bf632985bf3950a3f1ee"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/security_interstitials/content/ssl_blocking_page.cc",
+      "section_sha256": "f53bb4bdab258ea28db832bcc100b2a4e069e98e5aeeff445c42a08e671acb3a",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "8e4db0354df93632c1417d72a421eae51ec243ef92f5a066a02419cbbad0a08f"
+      ],
+      "markers": [
+        "safe_browsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1
+      },
+      "restored_hunks_sha256": [
+        "8e4db0354df93632c1417d72a421eae51ec243ef92f5a066a02419cbbad0a08f"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/security_interstitials/core/controller_client.cc",
+      "section_sha256": "2fc2afe956c21903a95310a3b871c54568b3c060b48fd9b07c11b3e49d89ca60",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "3c8b822df94b96cc2de0d2f0f095bcbbf67e0ab0d1e7ca50c2147d73dcba0a3f"
+      ],
+      "markers": [
+        "GetExtendedReportingPrefName"
+      ],
+      "marker_hunk_counts": {
+        "GetExtendedReportingPrefName": 1
+      },
+      "restored_hunks_sha256": [
+        "3c8b822df94b96cc2de0d2f0f095bcbbf67e0ab0d1e7ca50c2147d73dcba0a3f"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/security_interstitials/core/controller_client.h",
+      "section_sha256": "a7403915eb1da7e42412fc136e1139c4d35e7c41693ebc9a7c4a751c255f2f59",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "9a53594e0c9c3d1129863138f5ab9ef0e66c5d704886215cfcfcb287164ee87e"
+      ],
+      "markers": [
+        "GetExtendedReportingPrefName"
+      ],
+      "marker_hunk_counts": {
+        "GetExtendedReportingPrefName": 1
+      },
+      "restored_hunks_sha256": [
+        "9a53594e0c9c3d1129863138f5ab9ef0e66c5d704886215cfcfcb287164ee87e"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "components/sync_preferences/common_syncable_prefs_database.cc",
+      "section_sha256": "e941bc2facb0de842ebb81424e61d7cb515803a56e4b808c001664f2bd8f2629",
+      "hunk_count": 4,
+      "hunks_sha256": [
+        "150f0481c453bbf3706030cfea12ebe0e57940e5c35c49b21a0962cc5c31599f",
+        "f09770a9d4b08ea9b1e9fa5f8b040841d5a595b34f0c582b4996b8495e96c37e",
+        "7af8e3016decae01436ea117db574a63e37a95e0f5107516cb208ab60a16c8e1",
+        "7afc16894ed5885600c1d9db61573d45cada2d3e089bb511a110be009f9e5b80"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 1,
+        "SafeBrowsing": 2
+      },
+      "restored_hunks_sha256": [
+        "150f0481c453bbf3706030cfea12ebe0e57940e5c35c49b21a0962cc5c31599f",
+        "f09770a9d4b08ea9b1e9fa5f8b040841d5a595b34f0c582b4996b8495e96c37e",
+        "7afc16894ed5885600c1d9db61573d45cada2d3e089bb511a110be009f9e5b80"
+      ]
+    },
+    {
+      "kind": "restore_hunks",
+      "patch": "core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "path": "extensions/browser/extension_allowlist.cc",
+      "section_sha256": "9770e4ca8ffcf20420dac7b29ee6bbd305ba25f87a80bc61c7c21a2060a0b9f8",
+      "hunk_count": 4,
+      "hunks_sha256": [
+        "450e4856738dd26f6d96e4d7ff037d689d444b57c5483fa3900e5934a7100a6a",
+        "7c8678e3dd20624feaa5ccd87cae7e7560b53e6428d865da2d2d74641913ea0b",
+        "be6ce6cc69d40d36be266cd7b82c2c80e4d421b488c495d052aa773d1bde86ba",
+        "379d7e77858ca4f384540ec363bdf13d52286055bc333b8b43885d497b195e19"
+      ],
+      "markers": [
+        "safe_browsing",
+        "SafeBrowsing"
+      ],
+      "marker_hunk_counts": {
+        "safe_browsing": 3,
+        "SafeBrowsing": 3
+      },
+      "restored_hunks_sha256": [
+        "450e4856738dd26f6d96e4d7ff037d689d444b57c5483fa3900e5934a7100a6a",
+        "7c8678e3dd20624feaa5ccd87cae7e7560b53e6428d865da2d2d74641913ea0b",
+        "be6ce6cc69d40d36be266cd7b82c2c80e4d421b488c495d052aa773d1bde86ba",
+        "379d7e77858ca4f384540ec363bdf13d52286055bc333b8b43885d497b195e19"
+      ]
+    },
+    {
+      "kind": "restore_windows_sections",
+      "patch": "ungoogled-chromium/windows/windows-fix-remove-unused-preferences-fields.patch",
+      "path": "chrome/browser/policy/configuration_policy_handler_list_factory.cc",
+      "section_sha256": "0b7ec55034e3cf080bec7f59e135b6be47ae974a5f88b41aa277154a3829cb03",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "9f10471015d2fb63a274fc0a20ab49c2f5789676c92d392f720c962195c7d7a6"
+      ]
+    },
+    {
+      "kind": "restore_windows_sections",
+      "patch": "ungoogled-chromium/windows/windows-fix-building-without-safebrowsing.patch",
+      "path": "chrome/app/BUILD.gn",
+      "section_sha256": "d9b71a6fb535ae5492f65b851cbece2ec29ecd703ceee3df3babefdf9f25db1c",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "dfdd66636b31e798e1bcdd8a298f2b779b27961c0f018b42e8f21728b2b5f8ce"
+      ]
+    },
+    {
+      "kind": "restore_windows_sections",
+      "patch": "ungoogled-chromium/windows/windows-fix-building-without-safebrowsing.patch",
+      "path": "chrome/browser/chrome_content_browser_client.cc",
+      "section_sha256": "24ca2c83bd896378b586231434593e68ab61834e9be40f511b844d2d98504b02",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "74a57988089c25e6691d93beecd6d47ed14df3211ec82e470e88bd6f68ae1b65",
+        "a3e1fc15a6d6e47b57d86209d96b0fa7b5fad512ebd283da66e16349d06dc7e4"
+      ]
+    },
+    {
+      "kind": "restore_windows_sections",
+      "patch": "ungoogled-chromium/windows/windows-fix-building-without-safebrowsing.patch",
+      "path": "chrome/browser/safe_browsing/BUILD.gn",
+      "section_sha256": "9704c10b18b062af59a198b4ce14869215c67b09ed0205d94edbe7ad19876044",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "5b9d8b0b85ef6d3397ef33b405e38d0456b9b5ff2604752ed3979b7c4c4e064f"
+      ]
+    },
+    {
+      "kind": "restore_windows_sections",
+      "patch": "ungoogled-chromium/windows/windows-fix-building-without-safebrowsing.patch",
+      "path": "chrome/browser/safe_browsing/safe_browsing_dummy.cc",
+      "section_sha256": "320693e5122cf8aea899745c2a58859e7ef71aca7ab2be431e49c573ae7a51d3",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "4602f5ff4663e117cff837e33d28fc48fee5b98c22a5d309d406de525dc41d71"
+      ]
+    },
+    {
+      "kind": "restore_windows_sections",
+      "patch": "ungoogled-chromium/windows/windows-fix-building-without-safebrowsing.patch",
+      "path": "chrome/browser/signin/signin_util_win.cc",
+      "section_sha256": "bf14b2a95e04ab067a963318c03de267f6b8a32025a3469fcd62cc2c809a4aaa",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "9bd02cee14df3b05ba55f2eb163ec46f9415647901cff85d002699f8491d0cad"
+      ]
+    },
+    {
+      "kind": "restore_windows_sections",
+      "patch": "ungoogled-chromium/windows/windows-fix-building-without-safebrowsing.patch",
+      "path": "chrome/browser/ui/views/page_info/BUILD.gn",
+      "section_sha256": "74b640963ba7b9ccdc804a941793a1980d27e378fd4106af60d800781eb9f05b",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "4d938b4ef4f69a84c3234a6cca19538fab1cea51f02be54fb78d79579530bf7c"
+      ]
+    },
+    {
+      "kind": "restore_windows_sections",
+      "patch": "ungoogled-chromium/windows/windows-fix-building-without-safebrowsing.patch",
+      "path": "components/safe_browsing/buildflags.gni",
+      "section_sha256": "9debe6b9253efaa18cb6c6473632602365e3311d197aac1f3a506a8ad5477738",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "2c441c3e8fbb3937211204cd6cab0d3793f818fa93b162307d1e489cf4e9218b"
+      ]
+    },
+    {
+      "kind": "restore_windows_sections",
+      "patch": "ungoogled-chromium/windows/windows-fix-building-without-safebrowsing.patch",
+      "path": "components/safe_browsing/core/browser/ping_manager.cc",
+      "section_sha256": "9f8572325eb27a7df712cf8d2409e13bb597007cb2b040d3708e7e44c1faaa33",
+      "hunk_count": 2,
+      "hunks_sha256": [
+        "ae85c596d3d3c1ce57afc72a4286db7c96b3f2bcd63d326b27e3616712098bb1",
+        "3218a7ba2a7df44ed8db45e56a08ca13d790354ac37aeb1ccc589b5a7717f3c3"
+      ]
+    },
+    {
+      "kind": "restore_windows_sections",
+      "patch": "ungoogled-chromium/windows/windows-disable-download-warning-prompt.patch",
+      "path": "components/download/internal/common/download_item_impl.cc",
+      "section_sha256": "4afac31a2f93ba79172777a21618e9a73410d51edd7225ec6b6f205d768f6e1b",
+      "hunk_count": 1,
+      "hunks_sha256": [
+        "4800637d7ce6944c96cbeb5e4a78bffacd05f7cba769fdb0c39fa662ed8211dc"
+      ]
+    }
+  ]
+}

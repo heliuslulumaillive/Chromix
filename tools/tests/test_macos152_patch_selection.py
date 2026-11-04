@@ -186,12 +186,17 @@ def test_macos152_does_not_change_other_platform_or_legacy_selection(tmp_path):
 def test_macos152_preparation_key_binds_selected_identity(macos152_repo, monkeypatch, style):
     actual = selection.preparation_key(macos152_repo, "macos", style)
     identity, patches = selection.select(macos152_repo, "macos")
-    monkeypatch.setattr(selection, "select", lambda *_: (
-        {key: value for key, value in identity.items() if key != "selection"}, patches))
+
+    def legacy_result(profile, value):
+        assert profile == "legacy"
+        return value
+
+    monkeypatch.setattr(selection, "select", lambda *_, profile="legacy": legacy_result(profile, (
+        {key: value for key, value in identity.items() if key != "selection"}, patches)))
     assert selection.preparation_key(macos152_repo, "macos", style) != actual
     legacy = [("patches/" + Path(path).name,
                (ROOT / "patches" / Path(path).name).read_bytes()) for path, _ in patches]
-    monkeypatch.setattr(selection, "select", lambda *_: ({}, legacy))
+    monkeypatch.setattr(selection, "select", lambda *_, profile="legacy": legacy_result(profile, ({}, legacy)))
     assert selection.preparation_key(macos152_repo, "macos", style) != actual
 
 

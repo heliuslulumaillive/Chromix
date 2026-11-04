@@ -12,6 +12,7 @@ with mock.patch.object(sys, 'path', [str(ROOT / 'tools'), *sys.path]):
     from tools import verify_google_services_candidate as candidate
 from tools import verify_native_browser_tests as browser_tests
 from tools import native_compiled_evidence as compiled
+from tools import verify_native_session_runtime as session
 from tools.tests.test_native_browser_runtime import good_report as good_browser_report
 from tools.tests.test_native_cookie_runtime import good_report as good_cookie_report
 
@@ -89,6 +90,27 @@ def write_native_integration_evidence(root, bundle, source):
         write_compiled_fixture(root, kind, compiled.REQUIRED_TESTS[kind], compiled.TEST_FILTERS[kind], build_path, build)
     for kind, value in (('browser', good_browser_report()), ('cookie', good_cookie_report())):
         write_json(root / ('native-' + kind + '-runtime.json'), bind_runtime(value, bundle, source, kind))
+    events = root / 'native-session-runtime.events.jsonl'
+    rows = [{'Package': session.PACKAGE, 'Test': name, 'Action': action}
+            for name in sorted(session.REQUIRED) for action in ('run', 'pass')]
+    rows.append({'Package': session.PACKAGE, 'Action': 'pass'})
+    events.write_text('\n'.join(json.dumps(row) for row in rows), encoding='utf-8')
+    write_json(root / 'native-session-runtime.json', {
+        'schema_version': 1, 'contract': session.CONTRACT, 'status': 'passed', 'source': source,
+        'required_tests': sorted(session.REQUIRED), 'executed_tests': sorted(session.REQUIRED),
+        'events_sha256': candidate.sha256(events), 'bindings_unchanged': True, 'owned_profiles_removed': True,
+        'started_at_utc': '2026-11-02T00:00:01Z', 'completed_at_utc': '2026-11-02T00:00:02Z',
+        'execution': {'private_desktop': 'ShardXSessionAcceptance-' + 'a'*32,
+            'input_desktop_before': 'Default', 'input_desktop_after': 'Default',
+            'exit_code': 0, 'timed_out': False, 'processes_before_cleanup': 0, 'cleanup_errors': [],
+            'switch_desktop_called': False, 'input_desktop_unchanged': True},
+        'binding': {'browser_sha256': candidate.sha256(bundle / 'chrome.exe'),
+            'chrome_dll_sha256': candidate.sha256(bundle / 'chrome.dll'),
+            'capabilities_sha256': candidate.sha256(bundle / 'native-browser-capabilities.json'),
+            'source_receipt_sha256': source['source_receipt_sha256'],
+            'build_record_sha256': candidate.sha256(build_path),
+            'verifier_inputs': session.verifier_inputs(), 'go_sha256': 'd'*64,
+            'test_executable_sha256': 'e'*64}})
 
 
 class NativeEvidenceTests(unittest.TestCase):
@@ -104,14 +126,14 @@ class NativeEvidenceTests(unittest.TestCase):
             (self.bundle / name).write_bytes((ROOT / 'build' / name).read_bytes())
         self.source = {key: 'a' * 64 for key in ('record_sha256', 'recipe_sha256', 'source_receipt_sha256', 'gn_sha256')}
 
-    def test_exact_fourteen_checks_and_every_negative_variant(self):
+    def test_exact_fifteen_checks_and_every_negative_variant(self):
         path = self.root / 'verification-results.json'
         valid = {'schema_version': 1, 'status': 'passed', 'checks': [
             {'label': name, 'status': 'passed'} for name in sorted(candidate.NATIVE_VERIFICATION_LABELS)]}
         write_json(path, valid)
-        self.assertEqual(len(candidate.validate_verification_results(path)['labels']), 14)
+        self.assertEqual(len(candidate.validate_verification_results(path)['labels']), 15)
         bad = [[], valid['checks'][:1], valid['checks'][:-1], valid['checks'] + [valid['checks'][0]],
-               [valid['checks'][0]] * 14]
+               [valid['checks'][0]] * 15]
         for rows in bad:
             write_json(path, {**valid, 'checks': rows})
             with self.assertRaises(ValueError): candidate.validate_verification_results(path)
@@ -147,7 +169,8 @@ class NativeEvidenceTests(unittest.TestCase):
                           for kind in ('passkey', 'browser', 'cookie')}, {'passkey': 67, 'browser': 9, 'cookie': 10})
         for name in ('native-browser-unittests.json', 'native-browser-launcher.json',
                      'native-browser-runtime.json', 'verification-results.json',
-                     'native-cookie-unittests.json', 'native-cookie-launcher.json', 'native-cookie-runtime.json'):
+                     'native-cookie-unittests.json', 'native-cookie-launcher.json', 'native-cookie-runtime.json',
+                     'native-session-runtime.json', 'native-session-runtime.events.jsonl'):
             path = self.root / name; original = path.read_bytes(); path.unlink()
             with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'Mandatory'):
                 verify()
@@ -157,6 +180,39 @@ class NativeEvidenceTests(unittest.TestCase):
         launcher_path = self.root / 'native-passkey-launcher.json'
         launcher = json.loads(launcher_path.read_text()); launcher['summary_sha256'] = candidate.sha256(summary)
         write_json(launcher_path, launcher)
+        with self.assertRaises(ValueError): verify()
+
+    def test_session_evidence_rechecks_events_binding_and_cleanup(self):
+        write_native_integration_evidence(self.root, self.bundle, self.source)
+        report_path = self.root / 'native-session-runtime.json'
+        events_path = self.root / 'native-session-runtime.events.jsonl'
+        report = json.loads(report_path.read_text(encoding='utf-8'))
+        payload = candidate.inventory(self.bundle)
+        verify = lambda: session.validate_existing(report_path, events_path, self.bundle, payload, self.source)
+        self.assertEqual(verify()['tests'], sorted(session.REQUIRED))
+        for fault in ('dll', 'verifier', 'cleanup', 'skipped', 'duplicate', 'time', 'desktop'):
+            changed = copy.deepcopy(report)
+            if fault == 'dll':
+                changed['binding']['chrome_dll_sha256'] = 'f'*64
+            elif fault == 'verifier':
+                changed['binding']['verifier_inputs'] = {}
+            elif fault == 'cleanup':
+                changed['execution']['processes_before_cleanup'] = 1
+            elif fault == 'skipped':
+                changed['executed_tests'].pop()
+            elif fault == 'duplicate':
+                changed['executed_tests'].append(changed['executed_tests'][0])
+            elif fault == 'time':
+                changed['started_at_utc'] = '2026-11-01T00:00:00Z'
+            elif fault == 'desktop':
+                changed['execution']['input_desktop_after'] = 'Changed'
+            write_json(report_path, changed)
+            with self.subTest(fault=fault), self.assertRaises(ValueError):
+                verify()
+        write_json(report_path, report)
+        events_path.write_text(events_path.read_text(encoding='utf-8').replace('"Action": "pass"', '"Action": "skip"', 1), encoding='utf-8')
+        report['events_sha256'] = candidate.sha256(events_path)
+        write_json(report_path, report)
         with self.assertRaises(ValueError): verify()
 
 

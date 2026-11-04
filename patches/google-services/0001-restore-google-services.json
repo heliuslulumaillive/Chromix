@@ -1410,10 +1410,6 @@
       "sha256": "0716acd79dbc80436417df5b0349980d521c3663198649bcdd8373c6f36589fa"
     },
     {
-      "path": "chrome/browser/ui/views/safe_browsing/password_reuse_modal_warning_dialog.cc",
-      "sha256": "f6944c22670f050aa2c2b8d72ad4b373b5d9203e7fc17551e0dd5909da7904fd"
-    },
-    {
       "path": "chrome/browser/ui/views/safe_browsing/password_reuse_modal_warning_dialog.h",
       "sha256": "145750e712fa1a6f0787521d109c32dd3bf17ae8bd2a418c5c8c23ddf4356a7c"
     },
@@ -4227,9 +4223,10 @@
     "files": {
       "CHROMIUM_WINDOWS_VERSION": "68d92a4dba65e695e0d31f0b0f210ee61ce7145ec89a08def77104b266cccd99",
       "UNGOOGLED_WINDOWS_VERSION": "e21b0fce64ba0f9c2457f30c618fb87e73fb88a8b1cd49af795548eca8f14395",
-      "build/google-services-win155.json": "e059b09b8f0ad869976b57863db7dcfe8f6e7e6e281708866c81ab9937fa5ba5",
+      "build/google-services-win155.json": "bce4003d3d312567a62d812e664cc515763505436abd71471b2252ddee5b2c0d",
       "build/native-browser-capabilities.json": "377651aefd3638186ba9f932843bc05a8b0dd9f35939b7a7f60417a446d95e6a",
       "build/native-cookie-capabilities.json": "16aa4163fc0cc84741f22dc550007faf3be4b06c94558a09a98b1c5e1be25003",
+      "build/restoration-rules-windows156.json": "5c7e0b7c6d78185673c448fb79d1dca2a1c25ae19e9e322d5bd06595d57e26c9",
       "build/security-resources/empty_file_type_policy.pb": "98ebc9403565619b3aa2f71f64f5f54adea01d4c4b54d873b2b91c2ac5544112",
       "build/security-resources/etw_events/MSG00001.bin": "51b3d8c734d307af13984bb2c2abde79c859a5acb6386fd233f3e9338f2a7dc5",
       "build/security-resources/etw_events/chrome_events_winTEMP.BIN": "1de7329c900e3e367a04ea99c1169cde528754c408de077628f5be856cfe0926",
@@ -4493,21 +4490,23 @@
       "patches/security/0002-preserve-disabled-enterprise-profile-id.patch": "aa0e2d5a6785b8792492afabd9d18859bbeea0852adfe82625fb81ded7c6ae80",
       "patches/security/0003-link-signed-web-bundle-payload.patch": "d4cad9e00eb141ea4409c3f22d1804636df4f0895867f9a478379dc526bc2a94",
       "patches/series": "71613faf45339ae3debd3dcf8afb95101989c4e6537d14dc7b0cebd1766f5863",
-      "tools/build_google_services_patch.py": "86a7120f4a24b11b21b091901950a632c63f089cfab2c0e0ac5d44111b56564c",
+      "tools/build_google_services_patch.py": "969666cba29fec426a06125d56e51ef364f1fa3d6e544c558d60ff9db8595407",
       "tools/build_history_retention_patch.py": "227055200a17293b4f74d1b6e507529981c8876878ec8e356bbef432c5264ebf",
       "tools/build_lite_retirement_patch.py": "65d7bb644d2236c2ab44ebef1e04c1e788c38a0dda89dd01ec920a85446f6cd7",
       "tools/build_session_lifecycle_patch.py": "f0a452665d8d2b2636bc25f5ef7ef6fe49d8a757e2da94f6db42bfcc40a6405b",
       "tools/build_translation_init_patch.py": "21592b5b161be26fb92d0ac96e129385d08a25df4db5a2cda46caf266fd3dfc0",
-      "tools/google_services_inputs.py": "dc983f1e19d72d8a4f45feb6e5287c4bec48135e642e0e531cd6c2c9b1973085",
-      "tools/patch_selection.py": "303dc5399fd3a7ae00d6f7a4fe74e9a9f3d52a07094886ae9329a458a76896f5",
+      "tools/google_services_inputs.py": "d998e31a1ba8c45084d22f1c506511169df5a7a0650aaa6b1c4110339826240a",
+      "tools/patch_selection.py": "917f6a7b654ce4232077420de294f491ff958e7882b1a1a5eea14763f4c302cc",
       "tools/platform_pins.py": "79f5da2b264015c837e2e77df5e51f64f712f745c3a50f8002949b6419d8cb3c",
+      "tools/restoration_rules.py": "4e255253cc00e4f1528c6d8cf92d7393b03b24bd56bc2c52851b4a77528d39f3",
       "tools/restored_source_resources.py": "745676ca91071f789a5c1899147bdb80fed84efb40e1f2e8819bea3c241d7662",
       "tools/verify_history_retention_source.py": "c5c3f2c10c1e1f59cf7d828bf987334d461dfc234e2e3d7dad3f985eb855e7b1",
-      "tools/verify_native_browser_source.py": "44f372382ab4ad8c6ed7ad60d852de62012a222c97495542b2f056426e644f5b",
-      "tools/verify_native_cookie_source.py": "56fef388062bdd3524be1839aa224d0ef68b01968433878bc67786d68fc854bf",
+      "tools/verify_native_browser_source.py": "a1617c173b0b700ed9dfb4e669acab4edbcc9860f225a6eeefe84d9a6b182255",
+      "tools/verify_native_cookie_source.py": "bac2f42a7cac107d2915900a52f38a7e2833b40b7f27b736173a45e4a7f2ce8a",
       "tools/verify_native_environment_controls_source.py": "8f99f09b5c3ba476429cb3155418d59055ed8fad5cb2b025deb10e68f16b9d65",
       "tools/verify_translation_init_source.py": "cd40487c7efc16108acf7ccf2f7081846bd033393e36569a35abdbd987cf5728"
     }
   },
-  "generation_inputs_sha256": "3c5cd21bcf792f9d521467a6e90a65548044bd196e195db36d77b240c85ea16f"
+  "generation_inputs_sha256": "7721f79ec3200cae456d14003466764ab3917ccc371befa8f8bb5011fd5cb4b0",
+  "restoration_rules_sha256": "143637838b75cc1c3e18fdbca658026f6fdc64185eacbb8b993b071d4b965908"
 }

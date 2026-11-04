@@ -57,15 +57,35 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24.12.0'
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: '1.27.2'
+          cache-dependency-path: tools/native-session/go.sum
+      - name: Compile shared session acceptance before any large transfer
+        shell: pwsh
+        working-directory: tools/native-session
+        env:
+          GOTOOLCHAIN: local
+          GOWORK: 'off'
+        run: |
+          go mod verify
+          if ($LASTEXITCODE -ne 0) { throw 'Shared session dependency cache verification failed' }
+          go test -mod=readonly -run '^$' ./...
       - name: Install hash-locked Python tools
         shell: pwsh
         run: |
           python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r build/windows/security-requirements.txt
           if ($LASTEXITCODE -ne 0) { throw 'Hash-locked dependencies failed' }
           "FINGERPRINT_TEST_NODE=$((Get-Command node).Source)" | Add-Content $env:GITHUB_ENV
+      - name: Check the private desktop before any large transfer
+        shell: pwsh
+        run: python -B -X utf8 tools/verify_native_session_runtime.py --host-preflight --report C:/security-evidence/native-session-host-preflight.json
+      - name: Verify the compact product recipe and upgrade rules
+        shell: pwsh
+        run: python -B -X utf8 -m unittest tools.tests.test_lite_product tools.tests.test_lite_retirement.RecipeTests tools.tests.test_restoration_rules tools.tests.test_kernel_upgrade_plan tools.tests.test_lite_build_entrypoints
       - name: Check checkpoint and build-record invariants before any large transfer
         shell: pwsh
-        run: python -B -X utf8 -m unittest tools.tests.test_translation_init tools.tests.test_native_history tools.tests.test_native_cookie_source tools.tests.test_native_cookie_runtime tools.tests.test_native_compiled_evidence tools.tests.test_native_integration_candidate tools.tests.test_unaccepted_runtime tools.tests.test_google_services_inputs tools.tests.test_native_browser tools.tests.test_native_environment_controls tools.tests.test_native_browser_acceptance tools.tests.test_native_browser_runtime tools.tests.test_security_build tools.tests.test_security_upstream tools.tests.test_security_candidate tools.tests.test_security_runtime tools.tests.test_security_phases tools.tests.test_security_checkpoint_transfer tools.tests.test_security_migration tools.tests.test_security_handoff tools.tests.test_security_budget_review tools.tests.test_security_run_credentials tools.tests.test_fingerprint_evidence_identity tools.tests.test_security_interstitial_restoration tools.tests.test_enterprise_signal_scope tools.tests.test_windows_etw_resources tools.tests.test_web_package_linkage tools.tests.test_windows_metagen_bindings tools.tests.test_fetch_upstream_cache_arm64
+        run: python -B -X utf8 -m unittest tools.tests.test_translation_init tools.tests.test_native_history tools.tests.test_native_cookie_source tools.tests.test_native_cookie_runtime tools.tests.test_native_session_runtime tools.tests.test_native_compiled_evidence tools.tests.test_native_integration_candidate tools.tests.test_unaccepted_runtime tools.tests.test_google_services_inputs tools.tests.test_native_browser tools.tests.test_native_environment_controls tools.tests.test_native_browser_acceptance tools.tests.test_native_browser_runtime tools.tests.test_security_build tools.tests.test_security_upstream tools.tests.test_security_candidate tools.tests.test_security_runtime tools.tests.test_security_phases tools.tests.test_security_checkpoint_transfer tools.tests.test_security_migration tools.tests.test_security_handoff tools.tests.test_security_budget_review tools.tests.test_security_run_credentials tools.tests.test_fingerprint_evidence_identity tools.tests.test_security_interstitial_restoration tools.tests.test_enterprise_signal_scope tools.tests.test_windows_etw_resources tools.tests.test_web_package_linkage tools.tests.test_windows_metagen_bindings tools.tests.test_fetch_upstream_cache_arm64
       - name: Admit the donor and download verified source volumes
         id: acquire
         shell: pwsh
@@ -117,6 +137,7 @@ jobs:
             C:/c/dist/chromix-win-x64.zip
             C:/c/dist/SHA256SUMS
             C:/c/dist/*.json
+            C:/c/dist/native-session-runtime.events.jsonl
           if-no-files-found: error
           retention-days: 30
           compression-level: 0

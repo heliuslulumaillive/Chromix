@@ -1,0 +1,1046 @@
+diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
+--- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
++++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h"
++#include "chrome/browser/profiles/shardx_cookie_bootstrap.h"
+ 
+ #include <memory>
+ #include <utility>
+@@ -687,6 +688,9 @@
+ // static
+ void ChromeBrowserMainExtraPartsProfiles::
+     EnsureBrowserContextKeyedServiceFactoriesBuilt() {
++#if BUILDFLAG(IS_WIN)
++  shardx::cookie_import::EnsureFactoryBuilt();
++#endif
+   // ---------------------------------------------------------------------------
+   // Redirect to those lists for factories that are part of those modules.
+   // Module specific registration functions:
+@@ -966,6 +970,7 @@
+ #endif
+ #if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS) || BUILDFLAG(IS_ANDROID) || \
+     BUILDFLAG(FULL_SAFE_BROWSING)
++  enterprise_connectors::BrowserCrashEventRouterFactory::GetInstance();
+ #endif
+   enterprise_connectors::ConnectorsServiceFactory::GetInstance();
+   enterprise_connectors::DeviceTrustConnectorServiceFactory::GetInstance();
+@@ -982,6 +987,7 @@
+ #endif
+ #if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS) || BUILDFLAG(IS_ANDROID) || \
+     BUILDFLAG(FULL_SAFE_BROWSING)
++  enterprise_connectors::ReportingEventRouterFactory::GetInstance();
+ #endif
+ #if BUILDFLAG(ENTERPRISE_TELOMERE_REPORTING)
+   if (base::FeatureList::IsEnabled(enterprise_connectors::kTelomereReporting)) {
+diff --git a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc
+--- a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc
++++ b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc
+@@ -93,6 +93,8 @@
+       return out << "kFetchKeepAlive";
+     case ProfileKeepAliveOrigin::kOmniboxEverywhere:
+       return out << "kOmniboxEverywhere";
++    case ProfileKeepAliveOrigin::kShardXCookieImport:
++      return out << "kShardXCookieImport";
+   }
+   NOTREACHED();
+ }
+diff --git a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
+--- a/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
++++ b/chrome/browser/profiles/keep_alive/profile_keep_alive_types.h
+@@ -190,7 +190,9 @@
+   // alive.
+   kOmniboxEverywhere = 46,
+ 
+-  kMaxValue = kOmniboxEverywhere,
++  // Bounded native Cookie bootstrap before user navigation.
++  kShardXCookieImport = 47,
++  kMaxValue = kShardXCookieImport,
+ };
+ // LINT.ThenChange(/tools/metrics/histograms/metadata/profile/enums.xml)
+ 
+diff --git a/chrome/browser/profiles/profile.cc b/chrome/browser/profiles/profile.cc
+--- a/chrome/browser/profiles/profile.cc
++++ b/chrome/browser/profiles/profile.cc
+@@ -329,7 +329,7 @@
+ void Profile::RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
+   registry->RegisterBooleanPref(
+       prefs::kSearchSuggestEnabled,
+-      false,
++      true,
+       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+ #if BUILDFLAG(IS_ANDROID)
+   registry->RegisterStringPref(
+diff --git a/chrome/browser/profiles/profile_attributes_entry.cc b/chrome/browser/profiles/profile_attributes_entry.cc
+--- a/chrome/browser/profiles/profile_attributes_entry.cc
++++ b/chrome/browser/profiles/profile_attributes_entry.cc
+@@ -25,6 +25,7 @@
+ #include "components/prefs/pref_service.h"
+ #include "components/prefs/scoped_user_pref_update.h"
+ #include "components/profile_metrics/state.h"
++#include "components/signin/public/base/signin_pref_names.h"
+ #include "components/signin/public/base/signin_switches.h"
+ #include "components/signin/public/identity_manager/account_info.h"
+ #include "components/signin/public/identity_manager/signin_constants.h"
+@@ -517,7 +518,7 @@
+ }
+ 
+ bool ProfileAttributesEntry::IsSignedInWithCredentialProvider() const {
+-  return false;
++  return GetBool(prefs::kSignedInWithCredentialProvider);
+ }
+ 
+ bool ProfileAttributesEntry::IsDasherlessManagement() const {
+@@ -762,6 +763,7 @@
+ }
+ 
+ void ProfileAttributesEntry::SetSignedInWithCredentialProvider(bool value) {
++  SetBool(prefs::kSignedInWithCredentialProvider, value);
+ }
+ 
+ void ProfileAttributesEntry::SetDasherlessManagement(bool value) {
+diff --git a/chrome/browser/profiles/profile_attributes_storage.cc b/chrome/browser/profiles/profile_attributes_storage.cc
+--- a/chrome/browser/profiles/profile_attributes_storage.cc
++++ b/chrome/browser/profiles/profile_attributes_storage.cc
+@@ -42,6 +42,7 @@
+ #include "components/prefs/scoped_user_pref_update.h"
+ #include "components/profile_metrics/state.h"
+ #include "components/signin/public/base/persistent_repeating_timer.h"
++#include "components/signin/public/base/signin_pref_names.h"
+ #include "components/signin/public/base/signin_switches.h"
+ #include "components/signin/public/identity_manager/account_managed_status_finder.h"
+ #include "content/public/browser/browser_task_traits.h"
+@@ -393,7 +394,9 @@
+                    params.profile_name,
+                    /*include_check_for_legacy_profile_name*/ false))
+           // Assume newly created profiles use a default avatar.
+-          .Set(ProfileAttributesEntry::kIsUsingDefaultAvatarKey, true);
++          .Set(ProfileAttributesEntry::kIsUsingDefaultAvatarKey, true)
++          .Set(prefs::kSignedInWithCredentialProvider,
++               params.is_signed_in_with_credential_provider);
+ 
+   if (params.account_id.HasAccountIdKey()) {
+     info.Set(ProfileAttributesEntry::kAccountIdKey,
+diff --git a/chrome/browser/profiles/profile_avatar_downloader.cc b/chrome/browser/profiles/profile_avatar_downloader.cc
+--- a/chrome/browser/profiles/profile_avatar_downloader.cc
++++ b/chrome/browser/profiles/profile_avatar_downloader.cc
+@@ -19,13 +19,16 @@
+ #include "ui/gfx/image/image.h"
+ 
+ namespace {
++const char kHighResAvatarDownloadUrlPrefix[] =
++    "https://www.gstatic.com/chrome/profile_avatars/";
+ }
+ 
+ ProfileAvatarDownloader::ProfileAvatarDownloader(size_t icon_index,
+                                                  FetchCompleteCallback callback)
+     : icon_index_(icon_index), callback_(std::move(callback)) {
+   DCHECK(!callback_.is_null());
+-  GURL url(std::string("about:blank"));
++  GURL url(std::string(kHighResAvatarDownloadUrlPrefix) +
++           profiles::GetDefaultAvatarIconFileNameAtIndex(icon_index));
+   net::NetworkTrafficAnnotationTag traffic_annotation =
+       net::DefineNetworkTrafficAnnotation("profile_avatar", R"(
+         semantics {
+diff --git a/chrome/browser/profiles/profile_impl.cc b/chrome/browser/profiles/profile_impl.cc
+--- a/chrome/browser/profiles/profile_impl.cc
++++ b/chrome/browser/profiles/profile_impl.cc
+@@ -154,6 +154,7 @@
+ #include "components/profile_metrics/browser_profile_type.h"
+ #include "components/safe_search_api/safe_search_util.h"
+ #include "components/security_interstitials/content/stateful_ssl_host_state_delegate.h"
++#include "components/signin/public/base/signin_pref_names.h"
+ #include "components/signin/public/base/signin_switches.h"
+ #include "components/signin/public/identity_manager/identity_manager.h"
+ #include "components/site_isolation/site_isolation_policy.h"
+@@ -1170,8 +1171,17 @@
+ #if !BUILDFLAG(IS_ANDROID)
+   CHECK(!ThemeServiceFactory::GetForProfileIfExists(this));
+ 
++  if (create_mode == CreateMode::kAsynchronous) {
++    browser_sync::MaybeMigrateSyncingUserToSignedInAsync(
++        GetPath(), GetPrefs(),
++        base::BindOnce(&ProfileImpl::OnSyncToSigninMigrationMaybeCompleted,
++                       weak_ptr_factory_.GetWeakPtr(), create_mode));
++  } else
+ #endif  // !BUILDFLAG(IS_ANDROID)
++  {
++    browser_sync::MaybeMigrateSyncingUserToSignedIn(GetPath(), GetPrefs());
+     OnSyncToSigninMigrationMaybeCompleted(create_mode);
++  }
+ }
+ 
+ void ProfileImpl::OnSyncToSigninMigrationMaybeCompleted(
+diff --git a/chrome/browser/profiles/profile_manager.cc b/chrome/browser/profiles/profile_manager.cc
+--- a/chrome/browser/profiles/profile_manager.cc
++++ b/chrome/browser/profiles/profile_manager.cc
+@@ -91,6 +91,7 @@
+ #include "components/signin/public/base/consent_level.h"
+ #include "components/signin/public/base/signin_buildflags.h"
+ #include "components/signin/public/base/signin_metrics.h"
++#include "components/signin/public/base/signin_pref_names.h"
+ #include "components/signin/public/identity_manager/identity_manager.h"
+ #include "components/signin/public/identity_manager/primary_account_mutator.h"
+ #include "components/signin/public/identity_manager/tribool.h"
+@@ -2050,7 +2051,8 @@
+       entry->SetAuthInfo(account_info.gaia, username,
+                          is_consented_primary_account);
+ 
+-      entry->SetSignedInWithCredentialProvider(false);
++      entry->SetSignedInWithCredentialProvider(profile->GetPrefs()->GetBoolean(
++          prefs::kSignedInWithCredentialProvider));
+ 
+ #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
+       // Sign out if force-sign-in policy is enabled and profile is not signed
+@@ -2099,13 +2101,14 @@
+ 
+   init_params.is_ephemeral = IsForceEphemeralProfilesEnabled(profile);
+   init_params.is_signed_in_with_credential_provider =
+-      false;
++      profile->GetPrefs()->GetBoolean(prefs::kSignedInWithCredentialProvider);
+ 
+   storage.AddProfile(std::move(init_params));
+ }
+ 
+ void ProfileManager::SetNonPersonalProfilePrefs(Profile* profile) {
+   PrefService* prefs = profile->GetPrefs();
++  prefs->SetBoolean(prefs::kSigninAllowed, false);
+   prefs->SetBoolean(bookmarks::prefs::kEditBookmarksEnabled, false);
+   prefs->SetBoolean(bookmarks::prefs::kShowBookmarkBar, false);
+   prefs->ClearPref(DefaultSearchManager::kDefaultSearchProviderDataPrefName);
+diff --git a/chrome/browser/profiles/profile_shortcut_manager_win.cc b/chrome/browser/profiles/profile_shortcut_manager_win.cc
+--- a/chrome/browser/profiles/profile_shortcut_manager_win.cc
++++ b/chrome/browser/profiles/profile_shortcut_manager_win.cc
+@@ -873,6 +873,10 @@
+ 
+ // static
+ bool ProfileShortcutManager::IsFeatureEnabled() {
++  // The settings WebUI uses this same gate to hide unavailable shortcut
++  // controls. Raw browser shortcuts would bypass managed proxy/identity setup.
++  if (shell_integration::win::IsShardXManagedEnvironment())
++    return false;
+   if (disabled_for_unit_tests)
+     return false;
+ 
+diff --git a/chrome/browser/profiles/shardx_native_browser_unittest.cc b/chrome/browser/profiles/shardx_native_browser_unittest.cc
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/profiles/shardx_native_browser_unittest.cc
+@@ -0,0 +1,168 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++
++#include <string>
++
++#include "base/command_line.h"
++#include "base/files/file_path.h"
++#include "base/test/scoped_command_line.h"
++#include "components/translate/core/common/translation_init_wait.h"
++#include "components/history/core/browser/shardx_history_retention.h"
++#include "chrome/browser/profiles/profile_shortcut_manager.h"
++#include "chrome/browser/shell_integration_win.h"
++#include "net/base/shardx_environment_controls.h"
++#include "testing/gtest/include/gtest/gtest.h"
++
++namespace {
++
++using shell_integration::win::GetAppUserModelIdForApp;
++using shell_integration::win::GetAppUserModelIdForBrowser;
++using shell_integration::win::IsShardXManagedEnvironment;
++
++TEST(ShardXNativeBrowserTest, ManagedEnvironmentOwnsProfileShellIdentity) {
++  base::test::ScopedCommandLine scoped_command_line;
++  auto* command_line = scoped_command_line.GetProcessCommandLine();
++  command_line->AppendSwitchASCII("shardx-managed-environment",
++                                 "12345678-1234-4234-8234-123456789abc");
++  ASSERT_TRUE(IsShardXManagedEnvironment());
++  const base::FilePath first(
++      FILE_PATH_LITERAL("C:\\one\\engines\\chromix\\Default"));
++  const base::FilePath moved(
++      FILE_PATH_LITERAL("D:\\moved\\engines\\chromix\\Default"));
++  const std::wstring identity = GetAppUserModelIdForBrowser(first);
++  EXPECT_EQ(identity, GetAppUserModelIdForBrowser(moved));
++  EXPECT_LE(identity.size(), 128u);
++  EXPECT_EQ(std::wstring::npos, identity.find(L' '));
++  EXPECT_NE(identity, GetAppUserModelIdForBrowser(
++                          first.DirName().AppendASCII("Profile 1")));
++  EXPECT_NE(
++      GetAppUserModelIdForBrowser(first.DirName().AppendASCII("Profile 1")),
++      GetAppUserModelIdForBrowser(first.DirName().AppendASCII("Profile1")));
++  EXPECT_NE(identity, GetAppUserModelIdForApp(L"test-web-app", first));
++  command_line->AppendSwitchASCII("shardx-managed-environment",
++                                 "12345678-1234-4234-8234-123456789ABC");
++  EXPECT_EQ(identity, GetAppUserModelIdForBrowser(first));
++  command_line->AppendSwitchASCII("shardx-managed-environment",
++                                 "87654321-4321-4321-8321-cba987654321");
++  EXPECT_NE(identity, GetAppUserModelIdForBrowser(first));
++}
++
++TEST(ShardXNativeBrowserTest, InvalidManagedMarkerPreservesNativeIdentity) {
++  base::test::ScopedCommandLine scoped_command_line;
++  auto* command_line = scoped_command_line.GetProcessCommandLine();
++  command_line->RemoveSwitch("shardx-managed-environment");
++  const base::FilePath path(FILE_PATH_LITERAL("C:\\data\\Default"));
++  const std::wstring native_identity = GetAppUserModelIdForBrowser(path);
++  for (const char* invalid : {"", "not-a-uuid", "../Default", "12345678"}) {
++    command_line->AppendSwitchASCII("shardx-managed-environment", invalid);
++    EXPECT_FALSE(IsShardXManagedEnvironment());
++    EXPECT_EQ(native_identity, GetAppUserModelIdForBrowser(path));
++  }
++}
++
++TEST(ShardXNativeBrowserTest, ManagedProfileShortcutsRemainUnavailable) {
++  base::test::ScopedCommandLine scoped_command_line;
++  auto* command_line = scoped_command_line.GetProcessCommandLine();
++  command_line->AppendSwitchASCII("shardx-managed-environment",
++                                 "12345678-1234-4234-8234-123456789abc");
++  command_line->AppendSwitch("enable-profile-shortcut-manager");
++  EXPECT_FALSE(ProfileShortcutManager::IsFeatureEnabled());
++}
++
++TEST(ShardXNativeBrowserTest, BlockedPortParserPreservesBoundsAndDenySemantics) {
++  const auto ports = net::shardx::ParseBlockedPorts("443,80,443,1,65535");
++  ASSERT_TRUE(ports.valid);
++  EXPECT_EQ(4u, ports.ports.size());
++  for (int port : {1, 80, 443, 65535}) {
++    EXPECT_TRUE(ports.Contains(port));
++  }
++  EXPECT_FALSE(ports.Contains(8080));
++  EXPECT_FALSE(net::shardx::ParseBlockedPorts("").Contains(80));
++  for (const char* invalid : {"0", "65536", "-1", " 80", "80,", ",80",
++                              "80,,443", "80x"}) {
++    const auto rejected = net::shardx::ParseBlockedPorts(invalid);
++    EXPECT_FALSE(rejected.valid) << invalid;
++    EXPECT_TRUE(rejected.Contains(80)) << invalid;
++  }
++  std::string too_many;
++  for (int i = 0; i < 257; ++i) {
++    if (i)
++      too_many += ',';
++    too_many += '1';
++  }
++  EXPECT_FALSE(net::shardx::ParseBlockedPorts(too_many).valid);
++}
++
++
++TEST(ShardXNativeBrowserTest, HistoryRetentionRejectsInvalidValues) {
++  using history::shardx::ParseHistoryDays;
++  for (const char* invalid : {"", "-1", "+1", "1.5", " 300", "300 ", "01",
++                              "106751992", "999999999999999999999999"}) {
++    EXPECT_FALSE(ParseHistoryDays(invalid).has_value()) << invalid;
++  }
++  EXPECT_EQ(0, ParseHistoryDays("0"));
++  EXPECT_EQ(1, ParseHistoryDays("1"));
++  EXPECT_EQ(300, ParseHistoryDays("300"));
++  EXPECT_EQ(106751991, ParseHistoryDays("106751991"));
++}
++
++TEST(ShardXNativeBrowserTest, ManagedHistoryRequiresExplicitPolicy) {
++  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
++  EXPECT_EQ(90, history::shardx::HistoryDays(command_line));
++  command_line.AppendSwitchASCII("shardx-history-retention-days", "0");
++  EXPECT_FALSE(history::shardx::HistoryDays(command_line).has_value());
++  command_line.AppendSwitchASCII("shardx-managed-environment",
++                                 "01234567-89ab-4cde-8123-456789abcdef");
++  EXPECT_EQ(0, history::shardx::HistoryDays(command_line));
++  command_line.AppendSwitchASCII("shardx-history-retention-days", "300");
++  EXPECT_EQ(300, history::shardx::HistoryDays(command_line));
++  command_line.RemoveSwitch("shardx-history-retention-days");
++  EXPECT_FALSE(history::shardx::HistoryDays(command_line).has_value());
++  command_line.AppendSwitchASCII("shardx-managed-environment", "invalid");
++  EXPECT_FALSE(history::shardx::HistoryDays(command_line).has_value());
++}
++
++
++TEST(ShardXNativeBrowserTest, TranslationInitWaitAllowsSlowLibrary) {
++  const auto start = base::TimeTicks() + base::Seconds(1);
++  translate::TranslationInitWait wait(start);
++  auto now = start;
++  // The old five checks timed out at 1500ms. A 2545ms library is still eligible.
++  while (now - start < base::Milliseconds(2545)) {
++    const auto delay = wait.NextDelay(now);
++    ASSERT_TRUE(delay.has_value());
++    EXPECT_GT(*delay, base::TimeDelta());
++    EXPECT_LE(*delay, base::Seconds(1));
++    now += *delay;
++  }
++  EXPECT_TRUE(wait.NextDelay(now).has_value());
++}
++
++TEST(ShardXNativeBrowserTest, TranslationInitWaitExpiresAtDeadline) {
++  const auto start = base::TimeTicks() + base::Seconds(1);
++  translate::TranslationInitWait wait(start);
++  auto now = start;
++  int checks = 0;
++  while (const auto delay = wait.NextDelay(now)) {
++    ASSERT_GT(*delay, base::TimeDelta());
++    ASSERT_LE(*delay, base::Seconds(1));
++    now += *delay;
++    ASSERT_LT(++checks, 30);
++  }
++  EXPECT_EQ(base::Seconds(15), now - start);
++  EXPECT_FALSE(wait.NextDelay(start + base::Seconds(60)).has_value());
++  translate::TranslationInitWait final_poll(start);
++  EXPECT_EQ(base::Milliseconds(1),
++            final_poll.NextDelay(start + base::Milliseconds(14999)));
++}
++
++TEST(ShardXNativeBrowserTest, TranslationInitWaitIsPerRequest) {
++  const auto start = base::TimeTicks() + base::Seconds(1);
++  translate::TranslationInitWait old_request(start);
++  translate::TranslationInitWait new_request(start + base::Seconds(16));
++  EXPECT_FALSE(old_request.NextDelay(start + base::Seconds(16)).has_value());
++  EXPECT_EQ(base::Milliseconds(150),
++            new_request.NextDelay(start + base::Seconds(16)));
++}
++
++}  // namespace
+diff --git a/chrome/browser/profiles/shardx_native_cookie_unittest.cc b/chrome/browser/profiles/shardx_native_cookie_unittest.cc
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/profiles/shardx_native_cookie_unittest.cc
+@@ -0,0 +1,238 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#include "chrome/browser/profiles/shardx_cookie_bootstrap_internal.h"
++
++#include <string>
++
++#include "base/files/file_util.h"
++#include "base/files/scoped_temp_dir.h"
++#include "base/json/json_writer.h"
++#include "base/strings/string_number_conversions.h"
++#include "crypto/hash.h"
++#include "testing/gtest/include/gtest/gtest.h"
++
++namespace shardx::cookie_import {
++namespace {
++constexpr char kEnvironment[] = "01234567-89ab-4cde-8123-456789abcdef";
++constexpr char kRequest[] = "fedcba98-7654-4321-8123-abcdef012345";
++
++Binding TestBinding() {
++  Binding binding;
++  binding.environment_id = kEnvironment;
++  binding.request_id = kRequest;
++  binding.token = std::string(64, 'a');
++  binding.user_data_dir = base::FilePath(FILE_PATH_LITERAL("C:\\owned"));
++  binding.envelope_path = binding.user_data_dir.Append(FILE_PATH_LITERAL("ShardX Cookie Imports"))
++      .Append(FILE_PATH_LITERAL("requests")).AppendASCII(binding.token + "." + kRequest + ".json");
++  binding.receipt_path = binding.user_data_dir.Append(FILE_PATH_LITERAL("ShardX Cookie Imports"))
++      .Append(FILE_PATH_LITERAL("receipts")).AppendASCII(binding.token + ".json");
++  return binding;
++}
++
++base::DictValue Cookie(std::string name = "fixture") {
++  base::DictValue cookie;
++  cookie.Set("name", name);
++  cookie.Set("value", "synthetic-cookie-value");
++  cookie.Set("url", "https://example.test:8443/account/page");
++  cookie.Set("sameSite", "Lax");
++  return cookie;
++}
++
++std::string Envelope(Binding* binding, base::ListValue cookies) {
++  base::DictValue value;
++  value.Set("schemaVersion", 1);
++  value.Set("contract", kContract);
++  value.Set("environmentId", binding->environment_id);
++  value.Set("requestId", binding->request_id);
++  value.Set("token", binding->token);
++  value.Set("profileDirectory", "Default");
++  value.Set("sourceSha256", std::string(64, 'b'));
++  value.Set("cookieCount", static_cast<int>(cookies.size()));
++  value.Set("deadlineUnixMs", static_cast<double>((base::Time::Now() + base::Seconds(60)).InMillisecondsSinceUnixEpoch()));
++  value.Set("cookies", std::move(cookies));
++  std::string bytes = base::WriteJson(value).value();
++  binding->envelope_sha256 = base::HexEncodeLower(crypto::hash::Sha256(bytes));
++  return bytes;
++}
++
++std::unique_ptr<Batch> ParseOne(base::DictValue cookie, Binding* binding,
++                                std::string* error) {
++  base::ListValue cookies;
++  cookies.Append(std::move(cookie));
++  const std::string bytes = Envelope(binding, std::move(cookies));
++  return ParseEnvelope(bytes, *binding, base::Time::Now(), error);
++}
++
++TEST(ShardXNativeCookieTest, BindingRequiresOwnedDefaultAndExactAttemptName) {
++  auto binding = TestBinding();
++  base::CommandLine command(base::FilePath(FILE_PATH_LITERAL("chrome.exe")));
++  command.AppendSwitchASCII("shardx-managed-environment", kEnvironment);
++  command.AppendSwitchASCII(kDigestFlag, std::string(64, 'c'));
++  command.AppendSwitchPath(kImportFlag, binding.envelope_path);
++  const auto profile = binding.user_data_dir.Append(FILE_PATH_LITERAL("Default"));
++  ASSERT_TRUE(ParseBinding(profile, command));
++  command.AppendSwitch("incognito");
++  EXPECT_FALSE(ParseBinding(profile, command));
++  command.RemoveSwitch("incognito");
++  EXPECT_FALSE(ParseBinding(binding.user_data_dir.Append(FILE_PATH_LITERAL("Profile 1")), command));
++  command.AppendSwitchPath(kImportFlag, base::FilePath(FILE_PATH_LITERAL("C:\\foreign\\request.json")));
++  EXPECT_FALSE(ParseBinding(profile, command));
++}
++
++TEST(ShardXNativeCookieTest, ExplicitPathSecureFalseAndSourceUrlArePreserved) {
++  auto binding = TestBinding();
++  auto cookie = Cookie();
++  cookie.Set("path", "/account");
++  cookie.Set("secure", false);
++  cookie.Set("priority", "High");
++  std::string error;
++  auto batch = ParseOne(std::move(cookie), &binding, &error);
++  ASSERT_TRUE(batch) << error;
++  ASSERT_EQ(batch->cookies.size(), 1u);
++  EXPECT_EQ(batch->cookies[0]->Path(), "/account");
++  EXPECT_FALSE(batch->cookies[0]->SecureAttribute());
++  EXPECT_EQ(batch->cookies[0]->Priority(), net::CookiePriority::COOKIE_PRIORITY_HIGH);
++  EXPECT_EQ(batch->cookies[0]->SourcePort(), 8443);
++  EXPECT_EQ(batch->source_urls[0], GURL("https://example.test:8443/account/page"));
++  auto defaults = ParseOne(Cookie(), &binding, &error);
++  ASSERT_TRUE(defaults);
++  EXPECT_EQ(defaults->cookies[0]->Path(), "/account");
++  EXPECT_FALSE(defaults->cookies[0]->SecureAttribute());
++}
++
++TEST(ShardXNativeCookieTest, SessionAndPersistentExpiryStayNative) {
++  auto binding = TestBinding();
++  std::string error;
++  auto session = ParseOne(Cookie(), &binding, &error);
++  ASSERT_TRUE(session);
++  EXPECT_FALSE(session->cookies[0]->IsPersistent());
++  auto sentinel = Cookie(); sentinel.Set("expires", -1);
++  auto sentinel_batch = ParseOne(std::move(sentinel), &binding, &error);
++  ASSERT_TRUE(sentinel_batch);
++  EXPECT_FALSE(sentinel_batch->cookies[0]->IsPersistent());
++  auto persistent = Cookie();
++  const double expiry = (base::Time::Now() + base::Hours(1)).InSecondsFSinceUnixEpoch();
++  persistent.Set("expires", expiry);
++  auto saved = ParseOne(std::move(persistent), &binding, &error);
++  ASSERT_TRUE(saved);
++  EXPECT_TRUE(saved->cookies[0]->IsPersistent());
++  EXPECT_EQ(saved->cookies[0]->ExpiryDate(), base::Time::FromSecondsSinceUnixEpoch(expiry));
++  auto invalid = Cookie(); invalid.Set("expires", -2);
++  EXPECT_FALSE(ParseOne(std::move(invalid), &binding, &error));
++}
++
++TEST(ShardXNativeCookieTest, UnspecifiedSameSiteRemainsAnUnspecifiedAttribute) {
++  auto binding = TestBinding(); std::string error;
++  auto omitted = Cookie(); omitted.Remove("sameSite");
++  auto batch = ParseOne(std::move(omitted), &binding, &error); ASSERT_TRUE(batch);
++  EXPECT_EQ(batch->cookies[0]->SameSite(), net::CookieSameSite::UNSPECIFIED);
++  auto explicit_value = Cookie(); explicit_value.Set("sameSite", "Unspecified");
++  batch = ParseOne(std::move(explicit_value), &binding, &error); ASSERT_TRUE(batch);
++  EXPECT_EQ(batch->cookies[0]->SameSite(), net::CookieSameSite::UNSPECIFIED);
++}
++
++TEST(ShardXNativeCookieTest, DomainAndHostOnlyKeysAreNotCollapsed) {
++  auto binding = TestBinding();
++  auto host = Cookie(); host.Set("path", "/");
++  auto domain = Cookie(); domain.Remove("url"); domain.Set("domain", "example.test"); domain.Set("path", "/");
++  base::ListValue cookies; cookies.Append(std::move(host)); cookies.Append(std::move(domain));
++  auto bytes = Envelope(&binding, std::move(cookies));
++  std::string error;
++  auto batch = ParseEnvelope(bytes, binding, base::Time::Now(), &error);
++  ASSERT_TRUE(batch) << error;
++  ASSERT_EQ(batch->cookies.size(), 2u);
++  EXPECT_EQ(batch->cookies[0]->Domain(), "example.test");
++  EXPECT_EQ(batch->cookies[1]->Domain(), ".example.test");
++  EXPECT_NE(batch->cookies[0]->UniqueKey(), batch->cookies[1]->UniqueKey());
++}
++
++TEST(ShardXNativeCookieTest, ConflictingDuplicatesAndUnsupportedSemanticsFailPreflight) {
++  auto binding = TestBinding();
++  base::ListValue identical; identical.Append(Cookie()); identical.Append(Cookie());
++  auto bytes = Envelope(&binding, std::move(identical));
++  std::string error;
++  auto batch = ParseEnvelope(bytes, binding, base::Time::Now(), &error);
++  ASSERT_TRUE(batch); EXPECT_EQ(batch->cookie_count, 2u); EXPECT_EQ(batch->cookies.size(), 1u);
++  EXPECT_EQ(batch->duplicate_count, 1u);
++  auto conflict = Cookie(); conflict.Set("value", "different-synthetic-value");
++  base::ListValue different; different.Append(Cookie()); different.Append(std::move(conflict));
++  bytes = Envelope(&binding, std::move(different));
++  EXPECT_FALSE(ParseEnvelope(bytes, binding, base::Time::Now(), &error));
++  EXPECT_EQ(error, "conflicting_cookie_key");
++  for (const char* key : {"partitionKey", "sameParty", "sourcePort"}) {
++    auto unsupported = Cookie(); unsupported.Set(key, true);
++    EXPECT_FALSE(ParseOne(std::move(unsupported), &binding, &error));
++  }
++}
++
++TEST(ShardXNativeCookieTest, AllInputValidationPrecedesAnyMutation) {
++  auto binding = TestBinding();
++  base::ListValue cookies; cookies.Append(Cookie()); cookies.Append(base::Value(false));
++  auto bytes = Envelope(&binding, std::move(cookies));
++  std::string error;
++  EXPECT_FALSE(ParseEnvelope(bytes, binding, base::Time::Now(), &error));
++  bytes = Envelope(&binding, base::ListValue());
++  bytes.push_back(' ');
++  EXPECT_FALSE(ParseEnvelope(bytes, binding, base::Time::Now(), &error));
++  EXPECT_EQ(error, "envelope_digest_mismatch");
++  std::string oversized(kMaxEnvelopeBytes + 1, ' ');
++  EXPECT_FALSE(ParseEnvelope(oversized, binding, base::Time::Now(), &error));
++}
++
++TEST(ShardXNativeCookieTest, ReadbackChecksValuesAttributesAndEviction) {
++  auto binding = TestBinding(); std::string error;
++  auto batch = ParseOne(Cookie(), &binding, &error); ASSERT_TRUE(batch);
++  Counts counts; counts.accepted = counts.attempted = 1;
++  net::CookieList actual; actual.push_back(*batch->cookies[0]);
++  EXPECT_TRUE(VerifyReadback(*batch, actual, base::Time::Now(), &counts));
++  EXPECT_EQ(counts.verified, 1u);
++  EXPECT_FALSE(VerifyReadback(*batch, {}, base::Time::Now(), &counts));
++  auto changed = Cookie(); changed.Set("httpOnly", true);
++  auto other = ParseOne(std::move(changed), &binding, &error); ASSERT_TRUE(other);
++  actual.clear(); actual.push_back(*other->cookies[0]);
++  EXPECT_FALSE(VerifyReadback(*batch, actual, base::Time::Now(), &counts));
++}
++
++TEST(ShardXNativeCookieTest, ExpiredDeletionMustActuallyBeAbsent) {
++  auto binding = TestBinding(); std::string error;
++  auto expired = Cookie(); expired.Set("expires", 0);
++  auto batch = ParseOne(std::move(expired), &binding, &error); ASSERT_TRUE(batch);
++  EXPECT_EQ(batch->cookies[0]->ExpiryDate(), base::Time::UnixEpoch());
++  Counts counts; counts.accepted = counts.attempted = 1;
++  EXPECT_TRUE(VerifyReadback(*batch, {}, base::Time::Now(), &counts));
++  EXPECT_EQ(counts.expired, 1u);
++  net::CookieList still_present; still_present.push_back(*batch->cookies[0]);
++  EXPECT_FALSE(VerifyReadback(*batch, still_present, base::Time::Now(), &counts));
++}
++
++TEST(ShardXNativeCookieTest, CompletionLedgerSupportsRecreatedProfileWithoutEnvelope) {
++  base::ScopedTempDir directory; ASSERT_TRUE(directory.CreateUniqueTempDir());
++  auto binding = TestBinding(); binding.user_data_dir = directory.GetPath();
++  const auto imports = directory.GetPath().Append(FILE_PATH_LITERAL("ShardX Cookie Imports"));
++  ASSERT_TRUE(base::CreateDirectory(imports));
++  binding.receipt_path = imports.Append(FILE_PATH_LITERAL("receipts")).AppendASCII(binding.token + ".json");
++  binding.envelope_path = imports.Append(FILE_PATH_LITERAL("requests")).AppendASCII(binding.token + "." + kRequest + ".json");
++  std::string error; auto batch = ParseOne(Cookie(), &binding, &error); ASSERT_TRUE(batch);
++  Counts counts; counts.accepted = counts.attempted = counts.verified = 1;
++  const auto receipt = MakeReceipt(binding, batch.get(), counts, true, "");
++  for (std::string_view flag : {"writeOutcomeUnknown", "rollbackPerformed"}) {
++    auto contradictory = receipt.Clone();
++    contradictory.Set(flag, true);
++    EXPECT_FALSE(IsCompletedReceipt(contradictory, binding, batch.get(), true));
++  }
++  auto incomplete = receipt.Clone();
++  incomplete.Set("attemptedCookieCount", 0);
++  EXPECT_FALSE(IsCompletedReceipt(incomplete, binding, batch.get(), true));
++  ASSERT_TRUE(PublishReceipt(binding, receipt));
++  ASSERT_FALSE(base::PathExists(binding.envelope_path));
++  EXPECT_TRUE(ReadAndPrepare(binding).previous_completion);
++  EXPECT_FALSE(PublishReceipt(binding, MakeReceipt(binding, batch.get(), counts, false, "cancelled")));
++  EXPECT_TRUE(ReadAndPrepare(binding).previous_completion);
++  Counts uncertain; uncertain.attempted = 1; uncertain.in_flight = true;
++  const auto failure = MakeReceipt(binding, batch.get(), uncertain, false, "cookie_manager_disconnected");
++  EXPECT_EQ(failure.FindBool("writeOutcomeUnknown"), true);
++  EXPECT_EQ(failure.FindBool("rollbackPerformed"), false);
++  EXPECT_EQ(failure.FindString("status") ? *failure.FindString("status") : "", "failed");
++}
++}  // namespace
++}  // namespace shardx::cookie_import
+diff --git a/chrome/browser/profiles/shardx_session_policy.h b/chrome/browser/profiles/shardx_session_policy.h
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/profiles/shardx_session_policy.h
+@@ -0,0 +1,27 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#ifndef CHROME_BROWSER_PROFILES_SHARDX_SESSION_POLICY_H_
++#define CHROME_BROWSER_PROFILES_SHARDX_SESSION_POLICY_H_
++#include <optional>
++#include "base/check.h"
++#include "base/command_line.h"
++#include "base/uuid.h"
++
++namespace shardx {
++inline constexpr char kRestoreSession[] = "shardx-restore-previous-session";
++inline constexpr wchar_t kExitEnvironmentMessage[] = L"ShardX.Lite.ExitEnvironment.v1";
++inline constexpr unsigned long kExitEnvironmentAck = 0x53484c58;
++
++// An explicit launcher choice overrides native startup preferences for this
++// process only. Unmanaged browsers retain Chromium's own startup behavior.
++inline std::optional<bool> ManagedSessionRestore(const base::CommandLine& command) {
++  if (!command.HasSwitch(kRestoreSession))
++    return std::nullopt;
++  CHECK(base::Uuid::ParseCaseInsensitive(command.GetSwitchValueASCII(
++      "shardx-managed-environment")).is_valid());
++  const auto value = command.GetSwitchValueASCII(kRestoreSession);
++  CHECK(value == "true" || value == "false");
++  return value == "true";
++}
++}  // namespace shardx
++#endif
+diff --git a/chrome/browser/ui/profiles/profile_picker.cc b/chrome/browser/ui/profiles/profile_picker.cc
+--- a/chrome/browser/ui/profiles/profile_picker.cc
++++ b/chrome/browser/ui/profiles/profile_picker.cc
+@@ -26,6 +26,7 @@
+ #include "chrome/common/pref_names.h"
+ #include "components/prefs/pref_service.h"
+ #include "components/signin/public/base/consent_level.h"
++#include "components/signin/public/base/signin_pref_names.h"
+ #include "components/signin/public/identity_manager/identity_manager.h"
+ 
+ namespace {
+@@ -47,6 +48,26 @@
+   }
+ }
+ 
++bool IsFirstRunDisabledByPolicy(Profile& profile) {
++  const PrefService* const local_state = g_browser_process->local_state();
++  if (!local_state->GetBoolean(prefs::kPromotionsEnabled)) {
++    // Corresponding policy: PromotionsEnabled=false
++    return true;
++  }
++
++  if (!SyncServiceFactory::IsSyncAllowed(&profile)) {
++    // Corresponding policy: SyncDisabled=true
++    return true;
++  }
++
++  if (!profile.GetPrefs()->GetBoolean(prefs::kSigninAllowed) ||
++      !profile.GetPrefs()->GetBoolean(prefs::kSigninAllowedOnNextStartup)) {
++    // Corresponding policy: BrowserSignin=0
++    return true;
++  }
++
++  return false;
++}
+ 
+ }  // namespace
+ 
+@@ -219,7 +240,28 @@
+ // static
+ std::optional<ProfilePicker::FirstRunFinishReason>
+ ProfilePicker::ComputeFirstRunSkipReason(Profile& profile) {
+-  return ProfilePicker::FirstRunFinishReason::kFinishedFlow;
++  // This check should be done prior to the profile already set up check below,
++  // because the policy `BrowserSignin=2` can cause the profile to be signed in
++  // already at this point.
++  if (signin_util::IsForceSigninEnabled()) {
++    // Corresponding policy: BrowserSignin=2
++    // Debugging note: On Linux this policy is not supported and does not get
++    // translated to the prefs (see crbug.com/41455343), but we still respond to
++    // `prefs::kForceBrowserSignin` being set (e.g. if manually edited).
++    return FirstRunFinishReason::kForceSignin;
++  }
++
++  signin::IdentityManager& identity_manager =
++      CHECK_DEREF(IdentityManagerFactory::GetForProfile(&profile));
++  if (identity_manager.HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
++    return FirstRunFinishReason::kProfileAlreadySetUp;
++  }
++
++  if (IsFirstRunDisabledByPolicy(profile)) {
++    return FirstRunFinishReason::kSkippedByPolicies;
++  }
++
++  return std::nullopt;
+ }
+ 
+ // static
+diff --git a/chrome/browser/ui/startup/startup_browser_creator.cc b/chrome/browser/ui/startup/startup_browser_creator.cc
+--- a/chrome/browser/ui/startup/startup_browser_creator.cc
++++ b/chrome/browser/ui/startup/startup_browser_creator.cc
+@@ -51,6 +51,7 @@
+ #include "chrome/browser/prefs/session_startup_pref.h"
+ #include "chrome/browser/profiles/nuke_profile_directory_utils.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/profiles/shardx_session_policy.h"
+ #include "chrome/browser/profiles/profile_attributes_entry.h"
+ #include "chrome/browser/profiles/profile_attributes_storage.h"
+ #include "chrome/browser/profiles/profile_manager.h"
+@@ -899,6 +900,13 @@
+   DCHECK(profile);
+   const PrefService* prefs = profile->GetPrefs();
+   SessionStartupPref pref = SessionStartupPref::GetStartupPref(prefs);
++  if (!profile->IsOffTheRecord() && !profile->IsGuestSession()) {
++    if (const auto restore = shardx::ManagedSessionRestore(command_line)) {
++      pref.type = *restore ? SessionStartupPref::LAST : SessionStartupPref::DEFAULT;
++      pref.urls.clear();
++      return pref;
++    }
++  }
+ 
+   // IsChromeFirstRun() looks for a sentinel file to determine whether the user
+   // is starting Chrome for the first time. On Chrome OS, the sentinel is stored
+diff --git a/chrome/browser/ui/startup/startup_browser_creator_impl.cc b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+--- a/chrome/browser/ui/startup/startup_browser_creator_impl.cc
++++ b/chrome/browser/ui/startup/startup_browser_creator_impl.cc
+@@ -29,6 +29,7 @@
+ #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
+ #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/profiles/shardx_session_policy.h"
+ #include "chrome/browser/profiles/profile_io_data.h"
+ #include "chrome/browser/sessions/session_service.h"
+ #include "chrome/browser/sessions/session_service_factory.h"
+@@ -482,6 +483,8 @@
+     bool restore_tabbed_browser) {
+   const bool is_incognito_or_guest = profile_->IsOffTheRecord();
+   bool is_post_crash_launch = HasPendingUncleanExit(profile_);
++  const bool managed_restore = !is_incognito_or_guest &&
++      shardx::ManagedSessionRestore(*command_line_).value_or(false);
+ 
+   // Defer adding info bars until the browser window is ready. The observer
+   // will delete itself once the infobars are added.
+@@ -497,7 +500,7 @@
+                                    is_first_run, /*is_web_app=*/false,
+                                    is_post_crash_launch, was_restarted);
+           },
+-          *command_line_, is_first_run_, is_post_crash_launch,
++          *command_line_, is_first_run_, is_post_crash_launch && !managed_restore,
+           StartupBrowserCreator::WasRestarted(), base::Unretained(profile_));
+ 
+   StartupInfoBarObserver::ObserveProfile(*profile_,
+@@ -540,7 +543,10 @@
+   if (process_startup == chrome::startup::IsProcessStartup::kYes) {
+     behavior_options |= PROCESS_STARTUP;
+   }
+-  if (is_post_crash_launch) {
++  // A managed opt-in requests the native restore path after a crash too.
++  // ExitTypeService acknowledges recovery when restore actually completes;
++  // no Preferences/exit-type files are forged by the launcher.
++  if (is_post_crash_launch && !managed_restore) {
+     behavior_options |= IS_POST_CRASH_LAUNCH;
+   }
+   if (command_line_->HasSwitch(switches::kOpenInNewWindow)) {
+@@ -619,6 +625,12 @@
+       provider.GetCommandLineTabs(*command_line_, cur_dir_, profile_);
+   LaunchResult launch_result =
+       tabs.empty() ? LaunchResult::kNormally : LaunchResult::kWithGivenUrls;
++  if (!is_incognito_or_guest && shardx::ManagedSessionRestore(*command_line_).has_value()) {
++    // The launcher supplies the environment startup page. Native restore
++    // receives no artificial new tab and disabled restore cannot reopen
++    // pinned tabs or native startup URLs behind the global choice.
++    return {std::move(tabs), launch_result};
++  }
+ 
+   if (whats_new_enabled && (launch_result == LaunchResult::kWithGivenUrls ||
+                             is_incognito_or_guest || is_post_crash_launch)) {
+diff --git a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
+--- a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
++++ b/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc
+@@ -3,6 +3,9 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.h"
++#include "chrome/browser/lifetime/application_lifetime.h"
++#include "base/task/single_thread_task_runner.h"
++#include "chrome/browser/profiles/shardx_session_policy.h"
+ 
+ #include <windows.h>
+ 
+@@ -22,6 +25,7 @@
+ #include "chrome/browser/lifetime/application_lifetime_desktop.h"
+ #include "chrome/browser/profiles/profile_avatar_icon_util.h"
+ #include "chrome/browser/profiles/profile_manager.h"
++#include "chrome/browser/shell_integration_win.h"
+ #include "chrome/browser/themes/theme_service.h"
+ #include "chrome/browser/themes/theme_service_factory.h"
+ #include "chrome/browser/ui/ui_features.h"
+@@ -392,12 +396,13 @@
+       BrowserWindowPropertyManager::CreateBrowserWindowPropertyManager(
+           browser_view_, GetHWND());
+ 
+-  // Use the profile icon as the browser window icon, if there is more
+-  // than one profile. This makes alt-tab preview tabs show the profile-specific
+-  // icon in the multi-profile case.
+-  if (g_browser_process->profile_manager()
+-          ->GetProfileAttributesStorage()
+-          .GetNumberOfProfiles() > 1) {
++  // Use Chromium's profile image for managed environments, including a
++  // single regular profile. Other browsers retain native multi-profile badging.
++  if ((shell_integration::win::IsShardXManagedEnvironment() &&
++       browser_view_->browser()->GetProfile()->IsRegularProfile()) ||
++      g_browser_process->profile_manager()
++              ->GetProfileAttributesStorage()
++              .GetNumberOfProfiles() > 1) {
+     SetWindowIcon(/*badged=*/true);
+   }
+ }
+@@ -411,6 +416,16 @@
+                                                    WPARAM w_param,
+                                                    LPARAM l_param,
+                                                    LRESULT* result) {
++  static const UINT exit_message = ::RegisterWindowMessageW(shardx::kExitEnvironmentMessage);
++  if (exit_message && message == exit_message && w_param == shardx::kExitEnvironmentAck &&
++      shardx::ManagedSessionRestore(*base::CommandLine::ForCurrentProcess()).has_value()) {
++    // Post the native Exit command after acknowledging the owner. This
++    // preserves the whole session and native beforeunload cancellation.
++    *result = shardx::kExitEnvironmentAck;
++    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE, base::BindOnce(&chrome::AttemptExit));
++    return true;
++  }
+   switch (message) {
+     case WM_ENDSESSION:
+       chrome::SessionEnding();
+@@ -555,14 +570,16 @@
+ 
+ void BrowserDesktopWindowTreeHostWin::OnProfileAvatarChanged(
+     const base::FilePath& profile_path) {
+-  // If we're currently badging the window icon (>1 available profile),
+-  // and this window's profile's avatar changed, update the window icon.
++  // Update the native image for this window's profile, including managed
++  // single-profile windows.
+   CHECK(browser_view_);
+   if (browser_view_->browser()->GetProfile()->GetPath() == profile_path &&
+-      g_browser_process->profile_manager()
+-              ->GetProfileAttributesStorage()
+-              .GetNumberOfProfiles() > 1) {
+-    // If we went from 1 to 2 profiles, window icons should be badged.
++      ((shell_integration::win::IsShardXManagedEnvironment() &&
++        browser_view_->browser()->GetProfile()->IsRegularProfile()) ||
++       g_browser_process->profile_manager()
++               ->GetProfileAttributesStorage()
++               .GetNumberOfProfiles() > 1)) {
++    // Profile avatar changes also update managed single-profile windows.
+     SetWindowIcon(/*badged=*/true);
+   }
+ }
+@@ -582,8 +599,11 @@
+   if (g_browser_process->profile_manager()
+           ->GetProfileAttributesStorage()
+           .GetNumberOfProfiles() == 1) {
+-    // If we went from 2 profiles to 1, window icons should not be badged.
+-    SetWindowIcon(/*badged=*/false);
++    // Ordinary single-profile windows lose the badge; managed environments
++    // retain their own native profile image.
++    SetWindowIcon(
++        /*badged=*/shell_integration::win::IsShardXManagedEnvironment() &&
++        browser_view_->browser()->GetProfile()->IsRegularProfile());
+   }
+ }
+ 
+diff --git a/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc b/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
+--- a/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
++++ b/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
+@@ -3,6 +3,14 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/ui/views/frame/browser_window_property_manager_win.h"
++
++// clang-format off
++#include <shlobj.h>  // Must precede propkey.h.
++// clang-format on
++#include <propkey.h>
++#include <shellapi.h>
++#include <wrl/client.h>
++#include <initializer_list>
+ 
+ #include "base/command_line.h"
+ #include "base/functional/bind.h"
+@@ -25,6 +33,21 @@
+ #include "ui/views/win/hwnd_util.h"
+ 
+ using extensions::ExtensionRegistry;
++
++namespace {
++void ClearManagedRelaunchDetails(HWND hwnd) {
++  Microsoft::WRL::ComPtr<IPropertyStore> properties;
++  if (FAILED(SHGetPropertyStoreForWindow(hwnd, IID_PPV_ARGS(&properties))))
++    return;
++  const PROPVARIANT empty = {};
++  for (const PROPERTYKEY& key : {PKEY_AppUserModel_RelaunchCommand,
++                                PKEY_AppUserModel_RelaunchDisplayNameResource,
++                                PKEY_AppUserModel_RelaunchIconResource}) {
++    properties->SetValue(key, empty);
++  }
++  properties->Commit();
++}
++}  // namespace
+ 
+ BrowserWindowPropertyManager::BrowserWindowPropertyManager(
+     const BrowserView* view,
+@@ -71,6 +94,15 @@
+                 profile->GetPath())
+           : shell_integration::win::GetAppUserModelIdForBrowser(
+                 profile->GetPath());
++  if (shell_integration::win::IsShardXManagedEnvironment()) {
++    // A raw chrome.exe relaunch omits the manager's proxy/identity contract.
++    // Keep this in Chromium's native property-update lifecycle so profile-icon
++    // changes cannot reinstall a bypassing relaunch command later.
++    ClearManagedRelaunchDetails(hwnd_);
++    ui::win::PreventWindowFromPinning(hwnd_);
++    ui::win::SetAppIdForWindow(app_id, hwnd_);
++    return;
++  }
+   // Apps set their relaunch details based on app's details.
+   if (browser->GetType() == BrowserWindowInterface::Type::TYPE_APP ||
+       browser->GetType() == BrowserWindowInterface::Type::TYPE_APP_POPUP) {
+diff --git a/chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc b/chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc
+--- a/chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc
++++ b/chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc
+@@ -72,6 +72,7 @@
+ #include "components/prefs/pref_service.h"
+ #include "components/signin/public/base/consent_level.h"
+ #include "components/signin/public/base/signin_metrics.h"
++#include "components/signin/public/base/signin_pref_names.h"
+ #include "components/signin/public/base/signin_prefs.h"
+ #include "components/signin/public/base/signin_switches.h"
+ #include "components/signin/public/identity_manager/account_info.h"
+@@ -2709,6 +2710,12 @@
+   PrefService* prefs = profile->GetPrefs();
+   CHECK(prefs);
+ 
++  // Users who sign in after the migration and users migrated from DICe will be
++  // notified with other promos communicating sign-in benefits.
++  if (prefs->GetBoolean(prefs::kPrimaryAccountSetAfterSigninMigration) ||
++      prefs->GetBoolean(kDiceMigrationMigrated)) {
++    return;
++  }
+ 
+   if (show_new_signin && !show_legacy) {
+     auto* const edu_service =
+diff --git a/chrome/browser/ui/views/profiles/profile_menu_view.cc b/chrome/browser/ui/views/profiles/profile_menu_view.cc
+--- a/chrome/browser/ui/views/profiles/profile_menu_view.cc
++++ b/chrome/browser/ui/views/profiles/profile_menu_view.cc
+@@ -80,6 +80,7 @@
+ #include "components/signin/core/browser/account_preview_data_service.h"
+ #include "components/signin/public/base/consent_level.h"
+ #include "components/signin/public/base/signin_metrics.h"
++#include "components/signin/public/base/signin_pref_names.h"
+ #include "components/signin/public/base/signin_switches.h"
+ #include "components/signin/public/identity_manager/account_info.h"
+ #include "components/signin/public/identity_manager/identity_manager.h"
+@@ -1044,7 +1045,9 @@
+   // Show the settings button when signed in to Chrome or to the web, or if
+   // signin is disallowed.
+   const bool should_show_settings_button =
+-      false;
++      !identity_manager->GetExtendedAccountInfoForAccountsWithRefreshToken()
++           .empty() ||
++      !profile().GetPrefs()->GetBoolean(prefs::kSigninAllowed);
+   if (!should_show_settings_button) {
+     return;
+   }
+@@ -1070,6 +1073,27 @@
+ }
+ 
+ void ProfileMenuView::MaybeBuildGoogleServicesSettingsButton() {
++  CHECK(!profile().IsGuestSession());
++
++  signin::IdentityManager* identity_manager =
++      IdentityManagerFactory::GetForProfile(&profile());
++
++  if (!identity_manager) {
++    return;
++  }
++
++  // Show the services settings button  if signin is disallowed.
++  if (profile().GetPrefs()->GetBoolean(prefs::kSigninAllowed)) {
++    return;
++  }
++  AddFeatureButton(
++      l10n_util::GetStringUTF16(IDS_PROFILE_MENU_OPEN_ACCOUNT_SETTINGS),
++      base::BindRepeating(
++          &ProfileMenuView::OnGoogleServicesSettingsButtonClicked,
++          base::Unretained(this)),
++      features::IsRoundedIconsEnabled()
++          ? vector_icons::kSettingsIcon
++          : vector_icons::kSettingsChromeRefreshOldIcon);
+ }
+ 
+ void ProfileMenuView::MaybeBuildManageGoogleAccountButton() {

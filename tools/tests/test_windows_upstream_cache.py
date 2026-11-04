@@ -245,7 +245,7 @@ class WindowsUpstreamCacheRegressionTest(unittest.TestCase):
         required = "${{ (inputs.use_upstream_cache || inputs.upstream_run_id != '') && '1' || '0' }}"
         self.assertEqual(workflow['env']['CHROMIX_USE_UPSTREAM_CACHE'], required)
         self.assertEqual(workflow['env']['CHROMIX_PREFER_UPSTREAM_CACHE'],
-                         "${{ github.event_name == 'push' && '1' || '0' }}")
+                         '0')
         for job in workflow['jobs'].values():
             self.assertNotIn('CHROMIX_USE_UPSTREAM_CACHE', job.get('env', {}))
             for step in job['steps']:

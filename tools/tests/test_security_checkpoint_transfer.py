@@ -127,6 +127,50 @@ class TransferTests(unittest.TestCase):
             c.restore(self.root, dest, '123', 1, 1)
         self.assertEqual(self.downloaded.count('security-win156-s1-part1'), before)
 
+    def test_transient_download_retry_uses_a_fresh_directory_and_reuses_other_volume(self):
+        directories = []
+        original = self.gh
+
+        def download(args):
+            if args[0] == 'run' and args[args.index('--name') + 1].endswith('part2'):
+                directory = Path(args[args.index('--dir') + 1])
+                directories.append(directory)
+                if len(directories) == 1:
+                    (directory / 'partial').write_bytes(b'incomplete transfer')
+                    raise c.GitHubOperationError(retryable=True)
+            return original(args)
+
+        with patch.object(c, 'gh', side_effect=download), patch.object(c.time, 'sleep'):
+            destination = self.root / 'retry-transfer'
+            c.restore(self.root, destination, '123', 1, 1)
+        self.assertEqual(len(directories), 2)
+        self.assertNotEqual(directories[0], directories[1])
+        self.assertTrue(all(not p.exists() for p in directories))
+        self.assertEqual(self.downloaded.count('security-win156-s1-part1'), 1)
+        self.assertEqual((destination / 'tree.7z.002').read_bytes(), self.parts[1])
+
+    def test_transport_retry_is_bounded_and_permission_failures_are_not_retried(self):
+        for retryable, expected in ((True, 3), (False, 1)):
+            calls = []
+            original = self.gh
+
+            def download(args):
+                if args[0] == 'run' and args[args.index('--name') + 1].endswith('part2'):
+                    calls.append(args)
+                    raise c.GitHubOperationError(retryable=retryable)
+                return original(args)
+
+            with self.subTest(retryable=retryable), patch.object(c, 'gh', side_effect=download), patch.object(c.time, 'sleep'):
+                with self.assertRaises(c.GitHubOperationError):
+                    c.restore(self.root, self.root / ('transfer-' + str(retryable)), '123', 1, 1)
+                self.assertEqual(len(calls), expected)
+
+    def test_network_classification_does_not_retry_auth_or_integrity_failures(self):
+        for message in ('HTTP 503 Service Unavailable', 'TLS handshake timeout', 'connection reset by peer'):
+            self.assertTrue(c.transient_transfer_error(message))
+        for message in ('HTTP 401 Bad credentials', 'HTTP 403 Forbidden', 'HTTP 404 Not Found', 'SHA256 mismatch'):
+            self.assertFalse(c.transient_transfer_error(message))
+
     def test_wrong_payload_and_unowned_destination_rejected(self):
         self.tamper_download = 1
         with self.assertRaisesRegex(ValueError, 'content mismatch'):

@@ -213,7 +213,7 @@ function Get-OwnedFailureSummary([string]$Label,[int]$ExitCode,$Receipt,[string]
   $safeLabel = if ($Label -cmatch '^[a-z0-9-]{1,64}$') { $Label } else { 'owned-command' }
   $failedChecks = [Collections.Generic.List[string]]::new()
   $exceptionType = ''
-  $trustedSummary = $safeLabel -cin @('native-browser-runtime','native-cookie-runtime','security-runtime',
+  $trustedSummary = $safeLabel -cin @('native-browser-runtime','native-cookie-runtime','native-session-runtime','security-runtime',
     'google-runtime','accept-native-browser-tests','accept-native-cookie-tests','accept-native-passkey','accept-fingerprint')
   if (Test-Path -LiteralPath $Log -PathType Leaf) {
     foreach ($line in @(Get-Content -LiteralPath $Log -Tail 24 -ErrorAction SilentlyContinue)) {
@@ -341,6 +341,16 @@ function Invoke-VerificationPlan([object[]]$Steps) {
   if ($incomplete) { throw 'SECURITY_VERIFICATION_INCOMPLETE' }
 }
 
+function Confirm-HostedCompilerPrerequisites {
+  # Fail on missing host prerequisites before transferring a multi-GB tree.
+  # Cleanup precedes this call, so installation also has its real disk budget.
+  $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+  if (-not (Test-Path -LiteralPath $vswhere -PathType Leaf)) { throw 'Visual Studio discovery tool is missing' }
+  $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+  if ($LASTEXITCODE -ne 0 -or -not $vs) { throw 'Visual Studio x64 C++ toolchain is missing' }
+  Invoke-Owned 'sdk-prerequisite' @($pwsh,'-NoProfile','-File',"$PSScriptRoot\ensure-windows-sdk.ps1",'-Arch','x64','-ChromiumVersion',$version,'-Install')
+}
+
 function Set-CompilerEnvironment([switch]$WithoutSourceTools) {
   $env:DEPOT_TOOLS_WIN_TOOLCHAIN = '0'
   $env:DEPOT_TOOLS_METRICS = '0'
@@ -377,6 +387,7 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         if ($Operation -eq 'upgrade') { $checkpointArgs += '--allow-migration' }
         Invoke-Owned 'checkpoint-preflight' (@($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_checkpoint.py'),'preflight') + $checkpointArgs + @('--output',$preflight)) -GitHubReadToken
         Clear-HostedToolSpace
+        Confirm-HostedCompilerPrerequisites
         $admitted = Get-Content -LiteralPath $preflight -Raw | ConvertFrom-Json -AsHashtable
         $diskBudget = Get-CheckpointDiskBudget $admitted.manifest
         $diskBudget.available_bytes = (Get-PSDrive C).Free
@@ -386,6 +397,7 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       } else {
         if ($SourceRun -or $SourceStage -ne 0) { throw 'Fresh/upstream acquisition cannot adopt a checkpoint donor' }
         Clear-HostedToolSpace
+        Confirm-HostedCompilerPrerequisites
         if ($Operation -eq 'upstream') {
           Invoke-Owned 'exact-upstream-download' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\fetch_upstream_cache.py'),
             '--platform','windows','--arch','x64','--destination',$upstreamCache,'--run-id','41098495420') -GitHubReadToken
@@ -435,7 +447,7 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       Save-State
       if ($Operation -in @('fresh','upstream')) {
         Invoke-Owned 'base-prepare' @($pwsh,'-NoProfile','-File',"$PSScriptRoot\prepare-ungoogled.ps1",'-Root',$work,'-Repo',$repo,'-Arch','x64',
-          '-DeadlineEpoch',"$($deadline.ToUnixTimeSeconds())",'-ReserveMinutes','10')
+          '-Profile','lite','-DeadlineEpoch',"$($deadline.ToUnixTimeSeconds())",'-ReserveMinutes','10')
       }
       if ($Operation -eq 'fresh') {
         $core = Join-Path $work 'tooling\ungoogled-chromium'
@@ -451,7 +463,7 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       $patch = Join-Path $src 'third_party\git\usr\bin\patch.exe'
       # Never repeat base preparation/domain replacement after service restoration.
       $prepareArgs = @($python,'-B','-X','utf8',(Join-Path $repo 'tools\prepare_google_services.py'),
-        '--repo',$repo,'--work',$work,'--patch-bin',$patch)
+        '--repo',$repo,'--work',$work,'--patch-bin',$patch,'--profile','lite')
       if ($Operation -eq 'upgrade') { $prepareArgs += '--reuse-prepared-domains' }
       Invoke-Owned 'service-and-fingerprint-restore' $prepareArgs
       if ($Operation -eq 'upgrade') {
@@ -545,6 +557,8 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         '--build-record',(Join-Path $bundle 'google-services-build.json'),'--kind','cookie')}
       @{label='native-cookie-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_native_cookie_runtime.py'),
         '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'native-cookie-runtime.json'))}
+      @{label='native-session-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_native_session_runtime.py'),
+        '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'native-session-runtime.json'))}
       @{label='browser-smoke';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_windows_bundle.py'),'--bundle',$bundle,'--arch','x64','--native','--version',$version,'--report',(Join-Path $evidence 'candidate-smoke.json'))}
       @{label='security-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_security_runtime.py'),
         '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'security-runtime.json'))}
@@ -569,6 +583,7 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       foreach ($name in @('build-inputs.json','native-passkey-unittests.json','native-passkey-launcher.json',
           'native-browser-unittests.json','native-browser-launcher.json','native-browser-runtime.json',
           'native-cookie-unittests.json','native-cookie-launcher.json','native-cookie-runtime.json',
+          'native-session-runtime.json','native-session-runtime.events.jsonl','native-session-runtime.build.log',
           'verification-results.json',
           'candidate-smoke.json','google-services-runtime.json','security-runtime.json','fingerprint-modes-validation.json',
           'modes-native.json','modes-runtime.json','fingerprint-modes-capabilities.json')) {

@@ -12,6 +12,44 @@ REPO = Path(__file__).resolve().parents[1]
 TEMPLATE = REPO / '.github/workflows/build-win-x64-github.yml'
 OUTPUT = REPO / '.github/workflows/build-win-arm64-github.yml'
 
+# ARM64 owns its trigger; the shared x64 stage template is historical/manual.
+ARM64_PUSH = {'branches': ['main'],
+ 'paths': ['build/*',
+           'build/windows/**',
+           'patches/**',
+           'assets/fonts/**',
+           'tools/*upstream_cache.py',
+           'tools/upstream_object_cache.py',
+           'tools/upstream_script_identity.py',
+           'tools/apply_restored_patches.py',
+           'tools/prepare_restored_build.py',
+           'tools/restore_ninja.py',
+           'tools/bootstrap_gn.py',
+           'tools/restored_reuse_evidence.py',
+           'tools/merge_gn_args.py',
+           'tools/build_resources.py',
+           'tools/tests/test_ci_stage.py',
+           'tools/tests/test_windows_cleanup_gate.py',
+           'tools/fingerprint*',
+           'tools/verify_patch_stack.py',
+           'tools/device_p0_audit.py',
+           'tools/canvas_chain_audit.py',
+           'tools/collect_device.py',
+           'tools/device_pool.py',
+           'sdk/python/chromix/_device*.py',
+           'sdk/python/chromix/device_pool.py',
+           'sdk/python/chromix/_canvas_chain.py',
+           'sdk/python/chromix/_render_integration.py',
+           'sdk/python/chromix/*.js',
+           'sdk/python/pyproject.toml',
+           '.github/workflows/build-win-arm64-github.yml',
+           'CHROMIUM_VERSION',
+           'CHROMIUM_WINDOWS_VERSION',
+           'tools/platform_pins.py',
+           'tools/tests/test_windows_platform_pins.py',
+           'UNGOOGLED_VERSION',
+           'UNGOOGLED_WINDOWS_VERSION']}
+
 
 def dispatch_run_name(prefix, fields, fallback):
     labels = ' '.join(f'{label}={{{index}}}' for index, (label, _) in enumerate(fields))
@@ -46,7 +84,9 @@ def workflow():
     source = yaml.safe_load(TEMPLATE.read_text(encoding='utf-8'))
     result = replace_target(deepcopy(source))
     events = result.pop(True) if True in result else result.pop('on')
-    result = {'name': result.pop('name'), 'on': events, **result}
+    result.pop('name')
+    events = {'push': deepcopy(ARM64_PUSH), **events}
+    result = {'name': 'build-win-arm64-github', 'on': events, **result}
     result['run-name'] = ARM64_RUN_NAME
     for event in ('workflow_call', 'workflow_dispatch'):
         events[event]['inputs'] = {name: value for name, value in events[event]['inputs'].items()

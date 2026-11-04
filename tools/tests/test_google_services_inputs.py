@@ -35,7 +35,7 @@ class AggregateInputsTests(unittest.TestCase):
         self.config_path.write_text(json.dumps(self.config), encoding='utf-8')
         self.selection = {'series_sha256': 'c' * 64, 'patches': [
             {'path': 'patches/base.patch', 'sha256': sha256((self.repo / 'patches/base.patch').read_bytes())}]}
-        self.selector = patch('patch_selection.select', return_value=(self.selection, []))
+        self.selector = patch('patch_selection.select_legacy', return_value=(self.selection, []))
         self.selector.start()
         self.addCleanup(self.selector.stop)
         self.snapshot = aggregate_inputs(self.repo)

@@ -55,11 +55,17 @@ def compiler_environment(root):
     return environment
 
 class RecipeTests(unittest.TestCase):
-    def test_retirement_is_last_and_donor_inputs_stay_whole(self):
+    def test_retirement_precedes_native_features_and_donor_inputs_stay_whole(self):
         config = json.loads((ROOT / 'build/google-services-win155.json').read_text())
-        self.assertEqual(config['restoration_overlays'][-1], OVERLAY)
+        order = config['restoration_overlays']
+        self.assertLess(order.index(OVERLAY), order.index('patches/native-browser/0001-native-windows-shell.patch'))
         self.assertEqual(config['restoration_overlays'].count(OVERLAY), 1)
         self.assertTrue(config['lite_retirement']['source_gate_required'])
+        from tools.lite_patch_stack import load
+        product = load(ROOT)
+        final = {entry['path']: entry['after_sha256'] for entry in product['source_files']}
+        for name in REMOVED_FILES:
+            self.assertIsNone(final.get(name))
         baseline = json.loads((ROOT / 'build/patch-stack-windows155-baseline.json').read_text())
         self.assertEqual(len(baseline['patches']), 231)
         for entry in baseline['patches']:

@@ -15,6 +15,9 @@
 *.yml     text eol=lf
 *.yaml    text eol=lf
 *.json    text eol=lf
+*.go      text eol=lf
+go.mod    text eol=lf
+go.sum    text eol=lf
 *.gn      text eol=lf
 *.psd1    text eol=lf
 *.conf    text eol=lf

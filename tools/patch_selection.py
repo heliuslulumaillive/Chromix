@@ -305,7 +305,7 @@ def windows155_additions(repo: Path) -> tuple[list[str], dict | None]:
     }
 
 
-def select(repo: Path, platform: str | None = None, *, src: Path | None = None,
+def select_legacy(repo: Path, platform: str | None = None, *, src: Path | None = None,
            core: Path | None = None) -> tuple[dict, list[tuple[str, bytes]]]:
     """Return raw selected-byte identity and ordered (physical path, bytes)."""
     repo = Path(repo)
@@ -463,9 +463,22 @@ def select(repo: Path, platform: str | None = None, *, src: Path | None = None,
     return identity, patches
 
 
-def preparation_key(repo: Path, platform: str, style: str) -> str:
+def select(repo: Path, platform: str | None = None, *, src: Path | None = None,
+           core: Path | None = None, profile: str = "legacy"):
+    if profile == "legacy":
+        return select_legacy(repo, platform, src=src, core=core)
+    if profile != "lite" or platform != "windows":
+        raise SelectionError("Lite product patches require the Windows product profile")
+    try:
+        from .lite_patch_stack import select as select_product
+    except ImportError:
+        from lite_patch_stack import select as select_product
+    return select_product(Path(repo), src=src, core=core)
+
+
+def preparation_key(repo: Path, platform: str, style: str, *, profile="legacy") -> str:
     """Retain historical key encodings; hash selected bytes for reviewed overrides."""
-    identity, patches = select(repo, platform)
+    identity, patches = select(repo, platform, profile=profile)
     hasher = hashlib.sha256()
     if style == "posix":
         for name in ("build/prepare-ungoogled.sh", "build/apply-patches.sh", "patches/series"):
@@ -498,15 +511,16 @@ def main(argv=None):
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--platform", choices=tuple(PLATFORMS), required=True)
     parser.add_argument("--src", type=Path)
+    parser.add_argument("--profile", choices=("legacy", "lite"), default="legacy")
     output = parser.add_mutually_exclusive_group(required=True)
     output.add_argument("--paths", action="store_true")
     output.add_argument("--json", action="store_true")
     output.add_argument("--key", choices=("windows", "posix"))
     args = parser.parse_args(argv)
     try:
-        identity, patches = select(args.repo, args.platform, src=args.src)
+        identity, patches = select(args.repo, args.platform, src=args.src, profile=args.profile)
         if args.key:
-            print(preparation_key(args.repo, args.platform, args.key))
+            print(preparation_key(args.repo, args.platform, args.key, profile=args.profile))
         elif args.paths:
             print("\n".join(name for name, _ in patches))
         else:

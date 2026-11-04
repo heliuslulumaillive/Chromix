@@ -30,10 +30,12 @@ TARGETS = (
 )
 
 
-def verify(src: Path, repo: Path) -> list[str]:
-    config = json.loads((repo / 'build/google-services-win155.json').read_text(encoding='utf-8'))
+def verify(src: Path, repo: Path, *, config=None) -> list[str]:
+    legacy = config is None
+    if legacy:
+        config = json.loads((repo / 'build/google-services-win155.json').read_text(encoding='utf-8'))
     if (config.get('native_cookie') != {'version': 1, 'capabilities': CAPABILITIES, 'source_gate_required': True}
-            or OVERLAY not in config.get('restoration_overlays', [])):
+            or (legacy and OVERLAY not in config.get('restoration_overlays', []))):
         raise ValueError('Native Cookie restoration is not explicitly configured')
     caps = json.loads((repo / CAPABILITIES).read_text(encoding='utf-8'))
     if (caps.get('schema_version') != 1 or caps.get('contract') != 'shardx-native-cookie-v1'

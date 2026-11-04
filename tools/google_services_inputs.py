@@ -15,6 +15,7 @@ GENERATOR_INPUTS = (
     'tools/build_google_services_patch.py', 'tools/google_services_inputs.py',
     'tools/patch_selection.py', 'tools/platform_pins.py',
     'tools/restored_source_resources.py',
+    'tools/restoration_rules.py', 'build/restoration-rules-windows156.json',
 )
 
 
@@ -100,9 +101,9 @@ def native_cookie_input_names(config: dict) -> tuple[str, ...]:
 def aggregate_inputs(repo: Path, config: dict | None = None, selection=None) -> dict:
     """Do not include the generated aggregate/receipt, which would be circular."""
     try:
-        from .patch_selection import select
+        from .patch_selection import select_legacy as select
     except ImportError:
-        from patch_selection import select
+        from patch_selection import select_legacy as select
     if config is None:
         config = json.loads(owned(repo, 'build/google-services-win155.json').read_text('utf-8'))
     if selection is None:

@@ -11,11 +11,13 @@ param(
   [Parameter(Mandatory)] [string]$Repo,
   [int]$DeadlineEpoch = 0,
   [int]$ReserveMinutes = 45,
+  [ValidateSet("legacy", "lite")] [string]$Profile = "legacy",
   [ValidateSet("x64", "arm64")]
   [string]$Arch = $(if ($env:CHROMIX_TARGET_ARCH) { $env:CHROMIX_TARGET_ARCH } else { "x64" })
 )
 $ErrorActionPreference = "Stop"
 if ($Arch -cnotin @("x64", "arm64")) { throw "Arch/CHROMIX_TARGET_ARCH must be x64 or arm64" }
+if ($Profile -eq 'lite' -and $Arch -ne 'x64') { throw 'The reviewed Lite product profile requires x64.' }
 
 $Revisions = & "$PSScriptRoot\read-platform-pins.ps1" -Repo $Repo
 $Tooling = Join-Path $Root "tooling"
@@ -70,7 +72,7 @@ function Ensure-Checkout {
 }
 
 function Get-PatchSetKey {
-  $key = @(& $Python (Join-Path $Repo "tools\patch_selection.py") --repo $Repo --platform windows --key windows)
+  $key = @(& $Python (Join-Path $Repo "tools\patch_selection.py") --repo $Repo --platform windows --key windows --profile $Profile)
   if ($LASTEXITCODE -ne 0 -or $key.Count -ne 1 -or $key[0] -cnotmatch '^[0-9a-f]{64}$') {
     throw "could not establish selected patch-set identity"
   }
@@ -82,7 +84,7 @@ function Assert-CurrentPatchStack {
   try {
     Invoke-Checked $Python @(
       (Join-Path $Repo "tools\verify_patch_stack.py"), "--src", $Src, "--repo", $Repo,
-      "--core", $Ungoogled, "--platform-tooling", $Windows, "--platform", "windows", "--output", $output
+      "--core", $Ungoogled, "--platform-tooling", $Windows, "--platform", "windows", "--output", $output, "--profile", $Profile
     )
   } finally {
     Remove-Item -LiteralPath $output -Force -ErrorAction SilentlyContinue
@@ -155,7 +157,7 @@ function Invoke-ChromixPatches(
     [bool]$ResumePatchIsClean = $false,
     [string]$ResumePatchHash = "") {
   $resuming = [bool]$ResumePatch
-  $selected = @(& $Python (Join-Path $Repo "tools\patch_selection.py") --repo $Repo --platform windows --src $Src --paths)
+  $selected = @(& $Python (Join-Path $Repo "tools\patch_selection.py") --repo $Repo --platform windows --src $Src --paths --profile $Profile)
   if ($LASTEXITCODE -ne 0 -or $selected.Count -eq 0) { throw "could not select source patch stack" }
   foreach ($rel in $selected) {
     if ($resuming -and $rel -ne $ResumePatch) {
@@ -375,6 +377,11 @@ if (Test-Path (Join-Path $Src ".chromix-domain-substituted")) {
 if (Test-Path $readyMarker) {
   Assert-PreparedLayers
   Assert-Arm64RustToolchain
+  if ($Profile -eq 'lite' -and (Test-Path -LiteralPath (Join-Path $Root 'google-services-source.json'))) {
+    Assert-CurrentPatchStack
+    Write-Host '==> final Lite product source verified without repeating upstream/domain layers'
+    return
+  }
   if (-not $RestoredUpstream) {
     Assert-CurrentPatchStack
     Write-Host "==> source layers already prepared and verified: $versionKey"
@@ -466,7 +473,7 @@ if ($RestoredUpstream) {
   $applyArgs = @(
     (Join-Path $Repo "tools\apply_restored_patches.py"),
     "--src", $Src, "--repo", $Repo, "--core", $Ungoogled,
-    "--platform-tooling", $Windows, "--platform", "windows", "--patch-bin", $RestoredPatchExe
+    "--platform-tooling", $Windows, "--platform", "windows", "--patch-bin", $RestoredPatchExe, "--profile", $Profile
   )
   if (Test-Path $readyMarker) { $applyArgs += "--check" }
   Invoke-Checked $Python $applyArgs

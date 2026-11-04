@@ -408,10 +408,6 @@
         "safe_browsing",
         "SafeBrowsing"
       ],
-      "chrome/browser/prefs/chrome_pref_service_factory.cc": [
-        "safe_browsing",
-        "SafeBrowsing"
-      ],
       "chrome/browser/prefs/pref_functional_browsertest.cc": [
         "safe_browsing",
         "SafeBrowsing"
@@ -453,11 +449,7 @@
       "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc": [
         "safe_browsing"
       ],
-      "chrome/browser/ui/views/safe_browsing/password_reuse_modal_warning_dialog.cc": [
-        "safe_browsing"
-      ],
       "chrome/browser/ui/views/safe_browsing/password_reuse_modal_warning_dialog.h": [
-        "safe_browsing",
         "PasswordProtection"
       ],
       "chrome/browser/ui/webui/browser_command/browser_command_handler.cc": [

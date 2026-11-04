@@ -859,7 +859,8 @@ def test_merged_font_enumeration_context_roundtrips(tmp_path, version):
     original = "".join(lines) + "// trailing source\n"
     target = tmp_path / target_name
     target.parent.mkdir(parents=True)
-    target.write_text(original)
+    # Chromium tarball text is LF; --binary must see the same fixture bytes on Windows.
+    target.write_text(original, newline="\n")
     patch = context.REPO / "patches/0190-restricted-local-font-enumeration.patch"
     expected = original.replace('#include "third_party/blink/renderer/modules/font_access/font_access.h"\n',
                                 '#include "third_party/blink/renderer/modules/font_access/font_access.h"\n\n'

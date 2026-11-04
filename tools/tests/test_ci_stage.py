@@ -1118,17 +1118,16 @@ class ResumeWorkflowRegressionTest(unittest.TestCase):
             12,
         )
 
-    def test_explicit_upstream_cache_is_required_while_push_only_prefers(self):
+    def test_historical_workflow_keeps_explicit_cache_without_automatic_fallback(self):
         self.assertIn("upstream_run_id:", self.source)
         self.assertIn("use_upstream_cache:", self.source)
         self.assertNotIn('needs: validate', self.source)
         self.assertIn("GH_TOKEN: ${{ secrets.UPSTREAM_ACTIONS_TOKEN || github.token }}", self.source)
         self.assertIn("UPSTREAM_RUN_ID: ${{ inputs.upstream_run_id }}", self.source)
         self.assertEqual(self.source.count("UseUpstreamCache ="), 1)
-        # Since 5271cf4, normal cache artifact expiry may fall back on push;
-        # explicit cache requests (including a run ID) still fail closed.
+        # Historical dispatch preserves explicit fail-closed cache requests.
         self.assertIn("CHROMIX_USE_UPSTREAM_CACHE: ${{ (inputs.use_upstream_cache || inputs.upstream_run_id != '') && '1' || '0' }}", self.source)
-        self.assertIn("CHROMIX_PREFER_UPSTREAM_CACHE: ${{ github.event_name == 'push' && '1' || '0' }}", self.source)
+        self.assertIn("CHROMIX_PREFER_UPSTREAM_CACHE: '0'", self.source)
         self.assertIn("USE_UPSTREAM_CACHE: ${{ inputs.use_upstream_cache }}", self.source)
         self.assertNotIn("-ValidateOnly", self.source)
         self.assertNotIn("-UpstreamArtifactPath", self.source)

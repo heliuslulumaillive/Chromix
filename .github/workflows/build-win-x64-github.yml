@@ -1,52 +1,15 @@
+# Historical/manual baseline only. Product builds use security-win156.yml.
 # GitHub-hosted Windows x64 build, modeled on ungoogled-chromium-windows'
 # staged CI: a full Chromium build far exceeds the 6h single-job limit, so
 # build-1..build-12 form a chain. Each stage runs build/windows/ci-stage.ps1
 # under a self-imposed ~5h budget, then snapshots C:\c (mtimes preserved) into
 # 7z volumes uploaded as artifacts; the next stage restores them and resumes
 # ninja incrementally until it returns 0.
-name: build-win-x64-github
+name: Historical Windows x64 baseline
 run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' && format('wx64 profile={0} jobs={1} cache={2} upstream={3} run={4} stage={5} tree={6} attempt={7} source={8} artifacts={9}', inputs.build_profile, inputs.compile_jobs, format('{0}', inputs.use_upstream_cache), inputs.upstream_run_id, inputs.resume_run_id, inputs.resume_stage, inputs.resume_tree_stage, inputs.resume_attempt, inputs.resume_source_sha, inputs.resume_artifact_ids) || 'build-win-x64-github' }}
+  ${{ github.event_name == 'workflow_dispatch' && format('wx64 profile={0} jobs={1} cache={2} upstream={3} run={4} stage={5} tree={6} attempt={7} source={8} artifacts={9}', inputs.build_profile, inputs.compile_jobs, format('{0}', inputs.use_upstream_cache), inputs.upstream_run_id, inputs.resume_run_id, inputs.resume_stage, inputs.resume_tree_stage, inputs.resume_attempt, inputs.resume_source_sha, inputs.resume_artifact_ids) || 'Historical Windows x64 baseline' }}
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'build/*'
-      - 'build/windows/**'
-      - 'patches/**'
-      - 'assets/fonts/**'
-      - 'tools/*upstream_cache.py'
-      - 'tools/upstream_object_cache.py'
-      - 'tools/upstream_script_identity.py'
-      - 'tools/apply_restored_patches.py'
-      - 'tools/prepare_restored_build.py'
-      - 'tools/restore_ninja.py'
-      - 'tools/bootstrap_gn.py'
-      - 'tools/restored_reuse_evidence.py'
-      - 'tools/merge_gn_args.py'
-      - 'tools/build_resources.py'
-      - 'tools/tests/test_ci_stage.py'
-      - 'tools/tests/test_windows_cleanup_gate.py'
-      - 'tools/fingerprint*'
-      - 'tools/verify_patch_stack.py'
-      - 'tools/device_p0_audit.py'
-      - 'tools/canvas_chain_audit.py'
-      - 'tools/collect_device.py'
-      - 'tools/device_pool.py'
-      - 'sdk/python/chromix/_device*.py'
-      - 'sdk/python/chromix/device_pool.py'
-      - 'sdk/python/chromix/_canvas_chain.py'
-      - 'sdk/python/chromix/_render_integration.py'
-      - 'sdk/python/chromix/*.js'
-      - 'sdk/python/pyproject.toml'
-      - '.github/workflows/build-win-x64-github.yml'
-      - 'CHROMIUM_VERSION'
-      - 'CHROMIUM_WINDOWS_VERSION'
-      - 'tools/platform_pins.py'
-      - 'tools/tests/test_windows_platform_pins.py'
-      - 'UNGOOGLED_VERSION'
-      - 'UNGOOGLED_WINDOWS_VERSION'
   workflow_call:
     inputs:
       build_profile:
@@ -166,10 +129,9 @@ concurrency:
 env:
   CHROMIX_BUILD_PROFILE: ${{ inputs.build_profile || 'native' }}
   CHROMIX_JOBS: ${{ inputs.compile_jobs || 'auto' }}
-  # Pushes prefer the pinned cache, but its normal artifact expiry may use the
-  # pinned cold-source pipeline. Explicit cache requests remain fail-closed.
+  # Historical invocations keep explicit cache/resume choices.
   CHROMIX_USE_UPSTREAM_CACHE: ${{ (inputs.use_upstream_cache || inputs.upstream_run_id != '') && '1' || '0' }}
-  CHROMIX_PREFER_UPSTREAM_CACHE: ${{ github.event_name == 'push' && '1' || '0' }}
+  CHROMIX_PREFER_UPSTREAM_CACHE: '0'
   DEPOT_TOOLS_WIN_TOOLCHAIN: '0'
   DEPOT_TOOLS_METRICS: '0'
   DEPOT_TOOLS_COLLECT_METRICS: '0'

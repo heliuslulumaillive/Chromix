@@ -15,20 +15,23 @@ import shutil
 import subprocess
 import tempfile
 
-import apply_restored_patches as arp
+try:
+    from . import apply_restored_patches as arp
+except ImportError:
+    import apply_restored_patches as arp
 
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def load_stack(repo, core=None, tooling=None, platform=None, substituted=False, *, src=None):
+def load_stack(repo, core=None, tooling=None, platform=None, substituted=False, *, src=None, profile="legacy"):
     if substituted:
         if core is None or tooling is None or platform not in ('windows', 'linux', 'macos'):
             raise ValueError('domain-substituted sources require core, platform-tooling and platform')
-        identity, patches, _ = arp._load(repo, core, tooling, platform, src=src)
+        identity, patches, _ = arp._load(repo, core, tooling, platform, src=src, profile=profile)
         return identity, patches
-    identity, raw_patches = arp.patch_selection.select(Path(repo), platform, src=src, core=core)
+    identity, raw_patches = arp.patch_selection.select(Path(repo), platform, src=src, core=core, profile=profile)
     patches = []
     for name, raw in raw_patches:
         data, entries = arp.transform_patch(raw, set(), [])
@@ -36,7 +39,7 @@ def load_stack(repo, core=None, tooling=None, platform=None, substituted=False, 
     return identity, patches
 
 
-def verify(src, repo, *, core=None, tooling=None, platform=None):
+def verify(src, repo, *, core=None, tooling=None, platform=None, profile="legacy"):
     src, repo = Path(src).resolve(), Path(repo).resolve()
     if not src.is_dir() or not repo.is_dir() or src == repo:
         raise ValueError('distinct existing source and repository directories required')
@@ -45,7 +48,27 @@ def verify(src, repo, *, core=None, tooling=None, platform=None):
         if (src / name).exists():
             raise ValueError('source has unfinished preparation: ' + name)
     substituted = (src / '.chromix-domain-substituted').exists()
-    identity, patches = load_stack(repo, core, tooling, platform, substituted, src=src)
+    final_receipt = src.parent / 'google-services-source.json'
+    if profile == 'lite' and (src.parent / '.google-services-preparing').exists():
+        raise ValueError('Product source preparation is still in progress')
+    if profile == 'lite' and final_receipt.is_file():
+        saved = json.loads(final_receipt.read_text('utf-8-sig'))
+        if saved.get('patch_kind') == 'lite-windows156-product':
+            try:
+                from .lite_patch_stack import load, select as select_product, verify_source
+                from .prepare_google_services import pinned_inverse_rules
+            except ImportError:
+                from lite_patch_stack import load, select as select_product, verify_source
+                from prepare_google_services import pinned_inverse_rules
+            product = load(repo)
+            if saved.get('patch_sha256') != product['stack_sha256'] or core is None or platform != 'windows':
+                raise ValueError('Final product receipt does not match the selected patch stack')
+            select_product(repo, src=src, core=core)
+            checked = verify_source(repo, src, inverse_rules=pinned_inverse_rules(core / 'domain_regex.list'))
+            return {'schema_version': 2, 'status': 'verified', 'method': 'exact-final-product-files',
+                    'patch_count': len(product['patches']), 'source_files': len(checked),
+                    'qualification': 'reviewed product file bytes; upstream provenance is checked separately'}
+    identity, patches = load_stack(repo, core, tooling, platform, substituted, src=src, profile=profile)
     names = {entry[0] for _, _, entries in patches for entry in entries}
     before = arp._snapshot(src, names)
     program = shutil.which('git')
@@ -95,7 +118,7 @@ def verify(src, repo, *, core=None, tooling=None, platform=None):
                     (info and original.stat().st_mtime_ns != info.st_mtime_ns)):
                 raise ValueError('source changed concurrently: ' + name)
     # Detect a concurrent repository edit too; don't certify a mixed patch set.
-    if load_stack(repo, core, tooling, platform, substituted, src=src)[0] != identity:
+    if load_stack(repo, core, tooling, platform, substituted, src=src, profile=profile)[0] != identity:
         raise ValueError('patch inputs changed during verification')
     return {'schema_version': 1, 'status': 'verified', 'method': 'reverse-forward-in-scratch',
             'qualification': 'current patch hunks/new files, not full upstream attestation',
@@ -111,11 +134,12 @@ def main(argv=None):
     parser.add_argument('--platform-tooling', type=Path)
     parser.add_argument('--platform', choices=('windows', 'linux', 'macos'))
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--profile', choices=('legacy', 'lite'), default='legacy')
     args = parser.parse_args(argv)
     if args.output.exists() or args.output.resolve().is_relative_to(args.src.resolve()):
         parser.error('output must be a new file outside SRC')
     try:
-        report = verify(args.src, args.repo, core=args.core, tooling=args.platform_tooling, platform=args.platform)
+        report = verify(args.src, args.repo, core=args.core, tooling=args.platform_tooling, platform=args.platform, profile=args.profile)
     except (ValueError, OSError, arp.ApplyError, subprocess.SubprocessError) as error:
         report = {'schema_version': 1, 'status': 'failed', 'error': str(error)}
     args.output.parent.mkdir(parents=True, exist_ok=True)

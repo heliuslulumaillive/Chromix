@@ -381,6 +381,18 @@ class WorkflowPhaseTests(unittest.TestCase):
         self.assertIn("'--output',$layoutPath", extraction)
         self.assertIn("'--tree-bytes'", text)
 
+    def test_host_cpp_prerequisites_are_checked_before_large_transfers(self):
+        text = STAGE.read_text(encoding='utf-8')
+        acquisition = text.split("    'Acquire' {", 1)[1].split("    'Extract' {", 1)[0]
+        checkpoint, other = acquisition.split('      } else {', 1)
+        for branch, transfer in ((checkpoint, "'checkpoint-download'"), (other, "'exact-upstream-download'")):
+            self.assertLess(branch.index('Clear-HostedToolSpace'), branch.index('Confirm-HostedCompilerPrerequisites'))
+            self.assertLess(branch.index('Confirm-HostedCompilerPrerequisites'), branch.index(transfer))
+        self.assertLess(checkpoint.index('Confirm-HostedCompilerPrerequisites'), checkpoint.index('Get-CheckpointDiskBudget'))
+        helper = text.split('function Confirm-HostedCompilerPrerequisites {', 1)[1].split('function Set-CompilerEnvironment', 1)[0]
+        self.assertIn('Microsoft.VisualStudio.Component.VC.Tools.x86.x64', helper)
+        self.assertIn("'-ChromiumVersion',$version,'-Install'", helper)
+
 
 if __name__ == '__main__':
     unittest.main()

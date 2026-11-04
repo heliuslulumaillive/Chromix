@@ -98,6 +98,7 @@ REQUIRED_CHECKS = {
 NATIVE_VERIFICATION_LABELS = frozenset({
     'native-passkey', 'native-browser-tests', 'accept-native-browser-tests',
     'native-browser-runtime', 'native-cookie-tests', 'accept-native-cookie-tests', 'native-cookie-runtime',
+    'native-session-runtime',
     'browser-smoke', 'security-runtime', 'accept-security-runtime',
     'google-runtime', 'fingerprint-runtime', 'accept-native-passkey', 'accept-fingerprint',
 })
@@ -138,6 +139,25 @@ def validate_source_recipe(inner, outer, repo=REPO, *, build_variant=GOOGLE_VARI
         raise ValueError('Candidate is not the fingerprint-modes build variant')
     if build_variant == GOOGLE_VARIANT and inner.get('build_variant') not in (None, GOOGLE_VARIANT):
         raise ValueError('Fingerprint receipt cannot be admitted as a Google-only variant')
+    if (build_variant == SECURITY_VARIANT and (repo / 'build/lite-windows156.json').is_file()
+            and inner.get('patch_kind') != 'lite-windows156-product'):
+        raise ValueError('Current Lite candidates require the product patch identity; legacy artifacts are historical')
+    if inner.get('patch_kind') == 'lite-windows156-product':
+        try:
+            from .lite_patch_stack import load, input_hashes
+        except ImportError:
+            from lite_patch_stack import load, input_hashes
+        product = load(repo)
+        inputs = input_hashes(repo)
+        if (build_variant != SECURITY_VARIANT
+                or inner.get('patch_sha256') != product['stack_sha256']
+                or inner.get('preparation_inputs') != inputs
+                or inner.get('preparation_sha256') != hashlib.sha256(
+                    json.dumps(inputs, sort_keys=True).encode()).hexdigest()):
+            raise ValueError('Candidate product recipe differs from the reviewed source inputs')
+        return
+    if inner.get('patch_kind') is not None:
+        raise ValueError('Unknown candidate patch identity kind')
     if inner.get('patch_sha256') != sha256(repo / 'patches/google-services/0001-restore-google-services.patch'):
         raise ValueError('Candidate was built with a different Google restoration patch')
     inputs = inner.get('preparation_inputs', {})
@@ -837,7 +857,7 @@ def validate_verification_results(path):
         raise ValueError('Native verification plan is missing or has incomplete steps')
     labels = [row['label'] for row in rows]
     if set(labels) != NATIVE_VERIFICATION_LABELS or len(set(labels)) != len(labels):
-        raise ValueError('Native verification plan must contain exactly 14 unique required labels')
+        raise ValueError('Native verification plan must contain every unique required label')
     return {'status': 'passed', 'report_sha256': sha256(path), 'labels': sorted(labels)}
 
 
@@ -899,12 +919,15 @@ def validate_native_integration(artifact_dir, bundle, payload, expected_source):
     try:
         from . import native_compiled_evidence as compiled
         from . import verify_security_runtime as security
+        from . import verify_native_session_runtime as session
     except ImportError:
         import native_compiled_evidence as compiled
         import verify_security_runtime as security
+        import verify_native_session_runtime as session
     names = ('verification-results.json', 'native-passkey-unittests.json', 'native-passkey-launcher.json',
              'native-browser-unittests.json', 'native-browser-launcher.json', 'native-browser-runtime.json',
-             'native-cookie-unittests.json', 'native-cookie-launcher.json', 'native-cookie-runtime.json')
+             'native-cookie-unittests.json', 'native-cookie-launcher.json', 'native-cookie-runtime.json',
+             'native-session-runtime.json', 'native-session-runtime.events.jsonl')
     for name in names:
         if not security.plain(artifact_dir / name).is_file():
             raise ValueError('Mandatory native integration evidence is missing: ' + name)
@@ -920,6 +943,9 @@ def validate_native_integration(artifact_dir, bundle, payload, expected_source):
     for kind in ('browser', 'cookie'):
         result[kind + '_runtime'] = validate_native_runtime(
             artifact_dir / ('native-' + kind + '-runtime.json'), bundle, payload, expected_source, kind)
+    result['session_runtime'] = session.validate_existing(
+        artifact_dir / 'native-session-runtime.json', artifact_dir / 'native-session-runtime.events.jsonl',
+        bundle, payload, expected_source)
     if before != {name: sha256(artifact_dir / name) for name in names}:
         raise ValueError('Native integration evidence changed while verifying it')
     return {'status': 'passed', 'evidence_sha256': before, **result}
@@ -1043,6 +1069,7 @@ def verify_candidate(artifact_dir, source, report_dir, record, *, build_variant=
                 or build.get('run_id') != source['run_id']
                 or build.get('repository') != source['repository']
                 or build.get('patch_sha256') != inner['patch_sha256']
+                or build.get('patch_kind') != inner.get('patch_kind')
                 or build.get('preparation_sha256') != inner.get('preparation_sha256')):
             raise ValueError('Fingerprint build receipt does not match its source run and recipe')
         expected_files = {name: digest for name, digest in before.items() if name != 'google-services-build.json'}

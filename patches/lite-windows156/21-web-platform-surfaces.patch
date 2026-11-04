@@ -1,0 +1,2726 @@
+diff --git a/third_party/blink/common/device_memory/approximated_device_memory.cc b/third_party/blink/common/device_memory/approximated_device_memory.cc
+--- a/third_party/blink/common/device_memory/approximated_device_memory.cc
++++ b/third_party/blink/common/device_memory/approximated_device_memory.cc
+@@ -5,9 +5,13 @@
+ #include "third_party/blink/public/common/device_memory/approximated_device_memory.h"
+ 
+ #include "base/byte_size.h"
++#include <cmath>
++#include "base/command_line.h"
+ #include "base/check_op.h"
+ #include "base/feature_list.h"
+ #include "base/system/sys_info.h"
++#include "base/strings/string_number_conversions.h"
++#include "base/uxr_config.h"
+ #include "third_party/blink/public/common/features.h"
+ 
+ namespace blink {
+@@ -27,6 +31,28 @@
+ 
+ // static
+ float ApproximatedDeviceMemory::GetApproximatedDeviceMemory() {
++  // Opt-in v1 shares the same presentation bucket with navigation/subresource
++  // Client Hints and every navigator mixin. Legacy flags retain legacy behavior.
++  const auto& snapshot = base::UxrConfig::GetInstance();
++  std::string mode = snapshot.Get("uxr-memory-mode");
++  std::string text = snapshot.Get("uxr-device-memory");
++  if (mode.empty() && base::CommandLine::InitializedForCurrentProcess()) {
++    const auto* command = base::CommandLine::ForCurrentProcess();
++    mode = command->GetSwitchValueASCII("uxr-memory-mode");
++    text = command->GetSwitchValueASCII("uxr-device-memory");
++  }
++  if (mode == "custom") {
++    double value = 0;
++    if (base::StringToDouble(text, &value) && std::isfinite(value) &&
++        value >= 0.25 && value <= 32) {
++      constexpr double buckets[] = {0.25, 0.5, 1, 2, 4, 8, 16, 32};
++      double best = buckets[0];
++      for (const double bucket : buckets)
++        if (std::abs(bucket - value) < std::abs(best - value))
++          best = bucket;
++      return static_cast<float>(best);
++    }
++  }
+   return approximated_device_memory_gb_;
+ }
+ 
+diff --git a/third_party/blink/public/devtools_protocol/domains/CSS.pdl b/third_party/blink/public/devtools_protocol/domains/CSS.pdl
+--- a/third_party/blink/public/devtools_protocol/domains/CSS.pdl
++++ b/third_party/blink/public/devtools_protocol/domains/CSS.pdl
+@@ -453,6 +453,10 @@
+       boolean isCustomFont
+       # Amount of glyphs that were rendered with this font.
+       number glyphCount
++      # Chromix: digest of tables from the actual shaped-run typeface, not its name.
++      experimental optional string fontTableHash
++      # Chromix: canonicalization algorithm; absent when the tables are unavailable.
++      experimental optional string fontTableHashAlgorithm
+ 
+   # Information about font variation axes for variable fonts
+   type FontVariationAxis extends object
+diff --git a/third_party/blink/public/web/blink.h b/third_party/blink/public/web/blink.h
+--- a/third_party/blink/public/web/blink.h
++++ b/third_party/blink/public/web/blink.h
+@@ -84,6 +84,11 @@
+ // must be called before this.
+ BLINK_EXPORT v8::Isolate* CreateMainThreadIsolate();
+ 
++// Applies the renderer default timezone on the main thread after Initialize().
++// An active DevTools override is preserved; clearing it restores this default.
++// Returns false for an invalid timezone without changing the current default.
++BLINK_EXPORT bool SetRendererDefaultTimeZone(const WebString& timezone_id);
++
+ // Alters the rendering of content to conform to a fixed set of rules.
+ BLINK_EXPORT void SetWebTestMode(bool);
+ BLINK_EXPORT bool WebTestMode();
+diff --git a/third_party/blink/renderer/controller/blink_initializer.cc b/third_party/blink/renderer/controller/blink_initializer.cc
+--- a/third_party/blink/renderer/controller/blink_initializer.cc
++++ b/third_party/blink/renderer/controller/blink_initializer.cc
+@@ -61,6 +61,7 @@
+ #include "third_party/blink/renderer/core/frame/display_cutout_client_impl.h"
+ #include "third_party/blink/renderer/core/frame/local_frame.h"
+ #include "third_party/blink/renderer/core/loader/loader_factory_for_frame.h"
++#include "third_party/blink/renderer/core/timezone/timezone_controller.h"
+ #include "third_party/blink/renderer/modules/ml/webnn/webnn_introspection_impl.h"
+ #include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
+ #include "third_party/blink/renderer/platform/disk_data_allocator.h"
+@@ -216,6 +217,11 @@
+ }
+ 
+ // Function defined in third_party/blink/public/web/blink.h.
++bool SetRendererDefaultTimeZone(const WebString& timezone_id) {
++  return TimeZoneController::SetDefaultTimeZone(timezone_id);
++}
++
++// Function defined in third_party/blink/public/web/blink.h.
+ void SetIsWebSecurityDisabled(bool value) {
+   Agent::SetIsWebSecurityDisabled(value);
+ }
+diff --git a/third_party/blink/renderer/core/animation/animation_clock.cc b/third_party/blink/renderer/core/animation/animation_clock.cc
+--- a/third_party/blink/renderer/core/animation/animation_clock.cc
++++ b/third_party/blink/renderer/core/animation/animation_clock.cc
+@@ -32,6 +32,8 @@
+ 
+ #include <math.h>
+ 
++#include "base/uxr_config.h"
++
+ namespace blink {
+ 
+ namespace {
+@@ -44,6 +46,12 @@
+ 
+ void AnimationClock::UpdateTime(base::TimeTicks time) {
+   task_for_which_time_was_calculated_ = currently_running_task_;
++  // Both frame delivery and dynamic prediction must use the same grid.
++  const auto& config = base::UxrConfig::GetInstance();
++  if (config.TimerResolutionMicroseconds() > 0) {
++    time = base::TimeTicks() + base::Microseconds(
++        config.QuantizeClockMicroseconds(time.since_origin().InMicroseconds()));
++  }
+ 
+   // TODO(crbug.com/985770): Change this to a DCHECK_GE(time, time_) when
+   // VR no longer sends historical timestamps.
+diff --git a/third_party/blink/renderer/core/animation/document_timeline.cc b/third_party/blink/renderer/core/animation/document_timeline.cc
+--- a/third_party/blink/renderer/core/animation/document_timeline.cc
++++ b/third_party/blink/renderer/core/animation/document_timeline.cc
+@@ -30,6 +30,7 @@
+ 
+ #include "third_party/blink/renderer/core/animation/document_timeline.h"
+ 
++#include "base/uxr_config.h"
+ #include "cc/animation/animation_id_provider.h"
+ #include "third_party/blink/public/platform/platform.h"
+ #include "third_party/blink/renderer/bindings/core/v8/v8_document_timeline_options.h"
+@@ -149,8 +150,15 @@
+ 
+ base::TimeTicks DocumentTimeline::CalculateZeroTime() {
+   if (!zero_time_initialized_ && document_->Loader()) {
+-    zero_time_ = document_->Loader()->GetTiming().ReferenceMonotonicTime() +
+-                 origin_time_;
++    auto reference = document_->Loader()->GetTiming().ReferenceMonotonicTime();
++    const auto& config = base::UxrConfig::GetInstance();
++    if (config.TimerResolutionMicroseconds() > 0) {
++      // Match Performance's separately clamped absolute time and origin.
++      reference = base::TimeTicks() + base::Microseconds(
++          config.QuantizeClockMicroseconds(
++              reference.since_origin().InMicroseconds()));
++    }
++    zero_time_ = reference + origin_time_;
+     zero_time_initialized_ = true;
+   }
+   return zero_time_;
+diff --git a/third_party/blink/renderer/core/dom/element.cc b/third_party/blink/renderer/core/dom/element.cc
+--- a/third_party/blink/renderer/core/dom/element.cc
++++ b/third_party/blink/renderer/core/dom/element.cc
+@@ -23,6 +23,9 @@
+  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+  * Boston, MA 02110-1301, USA.
+  */
++
++#include "base/uxr_config.h"
++#include "base/uxr_surface_math.h"
+ 
+ #include "third_party/blink/renderer/core/dom/element.h"
+ 
+@@ -3439,8 +3442,28 @@
+   if (element_layout_object->IsBoxModelObject() ||
+       element_layout_object->IsBR()) {
+     element_layout_object->AbsoluteQuads(quads);
+-  }
+-}
++    // UXR: keep Element and Range geometry on the native shared path.
++  }
++}
++
++
++namespace {
++bool UxrLegacyRects() {
++  const auto policy = base::UxrConfig::GetInstance().SurfaceModes().rects;
++  return policy.IsLegacy() || policy.mode == base::UxrSurfaceMode::kChromix;
++}
++void ApplyUxrRectSize(gfx::RectF& rect) {
++  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
++  if (modes.rects.mode != base::UxrSurfaceMode::kShardX ||
++      modes.noise_disabled || modes.raw)
++    return;
++  const auto size = base::uxr_surface_v1::RectSize(
++      rect.width(), rect.height(), static_cast<uint32_t>(modes.rects.seed),
++      modes.rects.amount);
++  rect.set_width(size.first);
++  rect.set_height(size.second);
++}
++}  // namespace
+ 
+ DOMRectList* Element::getClientRects() {
+   Vector<gfx::RectF> rects = GetClientRectsNoAdjustment();
+@@ -3452,6 +3475,7 @@
+   for (auto& rect : rects) {
+     GetDocument().AdjustRectForScrollAndAbsoluteZoom(rect,
+                                                      *element_layout_object);
++    ApplyUxrRectSize(rect);
+   }
+   return MakeGarbageCollected<DOMRectList>(rects);
+ }
+@@ -3507,7 +3531,7 @@
+   }
+   Vector<gfx::RectF> result;
+   for (auto& quad : quads) {
+-    if (RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
++    if (UxrLegacyRects() && RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
+       quad.Scale(GetDocument().GetNoiseFactorX(), GetDocument().GetNoiseFactorY());
+     }
+     result.emplace_back(quad.BoundingBox());
+@@ -3539,7 +3563,7 @@
+   DCHECK(element_layout_object);
+   GetDocument().AdjustRectForScrollAndAbsoluteZoom(result,
+                                                    *element_layout_object);
+-  if (RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
++  if (UxrLegacyRects() && RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
+     result.Scale(GetDocument().GetNoiseFactorX(), GetDocument().GetNoiseFactorY());
+   }
+   return result;
+@@ -3555,7 +3579,14 @@
+   // TODO(crbug.com/1499981): This should be removed once synchronized scrolling
+   // impact is understood.
+   SyncScrollAttemptHeuristic::DidAccessScrollOffset();
+-  return GetBoundingClientRect();
++  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
++  if (modes.rects.mode != base::UxrSurfaceMode::kShardX ||
++      modes.noise_disabled || modes.raw)
++    return GetBoundingClientRect();
++  GetDocument().UpdateStyleAndLayoutForNode(this, DocumentUpdateReason::kJavaScript);
++  auto rect = GetBoundingClientRectNoLifecycleUpdate();
++  ApplyUxrRectSize(rect);
++  return DOMRect::FromRectF(rect);
+ }
+ 
+ ContainerQueryList* Element::matchContainer(const String& query) {
+@@ -8045,6 +8076,7 @@
+                                   /*reference_target*/ g_null_atom);
+ }
+ 
++
+ ShadowRoot* Element::OpenShadowRoot() const {
+   ShadowRoot* root = GetShadowRoot();
+   return root && root->GetMode() == ShadowRootMode::kOpen ? root : nullptr;
+diff --git a/third_party/blink/renderer/core/dom/range.cc b/third_party/blink/renderer/core/dom/range.cc
+--- a/third_party/blink/renderer/core/dom/range.cc
++++ b/third_party/blink/renderer/core/dom/range.cc
+@@ -22,6 +22,9 @@
+  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+  * Boston, MA 02110-1301, USA.
+  */
++
++#include "base/uxr_config.h"
++#include "base/uxr_surface_math.h"
+ 
+ #include "third_party/blink/renderer/core/dom/range.h"
+ 
+@@ -1678,6 +1681,25 @@
+          end.DeepEquivalent().ComputeOffsetInContainerNode(), exception_state);
+ }
+ 
++
++namespace {
++bool UxrLegacyRects() {
++  const auto policy = base::UxrConfig::GetInstance().SurfaceModes().rects;
++  return policy.IsLegacy() || policy.mode == base::UxrSurfaceMode::kChromix;
++}
++void ApplyUxrRectSize(gfx::RectF& rect) {
++  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
++  if (modes.rects.mode != base::UxrSurfaceMode::kShardX ||
++      modes.noise_disabled || modes.raw)
++    return;
++  const auto size = base::uxr_surface_v1::RectSize(
++      rect.width(), rect.height(), static_cast<uint32_t>(modes.rects.seed),
++      modes.rects.amount);
++  rect.set_width(size.first);
++  rect.set_height(size.second);
++}
++}  // namespace
++
+ DOMRectList* Range::getClientRects() const {
+   // TODO(crbug.com/1499981): This should be removed once synchronized scrolling
+   // impact is understood.
+@@ -1689,12 +1711,24 @@
+   Vector<gfx::QuadF> quads;
+   GetBorderAndTextQuads(quads);
+ 
+-  if (RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
++  if (UxrLegacyRects() && RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
+     for (gfx::QuadF& quad : quads) {
+       quad.Scale(owner_document_->GetNoiseFactorX(), owner_document_->GetNoiseFactorY());
+     }
+   }
+ 
++
++  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
++  if (modes.rects.mode == base::UxrSurfaceMode::kShardX &&
++      !modes.noise_disabled && !modes.raw) {
++    Vector<gfx::RectF> rects;
++    for (const auto& quad : quads) {
++      auto rect = quad.BoundingBox();
++      ApplyUxrRectSize(rect);
++      rects.push_back(rect);
++    }
++    return MakeGarbageCollected<DOMRectList>(rects);
++  }
+   return MakeGarbageCollected<DOMRectList>(quads);
+ }
+ 
+@@ -1703,9 +1737,10 @@
+   // impact is understood.
+   SyncScrollAttemptHeuristic::DidAccessScrollOffset();
+   auto rect = BoundingRect();
+-  if (RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
++  if (UxrLegacyRects() && RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
+     rect.Scale(owner_document_->GetNoiseFactorX(), owner_document_->GetNoiseFactorY());
+   }
++  ApplyUxrRectSize(rect);
+   return DOMRect::FromRectF(rect);
+ }
+ 
+diff --git a/third_party/blink/renderer/core/execution_context/navigator_base.cc b/third_party/blink/renderer/core/execution_context/navigator_base.cc
+--- a/third_party/blink/renderer/core/execution_context/navigator_base.cc
++++ b/third_party/blink/renderer/core/execution_context/navigator_base.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "third_party/blink/renderer/core/execution_context/navigator_base.h"
+ 
++#include "base/command_line.h"  // UXR
++#include "base/uxr_config.h"  // UXR persona via IPC
+ #include "base/feature_list.h"
+ #include "build/build_config.h"
+ #include "third_party/blink/public/common/features.h"
+@@ -67,6 +69,10 @@
+ }
+ 
+ String NavigatorBase::platform() const {
++  if (base::UxrConfig::GetInstance().Get("uxr-identity-mode") != "native" &&
++      base::UxrConfig::GetInstance().Has("uxr-platform")) {
++    return String(base::UxrConfig::GetInstance().Get("uxr-platform").c_str());
++  }
+ #if BUILDFLAG(IS_ANDROID)
+   // We need to check the ReduceUserAgentMinorVersion feature flag for
+   // Android WebView, which does not currently ship a reduced User-Agent.
+diff --git a/third_party/blink/renderer/core/exported/web_view_impl.cc b/third_party/blink/renderer/core/exported/web_view_impl.cc
+--- a/third_party/blink/renderer/core/exported/web_view_impl.cc
++++ b/third_party/blink/renderer/core/exported/web_view_impl.cc
+@@ -39,8 +39,10 @@
+ #include "base/memory/scoped_refptr.h"
+ #include "base/metrics/histogram_macros.h"
+ #include "base/observer_list.h"
++#include "base/strings/string_number_conversions.h"
+ #include "base/task/common/task_annotator.h"
+ #include "base/time/time.h"
++#include "base/uxr_config.h"
+ #include "build/build_config.h"
+ #include "cc/layers/picture_layer.h"
+ #include "components/viz/common/features.h"
+@@ -177,6 +179,7 @@
+ #include "third_party/blink/renderer/platform/graphics/image.h"
+ #include "third_party/blink/renderer/platform/graphics/paint/cull_rect.h"
+ #include "third_party/blink/renderer/platform/graphics/paint/paint_record_builder.h"
++#include "third_party/blink/renderer/platform/heap/persistent.h"
+ #include "third_party/blink/renderer/platform/image-decoders/image_decoder.h"
+ #include "third_party/blink/renderer/platform/instrumentation/histogram.h"
+ #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
+@@ -259,6 +262,93 @@
+ }
+ 
+ namespace {
++
++// Apply launch preferences before publishing WebSettings, widget preferences
++// and CSS invalidation. Media queries, form controls, scrollbars, animation
++// settings and navigator.maxTouchPoints then observe the same effective state.
++void ApplyUxrWebPreferences(web_pref::WebPreferences& prefs) {
++  const auto& config = base::UxrConfig::GetInstance();
++  const auto boolean = [&](const char* key, bool& value) {
++    const std::string text = config.Get(key);
++    if (text == "true" || text == "1")
++      value = true;
++    else if (text == "false" || text == "0")
++      value = false;
++  };
++  boolean("uxr-reduced-motion", prefs.prefers_reduced_motion);
++  boolean("uxr-reduced-transparency", prefs.prefers_reduced_transparency);
++  boolean("uxr-inverted-colors", prefs.inverted_colors);
++
++  const std::string scheme = config.Get("uxr-color-scheme");
++  if (scheme == "dark" || scheme == "light") {
++    prefs.preferred_color_scheme = scheme == "dark"
++        ? mojom::PreferredColorScheme::kDark
++        : mojom::PreferredColorScheme::kLight;
++    prefs.preferred_root_scrollbar_color_scheme = prefs.preferred_color_scheme;
++  }
++  const std::string contrast = config.Get("uxr-preferred-contrast");
++  if (contrast == "more")
++    prefs.preferred_contrast = mojom::PreferredContrast::kMore;
++  else if (contrast == "less")
++    prefs.preferred_contrast = mojom::PreferredContrast::kLess;
++  else if (contrast == "no-preference")
++    prefs.preferred_contrast = mojom::PreferredContrast::kNoPreference;
++
++  const std::string forced = config.Get("uxr-forced-colors");
++  if (!forced.empty()) {
++    prefs.in_forced_colors = forced == "active" || forced == "true" || forced == "1";
++    // SetInForcedColors controls actual author-style color replacement too.
++    prefs.is_forced_colors_disabled = false;
++  }
++
++  using Pointer = mojom::PointerType;
++  using Hover = mojom::HoverType;
++  const int none = static_cast<int>(Pointer::kPointerNone);
++  const int coarse = static_cast<int>(Pointer::kPointerCoarseType);
++  const int fine = static_cast<int>(Pointer::kPointerFineType);
++  const std::string pointer = config.Get("uxr-pointer");
++  if (pointer == "fine" || pointer == "coarse" || pointer == "none") {
++    prefs.primary_pointer_type = pointer == "fine" ? Pointer::kPointerFineType
++        : pointer == "coarse" ? Pointer::kPointerCoarseType : Pointer::kPointerNone;
++    prefs.available_pointer_types = static_cast<int>(prefs.primary_pointer_type);
++  }
++  int touch_points = 0;
++  if (config.GetInt("uxr-max-touch-points", &touch_points)) {
++    prefs.pointer_events_max_touch_points = touch_points;
++    prefs.touch_event_feature_detection_enabled = touch_points > 0;
++    if (touch_points > 0) {
++      prefs.available_pointer_types = (prefs.available_pointer_types & ~none) | coarse;
++      if (pointer.empty() && prefs.primary_pointer_type == Pointer::kPointerNone) {
++        prefs.primary_pointer_type = Pointer::kPointerCoarseType;
++        prefs.primary_hover_type = Hover::kHoverNone;
++      }
++    } else {
++      prefs.available_pointer_types &= ~coarse;
++      if (!prefs.available_pointer_types)
++        prefs.available_pointer_types = none;
++    }
++    if (pointer.empty() && prefs.primary_pointer_type == Pointer::kPointerCoarseType &&
++        touch_points == 0) {
++      prefs.primary_pointer_type = (prefs.available_pointer_types & fine)
++          ? Pointer::kPointerFineType : Pointer::kPointerNone;
++    }
++  } else if (!pointer.empty()) {
++    // An explicit single-pointer fixture also determines its touch capability.
++    prefs.pointer_events_max_touch_points = pointer == "coarse"
++        ? std::max(1, prefs.pointer_events_max_touch_points) : 0;
++    prefs.touch_event_feature_detection_enabled = prefs.pointer_events_max_touch_points > 0;
++  }
++  const std::string hover = config.Get("uxr-hover");
++  if (hover == "hover" || hover == "none") {
++    prefs.primary_hover_type = hover == "hover" ? Hover::kHoverHoverType : Hover::kHoverNone;
++    prefs.available_hover_types = static_cast<int>(prefs.primary_hover_type);
++  } else if (pointer == "none" || pointer == "coarse" ||
++             (config.Has("uxr-max-touch-points") &&
++              prefs.primary_pointer_type == Pointer::kPointerNone)) {
++    prefs.primary_hover_type = Hover::kHoverNone;
++    prefs.available_hover_types = static_cast<int>(Hover::kHoverNone);
++  }
++}
+ 
+ class EmptyEventListener final : public NativeEventListener {
+  public:
+@@ -1522,13 +1612,21 @@
+     std::optional<display::mojom::blink::ScreenOrientation> orientation) {
+   screen_orientation_override_ = orientation;
+ 
+-  // Since we updated the override value, notify all widgets.
++  // Snapshot local roots before notifications can detach frames or widgets.
++  Vector<Persistent<WebFrameWidgetImpl>> widgets;
+   for (WebFrame* frame = MainFrame(); frame; frame = frame->TraverseNext()) {
+     if (frame->IsWebLocalFrame()) {
+       if (WebFrameWidgetImpl* widget = static_cast<WebFrameWidgetImpl*>(
+               frame->ToWebLocalFrame()->FrameWidget())) {
+-        widget->UpdateScreenInfo(widget->GetScreenInfos());
++        if (widget->LocalRootImpl() == frame && !widgets.Contains(widget)) {
++          widgets.push_back(widget);
++        }
+       }
++    }
++  }
++  for (const auto& widget : widgets) {
++    if (widget->LocalRootImpl()) {
++      widget->RefreshScreenInfo();
+     }
+   }
+ }
+@@ -3949,6 +4047,7 @@
+ void WebViewImpl::UpdateWebPreferences(
+     const blink::web_pref::WebPreferences& preferences) {
+   web_preferences_ = preferences;
++  ApplyUxrWebPreferences(web_preferences_);
+ 
+   if (IsFencedFrameRoot()) {
+     // The main frame of a fenced frame should not behave like a top level
+diff --git a/third_party/blink/renderer/core/frame/local_dom_window.cc b/third_party/blink/renderer/core/frame/local_dom_window.cc
+--- a/third_party/blink/renderer/core/frame/local_dom_window.cc
++++ b/third_party/blink/renderer/core/frame/local_dom_window.cc
+@@ -31,6 +31,9 @@
+ #include <utility>
+ 
+ #include "base/command_line.h"
++// Display geometry is owned by native windowing and ScreenMetricsEmulator.
++#include "base/uxr_config.h"
++#include "base/strings/string_number_conversions.h"
+ #include "base/metrics/histogram_macros.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/trace_event/trace_id_helper.h"
+@@ -1793,6 +1796,7 @@
+     return 0;
+   }
+ 
++// Display geometry is owned by native windowing and ScreenMetricsEmulator.
+   Page* page = frame->GetPage();
+   if (!page) {
+     return 0;
+diff --git a/third_party/blink/renderer/core/frame/navigator.cc b/third_party/blink/renderer/core/frame/navigator.cc
+--- a/third_party/blink/renderer/core/frame/navigator.cc
++++ b/third_party/blink/renderer/core/frame/navigator.cc
+@@ -23,6 +23,7 @@
+ 
+ #include "third_party/blink/renderer/core/frame/navigator.h"
+ 
++#include "base/uxr_config.h"
+ #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
+ #include "third_party/blink/renderer/core/dom/document.h"
+ #include "third_party/blink/renderer/core/execution_context/navigator_base.h"
+@@ -98,9 +99,10 @@
+ }
+ 
+ bool Navigator::webdriver() const {
++  if (base::UxrConfig::GetInstance().Get("uxr-fingerprint-off") != "true")
++    return false;
+   if (RuntimeEnabledFeatures::AutomationControlledEnabled())
+     return true;
+-
+   bool automation_enabled = false;
+   probe::ApplyAutomationOverride(GetExecutionContext(), automation_enabled);
+   return automation_enabled;
+diff --git a/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc b/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
+--- a/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
++++ b/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
+@@ -6,9 +6,26 @@
+ 
+ #include "base/system/sys_info.h"
+ 
++#include <cstdlib>  // UXR
++#include "base/command_line.h"  // UXR
++#include "base/uxr_config.h"
++#include "base/strings/string_number_conversions.h"
++
+ namespace blink {
+ 
+ unsigned NavigatorConcurrentHardware::hardwareConcurrency() const {
++  if (base::UxrConfig::GetInstance().Get("uxr-cpu-mode") == "native")
++    return static_cast<unsigned>(base::SysInfo::NumberOfProcessors());
++  // Public explicit/default overrides do not require synthetic-test mode.
++  // This reports a logical core budget; it does not pin host CPU resources.
++  if (base::UxrConfig::GetInstance().Has("uxr-hw-concurrency")) {
++    int v = 0;  // UXR P1-A: StringToInt + clamp [1,128]
++    if (base::StringToInt(
++            base::UxrConfig::GetInstance().Get("uxr-hw-concurrency"), &v) &&
++        v > 0)
++      return static_cast<unsigned>(v > 128 ? 128 : v);
++  }
++
+   return static_cast<unsigned>(base::SysInfo::NumberOfProcessors());
+ }
+ 
+diff --git a/third_party/blink/renderer/core/frame/navigator_device_memory.cc b/third_party/blink/renderer/core/frame/navigator_device_memory.cc
+--- a/third_party/blink/renderer/core/frame/navigator_device_memory.cc
++++ b/third_party/blink/renderer/core/frame/navigator_device_memory.cc
+@@ -9,9 +9,34 @@
+ #include "third_party/blink/renderer/core/dom/document.h"
+ #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+ 
++#include <cmath>  // UXR
++#include <cstdlib>  // UXR
++#include "base/command_line.h"  // UXR
++#include "base/strings/string_number_conversions.h"  // UXR
++#include "base/uxr_config.h"
++
+ namespace blink {
+ 
+ float NavigatorDeviceMemory::deviceMemory() const {
++  const std::string mode =
++      base::UxrConfig::GetInstance().Get("uxr-memory-mode");
++  if (mode == "native" || mode == "custom")
++    return ApproximatedDeviceMemory::GetApproximatedDeviceMemory();
++  // Public overrides report a memory bucket, not an allocator/heap limit.
++  double v = 0.0;
++  // Snap to Chromium's supported web-exposed memory buckets.
++  if (base::StringToDouble(
++          base::UxrConfig::GetInstance().Get("uxr-device-memory"), &v) &&
++      std::isfinite(v) && v > 0.0) {
++    const double kB[] = {0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0};
++    double best = kB[0];
++    for (double b : kB) {
++      if (std::abs(b - v) < std::abs(best - v))
++        best = b;
++    }
++    return static_cast<float>(best);
++  }
++
+   return ApproximatedDeviceMemory::GetApproximatedDeviceMemory();
+ }
+ 
+diff --git a/third_party/blink/renderer/core/frame/navigator_id.cc b/third_party/blink/renderer/core/frame/navigator_id.cc
+--- a/third_party/blink/renderer/core/frame/navigator_id.cc
++++ b/third_party/blink/renderer/core/frame/navigator_id.cc
+@@ -31,6 +31,9 @@
+ 
+ #include "third_party/blink/renderer/core/frame/navigator_id.h"
+ 
++#include "base/command_line.h"  // UXR: persona via renderer cmdline switches
++#include "base/uxr_config.h"
++
+ #include "base/feature_list.h"
+ #include "build/build_config.h"
+ #include "third_party/blink/public/common/features.h"
+@@ -59,6 +62,12 @@
+ }
+ 
+ String NavigatorID::platform() const {
++  // UXR Layer 2: persona-driven via renderer cmdline switch (whitelisted in
++  // render_process_host_impl.cc). Web-undetectable.
++  {
++    if (base::UxrConfig::GetInstance().Has("uxr-platform"))
++      return String(base::UxrConfig::GetInstance().Get("uxr-platform").c_str());
++  }
+ #if BUILDFLAG(IS_MAC)
+   // Match Safari and Mozilla on Mac x86.
+   return "MacIntel";
+diff --git a/third_party/blink/renderer/core/frame/navigator_language.cc b/third_party/blink/renderer/core/frame/navigator_language.cc
+--- a/third_party/blink/renderer/core/frame/navigator_language.cc
++++ b/third_party/blink/renderer/core/frame/navigator_language.cc
+@@ -69,6 +69,8 @@
+ }
+ 
+ void NavigatorLanguage::EnsureUpdatedLanguage() {
++  // Persona languages arrive through browser preferences; retain reduction and
++  // DevTools overrides without changing the process locale from a getter.
+   String accept_languages_override;
+   probe::ApplyAcceptLanguageOverride(execution_context_,
+                                      &accept_languages_override);
+diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc
+--- a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc
++++ b/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc
+@@ -29,6 +29,8 @@
+  */
+ 
+ #include "third_party/blink/renderer/core/frame/web_frame_widget_impl.h"
++
++#include "base/uxr_config.h"
+ 
+ #include <algorithm>
+ #include <memory>
+@@ -173,6 +175,7 @@
+ #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+ #include "third_party/blink/renderer/platform/scheduler/public/non_main_thread.h"
+ #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
++#include "third_party/blink/renderer/platform/web_test_support.h"
+ #include "third_party/blink/renderer/platform/widget/input/main_thread_event_queue.h"
+ #include "third_party/blink/renderer/platform/widget/input/widget_input_handler_manager.h"
+ #include "third_party/blink/renderer/platform/widget/widget_base.h"
+@@ -202,6 +205,43 @@
+ namespace blink {
+ 
+ namespace {
++
++display::ScreenInfo OrientationScreenInfo(display::ScreenInfo screen_info) {
++  using Orientation = display::mojom::blink::ScreenOrientation;
++  if (screen_info.orientation_type != Orientation::kUndefined) {
++    return screen_info;
++  }
++  // Match ScreenOrientationController's fallback, including web tests.
++  if (WebTestSupport::IsRunningWebTest()) {
++    screen_info.orientation_type = Orientation::kPortraitPrimary;
++    return screen_info;
++  }
++  const auto& rect = screen_info.rect;
++  const bool tall = screen_info.orientation_angle % 180
++                        ? rect.height() < rect.width()
++                        : rect.height() > rect.width();
++  switch (screen_info.orientation_angle) {
++    case 0:
++      screen_info.orientation_type =
++          tall ? Orientation::kPortraitPrimary : Orientation::kLandscapePrimary;
++      break;
++    case 90:
++      screen_info.orientation_type = tall ? Orientation::kLandscapePrimary
++                                          : Orientation::kPortraitSecondary;
++      break;
++    case 180:
++      screen_info.orientation_type = tall ? Orientation::kPortraitSecondary
++                                          : Orientation::kLandscapeSecondary;
++      break;
++    case 270:
++      screen_info.orientation_type = tall ? Orientation::kLandscapeSecondary
++                                          : Orientation::kPortraitPrimary;
++      break;
++    default:
++      NOTREACHED();
++  }
++  return screen_info;
++}
+ 
+ Element* GetElementFromDOMNodeId(DOMNodeIdType target_dom_node_id) {
+   if (target_dom_node_id.is_null()) {
+@@ -1944,6 +1984,7 @@
+ 
+ void WebFrameWidgetImpl::UpdateVisualProperties(
+     const VisualProperties& properties) {
++  const uint64_t update_sequence = ++visual_properties_update_sequence_;
+   VisualProperties visual_properties(properties);
+   if (browser_controls_top_height_override_) {
+     visual_properties.browser_controls_params.top_controls_height =
+@@ -2009,7 +2050,14 @@
+   }
+ 
+   gfx::Size old_visible_viewport_size = widget_base_->VisibleViewportSize();
+-  ApplyVisualPropertiesSizing(visual_properties);
++  if (!ApplyVisualPropertiesSizing(visual_properties)) {
++    ++visual_properties_update_sequence_;
++    return;
++  }
++  if (!widget_base_ || widget_base_->WillBeDestroyed() || !local_root_ ||
++      visual_properties_update_sequence_ != update_sequence) {
++    return;
++  }
+ 
+   if (old_visible_viewport_size != widget_base_->VisibleViewportSize()) {
+     ForEachLocalFrameControlledByWidget(
+@@ -2106,10 +2154,40 @@
+       unbounded_surface_state_->host_->UpdateBounds(bounds);
+     }
+   }
+-}
+-
+-void WebFrameWidgetImpl::ApplyVisualPropertiesSizing(
++  // Configure the existing emulation backend once, after native widget sizing.
++  // Subsequent resize/zoom events flow through its normal visual-properties
++  // path. Fixed view_size intentionally stays fixed until a CDP update.
++  // Remember initialization even when CDP owns the emulator, so clearing CDP
++  // emulation cannot cause the launch defaults to be reapplied on the next resize.
++  if (ForTopMostMainFrame() && !uxr_display_initialized_) {
++    uxr_display_initialized_ = true;
++    const auto display = base::UxrConfig::GetInstance().Display();
++    if (display.enabled() && !AutoResizeMode() && !DeviceEmulator()) {
++      DeviceEmulationParams params;
++      params.screen_size = gfx::Size(display.width, display.height);
++      params.view_size = gfx::Size(display.viewport_width, display.viewport_height);
++      params.device_scale_factor = static_cast<float>(display.device_scale_factor);
++      if (display.has_position)
++        params.view_position = gfx::Point(display.window_x, display.window_y);
++      using Orientation = display::mojom::ScreenOrientation;
++      if (display.orientation == "landscape-primary")
++        params.screen_orientation_type = Orientation::kLandscapePrimary;
++      else if (display.orientation == "landscape-secondary")
++        params.screen_orientation_type = Orientation::kLandscapeSecondary;
++      else if (display.orientation == "portrait-primary")
++        params.screen_orientation_type = Orientation::kPortraitPrimary;
++      else if (display.orientation == "portrait-secondary")
++        params.screen_orientation_type = Orientation::kPortraitSecondary;
++      params.screen_orientation_angle = display.orientation_angle;
++      EnableDeviceEmulation(params, mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
++    }
++  }
++
++}
++
++bool WebFrameWidgetImpl::ApplyVisualPropertiesSizing(
+     const VisualProperties& visual_properties) {
++  const uint64_t initial_sequence = screen_update_sequence_;
+   gfx::Rect new_compositor_viewport_pixel_rect =
+       visual_properties.compositor_viewport_pixel_rect;
+   gfx::Size new_size;
+@@ -2124,15 +2202,24 @@
+         device_scale_factor_for_testing_ / non_testing_device_scale_factor_);
+   }
+ 
++  if (!ForTopMostMainFrame()) {
++    inherited_emulated_screen_infos_ = visual_properties.emulated_screen_infos;
++  } else {
++    inherited_emulated_screen_infos_.reset();
++  }
++
+   if (ForMainFrame()) {
+     if (size_ != new_size) {
+       // Only hide popups when the size changes. Eg https://crbug.com/761908.
+       View()->CancelPagePopup();
++      if (!IsScreenUpdateCurrent(initial_sequence)) {
++        return false;
++      }
+     }
+ 
+     if (DeviceEmulator() && widget_base_ && !widget_base_->WillBeDestroyed()) {
+       DeviceEmulator()->UpdateVisualProperties(visual_properties);
+-      return;
++      return IsScreenUpdateCurrent(initial_sequence + 2);
+     }
+ 
+     if (AutoResizeMode()) {
+@@ -2144,9 +2231,13 @@
+ 
+   SetViewportSegments(visual_properties.root_widget_viewport_segments);
+ 
++  const uint64_t update_sequence = screen_update_sequence_ + 1;
+   widget_base_->UpdateSurfaceAndScreenInfo(
+       visual_properties.local_surface_id.value_or(viz::LocalSurfaceId()),
+       new_compositor_viewport_pixel_rect, visual_properties.screen_infos);
++  if (!IsScreenUpdateCurrent(update_sequence)) {
++    return false;
++  }
+ 
+   // Store this even when auto-resizing, it is the size of the full viewport
+   // used for clipping, and this value is propagated down the Widget
+@@ -2167,6 +2258,9 @@
+           visual_properties.browser_controls_params);
+     }
+ 
++    if (!IsScreenUpdateCurrent(update_sequence)) {
++      return false;
++    }
+     LocalRootImpl()->GetFrame()->UpdateWindowControlsOverlay(
+         visual_properties.window_controls_overlay_rect);
+ 
+@@ -2183,8 +2277,12 @@
+       View()->Resize(widget_base_->VisibleViewportSize());
+     }
+ 
++    if (!IsScreenUpdateCurrent(update_sequence)) {
++      return false;
++    }
+     Resize(new_size);
+   }
++  return IsScreenUpdateCurrent(update_sequence);
+ }
+ 
+ bool WebFrameWidgetImpl::DidChangeFullscreenState(
+@@ -2447,8 +2545,14 @@
+   // Remote viewports are only applicable to local frames with remote ancestors.
+   DCHECK(ForSubframe() || !LocalRootImpl()->GetFrame()->IsOutermostMainFrame());
+ 
+-  if (visual_properties.has_value())
++  if (visual_properties.has_value()) {
++    const uint64_t visual_sequence = visual_properties_update_sequence_ + 1;
+     UpdateVisualProperties(visual_properties.value());
++    if (!widget_base_ || widget_base_->WillBeDestroyed() || !local_root_ ||
++        visual_properties_update_sequence_ != visual_sequence) {
++      return;
++    }
++  }
+   ApplyViewportIntersection(std::move(intersection_state));
+ }
+ 
+@@ -2493,10 +2597,11 @@
+ }
+ 
+ void WebFrameWidgetImpl::DisableDeviceEmulation() {
+-  if (device_emulator_ && widget_base_ && !widget_base_->WillBeDestroyed()) {
+-    device_emulator_->DisableAndApply();
+-  }
++  Persistent<ScreenMetricsEmulator> emulator(device_emulator_.Get());
+   device_emulator_ = nullptr;
++  if (emulator && widget_base_ && !widget_base_->WillBeDestroyed()) {
++    emulator->DisableAndApply();
++  }
+ }
+ 
+ void WebFrameWidgetImpl::SetIsInertForSubFrame(bool inert) {
+@@ -2754,6 +2859,7 @@
+                             ->widget_base_.get()
+                       : nullptr);
+ 
++  last_orientation_screen_info_ = OrientationScreenInfo(GetScreenInfo());
+   probe::DidInitializeFrameWidget(local_root_->GetFrame());
+   local_root_->GetFrame()->NotifyFrameWidgetCreated();
+ 
+@@ -3719,14 +3825,32 @@
+       new_local_surface_id, compositor_viewport_pixel_rect, new_screen_infos);
+ }
+ 
++void WebFrameWidgetImpl::RefreshScreenInfo() {
++  if (!widget_base_ || widget_base_->WillBeDestroyed() || !local_root_) {
++    return;
++  }
++  widget_base_->UpdateScreenInfo(widget_base_->screen_infos());
++}
++
++bool WebFrameWidgetImpl::IsScreenUpdateCurrent(uint64_t sequence) const {
++  return widget_base_ && !widget_base_->WillBeDestroyed() && local_root_ &&
++         local_root_->GetFrame() && screen_update_sequence_ == sequence;
++}
++
+ void WebFrameWidgetImpl::UpdateScreenInfo(
+     const display::ScreenInfos& new_screen_infos) {
++  if (!IsScreenUpdateCurrent(screen_update_sequence_)) {
++    return;
++  }
+   widget_base_->UpdateScreenInfo(new_screen_infos);
+ }
+ 
+ void WebFrameWidgetImpl::UpdateSurfaceAndCompositorRect(
+     const viz::LocalSurfaceId& new_local_surface_id,
+     const gfx::Rect& compositor_viewport_pixel_rect) {
++  if (!widget_base_ || widget_base_->WillBeDestroyed() || !local_root_) {
++    return;
++  }
+   widget_base_->UpdateSurfaceAndCompositorRect(new_local_surface_id,
+                                                compositor_viewport_pixel_rect);
+ }
+@@ -3737,11 +3861,44 @@
+ }
+ 
+ const display::ScreenInfo& WebFrameWidgetImpl::GetScreenInfo() {
+-  return widget_base_->GetScreenInfo();
++  return GetScreenInfos().current();
+ }
+ 
+ const display::ScreenInfos& WebFrameWidgetImpl::GetScreenInfos() {
+-  return widget_base_->screen_infos();
++  const display::ScreenInfos& screen_infos =
++      !device_emulator_ && inherited_emulated_screen_infos_
++          ? *inherited_emulated_screen_infos_
++          : widget_base_->screen_infos();
++  if (auto orientation = ScreenOrientationOverride()) {
++    web_screen_infos_with_orientation_override_ = screen_infos;
++    auto& current =
++        web_screen_infos_with_orientation_override_.mutable_current();
++    current.orientation_type = *orientation;
++    switch (*orientation) {
++      case display::mojom::blink::ScreenOrientation::kLandscapePrimary:
++        current.orientation_angle = 90;
++        break;
++      case display::mojom::blink::ScreenOrientation::kLandscapeSecondary:
++        current.orientation_angle = 270;
++        break;
++      case display::mojom::blink::ScreenOrientation::kPortraitSecondary:
++        current.orientation_angle = 180;
++        break;
++      default:
++        current.orientation_angle = 0;
++    }
++    return web_screen_infos_with_orientation_override_;
++  }
++  return screen_infos;
++}
++
++std::optional<display::ScreenInfos>
++WebFrameWidgetImpl::GetEmulatedScreenInfos() {
++  if ((device_emulator_ && !widget_base_->WillBeDestroyed()) ||
++      inherited_emulated_screen_infos_ || ScreenOrientationOverride()) {
++    return GetScreenInfos();
++  }
++  return std::nullopt;
+ }
+ 
+ const display::ScreenInfo& WebFrameWidgetImpl::GetOriginalScreenInfo() {
+@@ -5328,7 +5485,13 @@
+   // Emulation happens on regular main frames which don't use auto-resize mode.
+   DCHECK(!AutoResizeMode());
+ 
++  const uint64_t update_sequence = screen_update_sequence_;
++  const uint64_t visual_sequence = visual_properties_update_sequence_;
+   UpdateScreenInfo(screen_infos);
++  if (!IsScreenUpdateCurrent(update_sequence + 1) ||
++      visual_properties_update_sequence_ != visual_sequence) {
++    return;
++  }
+   widget_base_->SetVisibleViewportSize(visible_viewport_size);
+   Resize(widget_base_->DIPsToCeiledBlinkSpace(widget_size_in_dips));
+ }
+@@ -5511,14 +5674,40 @@
+ #endif  // BUILDFLAG(IS_WIN)
+ 
+ void WebFrameWidgetImpl::OrientationChanged() {
+-  local_root_->SendOrientationChangeEvent();
++  if (!widget_base_ || widget_base_->WillBeDestroyed() || !local_root_) {
++    return;
++  }
++  const display::ScreenInfo screen_info =
++      OrientationScreenInfo(GetScreenInfo());
++  const bool changed = last_orientation_screen_info_ &&
++                       (last_orientation_screen_info_->orientation_type !=
++                            screen_info.orientation_type ||
++                        last_orientation_screen_info_->orientation_angle !=
++                            screen_info.orientation_angle);
++  last_orientation_screen_info_ = screen_info;
++  if (changed) {
++    local_root_->SendOrientationChangeEvent();
++  }
+ }
+ 
+ void WebFrameWidgetImpl::DidUpdateSurfaceAndScreen(
+     const display::ScreenInfos& previous_original_screen_infos) {
+-  display::ScreenInfo screen_info = widget_base_->GetScreenInfo();
+-  View()->SetZoomFactorForDeviceScaleFactor(screen_info.device_scale_factor,
+-                                            screen_info.text_scale_multiplier);
++  const uint64_t update_sequence = ++screen_update_sequence_;
++  if (!IsScreenUpdateCurrent(update_sequence)) {
++    return;
++  }
++  // A local main frame owns the view's emulation state, including A(B(A)).
++  if (!ForSubframe() || !View()->MainFrameImpl()) {
++    if (!device_emulator_) {
++      View()->SetCompositorDeviceScaleFactorOverride(
++          inherited_emulated_screen_infos_
++              ? GetOriginalScreenInfo().device_scale_factor
++              : 0.f);
++    }
++    const display::ScreenInfo& screen_info = GetScreenInfo();
++    View()->SetZoomFactorForDeviceScaleFactor(
++        screen_info.device_scale_factor, screen_info.text_scale_multiplier);
++  }
+ 
+   if (ShouldAutoDetermineCompositingToLCDTextSetting()) {
+     // This causes compositing state to be modified which dirties the
+@@ -5538,49 +5727,74 @@
+   if (previous_original_screen_infos.current().device_scale_factor !=
+       original_screen_infos.current().device_scale_factor) {
+     View()->CancelPagePopup();
+-  }
++    if (!IsScreenUpdateCurrent(update_sequence)) {
++      return;
++    }
++  }
++
++  // Web screen events use emulated state; native geometry stays independent.
++  const display::ScreenInfos web_screen_infos = GetScreenInfos();
++  const display::ScreenInfos previous_web_screen_infos =
++      last_web_exposed_screen_infos_.value_or(previous_original_screen_infos);
++  last_web_exposed_screen_infos_ = web_screen_infos;
+ 
+   const bool window_screen_has_changed =
+       !Screen::AreWebExposedScreenPropertiesEqual(
+-          previous_original_screen_infos.current(),
+-          original_screen_infos.current());
++          previous_web_screen_infos.current(),
++          web_screen_infos.current());
+ 
+   const bool color_gamut_changed =
+       color_space_utilities::GetColorSpaceGamut(
+-          previous_original_screen_infos.current()) !=
++          previous_web_screen_infos.current()) !=
+       color_space_utilities::GetColorSpaceGamut(
+-          original_screen_infos.current());
++          web_screen_infos.current());
++
++  const bool web_screen_changed = previous_web_screen_infos != web_screen_infos;
+ 
+   // Update Screens interface data before firing any events. The API is designed
+   // to offer synchronous access to the most up-to-date cached screen
+   // information when a change event is fired.  It is not required but it
+   // is convenient to have all ScreenDetailed objects be up to date when any
+   // window.screen events are fired as well.
++  Vector<Persistent<WebLocalFrameImpl>> local_frames;
+   ForEachLocalFrameControlledByWidget(
+-      LocalRootImpl()->GetFrame(),
+-      [&original_screen_infos, window_screen_has_changed,
+-       color_gamut_changed](WebLocalFrameImpl* local_frame) {
+-        auto* screen = local_frame->GetFrame()->DomWindow()->screen();
+-        screen->UpdateDisplayId(original_screen_infos.current().display_id);
+-        CoreInitializer::GetInstance().DidUpdateScreens(
+-            *local_frame->GetFrame(), original_screen_infos);
+-        if (window_screen_has_changed)
+-          screen->DispatchEvent(*Event::Create(event_type_names::kChange));
+-        if (color_gamut_changed) {
+-          local_frame->GetFrame()
+-              ->GetDocument()
+-              ->MediaQueryAffectingValueChanged(MediaValueChange::kOther);
+-        }
++      LocalRootImpl()->GetFrame(), [&local_frames](WebLocalFrameImpl* frame) {
++        local_frames.push_back(frame);
+       });
+-
+-  if (previous_original_screen_infos != original_screen_infos) {
+-    // Propagate changes down to child local root RenderWidgets and
+-    // BrowserPlugins in other frame trees/processes.
+-    ForEachRemoteFrameControlledByWidget(
+-        [&original_screen_infos](RemoteFrame* remote_frame) {
+-          remote_frame->DidChangeScreenInfos(original_screen_infos);
+-        });
+-  }
++  for (const auto& local_frame : local_frames) {
++    if (!IsScreenUpdateCurrent(update_sequence)) {
++      return;
++    }
++    if (!local_frame->GetFrame()) {
++      continue;
++    }
++    auto* screen = local_frame->GetFrame()->DomWindow()->screen();
++    screen->UpdateDisplayId(web_screen_infos.current().display_id);
++    CoreInitializer::GetInstance().DidUpdateScreens(*local_frame->GetFrame(),
++                                                    web_screen_infos);
++    if (!IsScreenUpdateCurrent(update_sequence)) {
++      return;
++    }
++    if (local_frame->GetFrame() && window_screen_has_changed) {
++      screen->DispatchEvent(*Event::Create(event_type_names::kChange));
++    }
++    if (!IsScreenUpdateCurrent(update_sequence)) {
++      return;
++    }
++    if (local_frame->GetFrame() &&
++        (color_gamut_changed || web_screen_changed)) {
++      local_frame->GetFrame()->GetDocument()->MediaQueryAffectingValueChanged(
++          MediaValueChange::kOther);
++    }
++  }
++
++  const auto emulated_screen_infos = GetEmulatedScreenInfos();
++  ForEachRemoteFrameControlledByWidget(
++      [&original_screen_infos,
++       &emulated_screen_infos](RemoteFrame* remote_frame) {
++        remote_frame->DidChangeScreenInfos(original_screen_infos,
++                                           emulated_screen_infos);
++      });
+ }
+ 
+ gfx::Rect WebFrameWidgetImpl::ViewportVisibleRect() {
+diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.h b/third_party/blink/renderer/core/frame/web_frame_widget_impl.h
+--- a/third_party/blink/renderer/core/frame/web_frame_widget_impl.h
++++ b/third_party/blink/renderer/core/frame/web_frame_widget_impl.h
+@@ -95,6 +95,7 @@
+ #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
+ #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-shared.h"
+ #include "ui/base/mojom/menu_source_type.mojom-blink-forward.h"
++#include "ui/display/screen_infos.h"
+ #include "ui/base/mojom/window_show_state.mojom-blink-forward.h"
+ #include "ui/gfx/ca_layer_result.h"
+ 
+@@ -497,6 +498,7 @@
+   float PageScaleInMainFrame() override;
+   const display::ScreenInfo& GetScreenInfo() override;
+   const display::ScreenInfos& GetScreenInfos() override;
++  std::optional<display::ScreenInfos> GetEmulatedScreenInfos();
+   const display::ScreenInfo& GetOriginalScreenInfo() override;
+   const display::ScreenInfos& GetOriginalScreenInfos() override;
+   gfx::Rect WindowRect() override;
+@@ -782,6 +784,9 @@
+   // Similar to UpdateSurfaceAndScreenInfo but the surface allocation
+   // and compositor viewport rect remains the same.
+   void UpdateScreenInfo(const display::ScreenInfos& screen_infos);
++  void RefreshScreenInfo();
++  uint64_t ScreenUpdateSequence() const { return screen_update_sequence_; }
++  bool IsScreenUpdateCurrent(uint64_t sequence) const;
+   void UpdateSurfaceAndCompositorRect(
+       const viz::LocalSurfaceId& new_local_surface_id,
+       const gfx::Rect& compositor_viewport_pixel_rect);
+@@ -888,6 +893,7 @@
+   bool doing_drag_and_drop_ = false;
+ 
+  private:
++  friend class ScreenMetricsEmulator;
+   friend class WebFrameWidgetSimTest;
+   friend class WebViewImpl;
+   friend class ReportTimeSwapPromise;
+@@ -1159,7 +1165,7 @@
+       const gfx::PointF& pos_in_root_frame);
+ 
+   // Called during |UpdateVisualProperties| to apply the new size to the widget.
+-  void ApplyVisualPropertiesSizing(const VisualProperties& visual_properties);
++  bool ApplyVisualPropertiesSizing(const VisualProperties& visual_properties);
+ 
+   // Returns true iff the visual property state contains an update that will
+   // change the fullscreen state (e.g. on/off or current display).
+@@ -1322,6 +1328,13 @@
+   // Used to override values given from the browser such as ScreenInfo,
+   // WidgetScreenRect, WindowScreenRect, and the widget's size.
+   Member<ScreenMetricsEmulator> device_emulator_;
++  bool uxr_display_initialized_ = false;
++  std::optional<display::ScreenInfos> last_web_exposed_screen_infos_;
++  std::optional<display::ScreenInfos> inherited_emulated_screen_infos_;
++  std::optional<display::ScreenInfo> last_orientation_screen_info_;
++  display::ScreenInfos web_screen_infos_with_orientation_override_;
++  uint64_t screen_update_sequence_ = 0;
++  uint64_t visual_properties_update_sequence_ = 0;
+ 
+   Member<AnimationFrameTimingMonitor> animation_frame_timing_monitor_;
+ 
+diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_test.cc b/third_party/blink/renderer/core/frame/web_frame_widget_test.cc
+--- a/third_party/blink/renderer/core/frame/web_frame_widget_test.cc
++++ b/third_party/blink/renderer/core/frame/web_frame_widget_test.cc
+@@ -18,10 +18,16 @@
+ #include "cc/test/property_tree_test_utils.h"
+ #include "cc/trees/scroll_source_type.h"
+ #include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
++#include "mojo/public/cpp/test_support/test_utils.h"
+ #include "testing/gmock/include/gmock/gmock.h"
+ #include "third_party/blink/public/common/features.h"
++#include "third_party/blink/public/common/frame/frame_visual_properties_mojom_traits.h"
+ #include "third_party/blink/public/common/input/synthetic_web_input_event_builders.h"
++#include "third_party/blink/public/common/page/page_zoom.h"
++#include "third_party/blink/public/common/widget/visual_properties_mojom_traits.h"
++#include "third_party/blink/public/mojom/frame/frame_visual_properties.mojom-blink.h"
+ #include "third_party/blink/public/mojom/page/widget.mojom-shared.h"
++#include "third_party/blink/public/mojom/widget/visual_properties.mojom-blink.h"
+ #include "third_party/blink/public/web/web_plugin_params.h"
+ #include "third_party/blink/public/web/web_script_source.h"
+ #include "third_party/blink/renderer/core/css/properties/css_property_ref.h"
+@@ -93,6 +99,25 @@
+   bool invoked_ = false;
+ };
+ 
++class DisplayOrientationEventListener final : public NativeEventListener {
++ public:
++  explicit DisplayOrientationEventListener(base::OnceClosure callback)
++      : callback_(std::move(callback)) {}
++
++  void Invoke(ExecutionContext*, Event*) override {
++    ++count_;
++    if (callback_) {
++      std::move(callback_).Run();
++    }
++  }
++
++  int Count() const { return count_; }
++
++ private:
++  base::OnceClosure callback_;
++  int count_ = 0;
++};
++
+ }  // namespace
+ 
+ class WebFrameWidgetSimTest : public SimTest {
+@@ -552,6 +577,508 @@
+   visual_properties.is_pinch_gesture_active = false;
+   LocalFrameRootWidget()->ApplyVisualProperties(visual_properties);
+   EXPECT_FALSE(layer_tree_host->is_external_pinch_gesture_active_for_testing());
++}
++
++TEST_F(WebFrameWidgetImplRemoteFrameSimTest,
++       EmulatedScreenPreservesNativeLayoutAndInputScale) {
++  auto* widget = LocalFrameRootWidget();
++  display::ScreenInfo native_screen;
++  native_screen.rect = gfx::Rect(800, 600);
++  native_screen.available_rect = native_screen.rect;
++  VisualProperties properties;
++  properties.screen_infos = display::ScreenInfos(native_screen);
++  display::ScreenInfo emulated_screen = native_screen;
++  emulated_screen.rect = gfx::Rect(1920, 1080);
++  emulated_screen.available_rect = gfx::Rect(1920, 1040);
++  emulated_screen.device_scale_factor = 1.25f;
++  emulated_screen.orientation_type =
++      display::mojom::ScreenOrientation::kPortraitPrimary;
++  emulated_screen.orientation_angle = 90;
++  properties.emulated_screen_infos = display::ScreenInfos(emulated_screen);
++  properties.new_size_device_px = gfx::Size(300, 150);
++  properties.visible_viewport_size_device_px = gfx::Size(800, 600);
++  properties.compositor_viewport_pixel_rect = gfx::Rect(300, 150);
++  auto check = [&](int width, int height, float dpr, float native_dsf) {
++    widget->ApplyVisualProperties(properties);
++    widget->UpdateAllLifecyclePhases(DocumentUpdateReason::kTest);
++    auto* window = LocalFrameRoot().GetFrame()->DomWindow();
++    EXPECT_EQ(width, window->innerWidth());
++    EXPECT_EQ(height, window->innerHeight());
++    EXPECT_FLOAT_EQ(dpr, window->devicePixelRatio());
++    EXPECT_FLOAT_EQ(native_dsf,
++                    widget->LayerTreeHostForTesting()->device_scale_factor());
++    EXPECT_EQ(properties.screen_infos, widget->GetOriginalScreenInfos());
++    EXPECT_EQ(properties.emulated_screen_infos,
++              widget->GetEmulatedScreenInfos());
++    const gfx::PointF point(37, 19);
++    EXPECT_EQ(gfx::PointF(37 * native_dsf, 19 * native_dsf),
++              widget->DIPsToBlinkSpace(point));
++    EXPECT_EQ(
++        gfx::RectF(37, 19, 50, 20),
++        widget->BlinkSpaceToDIPs(gfx::RectF(37 * native_dsf, 19 * native_dsf,
++                                            50 * native_dsf, 20 * native_dsf)));
++  };
++  check(300, 150, 1.25f, 1.f);
++  EXPECT_EQ(emulated_screen.rect, widget->GetScreenInfo().rect);
++  EXPECT_EQ(emulated_screen.available_rect,
++            widget->GetScreenInfo().available_rect);
++  EXPECT_EQ(emulated_screen.orientation_type,
++            widget->GetScreenInfo().orientation_type);
++  EXPECT_EQ(emulated_screen.orientation_angle,
++            widget->GetScreenInfo().orientation_angle);
++
++  properties.emulated_screen_infos->mutable_current().device_scale_factor = 2.f;
++  check(300, 150, 2.f, 1.f);
++  properties.new_size_device_px = gfx::Size(420, 210);
++  properties.compositor_viewport_pixel_rect = gfx::Rect(420, 210);
++  check(420, 210, 2.f, 1.f);
++  properties.zoom_level = ZoomFactorToZoomLevel(2.f);
++  check(210, 105, 4.f, 1.f);
++  properties.zoom_level = 0;
++
++  properties.page_scale_factor = 1.5f;
++  properties.is_pinch_gesture_active = true;
++  check(420, 210, 2.f, 1.f);
++  EXPECT_TRUE(widget->LayerTreeHostForTesting()
++                  ->is_external_pinch_gesture_active_for_testing());
++  properties.css_zoom_factor = 2.f;
++  properties.new_size_device_px = gfx::Size(840, 420);
++  properties.compositor_viewport_pixel_rect = gfx::Rect(840, 420);
++  check(420, 210, 4.f, 1.f);
++
++  properties.css_zoom_factor = 1.f;
++  properties.screen_infos.mutable_current().device_scale_factor = 2.f;
++  properties.emulated_screen_infos->mutable_current().device_scale_factor =
++      1.25f;
++  check(420, 210, 1.25f, 2.f);
++  properties.emulated_screen_infos.reset();
++  check(420, 210, 2.f, 2.f);
++  EXPECT_EQ(properties.screen_infos, widget->GetScreenInfos());
++}
++
++TEST_F(WebFrameWidgetImplRemoteFrameSimTest,
++       EmulatedScreenMojoRoundTripAndClear) {
++  display::ScreenInfo native_screen;
++  display::ScreenInfo emulated_screen;
++  emulated_screen.device_scale_factor = 1.25f;
++  emulated_screen.rect = gfx::Rect(1920, 1080);
++  FrameVisualProperties frame;
++  viz::ParentLocalSurfaceIdAllocator allocator;
++  allocator.GenerateId();
++  frame.local_surface_id = allocator.GetCurrentLocalSurfaceId();
++  frame.screen_infos = display::ScreenInfos(native_screen);
++  frame.emulated_screen_infos = display::ScreenInfos(emulated_screen);
++  FrameVisualProperties frame_copy(frame);
++  EXPECT_EQ(frame.emulated_screen_infos, frame_copy.emulated_screen_infos);
++  FrameVisualProperties empty_frame;
++  FrameVisualProperties empty_copy(empty_frame);
++  EXPECT_FALSE(empty_copy.emulated_screen_infos);
++  empty_copy = frame;
++  EXPECT_EQ(frame.emulated_screen_infos, empty_copy.emulated_screen_infos);
++  frame.emulated_screen_infos->mutable_current().device_scale_factor = 2.f;
++  EXPECT_FLOAT_EQ(
++      1.25f, frame_copy.emulated_screen_infos->current().device_scale_factor);
++  frame_copy = frame;
++  EXPECT_EQ(frame.emulated_screen_infos, frame_copy.emulated_screen_infos);
++  empty_copy = empty_frame;
++  EXPECT_FALSE(empty_copy.emulated_screen_infos);
++  EXPECT_EQ(empty_frame.screen_infos, empty_copy.screen_infos);
++  FrameVisualProperties decoded_frame;
++  ASSERT_TRUE(
++      mojo::test::SerializeAndDeserialize<mojom::blink::FrameVisualProperties>(
++          frame_copy, decoded_frame));
++  EXPECT_EQ(frame.screen_infos, decoded_frame.screen_infos);
++  EXPECT_EQ(frame.emulated_screen_infos, decoded_frame.emulated_screen_infos);
++
++  VisualProperties widget;
++  widget.screen_infos = decoded_frame.screen_infos;
++  widget.emulated_screen_infos = decoded_frame.emulated_screen_infos;
++  VisualProperties widget_copy(widget);
++  EXPECT_EQ(widget, widget_copy);
++  widget.emulated_screen_infos->mutable_current().device_scale_factor = 3.f;
++  EXPECT_FALSE(widget == widget_copy);
++  widget_copy = widget;
++  EXPECT_EQ(widget, widget_copy);
++  VisualProperties empty_widget;
++  widget_copy = empty_widget;
++  EXPECT_FALSE(widget_copy.emulated_screen_infos);
++  VisualProperties decoded_widget;
++  ASSERT_TRUE(
++      mojo::test::SerializeAndDeserialize<mojom::blink::VisualProperties>(
++          widget, decoded_widget));
++  EXPECT_EQ(widget, decoded_widget);
++  widget.emulated_screen_infos.reset();
++  EXPECT_FALSE(widget == decoded_widget);
++  ASSERT_TRUE(
++      mojo::test::SerializeAndDeserialize<mojom::blink::VisualProperties>(
++          widget, decoded_widget));
++  EXPECT_FALSE(decoded_widget.emulated_screen_infos);
++  frame.emulated_screen_infos.reset();
++  ASSERT_TRUE(
++      mojo::test::SerializeAndDeserialize<mojom::blink::FrameVisualProperties>(
++          frame, decoded_frame));
++  EXPECT_FALSE(decoded_frame.emulated_screen_infos);
++  EXPECT_EQ(frame.screen_infos, decoded_frame.screen_infos);
++  frame_copy = decoded_frame;
++  EXPECT_EQ(frame.emulated_screen_infos, frame_copy.emulated_screen_infos);
++  widget.screen_infos = decoded_frame.screen_infos;
++  widget.emulated_screen_infos = decoded_frame.emulated_screen_infos;
++  ASSERT_TRUE(
++      mojo::test::SerializeAndDeserialize<mojom::blink::VisualProperties>(
++          widget, decoded_widget));
++  EXPECT_EQ(widget, decoded_widget);
++  decoded_widget.emulated_screen_infos = display::ScreenInfos(emulated_screen);
++  EXPECT_FALSE(widget == decoded_widget);
++}
++
++TEST_F(WebFrameWidgetImplRemoteFrameSimTest,
++       EmulatedScreenOrientationRefreshPreservesNativeState) {
++  auto* widget = LocalFrameRootWidget();
++  display::ScreenInfo native_screen;
++  native_screen.rect = gfx::Rect(800, 600);
++  native_screen.orientation_type =
++      display::mojom::ScreenOrientation::kLandscapePrimary;
++  display::ScreenInfo effective = native_screen;
++  effective.device_scale_factor = 1.25f;
++  effective.rect = gfx::Rect(1920, 1080);
++  effective.orientation_type =
++      display::mojom::ScreenOrientation::kPortraitPrimary;
++  VisualProperties properties;
++  properties.screen_infos = display::ScreenInfos(native_screen);
++  properties.emulated_screen_infos = display::ScreenInfos(effective);
++  properties.new_size_device_px = gfx::Size(300, 150);
++  properties.visible_viewport_size_device_px = gfx::Size(800, 600);
++  widget->ApplyVisualProperties(properties);
++  for (auto override :
++       {display::mojom::blink::ScreenOrientation::kLandscapePrimary,
++        display::mojom::blink::ScreenOrientation::kPortraitSecondary}) {
++    WebView().SetScreenOrientationOverrideForTesting(override);
++    EXPECT_EQ(properties.screen_infos, widget->GetOriginalScreenInfos());
++    EXPECT_FLOAT_EQ(1.f,
++                    widget->LayerTreeHostForTesting()->device_scale_factor());
++    EXPECT_EQ(gfx::PointF(37, 19),
++              widget->DIPsToBlinkSpace(gfx::PointF(37, 19)));
++    EXPECT_EQ(override, widget->GetScreenInfo().orientation_type);
++    EXPECT_FLOAT_EQ(1.25f, widget->GetScreenInfo().device_scale_factor);
++    EXPECT_EQ(300, LocalFrameRoot().GetFrame()->DomWindow()->innerWidth());
++  }
++  effective.orientation_angle = 270;
++  properties.emulated_screen_infos = display::ScreenInfos(effective);
++  widget->ApplyVisualProperties(properties);
++  WebView().SetScreenOrientationOverrideForTesting(std::nullopt);
++  EXPECT_EQ(effective, widget->GetScreenInfo());
++  EXPECT_EQ(properties.screen_infos, widget->GetOriginalScreenInfos());
++}
++
++TEST_F(WebFrameWidgetImplRemoteFrameSimTest,
++       EmulatedScreenOrientationOnlyHostRotationAndClear) {
++  ScopedOrientationEventForTest orientation_events(true);
++  auto* widget = LocalFrameRootWidget();
++  auto& frame = LocalFrameRoot();
++  display::ScreenInfo native;
++  native.orientation_type =
++      display::mojom::ScreenOrientation::kLandscapePrimary;
++  native.orientation_angle = 90;
++  VisualProperties properties;
++  properties.screen_infos = display::ScreenInfos(native);
++  properties.new_size_device_px = gfx::Size(300, 150);
++  properties.visible_viewport_size_device_px = gfx::Size(800, 600);
++  widget->ApplyVisualProperties(properties);
++  auto* listener = MakeGarbageCollected<DisplayOrientationEventListener>(
++      base::OnceClosure());
++  frame.GetFrame()->DomWindow()->addEventListener(
++      event_type_names::kOrientationchange, listener, false);
++  display::ScreenInfo effective = native;
++  effective.device_scale_factor = 1.25f;
++  effective.orientation_type =
++      display::mojom::ScreenOrientation::kPortraitPrimary;
++  effective.orientation_angle = 0;
++  properties.emulated_screen_infos = display::ScreenInfos(effective);
++  auto check = [&](int count) {
++    widget->ApplyVisualProperties(properties);
++    test::RunPendingTasks();
++    EXPECT_EQ(count, listener->Count());
++  };
++  check(1);
++  check(1);
++  properties.screen_infos.mutable_current().orientation_type =
++      display::mojom::ScreenOrientation::kPortraitSecondary;
++  properties.screen_infos.mutable_current().orientation_angle = 180;
++  check(1);
++  effective.orientation_type =
++      display::mojom::ScreenOrientation::kLandscapeSecondary;
++  effective.orientation_angle = 270;
++  properties.emulated_screen_infos = display::ScreenInfos(effective);
++  check(2);
++  properties.emulated_screen_infos.reset();
++  check(3);
++  check(3);
++  properties.emulated_screen_infos = properties.screen_infos;
++  check(3);
++  properties.emulated_screen_infos.reset();
++  check(3);
++  EXPECT_EQ(180, frame.GetFrame()->DomWindow()->orientation());
++}
++
++TEST_F(WebFrameWidgetImplRemoteFrameSimTest,
++       EmulatedScreenOrientationReentryKeepsLatestSize) {
++  ScopedOrientationEventForTest orientation_events(true);
++  auto* widget = LocalFrameRootWidget();
++  display::ScreenInfo native;
++  native.orientation_type =
++      display::mojom::ScreenOrientation::kLandscapePrimary;
++  native.orientation_angle = 90;
++  VisualProperties initial;
++  initial.screen_infos = display::ScreenInfos(native);
++  initial.new_size_device_px = gfx::Size(300, 150);
++  initial.visible_viewport_size_device_px = gfx::Size(800, 600);
++  widget->ApplyVisualProperties(initial);
++  VisualProperties latest = initial;
++  latest.new_size_device_px = gfx::Size(420, 210);
++  auto* listener = MakeGarbageCollected<DisplayOrientationEventListener>(
++      base::BindLambdaForTesting(
++          [&] { widget->ApplyVisualProperties(latest); }));
++  LocalFrameRoot().GetFrame()->DomWindow()->addEventListener(
++      event_type_names::kOrientationchange, listener, false);
++  VisualProperties outer = initial;
++  outer.emulated_screen_infos = display::ScreenInfos(native);
++  outer.emulated_screen_infos->mutable_current().orientation_type =
++      display::mojom::ScreenOrientation::kPortraitPrimary;
++  outer.emulated_screen_infos->mutable_current().orientation_angle = 0;
++  widget->ApplyVisualProperties(outer);
++  EXPECT_EQ(2, listener->Count());
++  EXPECT_FALSE(widget->GetEmulatedScreenInfos());
++  EXPECT_EQ(native, widget->GetScreenInfo());
++  EXPECT_EQ(gfx::Size(420, 210), widget->Size());
++  EXPECT_EQ(420, LocalFrameRoot().GetFrame()->DomWindow()->innerWidth());
++  widget->ApplyVisualProperties(latest);
++  EXPECT_EQ(2, listener->Count());
++}
++
++TEST_F(WebFrameWidgetImplRemoteFrameSimTest,
++       EmulatedScreenOrientationDetachDuringNotification) {
++  ScopedOrientationEventForTest orientation_events(true);
++  auto* widget = LocalFrameRootWidget();
++  auto& frame = LocalFrameRoot();
++  display::ScreenInfo native;
++  native.orientation_type =
++      display::mojom::ScreenOrientation::kLandscapePrimary;
++  native.orientation_angle = 90;
++  VisualProperties properties;
++  properties.screen_infos = display::ScreenInfos(native);
++  properties.new_size_device_px = gfx::Size(300, 150);
++  properties.visible_viewport_size_device_px = gfx::Size(800, 600);
++  widget->ApplyVisualProperties(properties);
++  auto* listener = MakeGarbageCollected<DisplayOrientationEventListener>(
++      base::BindLambdaForTesting([&] { frame.Detach(); }));
++  frame.GetFrame()->DomWindow()->addEventListener(
++      event_type_names::kOrientationchange, listener, false);
++  properties.emulated_screen_infos = display::ScreenInfos(native);
++  properties.emulated_screen_infos->mutable_current().orientation_type =
++      display::mojom::ScreenOrientation::kPortraitPrimary;
++  properties.emulated_screen_infos->mutable_current().orientation_angle = 0;
++  widget->ApplyVisualProperties(properties);
++  EXPECT_EQ(1, listener->Count());
++  EXPECT_FALSE(widget->LocalRootImpl());
++  test::RunPendingTasks();
++}
++
++TEST_F(WebFrameWidgetSimTest, EmulatedScreenOrientationEventsAndOwnOverride) {
++  ScopedOrientationEventForTest orientation_events(true);
++  auto* widget = WebView().MainFrameViewWidget();
++  auto* listener = MakeGarbageCollected<DisplayOrientationEventListener>(
++      base::OnceClosure());
++  auto events_are = [&](int count) {
++    test::RunPendingTasks();
++    EXPECT_EQ(count, listener->Count());
++  };
++  display::ScreenInfo initial_screen = widget->GetOriginalScreenInfo();
++  initial_screen.orientation_type =
++      display::mojom::ScreenOrientation::kLandscapePrimary;
++  initial_screen.orientation_angle = 90;
++  widget->UpdateScreenInfo(display::ScreenInfos(initial_screen));
++  test::RunPendingTasks();
++  WebView().SetScreenOrientationOverrideForTesting(
++      display::mojom::blink::ScreenOrientation::kPortraitPrimary);
++  test::RunPendingTasks();
++  Window().addEventListener(event_type_names::kOrientationchange, listener,
++                            false);
++  const auto native = widget->GetOriginalScreenInfos();
++  DeviceEmulationParams params;
++  params.screen_size = gfx::Size(1920, 1080);
++  params.view_size = gfx::Size(800, 600);
++  params.device_scale_factor = 1.25f;
++  params.screen_orientation_type =
++      display::mojom::ScreenOrientation::kPortraitSecondary;
++  params.screen_orientation_angle = 180;
++  widget->EnableDeviceEmulation(
++      params, mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
++  events_are(0);
++  WebView().SetScreenOrientationOverrideForTesting(std::nullopt);
++  events_are(1);
++  widget->RefreshScreenInfo();
++  events_are(1);
++  EXPECT_EQ(native, widget->GetOriginalScreenInfos());
++  EXPECT_FLOAT_EQ(1.25f, widget->GetScreenInfo().device_scale_factor);
++  EXPECT_EQ(gfx::Rect(1920, 1080), widget->GetScreenInfo().rect);
++  params.screen_orientation_angle = 0;
++  params.screen_orientation_type =
++      display::mojom::ScreenOrientation::kPortraitPrimary;
++  widget->EnableDeviceEmulation(
++      params, mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
++  events_are(2);
++  widget->DisableDeviceEmulation();
++  events_are(3);
++  widget->RefreshScreenInfo();
++  events_are(3);
++}
++
++TEST_F(WebFrameWidgetSimTest, EmulatedScreenOwnOrientationReentry) {
++  ScopedOrientationEventForTest orientation_events(true);
++  auto* widget = WebView().MainFrameViewWidget();
++  auto native = widget->GetOriginalScreenInfos();
++  native.mutable_current().orientation_type =
++      display::mojom::ScreenOrientation::kLandscapePrimary;
++  native.mutable_current().orientation_angle = 90;
++  widget->UpdateScreenInfo(native);
++  DeviceEmulationParams own;
++  own.view_size = gfx::Size(300, 150);
++  own.device_scale_factor = 1.25f;
++  own.screen_orientation_type =
++      display::mojom::ScreenOrientation::kPortraitPrimary;
++  own.screen_orientation_angle = 0;
++  widget->EnableDeviceEmulation(
++      own, mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
++  auto* listener = MakeGarbageCollected<DisplayOrientationEventListener>(
++      base::BindLambdaForTesting([&] { widget->DisableDeviceEmulation(); }));
++  Window().addEventListener(event_type_names::kOrientationchange, listener,
++                            false);
++  own.screen_orientation_type =
++      display::mojom::ScreenOrientation::kPortraitSecondary;
++  own.screen_orientation_angle = 180;
++  widget->EnableDeviceEmulation(
++      own, mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
++  EXPECT_EQ(2, listener->Count());
++  EXPECT_FALSE(widget->DeviceEmulator());
++  EXPECT_FALSE(widget->GetEmulatedScreenInfos());
++  EXPECT_EQ(native, widget->GetOriginalScreenInfos());
++  EXPECT_EQ(native, widget->GetScreenInfos());
++  const auto restored_size = widget->Size();
++  widget->RefreshScreenInfo();
++  EXPECT_EQ(restored_size, widget->Size());
++  EXPECT_EQ(2, listener->Count());
++}
++
++TEST_F(WebFrameWidgetSimTest, EmulatedScreenOwnVisualPropertiesReentry) {
++  ScopedOrientationEventForTest orientation_events(true);
++  auto* widget = WebView().MainFrameViewWidget();
++  display::ScreenInfo native;
++  native.orientation_type =
++      display::mojom::ScreenOrientation::kLandscapePrimary;
++  native.orientation_angle = 90;
++  VisualProperties properties;
++  properties.screen_infos = display::ScreenInfos(native);
++  properties.new_size_device_px = gfx::Size(300, 150);
++  properties.visible_viewport_size_device_px = gfx::Size(300, 150);
++  properties.compositor_viewport_pixel_rect = gfx::Rect(300, 150);
++  widget->ApplyVisualProperties(properties);
++  DeviceEmulationParams own;
++  own.view_size = gfx::Size(300, 150);
++  own.device_scale_factor = 1.25f;
++  widget->EnableDeviceEmulation(
++      own, mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
++  VisualProperties latest = properties;
++  latest.new_size_device_px = gfx::Size(420, 210);
++  latest.visible_viewport_size_device_px = gfx::Size(420, 210);
++  latest.compositor_viewport_pixel_rect = gfx::Rect(420, 210);
++  auto* listener = MakeGarbageCollected<DisplayOrientationEventListener>(
++      base::BindLambdaForTesting([&] {
++        widget->DisableDeviceEmulation();
++        widget->ApplyVisualProperties(latest);
++      }));
++  Window().addEventListener(event_type_names::kOrientationchange, listener,
++                            false);
++  properties.screen_infos.mutable_current().orientation_type =
++      display::mojom::ScreenOrientation::kPortraitPrimary;
++  properties.screen_infos.mutable_current().orientation_angle = 0;
++  widget->ApplyVisualProperties(properties);
++  EXPECT_EQ(2, listener->Count());
++  EXPECT_FALSE(widget->DeviceEmulator());
++  EXPECT_EQ(gfx::Size(420, 210), widget->Size());
++  EXPECT_EQ(gfx::Rect(420, 210),
++            widget->LayerTreeHostForTesting()->device_viewport_rect());
++  EXPECT_EQ(latest.screen_infos, widget->GetScreenInfos());
++}
++
++class NestedMainDisplaySimTest : public SimTest {
++ public:
++  frame_test_helpers::TestWebFrameWidget* CreateWebFrameWidget(
++      base::PassKey<WebLocalFrame> pass_key,
++      CrossVariantMojoAssociatedRemote<
++          mojom::blink::FrameWidgetHostInterfaceBase> frame_widget_host,
++      CrossVariantMojoAssociatedReceiver<mojom::blink::FrameWidgetInterfaceBase>
++          frame_widget,
++      CrossVariantMojoAssociatedRemote<mojom::blink::WidgetHostInterfaceBase>
++          widget_host,
++      CrossVariantMojoAssociatedReceiver<mojom::blink::WidgetInterfaceBase>
++          widget,
++      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
++      const viz::FrameSinkId& frame_sink_id,
++      bool hidden,
++      bool never_composited,
++      bool is_for_child_local_root,
++      bool is_for_nested_main_frame,
++      bool is_for_scalable_page) override {
++    return MakeGarbageCollected<frame_test_helpers::TestWebFrameWidget>(
++        pass_key, std::move(frame_widget_host), std::move(frame_widget),
++        std::move(widget_host), std::move(widget), std::move(task_runner),
++        frame_sink_id, hidden, never_composited, is_for_child_local_root,
++        is_for_nested_main_frame || !is_for_child_local_root,
++        is_for_scalable_page);
++  }
++};
++
++TEST_F(NestedMainDisplaySimTest, EmulatedScreenInheritanceAndOwnPriority) {
++  auto* widget = WebView().MainFrameViewWidget();
++  ASSERT_TRUE(widget->ForMainFrame());
++  ASSERT_FALSE(widget->ForTopMostMainFrame());
++  display::ScreenInfo native;
++  native.rect = gfx::Rect(800, 600);
++  display::ScreenInfo parent = native;
++  parent.rect = gfx::Rect(1920, 1080);
++  parent.device_scale_factor = 1.25f;
++  VisualProperties properties;
++  properties.screen_infos = display::ScreenInfos(native);
++  properties.emulated_screen_infos = display::ScreenInfos(parent);
++  properties.new_size_device_px = gfx::Size(300, 150);
++  properties.visible_viewport_size_device_px = gfx::Size(300, 150);
++  widget->ApplyVisualProperties(properties);
++  EXPECT_EQ(properties.emulated_screen_infos, widget->GetEmulatedScreenInfos());
++  EXPECT_EQ(properties.screen_infos, widget->GetOriginalScreenInfos());
++  EXPECT_EQ(300, Window().innerWidth());
++  EXPECT_FLOAT_EQ(1.25f, Window().devicePixelRatio());
++  DeviceEmulationParams own;
++  own.screen_size = gfx::Size(1440, 900);
++  own.view_size = gfx::Size(300, 150);
++  own.device_scale_factor = 2.f;
++  widget->EnableDeviceEmulation(
++      own, mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
++  parent.rect = gfx::Rect(2560, 1440);
++  parent.device_scale_factor = 1.5f;
++  properties.emulated_screen_infos = display::ScreenInfos(parent);
++  widget->ApplyVisualProperties(properties);
++  EXPECT_EQ(gfx::Rect(1440, 900), widget->GetScreenInfo().rect);
++  EXPECT_FLOAT_EQ(2.f, Window().devicePixelRatio());
++  widget->DisableDeviceEmulation();
++  EXPECT_EQ(properties.emulated_screen_infos, widget->GetEmulatedScreenInfos());
++  EXPECT_EQ(parent, widget->GetScreenInfo());
++  EXPECT_FLOAT_EQ(1.5f, Window().devicePixelRatio());
++  EXPECT_EQ(300, Window().innerWidth());
++  properties.emulated_screen_infos.reset();
++  widget->ApplyVisualProperties(properties);
++  EXPECT_FALSE(widget->GetEmulatedScreenInfos());
++  EXPECT_EQ(native, widget->GetScreenInfo());
++  EXPECT_FLOAT_EQ(1.f, Window().devicePixelRatio());
+ }
+ 
+ // Since std::unique_ptr<InputHandlerProxy::DidOverscrollParams> isn't copyable
+@@ -1843,6 +2370,49 @@
+   EXPECT_FALSE(listener->GetInvokedStateAndReset());
+ }
+ 
++TEST_F(WebFrameWidgetSimTest, EmulatedScreenInitialNestedPropagationAndClear) {
++  SimRequest request("https://example.com/test.html", "text/html");
++  LoadURL("https://example.com/test.html");
++  request.Complete(R"HTML(
++      <iframe srcdoc='<iframe srcdoc="plain text"></iframe>'></iframe>
++      )HTML");
++  base::RunLoop().RunUntilIdle();
++  auto* widget = WebView().MainFrameViewWidget();
++  const auto native_screens = widget->GetOriginalScreenInfos();
++  DeviceEmulationParams params;
++  params.screen_size = gfx::Size(1920, 1080);
++  params.view_size = gfx::Size(800, 600);
++  params.device_scale_factor = 1.25f;
++  widget->EnableDeviceEmulation(
++      params, mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
++  auto* grandchild = WebView().MainFrame()->FirstChild()->FirstChild();
++  ASSERT_TRUE(grandchild);
++  frame_test_helpers::SwapRemoteFrame(grandchild,
++                                      frame_test_helpers::CreateRemote());
++  auto* remote =
++      To<WebRemoteFrameImpl>(WebView().MainFrame()->FirstChild()->FirstChild());
++  auto check = [&](bool emulated) {
++    const auto& properties =
++        remote->GetFrame()->GetPendingVisualPropertiesForTesting();
++    EXPECT_EQ(native_screens, properties.screen_infos);
++    EXPECT_EQ(emulated, properties.emulated_screen_infos.has_value());
++    if (emulated) {
++      EXPECT_EQ(widget->GetScreenInfos(), *properties.emulated_screen_infos);
++    }
++  };
++  check(true);
++  params.device_scale_factor = 2.f;
++  widget->EnableDeviceEmulation(
++      params, mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
++  check(true);
++  widget->DisableDeviceEmulation();
++  check(false);
++  widget->EnableDeviceEmulation(
++      params, mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
++  check(true);
++  remote->Detach();
++}
++
+ // Tests that page scale is propagated to all remote frames controlled
+ // by a widget.
+ TEST_F(WebFrameWidgetSimTest, PropagateScaleToRemoteFrames) {
+diff --git a/third_party/blink/renderer/core/geolocation/geolocation.cc b/third_party/blink/renderer/core/geolocation/geolocation.cc
+--- a/third_party/blink/renderer/core/geolocation/geolocation.cc
++++ b/third_party/blink/renderer/core/geolocation/geolocation.cc
+@@ -29,8 +29,12 @@
+ 
+ #include <algorithm>
+ #include <optional>
+-
++#include <string>
++
++#include "base/strings/string_number_conversions.h"
+ #include "base/task/single_thread_task_runner.h"
++#include "base/time/time.h"
++#include "base/uxr_config.h"
+ #include "build/build_config.h"
+ #include "services/device/public/mojom/geoposition.mojom-blink.h"
+ #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
+@@ -122,6 +126,39 @@
+   return position.latitude >= -90. && position.latitude <= 90. &&
+          position.longitude >= -180. && position.longitude <= 180. &&
+          position.accuracy >= 0. && !position.timestamp.is_null();
++}
++
++device::mojom::blink::GeopositionPtr UxrGeoposition() {
++  const std::string value =
++      base::UxrConfig::GetInstance().Get("uxr-geolocation");
++  const size_t first_comma = value.find(',');
++  const size_t second_comma =
++      first_comma == std::string::npos
++          ? std::string::npos
++          : value.find(',', first_comma + 1);
++  if (first_comma == std::string::npos ||
++      second_comma == std::string::npos ||
++      value.find(',', second_comma + 1) != std::string::npos) {
++    return nullptr;
++  }
++
++  auto position = device::mojom::blink::Geoposition::New();
++  if (!base::StringToDouble(value.substr(0, first_comma),
++                            &position->latitude) ||
++      !base::StringToDouble(
++          value.substr(first_comma + 1, second_comma - first_comma - 1),
++          &position->longitude) ||
++      !base::StringToDouble(value.substr(second_comma + 1),
++                            &position->accuracy)) {
++    return nullptr;
++  }
++
++  position->altitude = -10001.0;
++  position->altitude_accuracy = -1.0;
++  position->heading = -1.0;
++  position->speed = -1.0;
++  position->timestamp = base::Time::Now();
++  return ValidateGeoposition(*position) ? std::move(position) : nullptr;
+ }
+ 
+ #if BUILDFLAG(IS_ANDROID)
+@@ -726,6 +763,17 @@
+ }
+ 
+ void Geolocation::QueryNextPosition() {
++  if (device::mojom::blink::GeopositionPtr position = UxrGeoposition()) {
++    GetExecutionContext()
++        ->GetTaskRunner(TaskType::kMiscPlatformAPI)
++        ->PostTask(
++            FROM_HERE,
++            blink::BindOnce(
++                &Geolocation::OnPositionUpdated, WrapPersistent(this),
++                device::mojom::blink::GeopositionResult::NewPosition(
++                    std::move(position))));
++    return;
++  }
+   geolocation_->QueryNextPosition(
+       blink::BindOnce(&Geolocation::OnPositionUpdated, WrapPersistent(this)));
+ }
+diff --git a/third_party/blink/renderer/core/html/html_element.cc b/third_party/blink/renderer/core/html/html_element.cc
+--- a/third_party/blink/renderer/core/html/html_element.cc
++++ b/third_party/blink/renderer/core/html/html_element.cc
+@@ -22,6 +22,10 @@
+  * Boston, MA 02110-1301, USA.
+  *
+  */
++
++#include "base/uxr_config.h"
++#include "base/uxr_surface_math.h"
++#include "base/strings/string_number_conversions.h"
+ 
+ #include "third_party/blink/renderer/core/html/html_element.h"
+ 
+@@ -4414,6 +4418,20 @@
+   if (const auto* layout_object = GetLayoutBoxModelObject()) {
+     result = AdjustedOffsetForZoom(layout_object->OffsetWidth());
+   }
++
++  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
++  if (modes.offset.mode == base::UxrSurfaceMode::kCloak &&
++      !modes.noise_disabled && !modes.raw && result > 50) {
++    if (const auto* style = GetComputedStyle()) {
++      const std::string input = base::NumberToString(modes.offset.seed) +
++          "|offsetWidth|" +
++          style->GetFontDescription().Family().FamilyName().GetString().Utf8();
++      const int delta = static_cast<int>(static_cast<uint32_t>(
++          base::uxr_surface_v1::OffsetHash(input)) % 81u) - 30;
++      if (result <= std::numeric_limits<int>::max() - std::max(delta, 0))
++        result += delta;
++    }
++  }
+   return result;
+ }
+ 
+@@ -4424,6 +4442,20 @@
+   int result = 0;
+   if (const auto* layout_object = GetLayoutBoxModelObject()) {
+     result = AdjustedOffsetForZoom(layout_object->OffsetHeight());
++  }
++
++  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
++  if (modes.offset.mode == base::UxrSurfaceMode::kCloak &&
++      !modes.noise_disabled && !modes.raw && result > 50) {
++    if (const auto* style = GetComputedStyle()) {
++      const std::string input = base::NumberToString(modes.offset.seed) +
++          "|offsetHeight|" +
++          style->GetFontDescription().Family().FamilyName().GetString().Utf8();
++      const int delta = static_cast<int>(static_cast<uint32_t>(
++          base::uxr_surface_v1::OffsetHash(input)) % 81u) - 30;
++      if (result <= std::numeric_limits<int>::max() - std::max(delta, 0))
++        result += delta;
++    }
+   }
+   return result;
+ }
+diff --git a/third_party/blink/renderer/core/input/pointer_event_manager.cc b/third_party/blink/renderer/core/input/pointer_event_manager.cc
+--- a/third_party/blink/renderer/core/input/pointer_event_manager.cc
++++ b/third_party/blink/renderer/core/input/pointer_event_manager.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "third_party/blink/renderer/core/input/pointer_event_manager.h"
+ 
++#include "base/uxr_config.h"
+ #include "base/metrics/field_trial_params.h"
+ #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom-blink.h"
+ #include "third_party/blink/public/mojom/input/input_handler.mojom-blink.h"
+@@ -975,6 +976,14 @@
+   Vector<WebPointerEvent> pointer_coalesced_events;
+   for (const WebMouseEvent& e : coalesced_events)
+     pointer_coalesced_events.push_back(WebPointerEvent(event_type, e));
++  // UXR: real pointermove always carries >=1 coalesced sample; CDP-synthesized moves
++  // arrive with an empty coalesced batch, which getCoalescedEvents() exposes as an
++  // automation tell. Synthesize one sample (the event itself) so the batch is non-empty.
++  if (base::UxrConfig::GetInstance().Get("uxr-fingerprint-off") != "true" &&
++      pointer_coalesced_events.empty() &&
++      event_type == WebInputEvent::Type::kPointerMove) {
++    pointer_coalesced_events.push_back(web_pointer_event);
++  }
+   Vector<WebPointerEvent> pointer_predicted_events;
+   for (const WebMouseEvent& e : predicted_events)
+     pointer_predicted_events.push_back(WebPointerEvent(event_type, e));
+@@ -1115,6 +1124,14 @@
+   Vector<WebPointerEvent> pointer_coalesced_events;
+   for (const WebMouseEvent& e : coalesced_events)
+     pointer_coalesced_events.push_back(WebPointerEvent(event_type, e));
++  // UXR: real pointermove always carries >=1 coalesced sample; CDP-synthesized moves
++  // arrive with an empty coalesced batch, which getCoalescedEvents() exposes as an
++  // automation tell. Synthesize one sample (the event itself) so the batch is non-empty.
++  if (base::UxrConfig::GetInstance().Get("uxr-fingerprint-off") != "true" &&
++      pointer_coalesced_events.empty() &&
++      event_type == WebInputEvent::Type::kPointerMove) {
++    pointer_coalesced_events.push_back(web_pointer_event);
++  }
+   Vector<WebPointerEvent> pointer_predicted_events;
+   for (const WebMouseEvent& e : predicted_events)
+     pointer_predicted_events.push_back(WebPointerEvent(event_type, e));
+diff --git a/third_party/blink/renderer/core/inspector/inspector_css_agent.cc b/third_party/blink/renderer/core/inspector/inspector_css_agent.cc
+--- a/third_party/blink/renderer/core/inspector/inspector_css_agent.cc
++++ b/third_party/blink/renderer/core/inspector/inspector_css_agent.cc
+@@ -25,10 +25,17 @@
+ 
+ #include "third_party/blink/renderer/core/inspector/inspector_css_agent.h"
+ 
++#include <algorithm>
+ #include <optional>
++#include <vector>
+ #include <utility>
+ 
+ #include "base/check_deref.h"
++#include "base/containers/span.h"
++#include "base/numerics/byte_conversions.h"
++#include "base/strings/string_number_conversions.h"
++#include "third_party/blink/renderer/platform/crypto.h"
++#include "third_party/skia/include/core/SkTypeface.h"
+ #include "third_party/blink/public/common/dom/dom_node_id.h"
+ #include "third_party/blink/public/common/metrics/document_update_reason.h"
+ #include "third_party/blink/renderer/core/animation/animation_utils.h"
+@@ -260,9 +267,65 @@
+   return uniq_rules;
+ }
+ 
++// Canonical SFNT table content, independent of file/TTC directory offsets.
++// Exclude DSIG (container signature) and zero head.checkSumAdjustment, which
++// changes when a collection face is repacked. All rendering tables are retained.
++String ComputePlatformFontTableHash(const SkTypeface& typeface) {
++  const int count = typeface.countTables();
++  if (count <= 0 || count > 512) {
++    return String();
++  }
++  std::vector<SkFontTableTag> tags(count);
++  if (typeface.readTableTags(SkSpan<SkFontTableTag>(tags.data(), tags.size())) !=
++      count) {
++    return String();
++  }
++  std::sort(tags.begin(), tags.end());
++  if (std::adjacent_find(tags.begin(), tags.end()) != tags.end()) {
++    return String();
++  }
++  Digestor digest(kHashAlgorithmSha256);
++  constexpr char kPrefix[] = "chromix-font-tables-v1";
++  if (!digest.Update(base::as_byte_span(kPrefix))) {
++    return String();
++  }
++  size_t total = 0;
++  for (SkFontTableTag tag : tags) {
++    if (tag == SkSetFourByteTag('D', 'S', 'I', 'G')) {
++      continue;
++    }
++    const size_t size = typeface.getTableSize(tag);
++    if (!size || size > 64 * 1024 * 1024 ||
++        total > 128 * 1024 * 1024 - size) {
++      return String();
++    }
++    total += size;
++    std::vector<uint8_t> bytes(size);
++    if (typeface.getTableData(tag, 0, size, bytes.data()) != size) {
++      return String();
++    }
++    if (tag == SkSetFourByteTag('h', 'e', 'a', 'd')) {
++      if (size < 12) {
++        return String();
++      }
++      std::fill(bytes.begin() + 8, bytes.begin() + 12, 0);
++    }
++    const auto encoded_tag = base::U32ToBigEndian(tag);
++    const auto encoded_size = base::U64ToBigEndian(size);
++    if (!digest.Update(encoded_tag) || !digest.Update(encoded_size) ||
++        !digest.Update(bytes)) {
++      return String();
++    }
++  }
++  DigestValue result;
++  return digest.Finish(result)
++             ? String::FromUtf8(base::HexEncodeLower(result))
++             : String();
++}
++
+ void CollectPlatformFontsFromRunFontDataList(
+     const HeapVector<ShapeResult::RunFontData>& run_font_data_list,
+-    HashMap<std::pair<int, String>, std::pair<int, String>>* font_stats) {
++    HashMap<std::pair<int, String>, InspectorPlatformFontUsage>* font_stats) {
+   for (const auto& run_font_data : run_font_data_list) {
+     const auto* simple_font_data = run_font_data.font_data_.Get();
+     String family_name = simple_font_data->PlatformData().FontFamilyName();
+@@ -273,14 +336,24 @@
+     if (postscript_name.IsNull()) {
+       postscript_name = "";
+     }
+-    auto font_key = std::make_pair(simple_font_data->IsCustomFont() ? 1 : 0,
+-                                   postscript_name);
++    // Do not merge unrelated font files just because their names coincide.
++    // Hash a typeface only once per collection, not once for each glyph run.
++    auto font_key = std::make_pair(
++        simple_font_data->IsCustomFont() ? 1 : 0,
++        String::Number(simple_font_data->PlatformData().UniqueID()));
+     auto font_stats_it = font_stats->find(font_key);
+     if (font_stats_it == font_stats->end()) {
+-      font_stats->insert(
+-          font_key, std::make_pair(run_font_data.glyph_count_, family_name));
++      InspectorPlatformFontUsage usage;
++      usage.glyph_count = run_font_data.glyph_count_;
++      usage.family_name = family_name;
++      usage.postscript_name = postscript_name;
++      auto typeface = simple_font_data->PlatformData().TypefaceSp();
++      if (typeface) {
++        usage.table_hash = ComputePlatformFontTableHash(*typeface);
++      }
++      font_stats->insert(font_key, std::move(usage));
+     } else {
+-      font_stats_it->value.first += run_font_data.glyph_count_;
++      font_stats_it->value.glyph_count += run_font_data.glyph_count_;
+     }
+   }
+ }
+@@ -2757,7 +2830,7 @@
+ 
+ void InspectorCSSAgent::CollectPlatformFontsForLayoutObject(
+     LayoutObject* layout_object,
+-    HashMap<std::pair<int, String>, std::pair<int, String>>* font_stats,
++    HashMap<std::pair<int, String>, InspectorPlatformFontUsage>* font_stats,
+     unsigned descendants_depth) {
+   if (!layout_object->IsText()) {
+     if (!descendants_depth)
+@@ -2809,9 +2882,9 @@
+   if (!response.IsSuccess())
+     return response;
+ 
+-  // Key: {isCustomFont, postscript_name}
+-  // Value: {glyph_count (which accumulates), family_name}
+-  HashMap<std::pair<int, String>, std::pair<int, String>> font_stats;
++  // Key: {isCustomFont, native typeface id}
++  // Value: actual shaped-run font metadata and canonical table digest.
++  HashMap<std::pair<int, String>, InspectorPlatformFontUsage> font_stats;
+   LayoutObject* root = node->GetLayoutObject();
+   if (root) {
+     // Iterate upto two layers deep.
+@@ -2821,16 +2894,18 @@
+   *platform_fonts =
+       std::make_unique<protocol::Array<protocol::CSS::PlatformFontUsage>>();
+   for (auto& font : font_stats) {
+-    std::pair<int, String>& font_description = font.key;
+-    std::pair<int, String>& font_value = font.value;
+-    bool is_custom_font = font_description.first == 1;
+-    (*platform_fonts)
+-        ->emplace_back(protocol::CSS::PlatformFontUsage::create()
+-                           .setFamilyName(font_value.second)
+-                           .setPostScriptName(font_description.second)
+-                           .setIsCustomFont(is_custom_font)
+-                           .setGlyphCount(font_value.first)
+-                           .build());
++    const auto& value = font.value;
++    auto usage = protocol::CSS::PlatformFontUsage::create()
++                     .setFamilyName(value.family_name)
++                     .setPostScriptName(value.postscript_name)
++                     .setIsCustomFont(font.key.first == 1)
++                     .setGlyphCount(value.glyph_count)
++                     .build();
++    if (!value.table_hash.empty()) {
++      usage->setFontTableHash(value.table_hash);
++      usage->setFontTableHashAlgorithm("chromix-font-tables-v1-sha256");
++    }
++    (*platform_fonts)->emplace_back(std::move(usage));
+   }
+   return protocol::Response::Success();
+ }
+diff --git a/third_party/blink/renderer/core/inspector/inspector_css_agent.h b/third_party/blink/renderer/core/inspector/inspector_css_agent.h
+--- a/third_party/blink/renderer/core/inspector/inspector_css_agent.h
++++ b/third_party/blink/renderer/core/inspector/inspector_css_agent.h
+@@ -83,6 +83,15 @@
+ class StyleRuleKeyframes;
+ class StyleRuleUsageTracker;
+ 
++// DevTools-only provenance of the actual typeface used by a shaped run.
++// A table digest identifies content, not rasterizer equivalence or a file path.
++struct InspectorPlatformFontUsage {
++  int glyph_count = 0;
++  String family_name;
++  String postscript_name;
++  String table_hash;
++};
++
+ class CORE_EXPORT InspectorCSSAgent final
+     : public InspectorBaseAgent<protocol::CSS::Metainfo>,
+       public InspectorDOMAgent::DOMListener,
+@@ -447,7 +456,7 @@
+ 
+   void CollectPlatformFontsForLayoutObject(
+       LayoutObject*,
+-      HashMap<std::pair<int, String>, std::pair<int, String>>*,
++      HashMap<std::pair<int, String>, InspectorPlatformFontUsage>*,
+       unsigned descendants_depth);
+ 
+   InspectorStyleSheet* BindStyleSheet(CSSStyleSheet*);
+diff --git a/third_party/blink/renderer/core/timing/memory_info.h b/third_party/blink/renderer/core/timing/memory_info.h
+--- a/third_party/blink/renderer/core/timing/memory_info.h
++++ b/third_party/blink/renderer/core/timing/memory_info.h
+@@ -64,7 +64,11 @@
+ 
+   uint64_t totalJSHeapSize() const { return info_.total_js_heap_size; }
+   uint64_t usedJSHeapSize() const { return info_.used_js_heap_size; }
+-  uint64_t jsHeapSizeLimit() const { return info_.js_heap_size_limit; }
++  uint64_t jsHeapSizeLimit() const {
++    // Keep the V8 limit: a UA bitness or persona value cannot configure the
++    // allocator, and must not contradict total/used heap observations.
++    return info_.js_heap_size_limit;
++  }
+ 
+  private:
+   FRIEND_TEST_ALL_PREFIXES(MemoryInfoTest, Bucketized);
+diff --git a/third_party/blink/renderer/core/timing/performance_resource_timing.cc b/third_party/blink/renderer/core/timing/performance_resource_timing.cc
+--- a/third_party/blink/renderer/core/timing/performance_resource_timing.cc
++++ b/third_party/blink/renderer/core/timing/performance_resource_timing.cc
+@@ -31,8 +31,12 @@
+ 
+ #include "third_party/blink/renderer/core/timing/performance_resource_timing.h"
+ 
++#include <algorithm>
++
+ #include "base/containers/fixed_flat_set.h"
+ #include "base/notreached.h"
++#include "base/strings/string_number_conversions.h"  // UXR
++#include "base/uxr_config.h"  // UXR
+ #include "services/network/public/mojom/service_worker_router_info.mojom-blink-forward.h"
+ #include "third_party/blink/public/common/features_generated.h"
+ #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
+@@ -88,6 +92,95 @@
+   }
+   return fetch_initiator_type_names::kOther;
+ }
++
++// UXR: fill missing phases only within a complete, non-reused connection.
++struct PersonaNetPhases {
++  bool dns_active = false;
++  bool ssl_active = false;
++  double dns_start = 0.0;
++  double dns_end = 0.0;
++  double ssl_start = 0.0;
++};
++
++PersonaNetPhases ComputePersonaNetPhases(
++    const PerformanceResourceTiming& entry,
++    const mojom::blink::ResourceTimingInfo& info,
++    base::TimeTicks time_origin,
++    bool cross_origin_isolated_capability) {
++  PersonaNetPhases ph;
++  base::UxrConfig& ph_cfg = base::UxrConfig::GetInstance();
++  // Check before calling any getter: missing send timing uses phase fallbacks.
++  if (!ph_cfg.Has("uxr-net-timing") || !info.allow_timing_details ||
++      info.did_reuse_connection || !info.timing ||
++      info.timing->send_start.is_null() || !info.timing->connect_timing) {
++    return ph;
++  }
++  const auto& timing = *info.timing;
++  const auto& connect = *timing.connect_timing;
++  if (connect.connect_start.is_null() || connect.connect_end.is_null() ||
++      connect.connect_end < connect.connect_start ||
++      timing.send_start < connect.connect_end) {
++    return ph;
++  }
++  const bool missing_dns = connect.domain_lookup_start.is_null();
++  // Partial DNS data keeps Chromium's native fallback and trimming semantics.
++  if (missing_dns != connect.domain_lookup_end.is_null() ||
++      (!missing_dns &&
++       (connect.domain_lookup_end < connect.domain_lookup_start ||
++        connect.domain_lookup_end < connect.connect_start ||
++        connect.connect_end < connect.domain_lookup_end))) {
++    return ph;
++  }
++  const auto to_dom = [&](base::TimeTicks time) {
++    return Performance::MonotonicTimeToDOMHighResTimeStamp(
++        time_origin, time, info.allow_negative_values,
++        cross_origin_isolated_capability);
++  };
++  // Use Chromium's DNS-trimmed connectStart, without entering phase getters.
++  const double conn_start = to_dom(missing_dns ? connect.connect_start
++                                             : connect.domain_lookup_end);
++  const double conn_end = to_dom(connect.connect_end);
++  const double send_start = to_dom(timing.send_start);
++  const double fetch_start = entry.fetchStart();
++  if (!(fetch_start <= conn_start && conn_start <= conn_end &&
++        conn_end <= send_start)) {
++    return ph;
++  }
++
++  uint32_t ph_seed = 0;
++  if (ph_cfg.Has("uxr-canvas-seed")) {
++    base::StringToUint(ph_cfg.Get("uxr-canvas-seed"), &ph_seed);
++  }
++  uint32_t ph_salt = ph_seed;
++  const std::string ph_name = entry.name().Utf8();
++  for (char ph_c : ph_name) {
++    ph_salt = ph_salt * 31u + static_cast<unsigned char>(ph_c);
++  }
++  ph_salt ^= ph_salt >> 15;
++  ph_salt *= 0x2545f491u;
++  ph_salt ^= ph_salt >> 13;
++
++  if (missing_dns) {
++    const double dns_duration = 2.0 + (ph_salt % 13u);
++    const double scale =
++        std::min(1.0, (conn_start - fetch_start) / (dns_duration + 1.0));
++    ph.dns_active = true;
++    ph.dns_start = std::min(conn_start, fetch_start + scale);
++    ph.dns_end = std::min(conn_start, ph.dns_start + dns_duration * scale);
++  }
++  if (info.is_secure_transport && connect.ssl_start.is_null()) {
++    double ssl_end = conn_end;
++    if (!connect.ssl_end.is_null()) {
++      ssl_end = std::min(ssl_end, to_dom(connect.ssl_end));
++    }
++    if (conn_start <= ssl_end) {
++      ph.ssl_active = true;
++      ph.ssl_start =
++          std::min(ssl_end, conn_start + 1.0 + ((ph_salt >> 6) % 4u));
++    }
++  }
++  return ph;
++}
+ }  // namespace
+ 
+ using network::mojom::blink::NavigationDeliveryType;
+@@ -329,6 +422,23 @@
+       info_->service_worker_router_info &&
+       info_->service_worker_router_info->actual_source_type ==
+           network::mojom::ServiceWorkerRouterSourceType::kCache) {
++    if (!info_->allow_timing_details) {
++      return 0.0;
++    }
++    const auto& timing = *info_->timing;
++    const auto& connect = timing.connect_timing;
++    // Empty cache timings make responseStart() fall back to fetchStart().
++    // Use the entry start only when no getter in that chain can terminate it.
++    if (timing.receive_headers_start.is_null() &&
++        timing.receive_headers_end.is_null() && timing.send_start.is_null() &&
++        (!connect ||
++         (connect->domain_lookup_start.is_null() &&
++          connect->domain_lookup_end.is_null() &&
++          (info_->did_reuse_connection ||
++           (connect->connect_start.is_null() &&
++            connect->connect_end.is_null()))))) {
++      return PerformanceEntry::startTime();
++    }
+     return responseStart();
+   }
+ 
+@@ -341,6 +451,11 @@
+   }
+   if (!info_->timing || !info_->timing->connect_timing ||
+       info_->timing->connect_timing->domain_lookup_start.is_null()) {
++    const PersonaNetPhases ph = ComputePersonaNetPhases(
++        *this, *info_, TimeOrigin(), CrossOriginIsolatedCapability());
++    if (ph.dns_active) {
++      return ph.dns_start;
++    }
+     return fetchStart();
+   }
+ 
+@@ -355,6 +470,11 @@
+   }
+   if (!info_->timing || !info_->timing->connect_timing ||
+       info_->timing->connect_timing->domain_lookup_end.is_null()) {
++    const PersonaNetPhases ph = ComputePersonaNetPhases(
++        *this, *info_, TimeOrigin(), CrossOriginIsolatedCapability());
++    if (ph.dns_active) {
++      return ph.dns_end;
++    }
+     return domainLookupStart();
+   }
+ 
+@@ -417,6 +537,11 @@
+     return Performance::MonotonicTimeToDOMHighResTimeStamp(
+         TimeOrigin(), info_->timing->connect_timing->ssl_start,
+         info_->allow_negative_values, CrossOriginIsolatedCapability());
++  }
++  const PersonaNetPhases ph = ComputePersonaNetPhases(
++      *this, *info_, TimeOrigin(), CrossOriginIsolatedCapability());
++  if (ph.ssl_active) {
++    return ph.ssl_start;
+   }
+   // We would add a DCHECK(false) here but this case may happen, for instance on
+   // SXG where the behavior has not yet been properly defined. See
+diff --git a/third_party/blink/renderer/core/timing/time_clamper.cc b/third_party/blink/renderer/core/timing/time_clamper.cc
+--- a/third_party/blink/renderer/core/timing/time_clamper.cc
++++ b/third_party/blink/renderer/core/timing/time_clamper.cc
+@@ -6,6 +6,8 @@
+ 
+ #include "base/bit_cast.h"
+ #include "base/rand_util.h"
++#include "base/strings/string_number_conversions.h"
++#include "base/uxr_config.h"
+ 
+ #include <cmath>
+ 
+@@ -15,12 +17,33 @@
+ const int64_t kTenLowerDigitsMod = 10000000000;
+ }  // namespace
+ 
+-TimeClamper::TimeClamper() : secret_(base::RandUint64()) {}
++TimeClamper::TimeClamper() : secret_([] {
++  // Valid nonzero persona seeds share rounding boundaries across processes.
++  uint64_t seed = 0;
++  if (base::StringToUint64(
++          base::UxrConfig::GetInstance().Get("uxr-canvas-seed"), &seed) &&
++      seed != 0) {
++    uint64_t x = seed;
++    x ^= x >> 33;
++    x *= uint64_t{0xff51afd7ed558ccd};
++    x ^= x >> 33;
++    x *= uint64_t{0xc4ceb9fe1a85ec53};
++    x ^= x >> 33;
++    return x;
++  }
++  return base::RandUint64();
++}()) {}
+ 
+ // This is using int64 for timestamps, because https://bit.ly/doubles-are-bad
+ base::TimeDelta TimeClamper::ClampTimeResolution(
+     base::TimeDelta time,
+     bool cross_origin_isolated_capability) const {
++  // The optional grid is >= 1 ms, hence never exposes finer timestamps than
++  // Chromium's isolated/non-isolated defaults. All Performance consumers,
++  // event timestamps and animation timestamps retain one monotone policy.
++  const auto& config = base::UxrConfig::GetInstance();
++  if (config.TimerResolutionMicroseconds() > 0)
++    return base::Microseconds(config.QuantizeClockMicroseconds(time.InMicroseconds()));
+   int64_t time_microseconds = time.InMicroseconds();
+   bool was_negative = false;
+ 
+diff --git a/third_party/blink/renderer/modules/battery/battery_manager.cc b/third_party/blink/renderer/modules/battery/battery_manager.cc
+--- a/third_party/blink/renderer/modules/battery/battery_manager.cc
++++ b/third_party/blink/renderer/modules/battery/battery_manager.cc
+@@ -13,6 +13,9 @@
+ #include "third_party/blink/renderer/core/frame/navigator.h"
+ #include "third_party/blink/renderer/core/frame/web_feature.h"
+ #include "third_party/blink/renderer/modules/battery/battery_dispatcher.h"
++#include "base/uxr_config.h"
++#include "base/strings/string_number_conversions.h"
++#include <algorithm>
+ 
+ namespace blink {
+ 
+@@ -100,6 +103,25 @@
+ 
+   BatteryStatus old_status = battery_status_;
+   battery_status_ = *battery_dispatcher_->LatestData();
++  // Keep the exposed BatteryManager state stable and persona-controlled.
++  // The same value is used for getters and change-event comparisons.
++  auto& config = base::UxrConfig::GetInstance();
++  bool charging = battery_status_.Charging();
++  double level = battery_status_.Level();
++  double seconds = battery_status_.discharging_time().InSecondsF();
++  double charging_seconds = battery_status_.charging_time().InSecondsF();
++  if (config.Get("uxr-battery-charging") == "true") charging = true;
++  if (config.Get("uxr-battery-charging") == "false") charging = false;
++  double configured_level = 0.0;
++  if (base::StringToDouble(config.Get("uxr-battery-level"), &configured_level))
++    level = std::clamp(configured_level, 0.0, 1.0);
++  base::TimeDelta discharging = battery_status_.discharging_time();
++  base::TimeDelta charging_time = battery_status_.charging_time();
++  if (base::StringToDouble(config.Get("uxr-battery-charging-time"), &charging_seconds) && charging_seconds >= 0)
++    charging_time = base::Seconds(charging_seconds);
++  if (base::StringToDouble(config.Get("uxr-battery-discharging-time"), &seconds) && seconds >= 0)
++    discharging = base::Seconds(seconds);
++  battery_status_ = BatteryStatus(charging, charging_time, discharging, level);
+ 
+   if (battery_property_->GetState() == BatteryProperty::kPending) {
+     battery_property_->Resolve(this);
+diff --git a/third_party/blink/renderer/modules/buckets/storage_bucket.cc b/third_party/blink/renderer/modules/buckets/storage_bucket.cc
+--- a/third_party/blink/renderer/modules/buckets/storage_bucket.cc
++++ b/third_party/blink/renderer/modules/buckets/storage_bucket.cc
+@@ -266,6 +266,7 @@
+     return;
+   }
+ 
++  // Keep this bucket's own browser quota; it need not match the origin quota.
+   StorageEstimate* estimate = StorageEstimate::Create();
+   estimate->setUsage(current_usage);
+   estimate->setQuota(current_quota);
+diff --git a/third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.cc b/third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.cc
+--- a/third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.cc
++++ b/third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.h"
+ 
++#include "base/uxr_config.h"
+ #include "third_party/blink/public/common/global_privacy_control/global_privacy_control_util.h"
+ #include "third_party/blink/renderer/core/execution_context/navigator_base.h"
+ #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+@@ -16,6 +17,12 @@
+ namespace NavigatorGlobalPrivacyControl {
+ 
+ bool globalPrivacyControl(NavigatorBase& navigator) {
++  const std::string value =
++      base::UxrConfig::GetInstance().Get("uxr-global-privacy-control");
++  if (value == "true" || value == "1")
++    return true;
++  if (value == "false" || value == "0")
++    return false;
+   if (navigator.DomWindow()) {
+     return IsGlobalPrivacyControlFeatureAndSettingEnabled(
+         navigator.DomWindow()->GetFrame()->GetPage()->GetRendererPreferences());
+diff --git a/third_party/blink/renderer/modules/keyboard/keyboard_layout.cc b/third_party/blink/renderer/modules/keyboard/keyboard_layout.cc
+--- a/third_party/blink/renderer/modules/keyboard/keyboard_layout.cc
++++ b/third_party/blink/renderer/modules/keyboard/keyboard_layout.cc
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ #include "third_party/blink/renderer/modules/keyboard/keyboard_layout.h"
++#include "base/uxr_config.h"
+ 
+ #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
+ #include "third_party/blink/public/platform/platform.h"
+@@ -92,10 +93,13 @@
+   is_request_pending_ = false;
+ 
+   switch (result->status) {
+-    case mojom::blink::GetKeyboardLayoutMapStatus::kSuccess:
++    case mojom::blink::GetKeyboardLayoutMapStatus::kSuccess: {
++      // Only explicit synthetic US-layout fixtures may replace this map.
++      // Public use keeps the actual input backend, including an empty map.
+       layout_map_property_->Resolve(
+           MakeGarbageCollected<KeyboardLayoutMap>(result->layout_map));
+       break;
++    }
+     case mojom::blink::GetKeyboardLayoutMapStatus::kFail:
+       layout_map_property_->Reject(MakeGarbageCollected<DOMException>(
+           DOMExceptionCode::kInvalidStateError,
+diff --git a/third_party/blink/renderer/modules/netinfo/network_information.cc b/third_party/blink/renderer/modules/netinfo/network_information.cc
+--- a/third_party/blink/renderer/modules/netinfo/network_information.cc
++++ b/third_party/blink/renderer/modules/netinfo/network_information.cc
+@@ -83,6 +83,7 @@
+   return !!connection_observer_handle_;
+ }
+ 
++// Keep getters and change events on the same native notifier state.
+ V8ConnectionType NetworkInformation::type() const {
+   if (RuntimeEnabledFeatures::NetInfoConstantTypeEnabled()) {
+     return V8ConnectionType(V8ConnectionType::Enum::kUnknown);
+diff --git a/third_party/blink/renderer/modules/notifications/notification.cc b/third_party/blink/renderer/modules/notifications/notification.cc
+--- a/third_party/blink/renderer/modules/notifications/notification.cc
++++ b/third_party/blink/renderer/modules/notifications/notification.cc
+@@ -433,6 +433,7 @@
+     }
+   }
+ 
++  // Use the same browser permission authority as requestPermission().
+   mojom::blink::PermissionStatus status =
+       NotificationManager::From(context)->GetPermissionStatus();
+ 
+diff --git a/third_party/blink/renderer/modules/permissions/permissions.cc b/third_party/blink/renderer/modules/permissions/permissions.cc
+--- a/third_party/blink/renderer/modules/permissions/permissions.cc
++++ b/third_party/blink/renderer/modules/permissions/permissions.cc
+@@ -276,6 +276,7 @@
+       resolver->GetExecutionContext()->IsContextDestroyed())
+     return;
+ 
++  // Preserve the browser result used by requests and permission observers.
+   PermissionStatusListener* listener = GetOrCreatePermissionStatusListener(
+       std::move(result), std::move(descriptor));
+   if (listener)
+diff --git a/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc b/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
+--- a/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
++++ b/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
+@@ -20,6 +20,7 @@
+ 
+ #include "third_party/blink/renderer/modules/plugins/dom_plugin_array.h"
+ 
++#include "base/uxr_config.h"  // UXR
+ #include "build/build_config.h"
+ #include "third_party/blink/public/common/features.h"
+ #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+@@ -136,6 +137,8 @@
+ }
+ 
+ bool DOMPluginArray::IsPdfViewerAvailable() {
++  // Plugin inventory and navigator.pdfViewerEnabled describe the installed
++  // viewer. A presentation-only fixture is available solely in synthetic tests.
+ #if BUILDFLAG(IS_ANDROID)
+   // TODO(crbug.com/556858610, crbug.com/556857897): Other desktop platforms
+   // dynamically check whether PDF viewing is handled by an extension or
+diff --git a/third_party/blink/renderer/modules/quota/storage_manager.cc b/third_party/blink/renderer/modules/quota/storage_manager.cc
+--- a/third_party/blink/renderer/modules/quota/storage_manager.cc
++++ b/third_party/blink/renderer/modules/quota/storage_manager.cc
+@@ -68,6 +68,7 @@
+     return;
+   }
+ 
++  // Quota and usage must reflect the browser's storage accounting and limits.
+   StorageEstimate* estimate = StorageEstimate::Create();
+   estimate->setUsage(usage_in_bytes);
+   estimate->setQuota(quota_in_bytes);
+diff --git a/third_party/blink/renderer/modules/sensor/accelerometer.cc b/third_party/blink/renderer/modules/sensor/accelerometer.cc
+--- a/third_party/blink/renderer/modules/sensor/accelerometer.cc
++++ b/third_party/blink/renderer/modules/sensor/accelerometer.cc
+@@ -1,6 +1,9 @@
+ // Copyright 2016 The Chromium Authors
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
++
++#include "base/uxr_config.h"
++#include "base/uxr_surface_math.h"
+ 
+ #include "third_party/blink/renderer/modules/sensor/accelerometer.h"
+ 
+@@ -40,20 +43,47 @@
+              features) {}
+ 
+ std::optional<double> Accelerometer::x() const {
+-  if (hasReading())
+-    return GetReading().accel.x;
++  if (hasReading()) {
++    const double value = GetReading().accel.x;
++    const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
++    if (modes.sensors.mode == base::UxrSurfaceMode::kShardX &&
++        !modes.noise_disabled && !modes.raw) {
++      return base::uxr_surface_v1::Acceleration(value,
++          static_cast<uint32_t>(modes.sensors.seed), 'X',
++          modes.sensors.amount);
++    }
++    return value;
++  }
+   return std::nullopt;
+ }
+ 
+ std::optional<double> Accelerometer::y() const {
+-  if (hasReading())
+-    return GetReading().accel.y;
++  if (hasReading()) {
++    const double value = GetReading().accel.y;
++    const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
++    if (modes.sensors.mode == base::UxrSurfaceMode::kShardX &&
++        !modes.noise_disabled && !modes.raw) {
++      return base::uxr_surface_v1::Acceleration(value,
++          static_cast<uint32_t>(modes.sensors.seed), 'Y',
++          modes.sensors.amount);
++    }
++    return value;
++  }
+   return std::nullopt;
+ }
+ 
+ std::optional<double> Accelerometer::z() const {
+-  if (hasReading())
+-    return GetReading().accel.z;
++  if (hasReading()) {
++    const double value = GetReading().accel.z;
++    const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
++    if (modes.sensors.mode == base::UxrSurfaceMode::kShardX &&
++        !modes.noise_disabled && !modes.raw) {
++      return base::uxr_surface_v1::Acceleration(value,
++          static_cast<uint32_t>(modes.sensors.seed), 'Z',
++          modes.sensors.amount);
++    }
++    return value;
++  }
+   return std::nullopt;
+ }
+ 
+diff --git a/third_party/blink/renderer/platform/graphics/mailbox_texture_backing.cc b/third_party/blink/renderer/platform/graphics/mailbox_texture_backing.cc
+--- a/third_party/blink/renderer/platform/graphics/mailbox_texture_backing.cc
++++ b/third_party/blink/renderer/platform/graphics/mailbox_texture_backing.cc
+@@ -3,6 +3,10 @@
+ // found in the LICENSE file.
+ 
+ #include "third_party/blink/renderer/platform/graphics/mailbox_texture_backing.h"
++
++#include <algorithm>
++#include <cstdint>
++#include <limits>
+ 
+ #include "cc/paint/texture_backing.h"
+ #include "components/viz/common/gpu/raster_context_provider.h"
+@@ -11,6 +15,7 @@
+ #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
+ #include "third_party/blink/renderer/platform/graphics/web_graphics_context_3d_provider_wrapper.h"
+ #include "third_party/skia/include/core/SkImage.h"
++#include "third_party/skia/include/core/SkPixmap.h"
+ #include "ui/gfx/geometry/skia_conversions.h"
+ 
+ namespace blink {
+@@ -88,10 +93,41 @@
+                                        int src_x,
+                                        int src_y) {
+   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
++  if (!dst_pixels || dst_info.isEmpty() || sk_image_info_.isEmpty() ||
++      dst_info.bytesPerPixel() == 0 ||
++      !dst_info.validRowBytes(dst_row_bytes) ||
++      dst_row_bytes > std::numeric_limits<GLuint>::max() ||
++      SkImageInfo::ByteSizeOverflowed(dst_info.computeByteSize(dst_row_bytes))) {
++    return false;
++  }
++  // RasterInterface is not SkImage::readPixels: clip before the GPU request,
++  // offset the destination, and retain the caller's stride. Negative source
++  // coordinates must never turn into a full-size read at a different origin.
++  const int64_t left = std::max<int64_t>(0, src_x);
++  const int64_t top = std::max<int64_t>(0, src_y);
++  const int64_t right = std::min<int64_t>(
++      sk_image_info_.width(), static_cast<int64_t>(src_x) + dst_info.width());
++  const int64_t bottom = std::min<int64_t>(
++      sk_image_info_.height(), static_cast<int64_t>(src_y) + dst_info.height());
++  if (left >= right || top >= bottom)
++    return false;
++  // All differences fit the validated destination dimensions after clipping.
++  SkPixmap destination(dst_info, dst_pixels, dst_row_bytes);
++  SkPixmap clipped;
++  if (!destination.extractSubset(
++          &clipped,
++          SkIRect::MakeXYWH(static_cast<int>(left - src_x),
++                           static_cast<int>(top - src_y),
++                           static_cast<int>(right - left),
++                           static_cast<int>(bottom - top)))) {
++    return false;
++  }
+   gpu::raster::RasterInterface* ri = context_provider_->RasterInterface();
+-  return ri->ReadbackImagePixels(GetMailbox(), shared_image_->size(), dst_info,
+-                                 static_cast<GLuint>(dst_row_bytes), src_x,
+-                                 src_y, /*plane_index=*/0, dst_pixels);
++  return ri->ReadbackImagePixels(
++      GetMailbox(), shared_image_->size(), clipped.info(),
++      static_cast<GLuint>(dst_row_bytes),
++      static_cast<int>(left), static_cast<int>(top), /*plane_index=*/0,
++      clipped.writable_addr());
+ }
+ 
+ }  // namespace blink
+diff --git a/third_party/blink/renderer/platform/widget/widget_base.cc b/third_party/blink/renderer/platform/widget/widget_base.cc
+--- a/third_party/blink/renderer/platform/widget/widget_base.cc
++++ b/third_party/blink/renderer/platform/widget/widget_base.cc
+@@ -1884,7 +1884,8 @@
+   display::ScreenInfo& new_screen_info = new_screen_infos.mutable_current();
+ 
+   // If there is a screen orientation override apply it.
+-  if (auto orientation_override = client_->ScreenOrientationOverride()) {
++  if (auto orientation_override = client_->ScreenOrientationOverride();
++      orientation_override && !client_->FrameWidget()) {
+     new_screen_info.orientation_type = orientation_override.value();
+     new_screen_info.orientation_angle =
+         OrientationTypeToAngle(new_screen_info.orientation_type);
+@@ -1920,15 +1921,21 @@
+         screen_infos_.current().display_color_spaces);
+   }
+ 
+-  if (orientation_changed) {
+-    auto weak_this = weak_ptr_factory_.GetWeakPtr();
++  auto weak_this = weak_ptr_factory_.GetWeakPtr();
++  if (!client_->FrameWidget() && orientation_changed) {
+     client_->OrientationChanged();
+-    if (!weak_this) {
++    if (!weak_this || will_be_destroyed_) {
+       return;
+     }
+   }
+-
+   client_->DidUpdateSurfaceAndScreen(previous_original_screen_infos);
++  if (!weak_this || will_be_destroyed_) {
++    return;
++  }
++  // Frame widgets filter effective orientation and may run script here.
++  if (client_->FrameWidget()) {
++    client_->OrientationChanged();
++  }
+ }
+ 
+ void WidgetBase::UpdateScreenInfo(

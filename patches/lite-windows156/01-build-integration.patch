@@ -1,0 +1,862 @@
+diff --git a/BUILD.gn b/BUILD.gn
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -188,6 +188,9 @@
+     if (!is_ios && !is_castos) {
+       if (!is_fuchsia) {
+         deps += [ "//chrome/test:unit_tests" ]
++        if (is_win) {
++          deps += [ "//chrome/test:native_passkey_unittests" ]
++        }
+       }
+       deps += [ "//ui/accessibility:accessibility_unittests" ]
+     }
+diff --git a/base/BUILD.gn b/base/BUILD.gn
+--- a/base/BUILD.gn
++++ b/base/BUILD.gn
+@@ -1027,6 +1027,22 @@
+     "types/variant_util.h",
+     "unguessable_token.cc",
+     "unguessable_token.h",
++    "uxr_config.cc",
++    "uxr_config.h",
++    "uxr_pixel_noise.h",
++    "uxr_surface_modes.h",
++    "uxr_voice_compat.h",
++    "uxr_cloak_hardware.cc",
++    "uxr_cloak_hardware.h",
++    "uxr_graphics_noise.cc",
++    "uxr_graphics_noise.h",
++    "uxr_headless_screen.h",
++    "uxr_surface_math.h",
++    "uxr_surface_reference_data.h",
++    "uxr_voice_reference_data.h",
++    "uxr_gpu_modes.h",
++    "uxr_font_allowlist.h",
++    "uxr_audio_defaults.h",
+     "uuid.cc",
+     "uuid.h",
+     "value_iterators.cc",
+@@ -6695,6 +6711,26 @@
+   deps = [ "//base/tracing:perfetto_diff_tests" ]
+ }
+ 
++if (is_win && current_cpu == "x64") {
++  executable("uxr_surface_modes_tests") {
++    testonly = true
++    sources = [
++      "uxr_surface_modes_test_main.cc",
++      "uxr_graphics_mode_goldens.cc",
++      "uxr_pixel_semantic_properties.h",
++      "uxr_mask_first_reference.h",
++      "uxr_mask_first_equivalence.h",
++      "uxr_surface_golden_tests.cc",
++      "uxr_gpu_mode_golden_tests.cc",
++      "uxr_hardware_golden_tests.cc",
++      "uxr_font_allowlist_tests.cc",
++      "uxr_audio_defaults_tests.cc",
++      "uxr_voice_compat_tests.cc",
++    ]
++    deps = [ ":base" ]
++  }
++}
++
+ process_version("check_version_internal") {
+   template_file = "//base/check_version_internal.h.in"
+   output = "$target_gen_dir/check_version_internal.h"
+diff --git a/chrome/app/BUILD.gn b/chrome/app/BUILD.gn
+--- a/chrome/app/BUILD.gn
++++ b/chrome/app/BUILD.gn
+@@ -52,7 +52,10 @@
+   deps = [ ":command_ids" ]
+ 
+   if (is_win) {
+-    sources += [ "chrome_dll.rc" ]
++    sources += [
++      "chrome_dll.rc",
++      "etw_events/chrome_events_win.rc",
++    ]
+ 
+     deps += [
+       "//build:branding_buildflags",
+diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
+--- a/chrome/browser/BUILD.gn
++++ b/chrome/browser/BUILD.gn
+@@ -2016,6 +2016,10 @@
+       "//chrome/common/request_header_integrity",
+     ]
+   }
++  if (is_win) {
++    deps += [ "//chrome/browser/profiles:shardx_cookie_bootstrap" ]
++  }
++
+ }
+ 
+ # This target no longer has any sources of its own; it only aggregates
+@@ -2265,9 +2269,12 @@
+     "//chrome/browser/resource_coordinator",
+     "//chrome/browser/resource_coordinator:impl",
+     "//chrome/browser/resources/accessibility:resources",
++    "//chrome/browser/safe_browsing:metrics_collector",
++    "//chrome/browser/safe_browsing:verdict_cache_manager_factory",
+     "//chrome/browser/search_engine_choice",
+     "//chrome/browser/search_engine_choice:impl",
+     "//chrome/browser/search_provider_logos",
++    "//chrome/browser/security_events",
+     "//chrome/browser/segmentation_platform",
+     "//chrome/browser/segmentation_platform:impl",
+     "//chrome/browser/send_tab_to_self",
+@@ -3946,6 +3953,8 @@
+     "//components/reporting/util:status",
+     "//components/reporting/util:status_macros",
+     "//components/reporting/util:task_runner_context",
++    "//components/safe_browsing/content/browser/notification_content_detection",
++    "//components/safe_browsing/content/browser/notification_content_detection:test_utils",
+     "//components/safe_browsing/core/common/proto:crx_info_proto",
+     "//components/safe_browsing/core/common/proto:csd_proto",
+     "//components/search_engines:test_support",
+diff --git a/chrome/browser/download/BUILD.gn b/chrome/browser/download/BUILD.gn
+--- a/chrome/browser/download/BUILD.gn
++++ b/chrome/browser/download/BUILD.gn
+@@ -587,6 +587,9 @@
+       "//components/infobars/content",
+       "//components/lookalikes/core:safety_tips",
+       "//components/page_load_metrics/browser:test_support",
++      "//components/safe_browsing/content/browser:safe_browsing_service",
++      "//components/safe_browsing/content/common:file_type_policies",
++      "//components/safe_browsing/content/common:file_type_policies_test_support",
+       "//components/services/quarantine:test_support",
+       "//content/public/browser",
+       "//content/test:test_support",
+diff --git a/chrome/browser/enterprise/BUILD.gn b/chrome/browser/enterprise/BUILD.gn
+--- a/chrome/browser/enterprise/BUILD.gn
++++ b/chrome/browser/enterprise/BUILD.gn
+@@ -432,6 +432,7 @@
+     "data_protection/data_protection_page_user_data.cc",
+     "data_protection/data_protection_url_lookup_service_factory.cc",
+     "data_protection/data_protection_utils.cc",
++    "data_protection/view_source_navigation_throttle.cc",
+     "encryption/cache_encryption_provider_impl.cc",
+     "identifiers/profile_id_delegate_impl.cc",
+     "identifiers/profile_id_service_factory.cc",
+@@ -800,6 +801,7 @@
+       "signin/enterprise_signin_prefs.cc",
+       "signin/enterprise_signin_service.cc",
+       "signin/enterprise_signin_service_factory.cc",
++      "signin/managed_profile_creation_controller.cc",
+       "signin/managed_profile_creator.cc",
+       "signin/managed_profile_required_navigation_throttle.cc",
+       "signin/oidc_authentication_signin_interceptor.cc",
+diff --git a/chrome/browser/enterprise/data_protection/BUILD.gn b/chrome/browser/enterprise/data_protection/BUILD.gn
+--- a/chrome/browser/enterprise/data_protection/BUILD.gn
++++ b/chrome/browser/enterprise/data_protection/BUILD.gn
+@@ -47,6 +47,11 @@
+     "//ui/base/clipboard:clipboard_test_support",
+   ]
+ 
++  if ((enterprise_data_controls || enterprise_screenshot_protection) &&
++      !is_android) {
++    sources += [ "paste_allowed_request_unittest.cc" ]
++    deps += [ "//components/enterprise/connectors/core:cloud_content_scanning" ]
++  }
+ 
+   if (enable_extensions && enterprise_local_content_analysis) {
+     sources += [ "print_utils_unittest.cc" ]
+diff --git a/chrome/browser/extensions/BUILD.gn b/chrome/browser/extensions/BUILD.gn
+--- a/chrome/browser/extensions/BUILD.gn
++++ b/chrome/browser/extensions/BUILD.gn
+@@ -388,6 +388,8 @@
+     "menu_manager_factory.h",
+     "navigation_extension_enabler.cc",
+     "navigation_extension_enabler.h",
++    "omaha_attributes_handler.cc",
++    "omaha_attributes_handler.h",
+     "open_tab_helper.cc",
+     "open_tab_helper.h",
+     "pack_extension_job.cc",
+@@ -1568,6 +1570,38 @@
+   }
+ }
+ 
++# TestingProfile only needs the fake extension system, not browser-test
++# helpers and their WebUI test resources.
++source_set("test_extension_system") {
++  testonly = true
++  sources = [
++    "test_extension_system.cc",
++    "test_extension_system.h",
++  ]
++
++  public_deps = [
++    "//base",
++    "//build:chromeos_buildflags",
++    "//extensions/browser",
++    "//extensions/buildflags",
++    "//services/data_decoder/public/cpp:test_support",
++  ]
++  deps = [
++    ":extensions",
++    "//chrome/browser/profiles:profile",
++    "//chrome/common",
++    "//components/prefs",
++    "//components/services/unzip:in_process",
++    "//components/services/unzip/content",
++    "//components/value_store:test_support",
++    "//content/public/browser",
++  ]
++  if (is_chromeos) {
++    public_deps += [ "//components/user_manager" ]
++    deps += [ "//components/user_manager:test_support" ]
++  }
++}
++
+ static_library("test_support") {
+   testonly = true
+ 
+@@ -1629,8 +1663,6 @@
+     "test_extension_menu_icon_loader.h",
+     "test_extension_service.cc",
+     "test_extension_service.h",
+-    "test_extension_system.cc",
+-    "test_extension_system.h",
+     "user_scripts_test_util.cc",
+     "user_scripts_test_util.h",
+     "webstore_installer_test.cc",
+@@ -1682,7 +1714,7 @@
+     "//url",
+   ]
+ 
+-  public_deps = []
++  public_deps = [ ":test_extension_system" ]
+ 
+   if (is_android) {
+     sources += [
+diff --git a/chrome/browser/feedback/BUILD.gn b/chrome/browser/feedback/BUILD.gn
+--- a/chrome/browser/feedback/BUILD.gn
++++ b/chrome/browser/feedback/BUILD.gn
+@@ -142,6 +142,7 @@
+       "//components/device_event_log",
+       "//components/feedback",
+       "//components/performance_manager",
++      "//components/safe_browsing/content/browser:client_side_detection",
+       "//components/supervised_user/core/browser",
+       "//components/tabs:public",
+       "//extensions/browser",
+@@ -297,6 +298,7 @@
+       "//chrome/browser/ui/toolbar",
+       "//chrome/test:test_support",
+       "//chrome/test:test_support_ui",
++      "//components/safe_browsing/content/browser:client_side_detection",
+       "//content/test:test_support",
+       "//testing/gtest",
+     ]
+diff --git a/chrome/browser/feedback/report_unsafe_site/BUILD.gn b/chrome/browser/feedback/report_unsafe_site/BUILD.gn
+--- a/chrome/browser/feedback/report_unsafe_site/BUILD.gn
++++ b/chrome/browser/feedback/report_unsafe_site/BUILD.gn
+@@ -12,6 +12,7 @@
+       "//skia",
+     ]
+     deps = [
++      "//components/safe_browsing/content/browser:client_side_detection",
+       "//components/viz/common",
+     ]
+   }
+diff --git a/chrome/browser/profiles/BUILD.gn b/chrome/browser/profiles/BUILD.gn
+--- a/chrome/browser/profiles/BUILD.gn
++++ b/chrome/browser/profiles/BUILD.gn
+@@ -387,6 +387,7 @@
+ source_set("profile") {
+   public = [
+     "profile.h",
++    "shardx_session_policy.h",
+     "profile_keyed_service_factory.h",
+     "profile_manager_observer.h",
+     "profile_observer.h",
+@@ -1074,6 +1075,10 @@
+   if (enable_offline_pages) {
+     deps += [ "//chrome/browser/offline_pages" ]
+   }
++  if (is_win) {
++    deps += [ ":shardx_cookie_bootstrap" ]
++  }
++
+ }
+ 
+ source_set("profile_downloader") {
+@@ -1357,3 +1362,30 @@
+     deps += [ "//chromeos/ash/components/login/login_state" ]
+   }
+ }
++
++
++if (is_win) {
++  source_set("shardx_cookie_bootstrap") {
++    public = [ "shardx_cookie_bootstrap.h" ]
++    friend = [ "//chrome/test:native_passkey_unittests" ]
++    sources = [
++      "shardx_cookie_bootstrap.cc",
++      "shardx_cookie_bootstrap_internal.cc",
++      "shardx_cookie_bootstrap_internal.h",
++    ]
++    deps = [
++      ":profile",
++      "//base",
++      "//chrome/browser/profiles/keep_alive",
++      "//components/keep_alive_registry",
++      "//components/keyed_service/content",
++      "//components/keyed_service/core",
++      "//content/public/browser",
++      "//crypto",
++      "//mojo/public/cpp/bindings",
++      "//net",
++      "//services/network/public/mojom",
++      "//url",
++    ]
++  }
++}
+diff --git a/chrome/browser/safe_browsing/BUILD.gn b/chrome/browser/safe_browsing/BUILD.gn
+--- a/chrome/browser/safe_browsing/BUILD.gn
++++ b/chrome/browser/safe_browsing/BUILD.gn
+@@ -7,8 +7,6 @@
+ import("//extensions/buildflags/buildflags.gni")
+ 
+ static_library("safe_browsing") {
+-  sources = [ "safe_browsing_dummy.cc" ]
+-  if (false) {
+   public = [
+     "chrome_controller_client.h",
+     "metrics/bundled_settings_metrics_provider.h",
+@@ -110,10 +108,9 @@
+     "//services/preferences/public/cpp",
+     "//ui/base",
+   ]
+-  }
+-  deps = []
+ 
+   if (enable_extensions) {
++    deps += [ "//chrome/browser/ui/web_applications" ]
+ 
+     if (is_chromeos) {
+       deps += [ "//chromeos/ash/components/system" ]
+@@ -146,6 +143,14 @@
+       "//chrome/browser/ui:scoped_tabbed_browser_displayer",
+       "//chrome/browser/ui/views/frame:browser_view_header",
+     ]
++    public += [
++      "generated_safe_browsing_pref.h",
++      "generated_security_settings_bundle_pref.h",
++    ]
++    sources += [
++      "generated_safe_browsing_pref.cc",
++      "generated_security_settings_bundle_pref.cc",
++    ]
+   }
+ 
+   if (is_chromeos) {
+@@ -154,6 +159,22 @@
+     allow_circular_includes_from += [ "//chrome/browser/ash/file_manager" ]
+   }
+ 
++  if (is_win || is_mac || is_linux || is_chromeos) {
++    public += [ "security_settings_bundle_toast_helper.h" ]
++    sources += [ "security_settings_bundle_toast_helper.cc" ]
++    deps += [
++      "//chrome/browser/ui/browser_window",
++      "//chrome/browser/ui/toasts",
++      "//chrome/browser/ui/toasts/api:toasts",
++
++      # Shows the safe_browsing views dialogs (toolkit_views only), which in
++      # turn include this target's chrome_password_protection_service.h.
++      "//chrome/browser/ui/views/safe_browsing",
++    ]
++
++    allow_circular_includes_from +=
++        [ "//chrome/browser/ui/views/safe_browsing" ]
++  }
+ 
+   # Cloud content analysis is also used by enterprise connectors when Safe
+   # Browsing is disabled.
+@@ -722,7 +743,6 @@
+ }
+ 
+ source_set("metrics_collector") {
+-  if (false) {
+   sources = [
+     "safe_browsing_metrics_collector_factory.cc",
+     "safe_browsing_metrics_collector_factory.h",
+@@ -742,7 +762,6 @@
+     "//components/safe_browsing/core/common:safe_browsing_prefs",
+     "//content/public/browser",
+   ]
+-  }
+ }
+ 
+ source_set("unit_tests") {
+diff --git a/chrome/browser/ui/autofill/BUILD.gn b/chrome/browser/ui/autofill/BUILD.gn
+--- a/chrome/browser/ui/autofill/BUILD.gn
++++ b/chrome/browser/ui/autofill/BUILD.gn
+@@ -177,6 +177,8 @@
+     "autofill_suggestion_controller.cc",
+     "autofill_suggestion_controller_utils.cc",
+     "chrome_autofill_client.cc",
++    "chrome_otp_phish_guard_delegate.cc",
++    "chrome_otp_phish_guard_delegate.h",
+     "key_press_handler_registration.cc",
+     "next_idle_barrier.cc",
+     "popup_controller_common.cc",
+diff --git a/chrome/browser/ui/tab_contents/BUILD.gn b/chrome/browser/ui/tab_contents/BUILD.gn
+--- a/chrome/browser/ui/tab_contents/BUILD.gn
++++ b/chrome/browser/ui/tab_contents/BUILD.gn
+@@ -43,6 +43,7 @@
+   if (is_win || is_mac || is_linux || is_chromeos) {
+     sources += [
+       "chrome_web_contents_menu_helper.cc",
++      "chrome_web_contents_view_handle_drop.cc",
+     ]
+   }
+ 
+diff --git a/chrome/browser/ui/views/file_system_access/BUILD.gn b/chrome/browser/ui/views/file_system_access/BUILD.gn
+--- a/chrome/browser/ui/views/file_system_access/BUILD.gn
++++ b/chrome/browser/ui/views/file_system_access/BUILD.gn
+@@ -105,6 +105,7 @@
+         "//chrome/browser/safe_browsing",
+         "//chrome/browser/ui/test:dialog",
+         "//chrome/browser/ui/views:file_system_access_test_support",
++        "//components/safe_browsing/content/common:file_type_policies_test_support",
+       ]
+     }
+   }
+diff --git a/chrome/browser/ui/views/page_info/BUILD.gn b/chrome/browser/ui/views/page_info/BUILD.gn
+--- a/chrome/browser/ui/views/page_info/BUILD.gn
++++ b/chrome/browser/ui/views/page_info/BUILD.gn
+@@ -28,6 +28,7 @@
+     "safety_tip_page_info_bubble_view.h",
+     "security_information_view.h",
+     "star_rating_view.h",
++    "suspicious_site_bubble_view.h",
+     "web_view_side_panel_view.h",
+   ]
+ 
+diff --git a/chrome/browser/ui/webui/feedback/report_unsafe_site/BUILD.gn b/chrome/browser/ui/webui/feedback/report_unsafe_site/BUILD.gn
+--- a/chrome/browser/ui/webui/feedback/report_unsafe_site/BUILD.gn
++++ b/chrome/browser/ui/webui/feedback/report_unsafe_site/BUILD.gn
+@@ -26,6 +26,7 @@
+     "//chrome/browser/feedback/report_unsafe_site",
+     "//chrome/browser/ui/webui/top_chrome",
+     "//chrome/common",
++    "//components/safe_browsing/content/browser:client_side_detection",
+     "//components/url_formatter",
+     "//components/viz/common",
+     "//content/public/browser",
+diff --git a/chrome/browser/webshare/BUILD.gn b/chrome/browser/webshare/BUILD.gn
+--- a/chrome/browser/webshare/BUILD.gn
++++ b/chrome/browser/webshare/BUILD.gn
+@@ -140,6 +140,7 @@
+       "//chrome/browser/safe_browsing:test_support",
+       "//chrome/browser/ui/views/frame:browser_view_header",
+       "//chrome/test:test_support",
++      "//components/safe_browsing/content/common:file_type_policies_test_support",
+       "//components/safe_browsing/core/browser/db:test_database_manager",
+       "//components/safe_browsing/core/browser/db:v5_get_hash_protocol_manager",
+       "//content/public/browser",
+diff --git a/chrome/test/BUILD.gn b/chrome/test/BUILD.gn
+--- a/chrome/test/BUILD.gn
++++ b/chrome/test/BUILD.gn
+@@ -1888,6 +1888,7 @@
+       "//chrome/browser/renderer_host:browser_tests",
+       "//chrome/browser/resource_coordinator:mojo_bindings",
+       "//chrome/browser/safe_browsing:advanced_protection",
++      "//chrome/browser/safe_browsing:blocking_page_platform_test_support",
+       "//chrome/browser/safe_browsing:browser_tests",
+       "//chrome/browser/safe_browsing:verdict_cache_manager_factory",
+       "//chrome/browser/search",
+@@ -2395,6 +2396,7 @@
+       "//components/resources",
+       "//components/safe_browsing:buildflags",
+       "//components/safe_browsing/content/browser",
++      "//components/safe_browsing/content/browser:client_side_detection_images_cache",
+       "//components/safe_browsing/content/browser:safe_browsing_service",
+       "//components/safe_browsing/content/browser/password_protection",
+       "//components/safe_browsing/content/browser/password_protection:test_support",
+@@ -4687,6 +4689,87 @@
+ mojom("test_interfaces") {
+   testonly = true
+   sources = [ "mojom/echo.test-mojom" ]
++}
++
++if (is_win) {
++  # Compile the two affected suites, not every Chrome/device unit test.
++  test("native_passkey_unittests") {
++    sources = [
++      "base/run_all_unittests.cc",
++      "../browser/profiles/shardx_native_browser_unittest.cc",
++      "../browser/profiles/shardx_native_cookie_unittest.cc",
++      "../../device/fido/win/authenticator_unittest.cc",
++      "../browser/webauthn/authenticator_request_dialog_model_unittest.cc",
++    ]
++    # These native fixtures need the profile harness and Chrome test main,
++    # not the aggregate test support that builds unrelated WebUI test data.
++    assert_no_deps = [
++      "//chrome/test:test_support",
++      "//chrome/test:test_support_unit",
++      "//chrome/test/base:web_ui_mocha_browser_test",
++      "//chrome/test/base:web_ui_test_support",
++      "//chrome/test/data/webui:*",
++      "//chrome/test/data/webui/*",
++    ]
++    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
++    deps = [
++      "//base",
++      "//base/test:test_support",
++      "//chrome/app/vector_icons",
++      "//chrome/app:chrome_dll_resources",
++      "//chrome/app:generated_resources",
++      "//chrome/browser",
++      "//chrome/browser/profiles:shardx_cookie_bootstrap",
++      "//chrome/browser/password_manager",
++      "//chrome/browser/webauthn",
++      "//chrome/browser:chrome_content_browser_client",
++      "//chrome/common",
++      "//chrome/install_static/test:test_support",
++      "//chrome/test/base:chrome_render_view_host_test_harness",
++      "//chrome/test/base:chrome_unit_test_suite",
++      "//chrome/test/base:testing_browser_process_impl",
++      "//chrome/test/base:testing_profile_impl",
++      "//chrome/utility",
++      "//chrome:resources",
++      "//chrome:strings",
++      "//components/history/core/browser",
++      "//components/translate/core/common",
++      "//components/prefs",
++      "//components/strings",
++      "//components/vector_icons",
++      "//components/webauthn/core/browser:passkey_model",
++      "//content/test:test_support",
++      "//crypto",
++      "//crypto:test_support",
++      "//device/fido",
++      "//device/fido:test_support",
++      "//mojo/core/embedder",
++      "//mojo/core/test:test_support",
++      "//net",
++      "//testing/gmock",
++      "//testing/gtest",
++      "//ui/base",
++      "//url",
++    ]
++    if (is_chrome_branded) {
++      deps += [ "//chrome/test/base:scoped_channel_override" ]
++    }
++    data_deps = [ "//chrome:packed_resources" ]
++    # Match the Windows unit-test entry point's runtime/link requirements.
++    ldflags = [
++      "/DELAYLOAD:api-ms-win-core-winrt-error-l1-1-0.dll",
++      "/DELAYLOAD:api-ms-win-core-winrt-l1-1-0.dll",
++      "/DELAYLOAD:api-ms-win-core-winrt-string-l1-1-0.dll",
++    ]
++    libs = [
++      "comsupp.lib",
++      "oleacc.lib",
++      "rpcrt4.lib",
++      "runtimeobject.lib",
++      "urlmon.lib",
++      "winmm.lib",
++    ]
++  }
+ }
+ 
+ test("unit_tests") {
+@@ -5351,6 +5434,7 @@
+     "//components/resources",
+     "//components/safe_browsing:buildflags",
+     "//components/safe_browsing/content/browser",
++    "//components/safe_browsing/content/browser:client_side_detection_images_cache",
+     "//components/safe_browsing/content/browser/password_protection",
+     "//components/safe_browsing/content/browser/password_protection:mock_password_protection",
+     "//components/safe_browsing/content/browser/web_ui",
+@@ -8424,6 +8508,7 @@
+       "//components/privacy_sandbox:privacy_sandbox_prefs",
+       "//components/reading_list/core",
+       "//components/resources",
++      "//components/safe_browsing/content/browser:client_side_detection",
+       "//components/safe_browsing/core/common",
+       "//components/safe_browsing/core/common:safe_browsing_policy_handler",
+       "//components/search",
+diff --git a/chrome/test/base/BUILD.gn b/chrome/test/base/BUILD.gn
+--- a/chrome/test/base/BUILD.gn
++++ b/chrome/test/base/BUILD.gn
+@@ -350,7 +350,7 @@
+   if (enable_extensions_core) {
+     deps += [
+       "//chrome/browser/extensions",
+-      "//chrome/browser/extensions:test_support",
++      "//chrome/browser/extensions:test_extension_system",
+     ]
+   }
+   if (enable_extensions) {
+diff --git a/components/BUILD.gn b/components/BUILD.gn
+--- a/components/BUILD.gn
++++ b/components/BUILD.gn
+@@ -450,6 +450,7 @@
+       "//components/browser_sync:unit_tests",
+       "//components/enterprise:unit_tests",
+       "//components/enterprise/common:unit_tests",
++      "//components/enterprise/connectors/core:cloud_content_scanning_unit_tests",
+       "//components/enterprise/connectors/core:unit_tests",
+       "//components/enterprise/data_protection:unit_tests",
+       "//components/enterprise/isolated_mode:unit_tests",
+diff --git a/components/browser_sync/BUILD.gn b/components/browser_sync/BUILD.gn
+--- a/components/browser_sync/BUILD.gn
++++ b/components/browser_sync/BUILD.gn
+@@ -14,6 +14,8 @@
+     "sync_engine_factory_impl.h",
+     "sync_internals_message_handler.cc",
+     "sync_internals_message_handler.h",
++    "sync_to_signin_migration.cc",
++    "sync_to_signin_migration.h",
+   ]
+ 
+   public_deps = [
+diff --git a/components/enterprise/buildflags/buildflags.gni b/components/enterprise/buildflags/buildflags.gni
+--- a/components/enterprise/buildflags/buildflags.gni
++++ b/components/enterprise/buildflags/buildflags.gni
+@@ -10,11 +10,11 @@
+   # Indicates support for content analysis against a cloud agent for Enterprise
+   # Connector policies.
+   enterprise_cloud_content_analysis =
+-      false
++      is_win || is_mac || is_linux || is_chromeos || is_ios
+ 
+   # Indicates support for content analysis against a cloud agent for Enterprise
+   # Connector policies.
+-  enterprise_local_content_analysis = false
++  enterprise_local_content_analysis = is_win || is_mac || is_linux
+ 
+   # Indicates support for Data Control rules.
+   enterprise_data_controls =
+diff --git a/components/history/core/browser/BUILD.gn b/components/history/core/browser/BUILD.gn
+--- a/components/history/core/browser/BUILD.gn
++++ b/components/history/core/browser/BUILD.gn
+@@ -34,6 +34,7 @@
+     "expire_history_backend.h",
+     "history_backend.cc",
+     "history_backend.h",
++    "shardx_history_retention.h",
+     "history_backend_client.h",
+     "history_backend_notifier.h",
+     "history_backend_observer.h",
+diff --git a/components/safe_browsing/buildflags.gni b/components/safe_browsing/buildflags.gni
+--- a/components/safe_browsing/buildflags.gni
++++ b/components/safe_browsing/buildflags.gni
+@@ -26,7 +26,6 @@
+   } else {
+     safe_browsing_mode = 1
+   }
+-  safe_browsing_mode = 0
+ 
+   # Allows building without //third_party/unrar included, for license reasons
+   safe_browsing_use_unrar = true
+diff --git a/components/safe_browsing/core/browser/BUILD.gn b/components/safe_browsing/core/browser/BUILD.gn
+--- a/components/safe_browsing/core/browser/BUILD.gn
++++ b/components/safe_browsing/core/browser/BUILD.gn
+@@ -4,6 +4,8 @@
+ 
+ source_set("browser") {
+   sources = [
++    "client_side_detection_host_base.cc",
++    "client_side_detection_host_base.h",
+     "credit_card_form_event.cc",
+     "credit_card_form_event.h",
+     "database_manager_mechanism.cc",
+@@ -23,6 +25,8 @@
+     "url_checker_delegate.h",
+     "url_realtime_mechanism.cc",
+     "url_realtime_mechanism.h",
++    "user_population.cc",
++    "user_population.h",
+   ]
+ 
+   configs += [ "//build/config/compiler:wexit_time_destructors" ]
+@@ -81,6 +85,8 @@
+   sources = [
+     "client_side_detection_feature_cache_base.cc",
+     "client_side_detection_feature_cache_base.h",
++    "client_side_detection_service_base.cc",
++    "client_side_detection_service_base.h",
+     "client_side_phishing_model.cc",
+     "client_side_phishing_model.h",
+     "csd_model_type.h",
+diff --git a/components/safe_browsing/core/common/BUILD.gn b/components/safe_browsing/core/common/BUILD.gn
+--- a/components/safe_browsing/core/common/BUILD.gn
++++ b/components/safe_browsing/core/common/BUILD.gn
+@@ -5,8 +5,22 @@
+ import("//components/safe_browsing/buildflags.gni")
+ import("//mojo/public/tools/bindings/mojom.gni")
+ 
+-group("safe_browsing_prefs") {
+-  # SafeBrowsing prefs are disabled
++static_library("safe_browsing_prefs") {
++  sources = [
++    "safe_browsing_prefs.cc",
++    "safe_browsing_prefs.h",
++  ]
++
++  configs += [ "//build/config/compiler:wexit_time_destructors" ]
++
++  deps = [
++    ":features",
++    "//components/pref_registry",
++    "//components/prefs",
++    "//net",
++  ]
++
++  public_deps = [ "//base" ]
+ }
+ 
+ source_set("safe_browsing_policy_handler") {
+diff --git a/components/signin/core/browser/BUILD.gn b/components/signin/core/browser/BUILD.gn
+--- a/components/signin/core/browser/BUILD.gn
++++ b/components/signin/core/browser/BUILD.gn
+@@ -25,6 +25,8 @@
+     "account_preview_data_fetcher.h",
+     "account_preview_data_service.cc",
+     "account_preview_data_service.h",
++    "account_preview_data_service_impl.cc",
++    "account_preview_data_service_impl.h",
+     "account_preview_heuristic.cc",
+     "account_preview_heuristic.h",
+     "account_preview_metrics_recorder.cc",
+diff --git a/components/signin/public/base/BUILD.gn b/components/signin/public/base/BUILD.gn
+--- a/components/signin/public/base/BUILD.gn
++++ b/components/signin/public/base/BUILD.gn
+@@ -233,6 +233,8 @@
+   defines = [ "IS_SIGNIN_SWITCHES_IMPL" ]
+ 
+   sources = [
++    "signin_pref_names.cc",
++    "signin_pref_names.h",
+     "signin_switches.cc",
+     "signin_switches.h",
+   ]
+diff --git a/components/translate/core/common/BUILD.gn b/components/translate/core/common/BUILD.gn
+--- a/components/translate/core/common/BUILD.gn
++++ b/components/translate/core/common/BUILD.gn
+@@ -15,6 +15,7 @@
+     "translate_constants.cc",
+     "translate_constants.h",
+     "translate_errors.h",
++    "translation_init_wait.h",
+     "translate_features.cc",
+     "translate_features.h",
+     "translate_language_matcher.cc",
+diff --git a/components/ungoogled/BUILD.gn b/components/ungoogled/BUILD.gn
+--- a/components/ungoogled/BUILD.gn
++++ b/components/ungoogled/BUILD.gn
+@@ -4,6 +4,11 @@
+ 
+ component("ungoogled_switches") {
+   sources = [
++    "persona_profile.h",
++    "persona_profile.cc",
++    "farble_seed.h",
++    "farble_seed.cc",
++    "fingerprint_data.h",
+     "ungoogled_switches.h",
+     "ungoogled_switches.cc",
+   ]
+diff --git a/components/web_package/BUILD.gn b/components/web_package/BUILD.gn
+--- a/components/web_package/BUILD.gn
++++ b/components/web_package/BUILD.gn
+@@ -64,6 +64,7 @@
+     "signed_web_bundles/signed_web_bundle_integrity_block.cc",
+     "signed_web_bundles/signed_web_bundle_signature_stack.cc",
+     "signed_web_bundles/signed_web_bundle_signature_stack_entry.cc",
++    "signed_web_bundles/signed_web_bundle_utils.cc",
+     "web_bundle_builder.cc",
+     "web_bundle_utils.cc",
+   ]
+diff --git a/content/browser/BUILD.gn b/content/browser/BUILD.gn
+--- a/content/browser/BUILD.gn
++++ b/content/browser/BUILD.gn
+@@ -179,6 +179,7 @@
+     "//components/power_monitor",
+     "//components/schema_org/common:mojom",
+     "//components/services/filesystem:lib",
++    "//components/services/quarantine",
+     "//components/services/storage",
+     "//components/services/storage:filesystem_proxy_factory",
+     "//components/services/storage/dom_storage/leveldb:local_storage_proto",
+diff --git a/net/BUILD.gn b/net/BUILD.gn
+--- a/net/BUILD.gn
++++ b/net/BUILD.gn
+@@ -285,6 +285,7 @@
+     "base/platform_mime_util.h",
+     "base/port_util.cc",
+     "base/port_util.h",
++    "base/shardx_environment_controls.h",
+     "base/prioritized_dispatcher.cc",
+     "base/prioritized_dispatcher.h",
+     "base/prioritized_task_runner.cc",
+diff --git a/third_party/blink/renderer/modules/BUILD.gn b/third_party/blink/renderer/modules/BUILD.gn
+--- a/third_party/blink/renderer/modules/BUILD.gn
++++ b/third_party/blink/renderer/modules/BUILD.gn
+@@ -205,6 +205,7 @@
+   deps = [
+     ":make_modules_generated",
+     "//build:android_buildflags",
++    "//components/ungoogled:ungoogled_switches",
+     "//cc",
+     "//components/webrtc:thread_wrapper",
+     "//gin",
+diff --git a/third_party/blink/renderer/modules/webgl/BUILD.gn b/third_party/blink/renderer/modules/webgl/BUILD.gn
+--- a/third_party/blink/renderer/modules/webgl/BUILD.gn
++++ b/third_party/blink/renderer/modules/webgl/BUILD.gn
+@@ -48,6 +48,10 @@
+     "ext_texture_norm_16.cc",
+     "ext_texture_norm_16.h",
+     "gl_string_query.h",
++    "gpu_info.cc",
++    "gpu_info.h",
++    "gpu_fingerprint.cc",
++    "gpu_fingerprint.h",
+     "khr_parallel_shader_compile.cc",
+     "khr_parallel_shader_compile.h",
+     "nv_shader_noperspective_interpolation.cc",
+@@ -196,6 +200,7 @@
+   public_deps = [ "//device/vr/public/mojom:vr_service_blink" ]
+   deps = [
+     "//device/vr/buildflags",
++    "//components/ungoogled:ungoogled_switches",
+     "//gpu/command_buffer/client:gles2_implementation",
+     "//gpu/command_buffer/client:gles2_interface",
+     "//third_party/blink/renderer/modules/webcodecs",
+diff --git a/third_party/blink/renderer/platform/BUILD.gn b/third_party/blink/renderer/platform/BUILD.gn
+--- a/third_party/blink/renderer/platform/BUILD.gn
++++ b/third_party/blink/renderer/platform/BUILD.gn
+@@ -913,6 +913,7 @@
+     "graphics/canvas_child_paint_state.h",
+     "graphics/canvas_deferred_paint_record.cc",
+     "graphics/canvas_deferred_paint_record.h",
++    "graphics/canvas_fingerprint_context.h",
+     "graphics/canvas_hibernation_handler.cc",
+     "graphics/canvas_hibernation_handler.h",
+     "graphics/canvas_image_provider.cc",
+@@ -1437,6 +1438,7 @@
+     "peerconnection/rtc_event_log_output_sink.h",
+     "peerconnection/rtc_event_log_output_sink_proxy.cc",
+     "peerconnection/rtc_event_log_output_sink_proxy.h",
++    "peerconnection/fingerprint_ip.h",
+     "peerconnection/rtc_ice_candidate_platform.cc",
+     "peerconnection/rtc_ice_candidate_platform.h",
+     "peerconnection/rtc_offer_options_platform.h",
+diff --git a/tools/metrics/BUILD.gn b/tools/metrics/BUILD.gn
+--- a/tools/metrics/BUILD.gn
++++ b/tools/metrics/BUILD.gn
+@@ -40,6 +40,7 @@
+     ":ukm_xml",
+   ]
+ 
++  # Keep this dependency gated for source tarballs without Git metadata.
+   # Only include histograms_xml if we have access to dirmd data, which
+   # is used to populate ownership information. This is disabled
+   # for non-git checkouts, as dirmd doesn't work on non-git checkout.

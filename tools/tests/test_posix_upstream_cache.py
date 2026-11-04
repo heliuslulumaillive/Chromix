@@ -19,7 +19,7 @@ class PosixUpstreamCacheTest(unittest.TestCase):
                 self.assertEqual(caller.count("use_upstream_cache: ${{"), 1)
                 self.assertIn("'tools/*upstream_cache.py'", caller)
         windows = (REPO / '.github/workflows/build-win-x64-github.yml').read_text()
-        self.assertIn("CHROMIX_PREFER_UPSTREAM_CACHE: ${{ github.event_name == 'push'", windows)
+        self.assertIn("CHROMIX_PREFER_UPSTREAM_CACHE: '0'", windows)
         self.assertIn("CHROMIX_USE_UPSTREAM_CACHE: ${{ (inputs.use_upstream_cache", windows)
         workflow = (REPO / ".github/workflows/build-posix-github.yml").read_text()
         self.assertIn("UPSTREAM_ACTIONS_TOKEN:", workflow)

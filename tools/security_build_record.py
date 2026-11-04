@@ -32,6 +32,12 @@ def plain(path: Path) -> Path:
 
 
 def recipe(repo: Path) -> str:
+    if (repo / 'build/lite-windows156.json').is_file():
+        try:
+            from .lite_patch_stack import input_hashes
+        except ImportError:
+            from lite_patch_stack import input_hashes
+        return hashlib.sha256(json.dumps(input_hashes(repo), sort_keys=True).encode()).hexdigest()
     # Include every patch input, not just the generated service aggregate.
     files = list((repo / 'patches').rglob('*'))
     files += list((repo / 'build/security-resources').rglob('*'))

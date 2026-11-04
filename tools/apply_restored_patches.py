@@ -225,9 +225,9 @@ def transform_patch(data: bytes, listed: set[str], rules: list[tuple[re.Pattern,
 
 
 def _load(repo: Path, core: Path, tooling: Path, platform: str,
-          *, src: Path | None = None) -> tuple[dict, list, dict]:
+          *, src: Path | None = None, profile="legacy") -> tuple[dict, list, dict]:
     try:
-        selected, raw_patches = patch_selection.select(repo, platform, src=src, core=core)
+        selected, raw_patches = patch_selection.select(repo, platform, src=src, core=core, profile=profile)
     except ValueError as exc:
         raise ApplyError(str(exc)) from exc
     regex_data = _read(core, "domain_regex.list")
@@ -405,7 +405,7 @@ def select_patch_program(candidates: list[str], donor_roots: tuple[Path, ...]) -
 
 def run_apply(src: Path | str, repo: Path | str, core: Path | str,
               platform_tooling: Path | str, platform: str, patch_bin: Path | str,
-              *, check: bool = False) -> dict:
+              *, check: bool = False, profile="legacy") -> dict:
     """Return status (applied/skipped/checked), identity_sha256, patch_count, changed_files.
 
     check=True is read-only and requires a completed matching input/output manifest.
@@ -423,7 +423,7 @@ def run_apply(src: Path | str, repo: Path | str, core: Path | str,
         raise ApplyError("SRC must not contain the repository or donor tooling")
     if _path(src, IN_PROGRESS, marker=True).exists():
         raise ApplyError(f"in-progress/partial restored patch run detected. {CLEAN}")
-    identity, patches, lite = _load(repo, core, tooling, platform, src=src)
+    identity, patches, lite = _load(repo, core, tooling, platform, src=src, profile=profile)
     names = set(lite) | {entry[0] for _, _, entries in patches for entry in entries}
     report = {"identity_sha256": _sha(_json(identity)), "patch_count": len(patches),
               "changed_files": []}
@@ -499,7 +499,7 @@ def run_apply(src: Path | str, repo: Path | str, core: Path | str,
             current = path.read_bytes() if path.exists() else None
             if current != data or (info and path.stat().st_mtime_ns != info.st_mtime_ns):
                 raise ApplyError(f"source changed concurrently: {name}. {CLEAN}")
-        if _load(repo, core, tooling, platform, src=src)[0] != identity:
+        if _load(repo, core, tooling, platform, src=src, profile=profile)[0] != identity:
             raise ApplyError(f"patch/domain inputs changed during application. {CLEAN}")
         changed = [name for name in sorted(names) if before[name][0] != after[name][0]]
         for name in changed:
@@ -533,6 +533,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="probe candidates and print the compatible host executable only")
     parser.add_argument("--platform", choices=("linux", "macos", "windows"), required=True)
     parser.add_argument("--check", action="store_true", help="verify completion without changing SRC")
+    parser.add_argument("--profile", choices=("legacy", "lite"), default="legacy")
     args = parser.parse_args(argv)
     if (args.patch_candidate and not args.select_patch_bin) or (args.select_patch_bin and args.check):
         parser.error("patch candidates require --select-patch-bin without --check")
@@ -542,7 +543,7 @@ def main(argv: list[str] | None = None) -> int:
             print(select_patch_program([args.patch_bin, *args.patch_candidate], roots))
             return 0
         result = run_apply(args.src, args.repo, args.core, args.platform_tooling,
-                           args.platform, args.patch_bin, check=args.check)
+                           args.platform, args.patch_bin, check=args.check, profile=args.profile)
     except (ApplyError, OSError, UnicodeError, re.error) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

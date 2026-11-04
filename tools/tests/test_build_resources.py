@@ -66,14 +66,19 @@ def load(name):
     return yaml.safe_load((ROOT / '.github/workflows' / (name + '.yml')).read_text())
 
 
-def test_five_platforms_expose_jobs_and_trigger_on_policy_changes():
+def test_platforms_expose_jobs_and_product_lane_triggers_on_policy_changes():
     for name in ('build-linux-x64', 'build-linux-arm64', 'build-macos-x64', 'build-macos-arm64', 'build-win-x64-github'):
         workflow = load(name)
         events = workflow.get('on', workflow.get(True))
         assert events['workflow_dispatch']['inputs']['compile_jobs']['default'] == 'auto'
-        assert 'tools/build_resources.py' in events['push']['paths']
         if name != 'build-win-x64-github':
+            assert 'tools/build_resources.py' in events['push']['paths']
             assert workflow['jobs']['build']['with']['compile_jobs'] == "${{ inputs.compile_jobs || 'auto' }}"
+        else:
+            assert 'push' not in events
+    product = load('security-win156')
+    events = product.get('on', product.get(True))
+    assert 'tools/build_resources.py' in events['push']['paths']
 
 
 def test_every_compile_stage_selects_jobs_before_compiling():
@@ -125,7 +130,7 @@ def test_windows_keeps_native_profile_by_default():
 
 
 @pytest.mark.parametrize('jobs,valid', [('8', True), ('1', True), ('0', False), ('auto', False)])
-def test_windows_ninja_receives_validated_jobs(jobs, valid):
+def test_windows_ninja_receives_validated_jobs(tmp_path, jobs, valid):
     shell = shutil.which('pwsh') or shutil.which('powershell')
     if not shell:
         pytest.skip('PowerShell is unavailable')
@@ -143,7 +148,13 @@ function Invoke-Tracked {
   Write-Host "NINJA_VERIFIED"
 }
 ''' + source[start:end]
-    result = subprocess.run([shell, '-NoProfile', '-NonInteractive', '-Command', script],
+    # The extracted build block also configures Node. Run it as a real script
+    # with an owned helper fixture so its native $PSScriptRoot remains valid.
+    (tmp_path / 'configure-node.ps1').write_text('param([string]$NodePath)\n'
+        'if (-not $NodePath.EndsWith("node.exe")) { throw "unexpected Node path" }\n')
+    fixture = tmp_path / 'compile-jobs.ps1'
+    fixture.write_text(script)
+    result = subprocess.run([shell, '-NoProfile', '-NonInteractive', '-File', str(fixture)],
                             env={**os.environ, 'CHROMIX_JOBS': jobs},
                             capture_output=True, text=True, timeout=20)
     assert (result.returncode == 0) == valid, result.stdout + result.stderr

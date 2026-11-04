@@ -23,6 +23,15 @@ from tools.tests.test_security_runtime import diagnostic_fixture
 from tools.tests.test_fingerprint_build_pipeline import write_fingerprint_evidence, rebind_fingerprint_fixture
 from tools.tests.test_native_integration_candidate import write_native_integration_evidence
 from tools import native_compiled_evidence as compiled
+from tools import lite_patch_stack
+
+
+def product_receipt():
+    inputs = lite_patch_stack.input_hashes(ROOT)
+    return {'variant': 'google-services-self-use', 'build_variant': FP156, 'chromium_version': V156,
+            'patch_kind': lite_patch_stack.KIND, 'patch_sha256': lite_patch_stack.load(ROOT)['stack_sha256'],
+            'preparation_sha256': hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest(),
+            'preparation_inputs': inputs}
 
 FP156 = 'fingerprint-modes-win156'
 V156 = '156.0.8078.79'
@@ -162,10 +171,7 @@ class SecurityCandidateTests(unittest.TestCase):
         self.assertIn('not allowed with argument',joint.stderr)
 
     def test_156_source_recipe_binds_security_inputs_and_rejects_wrong_pair(self):
-        digest,inputs=preparation.recipe_identity(ROOT)
-        receipt={'variant':'google-services-self-use','build_variant':FP156,'chromium_version':V156,
-                 'patch_sha256':candidate.sha256(ROOT/'patches/google-services/0001-restore-google-services.patch'),
-                 'preparation_sha256':digest,'preparation_inputs':inputs}
+        receipt=product_receipt()
         candidate.validate_source_recipe(receipt,copy.deepcopy(receipt),build_variant=FP156)
         for key,value in [('chromium_version','155.0.8059.39'),('build_variant','fingerprint-modes-win155'),
                           ('preparation_sha256','0'*64)]:
@@ -178,10 +184,8 @@ class SecurityCandidateTests(unittest.TestCase):
                 candidate.validate_source_recipe(changed,copy.deepcopy(changed),build_variant=FP156)
 
     def test_complete_156_artifact_uses_exact_runtime_version_and_keeps_native_coverage(self):
-        digest,inputs=preparation.recipe_identity(ROOT)
-        receipt={'variant':'google-services-self-use','build_variant':FP156,'chromium_version':V156,
-            'patch_sha256':candidate.sha256(ROOT/'patches/google-services/0001-restore-google-services.patch'),
-            'preparation_sha256':digest,'preparation_inputs':inputs}
+        receipt=product_receipt()
+        digest=receipt['preparation_sha256']
         for path in [self.root/'google-services-source.json',self.bundle/'google-services-source.json']:
             path.write_text(json.dumps(receipt))
         write_fingerprint_evidence(self.root,self.bundle,build_variant=FP156)
@@ -189,6 +193,7 @@ class SecurityCandidateTests(unittest.TestCase):
         archive=self.root/'chromix-win-x64.zip';archive.write_bytes(b'synthetic archive; extraction is mocked')
         source={'repository':'fixture/repo','head_sha':'a'*40,'run_id':50,'artifact_id':51,'artifact_name':'security-win156-x64'}
         build={'build_variant':FP156,'chromium_version':V156,'repository':source['repository'],
+            'patch_kind':lite_patch_stack.KIND,
             'source_commit':source['head_sha'],'run_id':50,'patch_sha256':receipt['patch_sha256'],
             'preparation_sha256':digest,'files':candidate.inventory(self.bundle)}
         build_path=self.bundle/'google-services-build.json';build_path.write_text(json.dumps(build))
@@ -286,7 +291,7 @@ class SecurityCandidateTests(unittest.TestCase):
         phase=stage.split("    'Verify' {",1)[1].split("    'Archive' {",1)[0]
         labels=re.findall(r"label='([^']+)'",phase)
         self.assertEqual(set(labels),candidate.NATIVE_VERIFICATION_LABELS)
-        self.assertEqual(len(labels),14)
+        self.assertEqual(len(labels),15)
         self.assertLess(labels.index('security-runtime'),labels.index('accept-security-runtime'))
         self.assertIn("label='accept-security-runtime';depends=@('security-runtime')",phase)
         self.assertLess(stage.index('Invoke-VerificationPlan $checks'),stage.index("Invoke-Owned 'archive'"))

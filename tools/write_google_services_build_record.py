@@ -84,6 +84,8 @@ def main():
     }
     if 'build_variant' in source:
         record['build_variant'] = source['build_variant']
+    if 'patch_kind' in source:
+        record['patch_kind'] = source['patch_kind']
     if source.get('build_variant') == 'fingerprint-modes-win156':
         record['native_test_executable'] = native_test_identity(args.gn_args)
     destination = args.bundle / 'google-services-build.json'

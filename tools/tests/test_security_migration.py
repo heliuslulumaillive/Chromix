@@ -79,6 +79,18 @@ class MigrationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Target aggregate'):
             m.registered_rule(self.repo, self.manifest)
 
+    def test_same_product_stack_can_migrate_recipe_without_fake_patch_history(self):
+        kind = 'lite-windows156-product'
+        self.rule.update(source_patch_kind=kind, target_patch_kind=kind,
+                         source_aggregate_sha256=self.new)
+        self.write_policy()
+        with patch('tools.lite_patch_stack.load', return_value={'stack_sha256': self.new}):
+            self.assertEqual(m.registered_rule(self.repo, self.manifest)['source_patch_kind'], kind)
+            self.rule['source_aggregate_sha256'] = self.old
+            self.write_policy()
+            with self.assertRaisesRegex(ValueError, 'identical source stack'):
+                m.registered_rule(self.repo, self.manifest)
+
     def test_placeholder_policy_is_not_executable(self):
         self.rule['target_preparation_sha256'] = '0' * 64
         self.write_policy()
@@ -128,7 +140,8 @@ class RegisteredCheckoutTest(unittest.TestCase):
                 donor = {**c.IDENTITY, 'source_commit': rule['source_commit'],
                          'recipe_sha256': rule['source_recipe_sha256']}
                 self.assertEqual(m.registered_rule(root, donor)['id'], rule['id'])
-                self.assertEqual(rule['target_preparation_sha256'], preparation.recipe_identity(root)[0])
+                profile = 'lite' if rule.get('target_patch_kind') == 'lite-windows156-product' else 'legacy'
+                self.assertEqual(rule['target_preparation_sha256'], preparation.recipe_identity(root, profile=profile)[0])
 
 
 if __name__ == '__main__':

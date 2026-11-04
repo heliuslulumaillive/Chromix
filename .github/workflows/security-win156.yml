@@ -1,5 +1,43 @@
-name: Security Windows 156
+name: ShardX Lite Windows 156
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/security-win156.yml'
+      - '.github/workflows/security-win156-worker.yml'
+      - 'build/windows/**'
+      - 'build/lite-windows156.json'
+      - 'build/ungoogled-revisions.psd1'
+      - 'CHROMIUM_WINDOWS_VERSION'
+      - 'UNGOOGLED_WINDOWS_VERSION'
+      - 'build/args.windows.gn'
+      - 'build/args.security.gn'
+      - 'build/*capabilities.json'
+      - 'build/security-resources/**'
+      - 'build/upstream-cache.json'
+      - 'patches/lite-windows156/**'
+      - 'patches/lite-win156/retirement-manifest.json'
+      - 'tools/lite_patch_stack.py'
+      - 'tools/prepare_lite_product.py'
+      - 'tools/patch_selection.py'
+      - 'tools/platform_pins.py'
+      - 'tools/build_resources.py'
+      - 'tools/apply_restored_patches.py'
+      - 'tools/verify_patch_stack.py'
+      - 'tools/prepare_google_services.py'
+      - 'tools/google_services_inputs.py'
+      - 'tools/restored_source_resources.py'
+      - 'tools/security_*.py'
+      - 'tools/verify_security_runtime.py'
+      - 'tools/verify_google_services_*.py'
+      - 'tools/write_google_services_build_record.py'
+      - 'tools/verify_native_*.py'
+      - 'tools/native-session/**'
+      - 'tools/native_compiled_evidence.py'
+      - 'tools/lite_retirement.py'
+      - 'tools/tests/test_lite_*.py'
+      - 'tools/tests/test_security_*.py'
+      - 'tools/tests/test_native_*.py'
   workflow_call:
     secrets:
       UPSTREAM_ACTIONS_TOKEN:
@@ -54,40 +92,40 @@ jobs:
     secrets: inherit
     with:
       stage: 1
-      operation: ${{ inputs.operation }}
-      source_run: ${{ inputs.source_run }}
-      source_stage: ${{ fromJSON(inputs.source_stage) }}
-      retain_checkpoint: ${{ inputs.retain_checkpoint }}
+      operation: ${{ inputs.operation || 'upstream' }}
+      source_run: ${{ inputs.source_run || '' }}
+      source_stage: ${{ fromJSON(inputs.source_stage || '0') }}
+      retain_checkpoint: ${{ github.event_name == 'push' || inputs.retain_checkpoint }}
   stage2:
     needs: stage1
-    if: ${{ always() && !cancelled() && needs.stage1.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages) >= 2 }}
+    if: ${{ always() && !cancelled() && needs.stage1.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 2 }}
     uses: ./.github/workflows/security-win156-worker.yml
     secrets: inherit
     with:
       stage: 2
       operation: resume
       source_run: ${{ github.run_id }}
-      retain_checkpoint: ${{ inputs.retain_checkpoint }}
+      retain_checkpoint: ${{ github.event_name == 'push' || inputs.retain_checkpoint }}
   stage3:
     needs: stage2
-    if: ${{ always() && !cancelled() && needs.stage2.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages) >= 3 }}
+    if: ${{ always() && !cancelled() && needs.stage2.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 3 }}
     uses: ./.github/workflows/security-win156-worker.yml
     secrets: inherit
     with:
       stage: 3
       operation: resume
       source_run: ${{ github.run_id }}
-      retain_checkpoint: ${{ inputs.retain_checkpoint }}
+      retain_checkpoint: ${{ github.event_name == 'push' || inputs.retain_checkpoint }}
   stage4:
     needs: stage3
-    if: ${{ always() && !cancelled() && needs.stage3.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages) >= 4 }}
+    if: ${{ always() && !cancelled() && needs.stage3.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 4 }}
     uses: ./.github/workflows/security-win156-worker.yml
     secrets: inherit
     with:
       stage: 4
       operation: resume
       source_run: ${{ github.run_id }}
-      retain_checkpoint: ${{ inputs.retain_checkpoint }}
+      retain_checkpoint: ${{ github.event_name == 'push' || inputs.retain_checkpoint }}
   result:
     needs: [stage1, stage2, stage3, stage4]
     if: ${{ always() && !cancelled() }}

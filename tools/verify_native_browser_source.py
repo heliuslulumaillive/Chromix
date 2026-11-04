@@ -126,12 +126,14 @@ def verify_shell(src: Path):
     return checked
 
 
-def verify(src: Path, repo: Path):
-    config = json.loads((repo / 'build/google-services-win155.json').read_text(encoding='utf-8'))
+def verify(src: Path, repo: Path, *, config=None):
+    legacy = config is None
+    if legacy:
+        config = json.loads((repo / 'build/google-services-win155.json').read_text(encoding='utf-8'))
     setting = config.get('native_browser', {})
     if (setting.get('version') != 1 or setting.get('capabilities') != CAPABILITIES
             or setting.get('source_gate_required') is not True
-            or OVERLAY not in config.get('restoration_overlays', [])):
+            or (legacy and OVERLAY not in config.get('restoration_overlays', []))):
         raise ValueError('Native browser restoration is not explicitly configured')
     capabilities = json.loads((repo / CAPABILITIES).read_text(encoding='utf-8'))
     if (capabilities.get('schema_version') != 1 or capabilities.get('contract') != CONTRACT

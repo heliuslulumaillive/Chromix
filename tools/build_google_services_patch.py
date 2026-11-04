@@ -22,7 +22,8 @@ import time
 from urllib.request import Request, urlopen
 
 sys.dont_write_bytecode = True
-from patch_selection import select
+from patch_selection import select_legacy as select
+from restoration_rules import retain_hunks, validate as validate_restoration_rules
 from restored_source_resources import resources as restored_resources
 from google_services_inputs import (PinnedSourceCache, aggregate_inputs, identity,
                                     owned, plain, write_if_changed)
@@ -94,19 +95,6 @@ def filter_pruned_includes(baseline: str, restored: str, unavailable):
     return INCLUDE.sub(keep, restored), removed
 
 
-def retain_hunks(section: str, restore_markers: list[str]) -> str:
-    """Omit only reviewed cleanup hunks; preserve unrelated feature removals."""
-    matches = list(HUNK.finditer(section))
-    kept = []
-    for index, match in enumerate(matches):
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(section)
-        hunk = section[match.start():end]
-        changes = '\n'.join(line[1:] for line in hunk.splitlines() if line.startswith(('+', '-')))
-        if not any(marker in changes for marker in restore_markers):
-            kept.append(hunk)
-    return section[:matches[0].start()] + ''.join(kept) if kept else ''
-
-
 def sections(data: str):
     matches = list(HEADER.finditer(data))
     for index, match in enumerate(matches):
@@ -171,6 +159,9 @@ def main():
         raise ValueError('Binary restoration must name explicitly restored pruned sources')
     core = list(patch_series(args.core))
     windows = list(patch_series(args.windows))
+    # Validate every configured patch, section, marker and complete hunk before
+    # downloading source or filtering any upstream change.
+    restoration_rules = validate_restoration_rules(args.repo, config, core, windows)
     selection, chromix_bytes = select(args.repo, "windows")
     generation_inputs = aggregate_inputs(args.repo, config, selection)
     source_cache = PinnedSourceCache(config['chromium_version'],
@@ -382,6 +373,7 @@ def main():
     report = {"version": config["chromium_version"], "changed_files": changed, "source_inputs": sources, "external_source_pins": external_source_pins, "pruning_list_sha256": hashlib.sha256(pruning_data).hexdigest(), "baseline_pruned_sources": sorted(targets & pruned), "restored_pruned_sources": sorted(restored_pruned), "restored_pruned_resources": config.get('restore_pruned_resources', {}), "removed_pruned_includes": removed_includes, "verify_all_baseline": args.verify_all_baseline, "replay_counts": replay_counts, "selected_baseline_inputs": {name: hashlib.sha256(data).hexdigest() for name, data in chromix_bytes}, "patch_sha256": hashlib.sha256(args.output.read_bytes()).hexdigest(), "qualification": "Source replay only; requires native build and actual account/security tests"}
     report['generation_inputs'] = generation_inputs
     report['generation_inputs_sha256'] = identity(generation_inputs)
+    report['restoration_rules_sha256'] = identity(restoration_rules)
     write_if_changed(args.output.with_suffix('.json'), json.dumps(report, indent=2).encode('utf-8'))
     print(json.dumps({"changed_files": len(changed), "patch_bytes": args.output.stat().st_size, "output": str(args.output)}, indent=2))
 

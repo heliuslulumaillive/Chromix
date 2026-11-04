@@ -9,6 +9,7 @@ from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import tempfile
+import time
 
 try:
     from .security_build_record import VERSION, VARIANT, CORE, WINDOWS, plain, recipe, sha256
@@ -20,12 +21,33 @@ IDENTITY = {'schema_version': 1, 'build_variant': VARIANT, 'chromium_version': V
 HEX = re.compile(r'[a-f0-9]{64}\Z')
 
 
+class GitHubOperationError(RuntimeError):
+    """Classify retryable transport errors without exposing stderr or signed URLs."""
+
+    def __init__(self, *, retryable=False):
+        super().__init__('GitHub checkpoint operation failed; credentials and signed URLs omitted')
+        self.retryable = retryable
+
+
+def transient_transfer_error(message):
+    text = message.lower()
+    return any(marker in text for marker in (
+        'tls handshake timeout', 'i/o timeout', 'timeout awaiting response headers',
+        'context deadline exceeded', 'connection reset', 'connection was forcibly closed',
+        'unexpected eof', 'temporary failure in name resolution',
+        'http 408', 'http 502', 'http 503', 'http 504',
+        '502 bad gateway', '503 service unavailable', '504 gateway timeout'))
+
+
 def gh(args):
-    result = subprocess.run(['gh', *args], capture_output=True, text=True,
-                            encoding='utf-8', timeout=3600,
-                            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    try:
+        result = subprocess.run(['gh', *args], capture_output=True, text=True,
+                                encoding='utf-8', timeout=3600,
+                                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    except subprocess.TimeoutExpired:
+        raise GitHubOperationError(retryable=True) from None
     if result.returncode:
-        raise RuntimeError('GitHub checkpoint operation failed; credentials and signed URLs omitted')
+        raise GitHubOperationError(retryable=transient_transfer_error(result.stderr))
     return result.stdout
 
 
@@ -251,17 +273,28 @@ def restore(repo, destination, source_run, current_stage, source_stage=0,
         if target.exists():
             verify_volume(target, part)
             return  # A retried transfer reuses completed, reverified volumes.
-        with tempfile.TemporaryDirectory(prefix=f'part{index}-', dir=destination) as temporary:
-            directory = Path(temporary)
-            name = record['volume_artifacts'][index - 1]['name']
-            gh(['run', 'download', source_run, '--repo', repository, '--name', name, '--dir', str(directory)])
-            if {p.name for p in directory.iterdir()} != {part['name']}:
-                raise ValueError('Unexpected volume artifact inventory')
-            path = directory / part['name']
-            verify_volume(path, part)
-            if path.resolve().parent != directory.resolve() or target.resolve().parent != destination.resolve():
-                raise ValueError('Volume move escapes exact transfer root')
-            path.rename(target)
+        for attempt in range(3):
+            with tempfile.TemporaryDirectory(prefix=f'part{index}-', dir=destination) as temporary:
+                directory = Path(temporary)
+                name = record['volume_artifacts'][index - 1]['name']
+                try:
+                    gh(['run', 'download', source_run, '--repo', repository, '--name', name, '--dir', str(directory)])
+                except GitHubOperationError as error:
+                    if not error.retryable or attempt == 2:
+                        raise
+                    print(f'Checkpoint volume {index}: transient transfer failure; retry {attempt + 2}/3', flush=True)
+                else:
+                    # Inventory, size, digest and ownership failures are never
+                    # retried or repaired by replacing a previously verified file.
+                    if {p.name for p in directory.iterdir()} != {part['name']}:
+                        raise ValueError('Unexpected volume artifact inventory')
+                    path = directory / part['name']
+                    verify_volume(path, part)
+                    if path.resolve().parent != directory.resolve() or target.resolve().parent != destination.resolve():
+                        raise ValueError('Volume move escapes exact transfer root')
+                    path.rename(target)
+                    return
+            time.sleep(2 ** (attempt + 1))
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         list(pool.map(download, enumerate(parts, 1)))
     # gh downloads by name; bind the immutable IDs before AND after transfer.

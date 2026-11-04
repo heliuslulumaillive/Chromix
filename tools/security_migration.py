@@ -51,11 +51,26 @@ def registered_rule(repo: Path, manifest: dict) -> dict:
             raise ValueError('Migration recipe has not been finalized: ' + key)
     if rule['source_recipe_sha256'] == rule['target_recipe_sha256']:
         raise ValueError('Identical payloads must use ordinary resume')
-    history = repo / 'patches/google-services/history' / (rule['source_aggregate_sha256'] + '.patch')
-    if sha256(plain(history)) != rule['source_aggregate_sha256']:
-        raise ValueError('Exact donor source patch is unavailable for the reviewed transition')
-    aggregate = repo / 'patches/google-services/0001-restore-google-services.patch'
-    if sha256(plain(aggregate)) != rule['target_aggregate_sha256']:
+    product_kind = 'lite-windows156-product'
+    if any(rule.get(side + '_patch_kind') not in (None, product_kind) for side in ('source', 'target')):
+        raise ValueError('Unknown migration patch identity kind')
+    if rule.get('source_patch_kind') == product_kind:
+        if (rule.get('target_patch_kind') != product_kind
+                or rule['source_aggregate_sha256'] != rule['target_aggregate_sha256']):
+            raise ValueError('Product checkpoint migration currently requires an identical source stack')
+    else:
+        history = repo / 'patches/google-services/history' / (rule['source_aggregate_sha256'] + '.patch')
+        if sha256(plain(history)) != rule['source_aggregate_sha256']:
+            raise ValueError('Exact donor source patch is unavailable for the reviewed transition')
+    if rule.get('target_patch_kind') == 'lite-windows156-product':
+        try:
+            from .lite_patch_stack import load
+        except ImportError:
+            from lite_patch_stack import load
+        target_patch = load(repo)['stack_sha256']
+    else:
+        target_patch = sha256(plain(repo / 'patches/google-services/0001-restore-google-services.patch'))
+    if target_patch != rule['target_aggregate_sha256']:
         raise ValueError('Target aggregate differs from the reviewed transition')
     return rule
 
@@ -67,6 +82,8 @@ def check_receipt(receipt, rule, side):
             or receipt.get('patch_sha256') != rule[side + '_aggregate_sha256']
             or receipt.get('preparation_sha256') != rule[side + '_preparation_sha256']):
         raise ValueError('Prepared source does not match the registered ' + side + ' recipe')
+    if receipt.get('patch_kind') != rule.get(side + '_patch_kind'):
+        raise ValueError('Prepared source patch identity kind differs from the registered ' + side)
 
 
 def verify_source(repo, work, manifest_path):
