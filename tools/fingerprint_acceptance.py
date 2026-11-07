@@ -21,6 +21,7 @@ from platform_pins import load_pins
 from fingerprint_smoke import binary_identity, sha256_file
 from fingerprint_subprocess import run_command
 from verify_patch_stack import load_stack
+from patch_selection import active_profile
 
 REPO = Path(__file__).resolve().parents[1]
 SUITES = (
@@ -59,7 +60,7 @@ def read_json(path):
 
 def provenance(repo=REPO):
     platform = {'linux': 'linux', 'win32': 'windows', 'darwin': 'macos'}.get(sys.platform)
-    identity, patches = load_stack(repo, platform=platform)
+    identity, patches = load_stack(repo, platform=platform, profile=active_profile(repo, platform))
     paths = [repo / 'CHROMIUM_VERSION', repo / 'tools/fingerprint-requirements.txt',
              *sorted((repo / 'tools').glob('*.py')), *sorted((repo / 'tools').glob('*.js')),
              *sorted((repo / 'sdk/python/chromix').glob('*.py')),
@@ -81,6 +82,9 @@ def provenance(repo=REPO):
 
 def check_source(path, source_root, inputs, expected_targets=None):
     report = read_json(path)
+    # A final-product schema2 count report is not interchangeable with this
+    # schema1 identity/output-hash receipt. Dedicated product gates verify final
+    # Lite receipts; do not admit them here without equivalent source binding.
     if (not isinstance(report, dict) or type(report.get('schema_version')) is not int or
             report.get('schema_version') != 1 or report.get('status') != 'verified' or
             report.get('method') != 'reverse-forward-in-scratch'):
@@ -102,7 +106,7 @@ def check_source(path, source_root, inputs, expected_targets=None):
         raise ValueError('source receipt contains no source output hashes')
     if expected_targets is None:
         platform = {'linux': 'linux', 'win32': 'windows', 'darwin': 'macos'}.get(sys.platform)
-        _, current_patches = load_stack(REPO, platform=platform)
+        _, current_patches = load_stack(REPO, platform=platform, profile=active_profile(REPO, platform))
         expected_targets = {entry[0] for _, _, entries in current_patches for entry in entries}
     if set(outputs) != set(expected_targets):
         raise ValueError('source receipt does not cover exactly the current patch targets')

@@ -46,7 +46,7 @@ def validate_snapshot(repo, bundle, evidence, state, run_id, source_commit):
     record = object_file(record_path)
     if (record.get('schema_version') != 1
             or str(record.get('run_id')) != str(run_id) or record.get('source_commit') != source_commit
-            or record.get('build_variant') != 'fingerprint-modes-win156'
+            or record.get('build_variant') != 'fingerprint-modes-win157'
             or record.get('chromium_version') != VERSION):
         raise ValueError('Staged runtime belongs to another build')
     files = record.get('files')
@@ -66,7 +66,7 @@ def validate_snapshot(repo, bundle, evidence, state, run_id, source_commit):
     source = object_file(source_path)
     if (source.get('schema_version') != 1
             or str(source.get('run_id')) != str(run_id) or source.get('source_commit') != source_commit
-            or source.get('build_variant') != 'security-win156'
+            or source.get('build_variant') != 'security-win157'
             or source.get('chromium_version') != VERSION
             or source.get('recipe_sha256') != recipe(repo)
             or source.get('source_receipt_sha256') != actual.get('google-services-source.json')):

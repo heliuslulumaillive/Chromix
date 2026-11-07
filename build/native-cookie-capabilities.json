@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "contract": "shardx-native-cookie-v1",
-  "chromium_version": "156.0.8078.79",
-  "build_variant": "fingerprint-modes-win156",
+  "chromium_version": "157.0.8103.38",
+  "build_variant": "fingerprint-modes-win157",
   "platform": "windows",
   "qualification": "Source contract only; compiled native and real first-request acceptance are required.",
   "flags": {

@@ -20,17 +20,17 @@ REPO = Path(__file__).resolve().parents[1]
 VERSION = '155.0.8059.39'
 GOOGLE_VARIANT = 'google-services'
 FINGERPRINT_VARIANT = 'fingerprint-modes-win155'
-SECURITY_VARIANT = 'fingerprint-modes-win156'
+SECURITY_VARIANT = 'fingerprint-modes-win157'
 VARIANT_VERSIONS = {
     GOOGLE_VARIANT: VERSION,
     FINGERPRINT_VARIANT: VERSION,
-    SECURITY_VARIANT: '156.0.8078.79',
+    SECURITY_VARIANT: '157.0.8103.38',
 }
 FINGERPRINT_VARIANTS = frozenset((FINGERPRINT_VARIANT, SECURITY_VARIANT))
 ARTIFACT_NAMES = {
     GOOGLE_VARIANT: 'google-services-win155-x64',
     FINGERPRINT_VARIANT: 'fingerprint-modes-win155-x64',
-    SECURITY_VARIANT: 'security-win156-x64',
+    SECURITY_VARIANT: 'security-win157-x64',
 }
 FINGERPRINT_REPORTS = ('modes-native.json', 'modes-runtime.json', 'fingerprint-modes-capabilities.json')
 FINGERPRINT_COLLECTOR_MODULES = (
@@ -139,10 +139,10 @@ def validate_source_recipe(inner, outer, repo=REPO, *, build_variant=GOOGLE_VARI
         raise ValueError('Candidate is not the fingerprint-modes build variant')
     if build_variant == GOOGLE_VARIANT and inner.get('build_variant') not in (None, GOOGLE_VARIANT):
         raise ValueError('Fingerprint receipt cannot be admitted as a Google-only variant')
-    if (build_variant == SECURITY_VARIANT and (repo / 'build/lite-windows156.json').is_file()
-            and inner.get('patch_kind') != 'lite-windows156-product'):
+    if (build_variant == SECURITY_VARIANT and (repo / 'build/lite-windows157.json').is_file()
+            and inner.get('patch_kind') != 'lite-windows157-product'):
         raise ValueError('Current Lite candidates require the product patch identity; legacy artifacts are historical')
-    if inner.get('patch_kind') == 'lite-windows156-product':
+    if inner.get('patch_kind') == 'lite-windows157-product':
         try:
             from .lite_patch_stack import load, input_hashes
         except ImportError:

@@ -59,7 +59,7 @@ def action_llvm_profile(contract: dict, src: Path, chromium_version: str) -> str
     relative = contract['resource'].resolve().relative_to(src.resolve()).as_posix()
     if relative == 'third_party/llvm-build/Release+Asserts/lib/clang/23':
         return 'ungoogled-llvm23'
-    if chromium_version == '156.0.8078.79' and relative == 'third_party/llvm-build/Release+Asserts/lib/clang/24':
+    if chromium_version in ('156.0.8078.79', '157.0.8103.38') and relative == 'third_party/llvm-build/Release+Asserts/lib/clang/24':
         return 'chromium-llvm24-62397f8b'
     raise ValueError('actual metagen action has no exact supported LLVM resource pin')
 
@@ -79,6 +79,8 @@ MAX_FILE = 1024 * 1024
 PINS = {
     "154.0.8037.97": None,
     CHROMIUM_VERSION: {"v8_revision": V8_REVISION, "target_cpus": ("x64", "arm64")},
+    "157.0.8103.38": {"v8_revision": "440c1c463e2e528c309af5067952e7b11631507f",
+                      "target_cpus": ("x64",)},
     "156.0.8078.79": {"v8_revision": "c9b3cfcab30ace06c21f9b48a0f0a34805e81e9d",
                       "target_cpus": ("x64",)},
 }

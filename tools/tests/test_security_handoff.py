@@ -1,6 +1,9 @@
 """A checkpoint handoff never cancels an unfinished producer or dispatches twice."""
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -16,7 +19,7 @@ class HandoffTests(unittest.TestCase):
         self.state = self.root / 'handoff.json'
         self.plan = {'schema_version': 1, 'repository': 'owner/repo', 'donor_run': '123',
                      'producer_job': 456, 'donor_stage': 1, 'donor_commit': 'a' * 40,
-                     'target_branch': 'codex/lite-win156-continuation', 'target_commit': 'b' * 40,
+                     'target_branch': 'codex/lite-win157-continuation', 'target_commit': 'b' * 40,
                      'handoff_id': 'test-handoff-123',
                      'workflow': 'build-google-services-win155.yml', 'max_stages': 4,
                      'retire_remaining_donor_stages': True}
@@ -78,10 +81,38 @@ class HandoffTests(unittest.TestCase):
                 h.readiness(self.root, self.plan)
 
     def test_same_commit_other_inputs_are_not_this_dispatch(self):
-        run = {**self.run, 'display_title': 'Windows 156 / fresh / manual',
+        run = {**self.run, 'display_title': 'Windows 157 / fresh / manual',
                'created_at': '2026-10-31T12:00:00Z'}
         with patch.object(h, 'gh_json', return_value={'workflow_runs': [run]}):
             self.assertIsNone(h.find_dispatch(self.plan, {'requested_at': '2026-10-31T11:59:59+00:00'}))
+
+    def test_current157_dispatch_is_reconciled_and156_is_not_a_match(self):
+        state = {'requested_at': '2026-11-07T20:00:00+00:00'}
+        current = {**self.run, 'display_title':'Windows 157 / upgrade / '+self.plan['handoff_id'],
+                   'created_at':'2026-11-07T20:00:01Z'}
+        with patch.object(h, 'gh_json', return_value={'workflow_runs':[current]}):
+            self.assertEqual(h.find_dispatch(self.plan, state)['id'], self.run['id'])
+        old = {**current, 'display_title':'Windows 156 / upgrade / '+self.plan['handoff_id']}
+        with patch.object(h, 'gh_json', return_value={'workflow_runs':[old]}):
+            self.assertIsNone(h.find_dispatch(self.plan, state))
+
+    def test_dispatch_choice_validation_and_route_agree_on157(self):
+        import yaml
+        root = Path(__file__).resolve().parents[2]
+        workflow = yaml.load((root/'.github/workflows/build-google-services-win155.yml').read_text(), Loader=yaml.BaseLoader)
+        choices = workflow['on']['workflow_dispatch']['inputs']['build_variant']['options']
+        self.assertIn('fingerprint-modes-win157', choices)
+        self.assertNotIn('fingerprint-modes-win156', choices)
+        self.assertEqual(workflow['jobs']['security-win157']['uses'], './.github/workflows/security-win157.yml')
+        block = workflow['jobs']['validate-inputs']['steps'][0]['run']
+        script = block.split('\n',1)[1].rsplit('\nPY',1)[0]
+        for variant in ['fingerprint-modes-win157','fingerprint-modes-win156']:
+            for operation in ['fresh','upstream','resume','upgrade']:
+                env = {**os.environ, 'BUILD_VARIANT':variant, 'OPERATION':operation,
+                       'SOURCE_RUN':'123', 'SOURCE_STAGE':'1', 'HANDOFF_ID':'test-handoff-123'}
+                with self.subTest(variant=variant, operation=operation):
+                    run = subprocess.run([sys.executable,'-c',script], env=env, capture_output=True, text=True)
+                    self.assertEqual(run.returncode==0, variant=='fingerprint-modes-win157', run.stderr)
 
     def test_new_donor_attempt_is_never_cancelled(self):
         with patch.object(h, 'readiness', return_value=self.ready), \

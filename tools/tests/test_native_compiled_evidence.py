@@ -239,7 +239,7 @@ class SyntheticLauncherFixture {
             self.assertNotEqual(result.returncode, 0, kind)
             self.assertEqual(json.loads(self.receipt.read_text(encoding='utf-8-sig'))['status'], 'failed', kind)
 
-    def test_unbound_wrapper_preserves_old_lane_execution_without_156_acceptance(self):
+    def test_unbound_wrapper_preserves_old_lane_execution_without_157_acceptance(self):
         result = self.run_fixture(bound=False); self.assertEqual(result.returncode, 0, result.stderr)
         receipt = json.loads(self.receipt.read_text(encoding='utf-8-sig'))
         self.assertNotIn('build_record_sha256', receipt)

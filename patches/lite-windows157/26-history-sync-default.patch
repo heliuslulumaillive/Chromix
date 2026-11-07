@@ -1,0 +1,133 @@
+diff --git a/chrome/browser/ui/webui/signin/history_sync_optin_helper.cc b/chrome/browser/ui/webui/signin/history_sync_optin_helper.cc
+--- a/chrome/browser/ui/webui/signin/history_sync_optin_helper.cc
++++ b/chrome/browser/ui/webui/signin/history_sync_optin_helper.cc
+@@ -8,6 +8,7 @@
+ 
+ #include "base/check_deref.h"
+ #include "base/check_op.h"
++#include "base/command_line.h"
+ #include "base/functional/bind.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/metrics/histogram_functions.h"
+@@ -672,6 +673,24 @@
+   signin_util::ShouldShowHistorySyncOptinResult result =
+       signin_util::ShouldShowHistorySyncOptinScreen(*profile_.get());
+ 
++  // ShardX's configured default is equivalent to accepting history/tab sync.
++  // Wait for the native account-management and sync-startup checks above;
++  // never turn a missing browser authorization or policy denial into success.
++  const base::CommandLine* command_line =
++      base::CommandLine::ForCurrentProcess();
++  if (result == signin_util::ShouldShowHistorySyncOptinResult::kShow &&
++      command_line->HasSwitch("shardx-auto-enable-history-sync") &&
++      command_line->GetSwitchValueASCII("shardx-auto-enable-history-sync") !=
++          "false" &&
++      IdentityManagerFactory::GetForProfile(profile())
++              ->GetPrimaryAccountId(signin::ConsentLevel::kSignin) ==
++          account_info_.account_id) {
++    signin_util::EnableHistorySync(GetSyncService(profile()));
++    // Reuse the normal already-enabled completion, including opening the
++    // finished profile in the picker. Do not record a fabricated button click.
++    result = signin_util::ShouldShowHistorySyncOptinScreen(*profile_.get());
++  }
++
+   if (result == signin_util::ShouldShowHistorySyncOptinResult::kShow) {
+     base::RecordAction(base::UserMetricsAction("Signin_HistorySync_Started"));
+     base::UmaHistogramEnumeration("Signin.HistorySyncOptIn.Started",
+diff --git a/chrome/browser/ui/webui/signin/history_sync_optin_helper_browsertest.cc b/chrome/browser/ui/webui/signin/history_sync_optin_helper_browsertest.cc
+--- a/chrome/browser/ui/webui/signin/history_sync_optin_helper_browsertest.cc
++++ b/chrome/browser/ui/webui/signin/history_sync_optin_helper_browsertest.cc
+@@ -12,6 +12,7 @@
+ #include "base/test/bind.h"
+ #include "base/test/metrics/histogram_tester.h"
+ #include "base/test/metrics/user_action_tester.h"
++#include "base/test/scoped_command_line.h"
+ #include "base/test/scoped_feature_list.h"
+ #include "base/test/test_future.h"
+ #include "chrome/browser/enterprise/signin/profile_management_disclaimer_service.h"
+@@ -40,6 +41,8 @@
+ #include "components/signin/public/identity_manager/identity_test_environment.h"
+ #include "components/signin/public/identity_manager/tribool.h"
+ #include "components/sync/base/features.h"
++#include "components/sync/base/user_selectable_type.h"
++#include "components/sync/service/sync_user_settings.h"
+ #include "components/sync/test/test_sync_service.h"
+ #include "content/public/test/browser_test.h"
+ #include "content/public/test/test_utils.h"
+@@ -777,3 +780,76 @@
+ 
+   EXPECT_TRUE(flow_finished_future.Wait());
+ }
++
++IN_PROC_BROWSER_TEST_P(HistorySyncOptinHelperLaunchContextParamBrowserTest,
++                       ShardXDefaultEnablesHistoryWithoutScreen) {
++  base::test::ScopedCommandLine command_line;
++  command_line.GetProcessCommandLine()->AppendSwitch(
++      "shardx-auto-enable-history-sync");
++  auto* settings = GetTestSyncService()->GetUserSettings();
++  settings->SetSelectedTypes(false, syncer::UserSelectableTypeSet());
++  AccountInfo account = MakeAccountInfoAvailableAndSignIn();
++  UpdateAccountManagementInfo(account, false);
++  testing::StrictMock<MockHistorySyncOptinHelperDelegate> delegate;
++  EXPECT_CALL(delegate, FinishFlowWithoutHistorySyncOptin()).Times(2);
++  base::test::TestFuture<void> finished;
++  HistorySyncOptinHelperTestObserver observer(finished);
++  auto helper = HistorySyncOptinHelper::Create(
++      identity_test_env()->identity_manager(), GetProfile(), account, &delegate,
++      GetParam(), signin_metrics::AccessPoint::kSettings);
++  helper->AddObserver(&observer);
++  helper->StartHistorySyncOptinFlow();
++  ASSERT_TRUE(finished.Wait());
++  helper->RemoveObserver(&observer);
++  EXPECT_TRUE(settings->GetSelectedTypes().HasAll(
++      {syncer::UserSelectableType::kHistory, syncer::UserSelectableType::kTabs,
++       syncer::UserSelectableType::kSavedTabGroups}));
++  EXPECT_EQ(0, user_action_tester_.GetActionCount("Signin_HistorySync_Started"));
++  // A subsequent flow sees real selected types and does not offer the screen.
++  helper = HistorySyncOptinHelper::Create(
++      identity_test_env()->identity_manager(), GetProfile(), account, &delegate,
++      GetParam(), signin_metrics::AccessPoint::kSettings);
++  helper->StartHistorySyncOptinFlow();
++  base::RunLoop().RunUntilIdle();
++}
++
++IN_PROC_BROWSER_TEST_P(HistorySyncOptinHelperLaunchContextParamBrowserTest,
++                       ShardXDefaultCanBeDisabledExplicitly) {
++  base::test::ScopedCommandLine command_line;
++  command_line.GetProcessCommandLine()->AppendSwitchASCII(
++      "shardx-auto-enable-history-sync", "false");
++  auto* settings = GetTestSyncService()->GetUserSettings();
++  settings->SetSelectedTypes(false, syncer::UserSelectableTypeSet());
++  AccountInfo account = MakeAccountInfoAvailableAndSignIn();
++  UpdateAccountManagementInfo(account, false);
++  testing::StrictMock<MockHistorySyncOptinHelperDelegate> delegate;
++  EXPECT_CALL(delegate, ShowHistorySyncOptinScreen(GetProfile(), testing::_));
++  auto helper = HistorySyncOptinHelper::Create(
++      identity_test_env()->identity_manager(), GetProfile(), account, &delegate,
++      GetParam(), signin_metrics::AccessPoint::kSettings);
++  helper->StartHistorySyncOptinFlow();
++  base::RunLoop().RunUntilIdle();
++  EXPECT_FALSE(settings->GetSelectedTypes().Has(
++      syncer::UserSelectableType::kHistory));
++}
++
++IN_PROC_BROWSER_TEST_P(HistorySyncOptinHelperLaunchContextParamBrowserTest,
++                       ShardXDefaultRespectsDisabledSyncPolicy) {
++  base::test::ScopedCommandLine command_line;
++  command_line.GetProcessCommandLine()->AppendSwitch(
++      "shardx-auto-enable-history-sync");
++  auto* settings = GetTestSyncService()->GetUserSettings();
++  settings->SetSelectedTypes(false, syncer::UserSelectableTypeSet());
++  GetTestSyncService()->SetAllowedByEnterprisePolicy(false);
++  AccountInfo account = MakeAccountInfoAvailableAndSignIn();
++  UpdateAccountManagementInfo(account, false);
++  testing::StrictMock<MockHistorySyncOptinHelperDelegate> delegate;
++  EXPECT_CALL(delegate, FinishFlowWithoutHistorySyncOptin());
++  auto helper = HistorySyncOptinHelper::Create(
++      identity_test_env()->identity_manager(), GetProfile(), account, &delegate,
++      GetParam(), signin_metrics::AccessPoint::kSettings);
++  helper->StartHistorySyncOptinFlow();
++  base::RunLoop().RunUntilIdle();
++  EXPECT_FALSE(settings->GetSelectedTypes().Has(
++      syncer::UserSelectableType::kHistory));
++}

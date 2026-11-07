@@ -813,6 +813,30 @@
         "third_party/search_engines_data/resources/definitions/prepopulated_engines.json",
         "tools/metrics/histograms/metadata/profile/enums.xml"
       ]
+    },
+    {
+      "path": "patches/lite-windows156/25-signin-failure-recovery.patch",
+      "sha256": "771a6ca0b8e19158cd24f3549d7a665a12bcdde5c9be952ccc81e783c4848567",
+      "files": [
+        "chrome/browser/signin/dice_response_handler.cc",
+        "chrome/browser/signin/dice_response_handler.h",
+        "chrome/browser/signin/dice_response_handler_unittest.cc",
+        "chrome/browser/signin/dice_tab_helper.cc",
+        "chrome/browser/signin/dice_tab_helper.h",
+        "chrome/browser/signin/process_dice_header_delegate_impl.cc",
+        "chrome/browser/signin/process_dice_header_delegate_impl.h",
+        "chrome/browser/signin/process_dice_header_delegate_impl_unittest.cc",
+        "chrome/browser/ui/views/profiles/profile_picker_sign_in_provider.cc",
+        "chrome/browser/ui/views/profiles/profile_picker_sign_in_provider_browsertest.cc"
+      ]
+    },
+    {
+      "path": "patches/lite-windows156/26-history-sync-default.patch",
+      "sha256": "5bcbf4bd742e7897ec80228fce6a964d03165b8400f07ffedef0d5cfbf28d5b2",
+      "files": [
+        "chrome/browser/ui/webui/signin/history_sync_optin_helper.cc",
+        "chrome/browser/ui/webui/signin/history_sync_optin_helper_browsertest.cc"
+      ]
     }
   ],
   "source_files": [
@@ -1867,6 +1891,31 @@
       "after_sha256": "345bdeb9f05997232fcfc8a9d1955686e075cf1893941479f45aacc01af25baa"
     },
     {
+      "path": "chrome/browser/signin/dice_response_handler.cc",
+      "before_sha256": "d6e3e21559c7abebd08099f2e3b7f7f16678c180074aac4f67403d453d7ba9bb",
+      "after_sha256": "4cd037a96c3c83d5d8e62b2f91f6e9ca44cbc175c20d934ccdb50f039aa69e4e"
+    },
+    {
+      "path": "chrome/browser/signin/dice_response_handler.h",
+      "before_sha256": "d1b2b095217efb77df36b10f540bfb126bbc5d500b91aa3ef586fda54c57c011",
+      "after_sha256": "d18aacb920657ab2634ead5a99744de1a5e999f1faef4bd39e113d9776c8a099"
+    },
+    {
+      "path": "chrome/browser/signin/dice_response_handler_unittest.cc",
+      "before_sha256": "acb4bcaba5302c145ba55622a4196b2f1e4bbae0ce0030efe06c51226f12d5ce",
+      "after_sha256": "8abc95bb1650e2d32c976532e42ae4e681993c70bce65753873a50d996638b59"
+    },
+    {
+      "path": "chrome/browser/signin/dice_tab_helper.cc",
+      "before_sha256": "d2a2fd695702fcf6f6c3dd6d1c2e774b95837dab6d3b48d640c1a44ba0058c82",
+      "after_sha256": "a0578196a84ebe4f56450898ec6c56d14f492043a32e0501b73e9f3a48bd9f3d"
+    },
+    {
+      "path": "chrome/browser/signin/dice_tab_helper.h",
+      "before_sha256": "b28f88cd0a9384010958c5a97c86390164a8909470d46c5b1c3e2d8035af84d7",
+      "after_sha256": "5d5b97ca4639a0cec40dcc08270e303634c2c93722a6161e7f6e78ba14095aa8"
+    },
+    {
       "path": "chrome/browser/signin/dice_web_signin_interceptor.cc",
       "before_sha256": "fb8f5ddcdc58fd3717cb3b04492ce8568a53257b08915dea9774dcb8b71353e5",
       "after_sha256": "4d18fb3a99020b07c875d933aced14a877b3acfec3e3ed65bed9c77d5e32b7aa"
@@ -1875,6 +1924,21 @@
       "path": "chrome/browser/signin/header_modification_delegate_impl.cc",
       "before_sha256": "db3c6f035572156aba90ed15d6f3c8159db3b36067627946aa30e3227ac2ef0c",
       "after_sha256": "8132ab32c098fb106dacfa1f9446430d4411a5c74329fd1cec829735058f8cfd"
+    },
+    {
+      "path": "chrome/browser/signin/process_dice_header_delegate_impl.cc",
+      "before_sha256": "68fd94583967643907db892185c4e3d77577df235947cf9a5573f486d7c2817b",
+      "after_sha256": "d8d15a6a093e674cca5b69d48a632a4a57c87713665908db82a43cb16df4cf97"
+    },
+    {
+      "path": "chrome/browser/signin/process_dice_header_delegate_impl.h",
+      "before_sha256": "00153aee3d4ef60f770d4597eaaba4883ecbfb19acf35e1bb64c26ae8c1c1ce5",
+      "after_sha256": "88eed38810f5c84f4f7173fcde18b693dcb2da58c5b2dcc021ae4d95055f15b3"
+    },
+    {
+      "path": "chrome/browser/signin/process_dice_header_delegate_impl_unittest.cc",
+      "before_sha256": "c3503cba78b9edd69de13468ce9e412b7b734fe0217fe226ea26ede82deb030b",
+      "after_sha256": "facfb1a76313aa755ad86cb9daf6762a45261160196c829753655c9f4248d47d"
     },
     {
       "path": "chrome/browser/signin/signin_promo.cc",
@@ -2092,6 +2156,16 @@
       "after_sha256": "0716acd79dbc80436417df5b0349980d521c3663198649bcdd8373c6f36589fa"
     },
     {
+      "path": "chrome/browser/ui/views/profiles/profile_picker_sign_in_provider.cc",
+      "before_sha256": "c14c9f74dd5e1b4926cf3e5f5f003b1c49d632a5bd457e64367668bfa12119bf",
+      "after_sha256": "c0a5f33009e5f10929d482acfd72c316af5b2b75dfc518d39e5ba7e22602db7a"
+    },
+    {
+      "path": "chrome/browser/ui/views/profiles/profile_picker_sign_in_provider_browsertest.cc",
+      "before_sha256": "0fec22b997a7cc45f8ad00ea1e9a292f48e00ea118de066d2d5500712517d341",
+      "after_sha256": "6d3266f4e700d53c245b8c2fbaf4784c742a2cc67b6c889947fb4ac6ba40b978"
+    },
+    {
       "path": "chrome/browser/ui/views/safe_browsing/password_reuse_modal_warning_dialog.cc",
       "before_sha256": "93cb8ac8a46f4d0a5de822cacd28124d611882382d2335f3a2b90e34fab4e98a",
       "after_sha256": "93cb8ac8a46f4d0a5de822cacd28124d611882382d2335f3a2b90e34fab4e98a"
@@ -2200,6 +2274,16 @@
       "path": "chrome/browser/ui/webui/settings/settings_ui.cc",
       "before_sha256": "0de76625d45d44de1729bcc84e59d3429354f8930a33f473e87646e51465f308",
       "after_sha256": "34fcdcee59731fdf6e9d54299cedb7a216c218c63d93313a154b7fc609081c29"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/history_sync_optin_helper.cc",
+      "before_sha256": "2baa48257d960f60b34a40e51bf4ec8c107f0da84d33361c3cb6111ede50ceb2",
+      "after_sha256": "8583d9e8dd9384ca8280a3b5839b51ab926184a349e2526191bb215d25c8d1db"
+    },
+    {
+      "path": "chrome/browser/ui/webui/signin/history_sync_optin_helper_browsertest.cc",
+      "before_sha256": "f8963b656721c55063c6f5215bd084e0df1e13a07f1d72b99dc8d06def491640",
+      "after_sha256": "2f0db5ccf234cd92082187b663f54a8d81cc65e0a6f488af1a4f14928ba15013"
     },
     {
       "path": "chrome/browser/ui/webui/signin/inline_login_handler.cc",
@@ -4635,7 +4719,23 @@
     "baseline_patches": 231,
     "overlays": 27,
     "source_files_checked": 656,
-    "result": "byte-identical"
+    "result": "changed-after-equivalent-baseline",
+    "baseline_result": "byte-identical",
+    "baseline_stack_sha256": "9a3f372a77fe35fbc30ede81355b0ce7a6455abb6d8b83bab99f9d633df09a41",
+    "changed_source_files": [
+      "chrome/browser/signin/dice_response_handler.cc",
+      "chrome/browser/signin/dice_response_handler.h",
+      "chrome/browser/signin/dice_response_handler_unittest.cc",
+      "chrome/browser/signin/dice_tab_helper.cc",
+      "chrome/browser/signin/dice_tab_helper.h",
+      "chrome/browser/signin/process_dice_header_delegate_impl.cc",
+      "chrome/browser/signin/process_dice_header_delegate_impl.h",
+      "chrome/browser/signin/process_dice_header_delegate_impl_unittest.cc",
+      "chrome/browser/ui/views/profiles/profile_picker_sign_in_provider.cc",
+      "chrome/browser/ui/views/profiles/profile_picker_sign_in_provider_browsertest.cc",
+      "chrome/browser/ui/webui/signin/history_sync_optin_helper.cc",
+      "chrome/browser/ui/webui/signin/history_sync_optin_helper_browsertest.cc"
+    ]
   },
-  "stack_sha256": "9a3f372a77fe35fbc30ede81355b0ce7a6455abb6d8b83bab99f9d633df09a41"
+  "stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038"
 }

@@ -1,4 +1,4 @@
-"""Strict Windows 156 checkpoint manifests and content-verified restoration."""
+"""Strict Windows 157 checkpoint manifests and content-verified restoration."""
 from __future__ import annotations
 import argparse
 import concurrent.futures
@@ -184,7 +184,7 @@ def preflight(repo, source_run, current_stage, source_stage=0, allow_migration=F
                   and (not source_stage or int(m[1]) == source_stage)
                   and (source_run != os.environ.get('GITHUB_RUN_ID') or int(m[1]) < current_stage)]
     if not candidates:
-        raise ValueError('No complete preceding Windows 156 checkpoint; never substitute a 155 donor')
+        raise ValueError('No complete preceding Windows 157 checkpoint; never substitute a 155 donor')
     stage = max(n for n, _ in candidates)
     selected = [a for n, a in candidates if n == stage]
     if len(selected) != 1:
@@ -312,7 +312,7 @@ def verify_tree(work, manifest):
     fields = dict(re.findall(r'(?m)^(MAJOR|MINOR|BUILD|PATCH)=(\d+)\s*$',
                              (work / 'src/chrome/VERSION').read_text()))
     if '.'.join(fields.get(k, '') for k in ('MAJOR', 'MINOR', 'BUILD', 'PATCH')) != VERSION:
-        raise ValueError('Extracted source is not Windows 156 target')
+        raise ValueError('Extracted source is not Windows 157 target')
 
 
 def inspect_archive_listing(lines):
@@ -398,7 +398,7 @@ def main():
             if a.output:
                 plain(a.output).parent.mkdir(parents=True, exist_ok=True)
                 a.output.write_text(json.dumps(summary, indent=2) + '\n', encoding='utf-8')
-    print('Windows 156 checkpoint operation passed: ' + a.operation)
+    print('Windows 157 checkpoint operation passed: ' + a.operation)
 
 
 if __name__ == '__main__':

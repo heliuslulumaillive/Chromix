@@ -52,7 +52,7 @@ def diagnostic_fixture(browser=None, root=None):
 
 
 def source_fixture():
-    return {'schema_version': 1, 'build_variant': 'security-win156',
+    return {'schema_version': 1, 'build_variant': 'security-win157',
             'chromium_version': runtime.VERSION, 'recipe_sha256': 'a' * 64,
             'source_receipt_sha256': 'b' * 64,
             'gn': {'sha256': 'c' * 64, 'assignments': dict(runtime.build_record.REQUIRED_FLAGS)}}

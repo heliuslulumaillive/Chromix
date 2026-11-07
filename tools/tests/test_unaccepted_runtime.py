@@ -26,7 +26,7 @@ class UnacceptedRuntimeTest(unittest.TestCase):
         for name, data in payload.items():
             (self.bundle / name).write_bytes(data)
         self.record = {'schema_version': 1, 'run_id': 123, 'source_commit': 'a' * 40,
-                       'build_variant': 'fingerprint-modes-win156', 'chromium_version': diagnostic.VERSION,
+                       'build_variant': 'fingerprint-modes-win157', 'chromium_version': diagnostic.VERSION,
                        'files': {name: hashlib.sha256(data).hexdigest() for name, data in payload.items()}}
         (self.bundle / 'google-services-build.json').write_text(json.dumps(self.record))
         self.state = {'schema_version': 2, 'stage': 1, 'run_id': '123', 'source_commit': 'a' * 40,
@@ -36,7 +36,7 @@ class UnacceptedRuntimeTest(unittest.TestCase):
         self.state_path = self.evidence / 'stage-state.json'
         self.save_state()
         source = {'schema_version': 1, 'run_id': '123', 'source_commit': 'a' * 40,
-                  'build_variant': 'security-win156', 'chromium_version': diagnostic.VERSION,
+                  'build_variant': 'security-win157', 'chromium_version': diagnostic.VERSION,
                   'recipe_sha256': 'b' * 64,
                   'source_receipt_sha256': diagnostic.sha256(self.bundle / 'google-services-source.json')}
         (self.evidence / 'build-inputs.json').write_text(json.dumps(source))
@@ -123,7 +123,7 @@ class UnacceptedRuntimeTest(unittest.TestCase):
             self.assertEqual(archive.namelist().count('evidence/google-services-source.json'), 1)
 
     def test_workflow_preserves_diagnostic_before_checkpoint_without_using_candidate_name(self):
-        worker = yaml.safe_load((ROOT / '.github/workflows/security-win156-worker.yml').read_text())
+        worker = yaml.safe_load((ROOT / '.github/workflows/security-win157-worker.yml').read_text())
         steps = worker['jobs']['build']['steps']
         index = next(i for i, step in enumerate(steps) if step.get('id') == 'diagnostic')
         checkpoint = next(i for i, step in enumerate(steps) if step.get('id') == 'checkpoint')

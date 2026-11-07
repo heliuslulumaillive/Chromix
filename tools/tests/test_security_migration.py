@@ -36,7 +36,7 @@ class MigrationTests(unittest.TestCase):
         (history / (self.old + '.patch')).write_bytes(b'old patch')
         (history.parent / '0001-restore-google-services.patch').write_bytes(b'new patch')
         self.write_policy()
-        self.receipt = {'variant': 'google-services-self-use', 'build_variant': 'fingerprint-modes-win156',
+        self.receipt = {'variant': 'google-services-self-use', 'build_variant': 'fingerprint-modes-win157',
                         'chromium_version': m.VERSION, 'patch_sha256': self.old,
                         'preparation_sha256': 'd' * 64}
         (self.work / 'google-services-source.json').write_text(json.dumps(self.receipt))
@@ -80,7 +80,7 @@ class MigrationTests(unittest.TestCase):
             m.registered_rule(self.repo, self.manifest)
 
     def test_same_product_stack_can_migrate_recipe_without_fake_patch_history(self):
-        kind = 'lite-windows156-product'
+        kind = 'lite-windows157-product'
         self.rule.update(source_patch_kind=kind, target_patch_kind=kind,
                          source_aggregate_sha256=self.new)
         self.write_policy()
@@ -134,13 +134,27 @@ class RegisteredCheckoutTest(unittest.TestCase):
         # Historical edges keep their reviewed target. Only explicitly reviewed
         # edges to this payload are executable; do not silently retarget donors.
         rules = [rule for rule in rules if rule['target_recipe_sha256'] == m.recipe(root)]
-        self.assertTrue(rules, 'The current source needs an explicit reviewed donor transition')
+        if not rules:
+            # A new Chromium identity starts from its exact authenticated upstream
+            # snapshot. Existing same-version edits still require reviewed edges;
+            # a 156 edge must never be relabeled to authorize a 157 checkpoint.
+            from tools.fetch_upstream_cache import load_manifest
+            pin, _ = load_manifest('windows', 'x64', root=root)
+            all_rules = json.loads((root / m.POLICY).read_text(encoding='utf-8'))['migrations']
+            self.assertEqual(pin['chromium_version'], m.VERSION)
+            self.assertNotIn(m.VERSION, {rule['chromium_version'] for rule in all_rules})
+            for rule in all_rules:
+                donor = {**c.IDENTITY, 'source_commit': rule['source_commit'],
+                         'recipe_sha256': rule['source_recipe_sha256']}
+                with self.assertRaises(ValueError):
+                    m.registered_rule(root, donor)
+            return
         for rule in rules:
             with self.subTest(migration=rule['id']):
                 donor = {**c.IDENTITY, 'source_commit': rule['source_commit'],
                          'recipe_sha256': rule['source_recipe_sha256']}
                 self.assertEqual(m.registered_rule(root, donor)['id'], rule['id'])
-                profile = 'lite' if rule.get('target_patch_kind') == 'lite-windows156-product' else 'legacy'
+                profile = 'lite' if rule.get('target_patch_kind') == 'lite-windows157-product' else 'legacy'
                 self.assertEqual(rule['target_preparation_sha256'], preparation.recipe_identity(root, profile=profile)[0])
 
 

@@ -112,6 +112,8 @@ jobs:
           tools/tests/test_verify_windows_bundle.py
           tools/tests/test_sdk_publish_workflow.py
           tools/tests/test_fetch_preimage.py
+          tools/tests/test_check_patches.py tools/tests/test_selected_patch_lint.py
+          tools/tests/test_lite_patch_lint.py
           tools/tests/test_functionality_audits.py tools/tests/test_fingerprint_acceptance.py
           tools/tests/test_device_p0.py tools/tests/test_canvas_native_paths.py
           tools/tests/test_gpu_backend_native.py tools/tests/test_gpu_backend.py

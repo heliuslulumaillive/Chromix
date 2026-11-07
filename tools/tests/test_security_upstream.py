@@ -4,11 +4,14 @@ from datetime import datetime, timezone
 import unittest
 from tools import fetch_upstream_cache as cache
 from tools.tests.test_fetch_upstream_cache import metadata
+from pathlib import Path
+
+LEGACY_ROOT = Path(__file__).resolve().parent / 'fixtures/windows156-upstream'
 
 
 class Windows156UpstreamTests(unittest.TestCase):
     def setUp(self):
-        self.pin, self.identity = cache.load_manifest('windows', 'x64', 41098495420)
+        self.pin, self.identity = cache.load_manifest('windows', 'x64', 41098495420, root=LEGACY_ROOT)
         self.run, self.artifact = metadata(self.pin)
         self.run.update(status='in_progress', conclusion=None, run_attempt=1,
                         run_started_at='2026-10-30T17:24:06Z')
@@ -26,7 +29,7 @@ class Windows156UpstreamTests(unittest.TestCase):
         cache.validate_metadata(pin or self.pin,run or self.run,artifact or self.artifact,
             self.now,producer=self.producer if producer is None else producer)
 
-    def test_current_manifest_matches_exact_156_identity(self):
+    def test_historical_manifest_matches_exact_156_identity(self):
         self.assertEqual(self.pin['chromium_version'],'156.0.8078.79')
         self.assertEqual(self.pin['ungoogled_commit'],'28a211ab4ab6b83d919966a4f58a6df23cf4fb29')
         self.assertEqual(self.pin['head_sha'],'8492884eb30fdd9417ea7816aa92def805c97c74')
@@ -38,7 +41,7 @@ class Windows156UpstreamTests(unittest.TestCase):
     def test_old_versions_and_wrong_runs_cannot_be_selected(self):
         for run in [40692824400,40811853097,41015794414,40699893733]:
             with self.subTest(run=run),self.assertRaisesRegex(cache.CacheMiss,'run_id_mismatch'):
-                cache.load_manifest('windows','x64',run)
+                cache.load_manifest('windows','x64',run,root=LEGACY_ROOT)
         for version in ['155.0.8059.39','156.0.8078.73']:
             pin=copy.deepcopy(self.pin);pin['chromium_version']=version
             with self.subTest(version=version),self.assertRaisesRegex(cache.CacheMiss,'untrusted_checkpoint'):
@@ -71,6 +74,39 @@ class Windows156UpstreamTests(unittest.TestCase):
     def test_failed_run_and_wrong_attempt_rejected_even_with_successful_old_job(self):
         for change in [{'status':'completed','conclusion':'failure'},{'run_attempt':2}]:
             with self.subTest(change=change),self.assertRaises(cache.CacheMiss):self.validate(run={**self.run,**change})
+
+
+class Windows157UpstreamTests(unittest.TestCase):
+    def setUp(self):
+        self.pin, self.identity = cache.load_manifest('windows', 'x64', 42046998774)
+        self.run, self.artifact = metadata(self.pin)
+        self.now = datetime(2026, 11, 7, 20, tzinfo=timezone.utc)
+
+    def test_current_manifest_binds_the_completed157_build_and_exact_artifact(self):
+        self.assertEqual(self.pin['chromium_version'], '157.0.8103.38')
+        self.assertEqual(self.pin['ungoogled_commit'], 'de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c')
+        self.assertEqual(self.pin['head_sha'], 'f85bc55429c37b1c748b676b18fe79b38eee3207')
+        self.assertEqual(self.pin['artifact']['id'], 13560057174)
+        self.assertEqual(self.pin['artifact']['size_in_bytes'], 16243947927)
+        self.assertEqual(self.pin['artifact']['digest'], 'sha256:0dc5c30c4eb0c21e503371e9aa0e28c37c1b478271b4612d82e1fa4dec9bc16d')
+        cache.validate_metadata(self.pin, self.run, self.artifact, self.now)
+
+    def test_previous156_run_cannot_be_selected_for157(self):
+        with self.assertRaisesRegex(cache.CacheMiss, 'run_id_mismatch'):
+            cache.load_manifest('windows', 'x64', 41098495420)
+
+    def test_incomplete_or_wrong_revision_donor_is_not_a_completed157_snapshot(self):
+        for change in [{'status':'in_progress', 'conclusion':None},
+                       {'head_sha':'8492884eb30fdd9417ea7816aa92def805c97c74'},
+                       {'conclusion':'failure'}]:
+            with self.subTest(change=change), self.assertRaisesRegex(cache.CacheMiss, 'untrusted_run'):
+                cache.validate_metadata(self.pin, {**self.run, **change}, self.artifact, self.now)
+
+    def test157_artifact_expiry_digest_and_provenance_remain_mandatory(self):
+        for change in [{'expired':True}, {'digest':'sha256:'+'0'*64},
+                       {'expires_at':'2026-11-06T00:00:00Z'}, {'size_in_bytes':1}]:
+            with self.subTest(change=change), self.assertRaises(cache.CacheMiss):
+                cache.validate_metadata(self.pin, self.run, {**self.artifact, **change}, self.now)
 
 
 if __name__=='__main__':unittest.main()

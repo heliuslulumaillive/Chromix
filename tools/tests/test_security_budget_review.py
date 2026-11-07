@@ -19,7 +19,7 @@ PWSH = shutil.which('pwsh') or shutil.which('pwsh.exe')
 class BudgetEvidenceTests(unittest.TestCase):
     def setUp(self):
         self.manifest = {'run_id': '123', 'run_attempt': '1', 'source_commit': 'a' * 40,
-                         'stage': 1, 'resume_safe': True, 'chromium_version': '156.0.8078.79',
+                         'stage': 1, 'resume_safe': True, 'chromium_version': '157.0.8103.38',
                          'core_commit': 'b' * 40, 'windows_commit': 'c' * 40,
                          'recipe_sha256': 'd' * 64, 'source_receipt_sha256': 'e' * 64,
                          'gn_args_sha256': 'f' * 64}
@@ -87,7 +87,7 @@ class BudgetEvidenceTests(unittest.TestCase):
 
     def test_reviewed_artifact_and_each_payload_hash_are_bound(self):
         from tools import security_budget_review as module
-        artifact = {'id': 7, 'name': 'security-win156-evidence-s1', 'expired': False,
+        artifact = {'id': 7, 'name': 'security-win157-evidence-s1', 'expired': False,
                     'size_in_bytes': 500, 'digest': 'sha256:' + 'a' * 64, 'created_at': '2026-10-31T11:38:09Z'}
         identity = module.checkpoint.artifact_identity(artifact)
         data = self.files()

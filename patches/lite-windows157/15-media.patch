@@ -1,0 +1,420 @@
+diff --git a/content/browser/renderer_host/media/media_stream_manager.cc b/content/browser/renderer_host/media/media_stream_manager.cc
+--- a/content/browser/renderer_host/media/media_stream_manager.cc
++++ b/content/browser/renderer_host/media/media_stream_manager.cc
+@@ -2714,6 +2714,23 @@
+   request->SetAudioType(request->stream_controls().audio.stream_type);
+   request->SetVideoType(request->stream_controls().video.stream_type);
+ 
++  // Browser-process environment limits precede every request route. The
++  // native test/auto-accept UI intentionally bypasses the embedder's permission
++  // delegate, so a Chrome UI-only check cannot enforce this capture policy.
++  const auto is_managed_capture_blocked = [](MediaStreamType type) {
++    const auto* command_line = base::CommandLine::ForCurrentProcess();
++    if (!command_line->HasSwitch("shardx-managed-environment")) return false;
++    return (type == MediaStreamType::DEVICE_AUDIO_CAPTURE &&
++            command_line->HasSwitch("shardx-block-microphone")) ||
++           (type == MediaStreamType::DEVICE_VIDEO_CAPTURE &&
++            command_line->HasSwitch("shardx-block-camera"));
++  };
++  if (is_managed_capture_blocked(request->audio_type()) ||
++      is_managed_capture_blocked(request->video_type())) {
++    FinalizeRequestFailed(request_it, MediaStreamRequestResult::PERMISSION_DENIED);
++    return;
++  }
++
+   const bool is_display_capture =
+       request->video_type() == MediaStreamType::DISPLAY_VIDEO_CAPTURE ||
+       request->video_type() ==
+diff --git a/third_party/blink/renderer/core/css/media_values.cc b/third_party/blink/renderer/core/css/media_values.cc
+--- a/third_party/blink/renderer/core/css/media_values.cc
++++ b/third_party/blink/renderer/core/css/media_values.cc
+@@ -196,6 +196,8 @@
+   return frame->DevicePixelRatio();
+ }
+ 
++// HDR and gamut use the actual ScreenInfo. Launch preferences are applied
++// to WebPreferences before publishing settings, never substituted in getters.
+ bool MediaValues::CalculateDeviceSupportsHDR(LocalFrame* frame) {
+   DCHECK(frame);
+   DCHECK(frame->GetPage());
+diff --git a/third_party/blink/renderer/modules/media_capabilities/media_capabilities.cc b/third_party/blink/renderer/modules/media_capabilities/media_capabilities.cc
+--- a/third_party/blink/renderer/modules/media_capabilities/media_capabilities.cc
++++ b/third_party/blink/renderer/modules/media_capabilities/media_capabilities.cc
+@@ -14,7 +14,9 @@
+ #include "base/metrics/histogram_functions.h"
+ #include "base/metrics/histogram_macros.h"
+ #include "base/numerics/safe_conversions.h"
++#include "base/strings/string_split.h"
+ #include "base/task/single_thread_task_runner.h"
++#include "base/uxr_config.h"
+ #include "media/base/media_switches.h"
+ #include "media/base/media_util.h"
+ #include "media/base/mime_util.h"
+@@ -109,6 +111,76 @@
+       kWebrtcEncodeSmoothIfPowerEfficientDefault);
+ }
+ 
++struct UxrCodecCapabilities {
++  bool supported = false;
++  bool smooth = false;
++  bool power_efficient = false;
++};
++
++// A present codec key maps that family. Values are exact comma-separated
++// tokens: supported,smooth,power-efficient. Unknown tokens are ignored.
++bool GetUxrCodecCapabilities(media::VideoCodec codec,
++                             UxrCodecCapabilities* out) {
++  const char* key = nullptr;
++  switch (codec) {
++    case media::VideoCodec::kH264:
++      key = "uxr-codec-h264";
++      break;
++    case media::VideoCodec::kVP8:
++      key = "uxr-codec-vp8";
++      break;
++    case media::VideoCodec::kVP9:
++      key = "uxr-codec-vp9";
++      break;
++    case media::VideoCodec::kAV1:
++      key = "uxr-codec-av1";
++      break;
++    case media::VideoCodec::kHEVC:
++      key = "uxr-codec-hevc";
++      break;
++    default:
++      return false;
++  }
++
++  const base::UxrConfig& config = base::UxrConfig::GetInstance();
++  if (!config.Has(key) || config.Get(key) == "native") {
++    return false;
++  }
++
++  UxrCodecCapabilities capabilities;
++  for (const std::string& token :
++       base::SplitString(config.Get(key), ",", base::KEEP_WHITESPACE,
++                         base::SPLIT_WANT_NONEMPTY)) {
++    if (token == "supported") {
++      capabilities.supported = true;
++    } else if (token == "smooth") {
++      capabilities.smooth = true;
++    } else if (token == "power-efficient") {
++      capabilities.power_efficient = true;
++    }
++  }
++
++  capabilities.smooth &= capabilities.supported;
++  capabilities.power_efficient &= capabilities.supported;
++  *out = capabilities;
++  return true;
++}
++
++template <typename InfoType>
++void ApplyUxrCodecCapabilities(media::VideoCodec codec, InfoType* info) {
++  UxrCodecCapabilities capabilities;
++  if (!GetUxrCodecCapabilities(codec, &capabilities)) {
++    return;
++  }
++
++  // Never promote capabilities beyond Chromium's native result.
++  const bool supported = info->supported() && capabilities.supported;
++  info->setSupported(supported);
++  info->setSmooth(supported && info->smooth() && capabilities.smooth);
++  info->setPowerEfficient(supported && info->powerEfficient() &&
++                          capabilities.power_efficient);
++}
++
+ // static
+ bool UseGpuFactoriesForPowerEfficient(
+     ExecutionContext* execution_context,
+@@ -870,6 +942,8 @@
+         // Additional information needed for lookup in WebrtcVideoPerfHistory.
+         codec_profile =
+             WebRtcVideoFormatToMediaVideoCodecProfile(*sdp_video_format);
++        pending_cb_map_.at(callback_id)->video_codec =
++            media::VideoCodecProfileToVideoCodec(codec_profile);
+         frames_per_second = base::ClampRound(config->video()->framerate());
+         video_resolution =
+             gfx::Size(config->video()->width(), config->video()->height());
+@@ -1107,6 +1181,8 @@
+         // Additional information needed for lookup in WebrtcVideoPerfHistory.
+         codec_profile =
+             WebRtcVideoFormatToMediaVideoCodecProfile(*sdp_video_format);
++        pending_cb_map_.at(callback_id)->video_codec =
++            media::VideoCodecProfileToVideoCodec(codec_profile);
+         video_pixels = config->video()->width() * config->video()->height();
+         frames_per_second = base::ClampRound(config->video()->framerate());
+         video_resolution =
+@@ -1147,10 +1223,22 @@
+       TaskType::kInternalMediaRealTime);
+   if (auto* handler = MakeGarbageCollected<MediaRecorderHandler>(
+           task_runner, KeyFrameRequestProcessor::Configuration())) {
++    auto web_configuration = ToWebMediaConfiguration(config);
++    // EncodingInfo checks only video when both tracks are specified.
++    if (web_configuration.video_configuration &&
++        web_configuration.audio_configuration &&
++        !handler->CanSupportMimeType(
++            web_configuration.audio_configuration->mime_type,
++            web_configuration.audio_configuration->codec,
++            MediaRecorderHandler::CanSupportMimeTypeCaller::kEncodingInfo)) {
++      resolver->Resolve(CreateEncodingInfoWith(false));
++      return promise;
++    }
++
+     task_runner->PostTask(
+         FROM_HERE, blink::BindOnce(&MediaRecorderHandler::EncodingInfo,
+                                    WrapPersistent(handler),
+-                                   ToWebMediaConfiguration(config),
++                                   std::move(web_configuration),
+                                    BindOnce(&OnMediaCapabilitiesEncodingInfo,
+                                             WrapPersistent(resolver))));
+ 
+@@ -1390,12 +1478,15 @@
+ 
+   if (!EnsurePerfHistoryService(execution_context)) {
+     MediaCapabilitiesDecodingInfo* info = CreateDecodingInfoWith(true);
++    info->setKeySystemAccess(access);
++    ApplyUxrCodecCapabilities(video_codec, info);
+     resolver->Resolve(WrapPersistent(info));
+     return;
+   }
+ 
+   const int callback_id = InsertCallbackAndScheduleTimeout(
+       resolver, access, request_time, QueryType::kDecoding);
++  pending_cb_map_.at(callback_id)->video_codec = video_codec;
+ 
+   media::mojom::blink::PredictionFeaturesPtr features =
+       media::mojom::blink::PredictionFeatures::New(
+@@ -1534,6 +1625,7 @@
+   }
+ 
+   info->setSmooth(*pending_cb->db_is_smooth);
++  ApplyUxrCodecCapabilities(pending_cb->video_codec, info);
+ 
+   const base::TimeDelta process_time =
+       base::TimeTicks::Now() - pending_cb->request_time;
+@@ -1596,6 +1688,12 @@
+     return;
+   }
+   PendingCallbackState* pending_cb = pending_cb_map_.at(callback_id);
++  ExecutionContext* execution_context =
++      pending_cb->resolver->GetExecutionContext();
++  if (!execution_context || execution_context->IsContextDestroyed()) {
++    pending_cb_map_.erase(callback_id);
++    return;
++  }
+ 
+   // Special treatment if the config is not supported, or if only audio was
+   // specified which is indicated by the fact that `video_pixels` equals 0,
+@@ -1668,6 +1766,7 @@
+     info->setSupported(is_supported);
+     info->setPowerEfficient(is_power_efficient);
+     info->setSmooth(is_smooth);
++    ApplyUxrCodecCapabilities(pending_cb->video_codec, info);
+     pending_cb->resolver->DowncastTo<MediaCapabilitiesInfo>()->Resolve(info);
+   } else {
+     CHECK_EQ(pending_cb->query_type, QueryType::kWebrtcDecoding);
+@@ -1675,6 +1774,7 @@
+     info->setSupported(is_supported);
+     info->setPowerEfficient(is_power_efficient);
+     info->setSmooth(is_smooth);
++    ApplyUxrCodecCapabilities(pending_cb->video_codec, info);
+     pending_cb->resolver->DowncastTo<MediaCapabilitiesDecodingInfo>()->Resolve(
+         info);
+   }
+@@ -1731,6 +1831,7 @@
+ 
+   info->setSupported(supported);
+   info->setSmooth(pending_cb->db_is_smooth.value_or(false));
++  ApplyUxrCodecCapabilities(pending_cb->video_codec, info);
+ 
+   pending_cb->resolver->DowncastTo<MediaCapabilitiesDecodingInfo>()->Resolve(
+       info);
+diff --git a/third_party/blink/renderer/modules/media_capabilities/media_capabilities.h b/third_party/blink/renderer/modules/media_capabilities/media_capabilities.h
+--- a/third_party/blink/renderer/modules/media_capabilities/media_capabilities.h
++++ b/third_party/blink/renderer/modules/media_capabilities/media_capabilities.h
+@@ -157,6 +157,7 @@
+     std::optional<bool> db_is_power_efficient;
+     std::optional<bool> is_gpu_factories_supported;
+     std::optional<bool> is_builtin_video_codec;
++    media::VideoCodec video_codec = media::VideoCodec::kUnknown;
+     base::TimeTicks request_time;
+     QueryType query_type;
+ 
+diff --git a/third_party/blink/renderer/modules/mediarecorder/media_recorder.cc b/third_party/blink/renderer/modules/mediarecorder/media_recorder.cc
+--- a/third_party/blink/renderer/modules/mediarecorder/media_recorder.cc
++++ b/third_party/blink/renderer/modules/mediarecorder/media_recorder.cc
+@@ -306,6 +306,9 @@
+   if (!recorder_handler_->Start(time_slice, content_type.GetType(),
+                                 audio_bits_per_second_,
+                                 video_bits_per_second_)) {
++    // Start may have registered observers before rejecting the tracks.
++    state_ = State::kInactive;
++    recorder_handler_->Stop();
+     exception_state.ThrowDOMException(
+         DOMExceptionCode::kNotSupportedError,
+         "There was an error starting the MediaRecorder.");
+@@ -390,6 +393,7 @@
+ 
+ bool MediaRecorder::isTypeSupported(ExecutionContext* context,
+                                     const String& type) {
++  // Use the same MIME parser and encoder checks as native initialization.
+   MediaRecorderHandler* handler = MakeGarbageCollected<MediaRecorderHandler>(
+       context->GetTaskRunner(TaskType::kInternalMediaRealTime),
+       KeyFrameRequestProcessor::Configuration());
+diff --git a/third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.cc b/third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.cc
+--- a/third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.cc
++++ b/third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.cc
+@@ -231,8 +231,15 @@
+   std::vector<std::string> codecs_list;
+   media::SplitCodecs(web_codecs.Utf8(), &codecs_list);
+ 
++  if (video && codecs_list.empty() &&
++      VideoTrackRecorderImpl::GetPreferredCodec(GetMediaContainerTypeFromString(type)) ==
++          media::VideoCodec::kUnknown)
++    return false;
++
+   for (const auto& codec : codecs_list) {
+     const auto profile = VideoStringToCodecProfile(String(codec));
++    if (!media::IsUxrVideoCodecAllowed(profile.codec))
++      return false;
+     const bool can_support = CanSupportMimeTypeForCodec(type, codec);
+ 
+     Vector<String> uma_key_vector;
+@@ -472,7 +479,13 @@
+     return false;
+   }
+ 
+-  passthrough_enabled_ = type_.empty();
++  // An encoded input track may use a codec excluded by the launch policy.
++  // Re-encode through the selected allowed codec when restrictions are active.
++  passthrough_enabled_ = type_.empty() && !media::HasUxrVideoCodecRestrictions();
++  // The default muxer is WebM even when policy disables passthrough.
++  if (type_.empty() && !passthrough_enabled_) {
++    type_ = media_stream->NumberOfVideoComponents() ? "video/webm" : "audio/webm";
++  }
+ 
+   // Once established that we support the codec(s), hunt then individually.
+   video_codec_profile_ = VideoStringToCodecProfile(codecs);
+@@ -554,6 +567,11 @@
+     LOG(WARNING) << __func__ << ": no tracks to be recorded.";
+     return false;
+   }
++
++  if (use_video_tracks &&
++      (video_codec_profile_.codec == media::VideoCodec::kUnknown ||
++       !media::IsUxrVideoCodecAllowed(video_codec_profile_.codec)))
++    return false;
+ 
+   const bool use_mp4_muxer = IsMp4MuxerRequired(type);
+ 
+diff --git a/third_party/blink/renderer/modules/mediarecorder/video_track_recorder.cc b/third_party/blink/renderer/modules/mediarecorder/video_track_recorder.cc
+--- a/third_party/blink/renderer/modules/mediarecorder/video_track_recorder.cc
++++ b/third_party/blink/renderer/modules/mediarecorder/video_track_recorder.cc
+@@ -706,6 +706,8 @@
+   for (const auto& supported_profile : GetVEASupportedProfiles()) {
+     const media::VideoCodecProfile codec_profile = supported_profile.profile;
+     for (auto& entry : kPreferredCodecAndVEAProfiles) {
++      if (!media::IsUxrVideoCodecAllowed(entry.codec))
++        continue;
+       if (codec_profile >= entry.min_profile &&
+           codec_profile <= entry.max_profile &&
+           std::find(entry.supported_container_types.begin(),
+@@ -724,12 +726,19 @@
+     }
+   }
+ 
+-  if (type == MediaTrackContainerType::kVideoMp4 ||
+-      type == MediaTrackContainerType::kAudioMp4) {
+-    return media::VideoCodec::kVP9;
+-  }
+-
+-  return media::VideoCodec::kVP8;
++  const bool mp4 = type == MediaTrackContainerType::kVideoMp4 ||
++                   type == MediaTrackContainerType::kAudioMp4;
++  for (media::VideoCodec codec : {media::VideoCodec::kVP8, media::VideoCodec::kVP9,
++                                  media::VideoCodec::kAV1, media::VideoCodec::kH264}) {
++    if (mp4 && codec == media::VideoCodec::kVP8)
++      continue;
++    if (codec == media::VideoCodec::kH264 && !mp4 &&
++        type != MediaTrackContainerType::kVideoMatroska)
++      continue;
++    if (media::IsUxrVideoCodecAllowed(codec) && IsSoftwareEncoderAvailable(codec))
++      return codec;
++  }
++  return media::VideoCodec::kUnknown;
+ }
+ 
+ // static
+diff --git a/third_party/blink/renderer/modules/mediastream/media_devices.cc b/third_party/blink/renderer/modules/mediastream/media_devices.cc
+--- a/third_party/blink/renderer/modules/mediastream/media_devices.cc
++++ b/third_party/blink/renderer/modules/mediastream/media_devices.cc
+@@ -1,6 +1,9 @@
+ // Copyright 2015 The Chromium Authors
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
++
++#include "base/uxr_config.h"
++#include "base/strings/string_number_conversions.h"
+ 
+ #include "third_party/blink/renderer/modules/mediastream/media_devices.h"
+ 
+@@ -1462,9 +1465,25 @@
+        i < static_cast<wtf_size_t>(
+                mojom::blink::MediaDeviceType::kNumMediaDeviceTypes);
+        ++i) {
+-    for (wtf_size_t j = 0; j < enumeration[i].size(); ++j) {
++    wtf_size_t exposed_count = enumeration[i].size();
++    const auto& config = base::UxrConfig::GetInstance();
++    if (config.SurfaceModes().media.mode == base::UxrSurfaceMode::kShardX) {
++      const auto kind = static_cast<mojom::blink::MediaDeviceType>(i);
++      const char* key = kind == mojom::blink::MediaDeviceType::kMediaAudioInput
++          ? "uxr-media-audio-inputs"
++          : kind == mojom::blink::MediaDeviceType::kMediaAudioOutput
++                ? "uxr-media-audio-outputs" : "uxr-media-video-inputs";
++      const std::string value = config.Get(key);
++      unsigned limit = 0;
++      if (!value.empty() && base::StringToUint(value, &limit))
++        exposed_count = std::min(exposed_count, static_cast<wtf_size_t>(limit));
++    }
++    // compatible-v1 caps the native filtered inventory; no synthetic IDs, labels,
++    // capture devices or changes to the browser's permissions/capability vectors.
++    for (wtf_size_t j = 0; j < exposed_count; ++j) {
+       mojom::blink::MediaDeviceType device_type =
+           static_cast<mojom::blink::MediaDeviceType>(i);
++      // Preserve browser-filtered IDs, labels, capability alignment and order.
+       WebMediaDeviceInfo device_info = enumeration[i][j];
+       String device_label = String::FromUtf8(device_info.label);
+       if (device_type == mojom::blink::MediaDeviceType::kMediaAudioInput ||
+@@ -1495,6 +1514,8 @@
+     }
+   }
+ 
++  // The browser owns permission filtering, salted IDs and device availability.
++  // An empty enumeration must stay empty; it does not imply hidden devices.
+   ReportCompletedEnumerateDevices(result_contains_nonempty_input_device_ids);
+   result_tracker->Resolve(media_devices);
+   tracer->End();
+diff --git a/third_party/blink/renderer/modules/webcodecs/video_encoder.cc b/third_party/blink/renderer/modules/webcodecs/video_encoder.cc
+--- a/third_party/blink/renderer/modules/webcodecs/video_encoder.cc
++++ b/third_party/blink/renderer/modules/webcodecs/video_encoder.cc
+@@ -3,6 +3,8 @@
+ // found in the LICENSE file.
+ 
+ #include "third_party/blink/renderer/modules/webcodecs/video_encoder.h"
++
++#include "media/base/supported_types.h"
+ 
+ #include <algorithm>
+ #include <string>
+@@ -462,6 +464,10 @@
+ 
+ bool VerifyCodecSupportStatic(VideoEncoderTraits::ParsedConfig* config,
+                               String* js_error_message) {
++  if (!media::IsUxrVideoCodecAllowed(config->codec)) {
++    *js_error_message = "Codec disabled by launch policy.";
++    return false;
++  }
+   if (config->not_supported_error_message) {
+     *js_error_message = *config->not_supported_error_message;
+     return false;

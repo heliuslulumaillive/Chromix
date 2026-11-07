@@ -206,7 +206,7 @@ class SessionAcceptanceTests(unittest.TestCase):
         receipt = {'patch_sha256': 'c'*64, 'preparation_sha256': 'd'*64}
         binding = {key: str(index)*64 for index, key in enumerate((
             'browser_sha256', 'chrome_dll_sha256', 'capabilities_sha256', 'source_receipt_sha256'), 1)}
-        build = {'schema_version': 1, 'build_variant': 'fingerprint-modes-win156',
+        build = {'schema_version': 1, 'build_variant': 'fingerprint-modes-win157',
             'chromium_version': session.security.VERSION, 'source_commit': source['source_commit'],
             'run_id': 123, 'gn_args_sha256': source['gn']['sha256'], **receipt,
             'files': dict(zip(('chrome.exe', 'chrome.dll', 'native-browser-capabilities.json',
@@ -224,7 +224,7 @@ class SessionAcceptanceTests(unittest.TestCase):
         self.assertIn("label='native-session-runtime'", stage)
         self.assertIn("'tools\\verify_native_session_runtime.py'", stage)
         self.assertIn("'native-session-runtime.json'", stage)
-        worker = (root / '.github/workflows/security-win156-worker.yml').read_text(encoding='utf-8')
+        worker = (root / '.github/workflows/security-win157-worker.yml').read_text(encoding='utf-8')
         self.assertIn('actions/setup-go@', worker)
         self.assertIn('tools.tests.test_native_session_runtime', worker)
         self.assertLess(worker.index('Install hash-locked Python tools'), worker.index('--host-preflight'))
@@ -252,7 +252,7 @@ class SessionAcceptanceTests(unittest.TestCase):
         assignment = next(node for node in ast.walk(function) if isinstance(node, ast.Assign)
                           and any(isinstance(target, ast.Name) and target.id == 'names' for target in node.targets))
         required = ast.literal_eval(assignment.value)
-        worker = (root / '.github/workflows/security-win156-worker.yml').read_text(encoding='utf-8')
+        worker = (root / '.github/workflows/security-win157-worker.yml').read_text(encoding='utf-8')
         upload = worker.split('      - name: Deliver the accepted candidate', 1)[1].split('      - name:', 1)[0]
         patterns = re.findall(r'^\s+(C:/c/dist/[^\s]+)\s*$', upload, re.M)
         missing = [name for name in required
@@ -266,13 +266,13 @@ class SessionAcceptanceTests(unittest.TestCase):
 
     def test_early_failure_upload_precedes_checkpoint_and_preserves_final_evidence(self):
         root = Path(__file__).resolve().parents[2]
-        worker = (root / '.github/workflows/security-win156-worker.yml').read_text(encoding='utf-8')
+        worker = (root / '.github/workflows/security-win157-worker.yml').read_text(encoding='utf-8')
         early = worker.split('      - name: Upload early failure evidence before checkpoint compression', 1)[1].split('      - name:', 1)[0]
         self.assertIn('!cancelled() && failure()', early)
-        self.assertIn('name: security-win156-early-evidence-s${{ inputs.stage }}', early)
+        self.assertIn('name: security-win157-early-evidence-s${{ inputs.stage }}', early)
         self.assertIn('path: C:/security-evidence', early)
         self.assertLess(worker.index('Upload early failure evidence before checkpoint compression'), worker.index('Preserve one complete resumable checkpoint'))
-        self.assertIn('name: security-win156-evidence-s${{ inputs.stage }}', worker)
+        self.assertIn('name: security-win157-evidence-s${{ inputs.stage }}', worker)
 
 
 if __name__ == '__main__':

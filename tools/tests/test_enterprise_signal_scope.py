@@ -65,6 +65,7 @@ def fetch_probe(text, collector=False):
 #include <utility>
 #include <vector>
 #define DCHECK(x) assert(x)
+#define CHECK(value, ...) assert(value)
 #define FROM_HERE 0
 #define IS_WIN 1
 #define BUILDFLAG(x) (x)
@@ -80,7 +81,7 @@ struct Profile:content::BrowserContext { PrefService prefs; PrefService* GetPref
 struct BrowserProcess { PrefService prefs; PrefService* local_state(){return &prefs;} } browser_process;
 BrowserProcess* g_browser_process=&browser_process;
 struct ChromePolicyBlocklistServiceFactory { static int GetForProfile(Profile*){return 0;} };
-namespace version_info { std::string GetVersionNumber(){return "156.0.8078.79";} }
+namespace version_info { std::string GetVersionNumber(){return "157.0.8103.38";} }
 namespace device_signals {
 enum class SettingValue { UNKNOWN, ENABLED };
 bool GetSiteIsolationEnabled(){return true;}
@@ -144,7 +145,7 @@ int main(){
   if(callbacks!=1||base::scheduled!=1||!result)return 10;
   if(result->safe_browsing_protection_level!=profile.prefs.protection||result->password_protection_warning_trigger!=profile.prefs.warning)return 11;
   if(result->enterprise_profile_id||enterprise_signals::id_service_accesses!=0)return 20;
-  if(!result->site_isolation_enabled||!result->built_in_dns_client_enabled||result->browser_version!="156.0.8078.79"||result->system_dns_servers!=std::vector<std::string>{"192.0.2.53"})return 30;
+  if(!result->site_isolation_enabled||!result->built_in_dns_client_enabled||result->browser_version!="157.0.8103.38"||result->system_dns_servers!=std::vector<std::string>{"192.0.2.53"})return 30;
   std::puts("{\"security_reads\":true,\"callback_count\":1,\"enterprise_profile_id_empty\":true,\"id_service_accesses\":0}");
 }
 '''

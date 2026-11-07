@@ -1,43 +1,5 @@
-name: ShardX Lite Windows 156
+name: ShardX Lite Windows 157
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/security-win156.yml'
-      - '.github/workflows/security-win156-worker.yml'
-      - 'build/windows/**'
-      - 'build/lite-windows156.json'
-      - 'build/ungoogled-revisions.psd1'
-      - 'CHROMIUM_WINDOWS_VERSION'
-      - 'UNGOOGLED_WINDOWS_VERSION'
-      - 'build/args.windows.gn'
-      - 'build/args.security.gn'
-      - 'build/*capabilities.json'
-      - 'build/security-resources/**'
-      - 'build/upstream-cache.json'
-      - 'patches/lite-windows156/**'
-      - 'patches/lite-win156/retirement-manifest.json'
-      - 'tools/lite_patch_stack.py'
-      - 'tools/prepare_lite_product.py'
-      - 'tools/patch_selection.py'
-      - 'tools/platform_pins.py'
-      - 'tools/build_resources.py'
-      - 'tools/apply_restored_patches.py'
-      - 'tools/verify_patch_stack.py'
-      - 'tools/prepare_google_services.py'
-      - 'tools/google_services_inputs.py'
-      - 'tools/restored_source_resources.py'
-      - 'tools/security_*.py'
-      - 'tools/verify_security_runtime.py'
-      - 'tools/verify_google_services_*.py'
-      - 'tools/write_google_services_build_record.py'
-      - 'tools/verify_native_*.py'
-      - 'tools/native-session/**'
-      - 'tools/native_compiled_evidence.py'
-      - 'tools/lite_retirement.py'
-      - 'tools/tests/test_lite_*.py'
-      - 'tools/tests/test_security_*.py'
-      - 'tools/tests/test_native_*.py'
   workflow_call:
     secrets:
       UPSTREAM_ACTIONS_TOKEN:
@@ -67,7 +29,7 @@ on:
       source_run:
         type: string
         default: ''
-        description: 'Only a completed security-win156 checkpoint run; never a Windows 155 donor'
+        description: 'Only a completed security-win157 checkpoint run; never a Windows 155 donor'
       source_stage:
         type: string
         default: '0'
@@ -84,11 +46,11 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: security-win156-${{ github.ref }}
+  group: security-win157-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   stage1:
-    uses: ./.github/workflows/security-win156-worker.yml
+    uses: ./.github/workflows/security-win157-worker.yml
     secrets: inherit
     with:
       stage: 1
@@ -99,7 +61,7 @@ jobs:
   stage2:
     needs: stage1
     if: ${{ always() && !cancelled() && needs.stage1.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 2 }}
-    uses: ./.github/workflows/security-win156-worker.yml
+    uses: ./.github/workflows/security-win157-worker.yml
     secrets: inherit
     with:
       stage: 2
@@ -109,7 +71,7 @@ jobs:
   stage3:
     needs: stage2
     if: ${{ always() && !cancelled() && needs.stage2.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 3 }}
-    uses: ./.github/workflows/security-win156-worker.yml
+    uses: ./.github/workflows/security-win157-worker.yml
     secrets: inherit
     with:
       stage: 3
@@ -119,7 +81,7 @@ jobs:
   stage4:
     needs: stage3
     if: ${{ always() && !cancelled() && needs.stage3.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 4 }}
-    uses: ./.github/workflows/security-win156-worker.yml
+    uses: ./.github/workflows/security-win157-worker.yml
     secrets: inherit
     with:
       stage: 4
@@ -136,6 +98,6 @@ jobs:
           DELIVERED: ${{ needs.stage1.outputs.finished == 'true' || needs.stage2.outputs.finished == 'true' || needs.stage3.outputs.finished == 'true' || needs.stage4.outputs.finished == 'true' }}
         run: |
           if [ "$DELIVERED" != true ]; then
-            echo "No accepted candidate delivered. Inspect the preserved Windows 156 checkpoint and failure evidence."
+            echo "No accepted candidate delivered. Inspect the preserved Windows 157 checkpoint and failure evidence."
             exit 1
           fi

@@ -77,6 +77,18 @@ class WindowsMetagenBindingsTest(unittest.TestCase):
         self.assertEqual(contract["bindings"], self.site)
         bindings.validate_paths(contract, self.src, self.runtime())
 
+    def test157_source_pin_requires_its_exact_v8_and_uses_the_reviewed_llvm24_profile(self):
+        self.put(self.src / "chrome/VERSION", b"MAJOR=157\nMINOR=0\nBUILD=8103\nPATCH=38\n")
+        self.put(self.src / "DEPS", b"vars = {'v8_revision': '440c1c463e2e528c309af5067952e7b11631507f'}")
+        self.assertEqual(bindings.source_contract(self.src, self.out, '157.0.8103.38'), 'x64')
+        contract = {'resource': self.src / 'third_party/llvm-build/Release+Asserts/lib/clang/24'}
+        self.assertEqual(bindings.action_llvm_profile(contract, self.src, '157.0.8103.38'), 'chromium-llvm24-62397f8b')
+        self.put(self.src / "DEPS", b"vars = {'v8_revision': 'c9b3cfcab30ace06c21f9b48a0f0a34805e81e9d'}")
+        with mock.patch.object(bindings.subprocess, 'run') as ninja:
+            with self.assertRaisesRegex(ValueError, 'exact DEPS V8 revision'):
+                bindings.install(self.src, self.out, self.root / 'never-run-ninja.exe', '157.0.8103.38', download=False)
+            ninja.assert_not_called()
+
     def test_windows_backslashes_and_spaces_survive_tokenization(self):
         words = bindings.split_command('"C:\\runtime Python\\python3.exe" ../../v8/tools/metagen/metagen.py '
                                        '--libclang-bindings-dir "C:\\runtime Python\\Lib\\site-packages" '

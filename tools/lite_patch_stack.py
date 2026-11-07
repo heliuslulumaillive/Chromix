@@ -13,8 +13,8 @@ except ImportError:
     from google_services_inputs import owned
     from platform_pins import load_pins
 
-MANIFEST = 'build/lite-windows156.json'
-KIND = 'lite-windows156-product'
+MANIFEST = 'build/lite-windows157.json'
+KIND = 'lite-windows157-product'
 HEX = re.compile(r'[0-9a-f]{64}\Z')
 
 
@@ -38,12 +38,12 @@ def load(repo: Path):
                      ('windows_commit', 'UngoogledWindowsCommit')):
         if runtime[key] != pins[pin]:
             raise ValueError('Product manifest/platform pins differ: ' + key)
-    if runtime['chromium_version'] != '156.0.8078.79':
-        raise ValueError('This reviewed product stack is limited to Chromium 156.0.8078.79')
+    if runtime['chromium_version'] != '157.0.8103.38':
+        raise ValueError('This reviewed product stack is limited to Chromium 157.0.8103.38')
     paths, targets = set(), set()
     for entry in data['patches']:
         name = entry['path']
-        if (not re.fullmatch(r'patches/lite-windows156/[0-9]{2}-[a-z0-9-]+\.patch', name)
+        if (not re.fullmatch(r'patches/lite-windows157/[0-9]{2}-[a-z0-9-]+\.patch', name)
                 or name in paths or not entry['files']):
             raise ValueError('Invalid or duplicate product patch')
         paths.add(name)
@@ -55,7 +55,7 @@ def load(repo: Path):
         if actual != entry['files'] or len(actual) != len(set(actual)) or targets.intersection(actual):
             raise ValueError('Product topics must own distinct, complete file sections')
         targets.update(actual)
-    directory = owned(repo, 'patches/lite-windows156')
+    directory = owned(repo, 'patches/lite-windows157')
     actual = {p.relative_to(repo).as_posix() for p in directory.glob('*.patch')}
     if not paths or actual != paths:
         raise ValueError('Unexpected or incomplete product patch inventory')
@@ -100,7 +100,7 @@ def input_hashes(repo):
     repo = Path(repo).absolute()
     data = load(repo)
     names = {MANIFEST, 'CHROMIUM_WINDOWS_VERSION', 'UNGOOGLED_WINDOWS_VERSION',
-             'build/ungoogled-revisions.psd1', 'build/args.windows.gn', 'build/args.security.gn',
+             'build/ungoogled-revisions.psd1', 'build/args.windows.gn', 'build/args.security.gn', 'build/windows157-port.json',
              'build/windows/prepare-ungoogled.ps1', 'tools/patch_selection.py',
              'tools/lite_patch_stack.py', 'tools/prepare_lite_product.py',
              'tools/prepare_google_services.py', 'tools/google_services_inputs.py',

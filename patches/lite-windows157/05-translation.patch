@@ -1,0 +1,250 @@
+diff --git a/components/translate/content/browser/content_translate_driver.cc b/components/translate/content/browser/content_translate_driver.cc
+--- a/components/translate/content/browser/content_translate_driver.cc
++++ b/components/translate/content/browser/content_translate_driver.cc
+@@ -137,6 +137,14 @@
+ 
+ void ContentTranslateDriver::InitiateTranslation(const std::string& page_lang,
+                                                  int attempt) {
++  // A cached script can be ready before this document's agent is registered.
++  // Sending it to the previous page leaves translation_pending stuck. The
++  // current page's RegisterPage() binds its agent and initiates translation.
++  if (web_contents()->GetPrimaryMainFrame()->GetPageUkmSourceId() !=
++      last_registered_page_id_) {
++    return;
++  }
++
+   if (translate_manager_->GetLanguageState()->translation_pending())
+     return;
+ 
+diff --git a/components/translate/content/renderer/translate_agent.cc b/components/translate/content/renderer/translate_agent.cc
+--- a/components/translate/content/renderer/translate_agent.cc
++++ b/components/translate/content/renderer/translate_agent.cc
+@@ -58,14 +58,6 @@
+ 
+ namespace {
+ 
+-// The delay in milliseconds that we'll wait before checking to see if the
+-// translate library injected in the page is ready.
+-const int kTranslateInitCheckDelayMs = 150;
+-
+-// The maximum number of times we'll check to see if the translate library
+-// injected in the page is ready.
+-const int kMaxTranslateInitCheckAttempts = 5;
+-
+ // The delay we wait in milliseconds before checking whether the translation has
+ // finished.
+ const int kTranslateStatusCheckDelayMs = 400;
+@@ -509,6 +501,8 @@
+                      : kAutoDetectionLanguage;
+   target_lang_ = target_lang;
+ 
++  TranslationInitWait init_wait(base::TimeTicks::Now());
++
+   // Set up v8 isolated world.
+   EnsureIsolatedWorldInitialized(world_id_);
+ 
+@@ -531,7 +525,7 @@
+     return;
+   }
+ 
+-  TranslatePageImpl(0);
++  TranslatePageImpl(init_wait);
+ }
+ 
+ void TranslateAgent::RevertTranslation() {
+@@ -626,8 +620,7 @@
+       AdjustDelay(kTranslateStatusCheckDelayMs));
+ }
+ 
+-void TranslateAgent::TranslatePageImpl(int count) {
+-  DCHECK_LT(count, kMaxTranslateInitCheckAttempts);
++void TranslateAgent::TranslatePageImpl(TranslationInitWait init_wait) {
+   // Executing script may spin a nested run loop that detaches the frame and
+   // deletes |this|.
+   auto weak_this = weak_pointer_factory_.GetWeakPtr();
+@@ -646,17 +639,18 @@
+       return;
+     }
+ 
+-    // The library is not ready, try again later, unless we have tried several
+-    // times unsuccessfully already.
+-    if (++count >= kMaxTranslateInitCheckAttempts) {
++    // Keep the original deadline across retries. Navigation, revert and a
++    // replacement request still cancel this task via weak_method_factory_.
++    const auto delay = init_wait.NextDelay(base::TimeTicks::Now());
++    if (!delay) {
+       NotifyBrowserTranslationFailed(TranslateErrors::TRANSLATION_TIMEOUT);
+       return;
+     }
+     translate_task_runner_->PostDelayedTask(
+         FROM_HERE,
+         base::BindOnce(&TranslateAgent::TranslatePageImpl,
+-                       weak_method_factory_.GetWeakPtr(), count),
+-        AdjustDelay(count * kTranslateInitCheckDelayMs));
++                       weak_method_factory_.GetWeakPtr(), init_wait),
++        AdjustDelay(static_cast<int>(delay->InMilliseconds())));
+     return;
+   }
+   if (!weak_this) {
+diff --git a/components/translate/content/renderer/translate_agent.h b/components/translate/content/renderer/translate_agent.h
+--- a/components/translate/content/renderer/translate_agent.h
++++ b/components/translate/content/renderer/translate_agent.h
+@@ -17,6 +17,7 @@
+ #include "components/language_detection/content/renderer/language_detection_agent.h"
+ #include "components/translate/content/common/translate.mojom.h"
+ #include "components/translate/core/common/translate_errors.h"
++#include "components/translate/core/common/translation_init_wait.h"
+ #include "components/translate/core/language_detection/language_detection_model.h"
+ #include "content/public/renderer/render_frame_observer.h"
+ #include "mojo/public/cpp/bindings/receiver.h"
+@@ -165,9 +166,8 @@
+   // posts a task to check again later.
+   void CheckTranslateStatus();
+ 
+-  // Called by TranslatePage to do the actual translation.  |count| is used to
+-  // limit the number of retries.
+-  void TranslatePageImpl(int count);
++  // Polls readiness until the current request is ready, errors or expires.
++  void TranslatePageImpl(TranslationInitWait init_wait);
+ 
+   // Sends a message to the browser to notify it that the translation failed
+   // with |error|.
+diff --git a/components/translate/core/browser/ranker_url_fetcher.cc b/components/translate/core/browser/ranker_url_fetcher.cc
+--- a/components/translate/core/browser/ranker_url_fetcher.cc
++++ b/components/translate/core/browser/ranker_url_fetcher.cc
+@@ -31,7 +31,6 @@
+     const GURL& url,
+     RankerURLFetcher::Callback callback,
+     network::mojom::URLLoaderFactory* url_loader_factory) {
+-  if ((true)) return false;
+   // This function is not supposed to be called if the previous operation is not
+   // finished.
+   if (state_ == REQUESTING) {
+diff --git a/components/translate/core/browser/translate_language_list.cc b/components/translate/core/browser/translate_language_list.cc
+--- a/components/translate/core/browser/translate_language_list.cc
++++ b/components/translate/core/browser/translate_language_list.cc
+@@ -12,7 +12,6 @@
+ #include <string_view>
+ 
+ #include "base/check.h"
+-#include "base/command_line.h"
+ #include "base/containers/fixed_flat_set.h"
+ #include "base/containers/flat_set.h"
+ #include "base/functional/bind.h"
+@@ -32,7 +31,6 @@
+ #include "components/translate/core/browser/translate_event_details.h"
+ #include "components/translate/core/browser/translate_url_fetcher.h"
+ #include "components/translate/core/browser/translate_url_util.h"
+-#include "components/translate/core/common/translate_switches.h"
+ #include "components/translate/core/common/translate_language_matcher.h"
+ #include "components/translate/core/common/translate_util.h"
+ #include "net/base/url_util.h"
+@@ -276,9 +274,6 @@
+ }
+ 
+ void TranslateLanguageList::RequestLanguageList() {
+-  const base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
+-  if (!command_line.HasSwitch(translate::switches::kTranslateScriptURL))
+-    return;
+   // If resource requests are not allowed, we'll get a callback when they are.
+   if (!resource_requests_allowed_) {
+     request_pending_ = true;
+diff --git a/components/translate/core/browser/translate_manager.cc b/components/translate/core/browser/translate_manager.cc
+--- a/components/translate/core/browser/translate_manager.cc
++++ b/components/translate/core/browser/translate_manager.cc
+@@ -946,9 +946,8 @@
+         TriggerDecision::kDisabledOffline);
+   }
+ 
+-  const base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
+-  if (!command_line.HasSwitch(translate::switches::kTranslateScriptURL) ||
+-      (!ignore_missing_key_for_testing_ && !::google_apis::HasAPIKeyConfigured())) {
++  if (!ignore_missing_key_for_testing_ &&
++      !::google_apis::HasAPIKeyConfigured()) {
+     // Without an API key, translate won't work, so don't offer to translate in
+     // the first place. Leave kOfferTranslateEnabled on, though, because that
+     // settings syncs and we don't want to turn off translate everywhere else.
+diff --git a/components/translate/core/browser/translate_ranker_impl.cc b/components/translate/core/browser/translate_ranker_impl.cc
+--- a/components/translate/core/browser/translate_ranker_impl.cc
++++ b/components/translate/core/browser/translate_ranker_impl.cc
+@@ -145,8 +145,9 @@
+                                          ukm::UkmRecorder* ukm_recorder)
+     : ukm_recorder_(ukm_recorder),
+       is_uma_logging_enabled_(false),
+-      is_query_enabled_(false),
+-      is_enforcement_enabled_(false) {
++      is_query_enabled_(base::FeatureList::IsEnabled(kTranslateRankerQuery)),
++      is_enforcement_enabled_(
++          base::FeatureList::IsEnabled(kTranslateRankerEnforcement)) {
+   if (is_query_enabled_ || is_enforcement_enabled_) {
+     model_loader_ = std::make_unique<RankerModelLoaderImpl>(
+         base::BindRepeating(&ValidateModel),
+@@ -219,8 +220,6 @@
+   // subsumed into a more general assist ranker, this default will go away
+   // (or become False).
+   const bool kDefaultResponse = true;
+-
+-  if ((true)) return kDefaultResponse;
+ 
+   translate_event->set_ranker_request_timestamp_sec(
+       (base::TimeTicks::Now() - base::TimeTicks()).InSeconds());
+diff --git a/components/translate/core/browser/translate_script.cc b/components/translate/core/browser/translate_script.cc
+--- a/components/translate/core/browser/translate_script.cc
++++ b/components/translate/core/browser/translate_script.cc
+@@ -216,13 +216,8 @@
+                         server_params.c_str());
+ 
+     GURL security_origin = translate::GetTranslateSecurityOrigin();
+-    const base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
+-    if (command_line.HasSwitch(translate::switches::kTranslateScriptURL)) {
+-      base::StringAppendF(&data_, "var securityOrigin = '%s';\n",
+-                          security_origin.spec().c_str());
+-    } else {
+-      base::StringAppendF(&data_, "var securityOrigin = '';\n");
+-    }
++    base::StringAppendF(&data_, "var securityOrigin = '%s';\n",
++                        security_origin.spec().c_str());
+ 
+     // Load embedded translate.js.
+     data_.append(ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
+diff --git a/components/translate/core/common/translation_init_wait.h b/components/translate/core/common/translation_init_wait.h
+new file mode 100644
+--- /dev/null
++++ b/components/translate/core/common/translation_init_wait.h
+@@ -0,0 +1,36 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#ifndef COMPONENTS_TRANSLATE_CORE_COMMON_TRANSLATION_INIT_WAIT_H_
++#define COMPONENTS_TRANSLATE_CORE_COMMON_TRANSLATION_INIT_WAIT_H_
++
++#include <algorithm>
++#include <optional>
++
++#include "base/time/time.h"
++
++namespace translate {
++
++// The downloaded element loads additional resources before libReady becomes
++// true. A monotonic deadline permits slow initialization without unbounded
++// polling. This value is copied only into the current request's cancellable task.
++class TranslationInitWait {
++ public:
++  explicit TranslationInitWait(base::TimeTicks now)
++      : deadline_(now + base::Seconds(15)) {}
++
++  std::optional<base::TimeDelta> NextDelay(base::TimeTicks now) {
++    const base::TimeDelta remaining = deadline_ - now;
++    if (remaining <= base::TimeDelta())
++      return std::nullopt;
++    attempt_ = std::min(attempt_ + 1, 7);
++    return std::min({base::Milliseconds(attempt_ * 150), base::Seconds(1),
++                     remaining});
++  }
++
++ private:
++  const base::TimeTicks deadline_;
++  int attempt_ = 0;
++};
++
++}  // namespace translate
++#endif  // COMPONENTS_TRANSLATE_CORE_COMMON_TRANSLATION_INIT_WAIT_H_

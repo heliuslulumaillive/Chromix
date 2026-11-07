@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "status": "source-preparation-verified-before-build",
+  "target_version": "157.0.8103.38",
+  "source_version": "156.0.8078.79",
+  "previous_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
+  "product_stack_sha256": "c2be62157c1f788ebac5f2392a0ea386c888356f8d7f31133385855dc4f1c4aa",
+  "upstream_identity": {
+    "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
+    "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",
+    "webrtc_commit": "95554e4a0c5c343fdc989387d9d0ce18e2a2294b",
+    "search_engines_commit": "5dc9f1afd38a8ac2b26b1972eb4fc1bbd5754e8c",
+    "source_manifest_sha256": "58b7c277b69682b708597177d558228a1ed5e810aec3da50db87c5c129fb888e",
+    "review": "build/windows157-port.json"
+  },
+  "source_fetch_receipt_sha256": "9d3d125a6d23647216b20dabe30a2a3f33df7110b4354113f0a2a3f7ccb9838e",
+  "upstream_replay_receipt_sha256": "cb5037665e566440c867ed9e18732d58f50eb4cf427a28001cd189de19f98a5b",
+  "native_files_preserved": 365,
+  "native_files_removed_upstream": [
+    "chrome/browser/enterprise/connectors/reporting/telomere_reporting_context.cc"
+  ],
+  "manual_adaptations": [
+    {
+      "path": "chrome/browser/media/webrtc/media_capture_devices_dispatcher.cc",
+      "blocks": 2,
+      "reason": "Retain the 157 thread check and the existing ShardX validation after it.",
+      "after_sha256": "30c977641d68614326400fc231422d2d648fb2bfb6ccf16685351e6ca69289e7"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/graphics/mailbox_texture_backing.cc",
+      "blocks": 1,
+      "reason": "Retain the 157 thread check and the existing ShardX validation after it.",
+      "after_sha256": "2de0e6c797c66f578e872448afa3a79b57e062c077e9035c203a78a5b818e29f"
+    },
+    {
+      "path": "chrome/browser/shell_integration_win.cc",
+      "blocks": 2,
+      "reason": "Retain 157 taskbar migration and add managed-environment identity; omit removed logging include.",
+      "after_sha256": "3166a77a500d1759ab76092658ff8c611d465f30a806d4694ea968dfd5793d4e"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+      "blocks": 2,
+      "reason": "Keep the new 157 Skia/format includes and all ShardX pixel helpers.",
+      "after_sha256": "4deed9d2c2014880c1b39d56997f5211886b9283c01ba23755fdb0b8d4136b0c"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/offline_audio_context.cc",
+      "blocks": 1,
+      "reason": "Use the corrected 157 completion-event comment; custom change was whitespace only.",
+      "after_sha256": "dc24a8bcd2f809bc2722eeaa5c11901ed6c59bffaf9681d72610b468e9ad81d3"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.cc",
+      "blocks": 1,
+      "reason": "Validate channel policy before stopping the old destination; retain the 157 race fix.",
+      "after_sha256": "f3b1a62b698d6a3f712f21f2577cb73cba5565bc8cab4b4886c158b6626342e0"
+    },
+    {
+      "path": "chrome/browser/resources/settings/privacy_page/security/security_page.html",
+      "blocks": 1,
+      "reason": "Carry the existing product dialog behavior into the 157 Lit template syntax.",
+      "after_sha256": "f26dd05e1abfce4367e735e784637d1e6d128d2acb8b5c342cdff2af6ff72d52"
+    },
+    {
+      "path": "components/embedder_support/user_agent_utils.cc",
+      "blocks": 2,
+      "reason": "Avoid resurrecting old-location duplicate UA functions; adapt their new native locations below.",
+      "after_sha256": "7e5bc3dbb9ef9c5969b9f757a10131436050965dd938b6948028c0192a98dad8",
+      "moved_functions": [
+        "GetUserAgentInternal",
+        "BuildUserAgentFromProduct"
+      ]
+    },
+    {
+      "path": "chrome/browser/BUILD.gn",
+      "blocks": 1,
+      "reason": "Keep 157 tabstrip target and the native cookie bootstrap dependency.",
+      "after_sha256": "404b67c9bd7233c85f8ba042b2fdcf50e4fa6babbb59bfb63dd7b5eb5e3bd355"
+    },
+    {
+      "path": "chrome/browser/extensions/BUILD.gn",
+      "blocks": 1,
+      "reason": "Carry the old selected-source removal while retaining the new standalone-window test support.",
+      "after_sha256": "46208865ea99ee3a9c8b9a6e7047d1a6ee8fe77910a826109557a8e5cb85b5e7"
+    },
+    {
+      "path": "chrome/test/BUILD.gn",
+      "blocks": 4,
+      "reason": "Keep the 157 reorganized dependency lists and add only the required restored test-support labels.",
+      "after_sha256": "261d3aa5d81c55d9897ea6392538f28b27e8c2aafddc61347ecac69162fdba95"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/BUILD.gn",
+      "blocks": 1,
+      "reason": "Retain the new canvas drawable files and add the fingerprint context; preserve Windows Rust compatibility.",
+      "after_sha256": "070779d48e5928f9bed994614e4c9e9684f57d7bbfa1fd97e3e613f076f84cef"
+    },
+    {
+      "path": "components/web_package/signed_web_bundles/signed_web_bundle_utils.cc",
+      "reason": "Retain the exact reviewed portable C++ signature-payload implementation. The native Rust wrapper preimage is identical across 156 and 157.",
+      "after_sha256": "f953d2e86c0c8e0879b3fc8799ad2bb49027d6de5ee41175bb5538bc101d5cf4",
+      "blocks": 0
+    },
+    {
+      "path": "components/web_package/BUILD.gn",
+      "reason": "Compile the portable signature payload exactly once in the consumed C++ library, avoiding duplicate Rust-implementation source membership.",
+      "after_sha256": "d916365407cda3b36450e2b7d041b68bca49bd3418988399d60cb6d29226685f",
+      "blocks": 0
+    }
+  ],
+  "source_files": 668,
+  "product_topics": 26,
+  "existing_pruned_resources_reused": [
+    "components/safe_browsing/content/resources/empty_file_type_policy.pb",
+    "chrome/app/etw_events/MSG00001.bin",
+    "chrome/app/etw_events/chrome_events_winTEMP.BIN"
+  ],
+  "login_topics": [
+    "patches/lite-windows157/25-signin-failure-recovery.patch",
+    "patches/lite-windows157/26-history-sync-default.patch"
+  ],
+  "installed_package_changed": false,
+  "native_restoration_audit": {
+    "files": 365,
+    "all_verified_against_original156": true,
+    "source_commit": "a21ce95c24ce3964416f09ae1862f53f319eb4d0",
+    "receipt_sha256": "64d40abc8fcad3d714038a7f0b3bd36a75e796fe4eb776b97b4e10ed82795596"
+  },
+  "preparation_validation": {
+    "raw": "passed",
+    "domain_substituted": "passed",
+    "source_files": 668,
+    "source_gate_files": 105,
+    "byte_identical": true,
+    "repeat_preparation_preserves_mtime": true,
+    "receipt_sha256": "299d2b3ef00004919c06c37f0904b5098f5426cb51d6db3fa8ddcefdde48dd93"
+  },
+  "compiled_at_source_review": false,
+  "runtime_accepted_at_source_review": false
+}

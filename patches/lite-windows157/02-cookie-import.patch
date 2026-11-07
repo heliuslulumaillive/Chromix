@@ -1,0 +1,925 @@
+diff --git a/chrome/browser/profiles/shardx_cookie_bootstrap.cc b/chrome/browser/profiles/shardx_cookie_bootstrap.cc
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/profiles/shardx_cookie_bootstrap.cc
+@@ -0,0 +1,365 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#include "chrome/browser/profiles/shardx_cookie_bootstrap.h"
++
++#include <memory>
++#include <algorithm>
++#include <utility>
++
++#include "base/callback_list.h"
++#include "base/command_line.h"
++#include "base/functional/bind.h"
++#include "base/memory/raw_ptr.h"
++#include "base/memory/weak_ptr.h"
++#include "base/no_destructor.h"
++#include "base/task/bind_post_task.h"
++#include "base/task/sequenced_task_runner.h"
++#include "base/task/single_thread_task_runner.h"
++#include "base/task/thread_pool.h"
++#include "base/timer/timer.h"
++#include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
++#include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
++#include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/profiles/profile_keyed_service_factory.h"
++#include "chrome/browser/profiles/shardx_cookie_bootstrap_internal.h"
++#include "components/keep_alive_registry/keep_alive_types.h"
++#include "components/keep_alive_registry/keep_alive_registry.h"
++#include "components/keep_alive_registry/scoped_keep_alive.h"
++#include "components/keyed_service/core/keyed_service.h"
++#include "content/public/browser/navigation_handle.h"
++#include "content/public/browser/navigation_throttle.h"
++#include "content/public/browser/navigation_throttle_registry.h"
++#include "content/public/browser/storage_partition.h"
++#include "content/public/browser/web_contents.h"
++#include "mojo/public/cpp/bindings/remote.h"
++#include "net/base/net_errors.h"
++#include "net/cookies/cookie_access_result.h"
++#include "net/cookies/cookie_options.h"
++#include "services/network/public/mojom/cookie_manager.mojom.h"
++
++namespace shardx::cookie_import {
++namespace {
++enum class State { kPending, kApplying, kFlushing, kVerifying, kPublishing,
++                   kCompleted, kFailed };
++
++bool TargetProfile(Profile* profile) {
++  return profile && profile->IsRegularProfile() && !profile->IsOffTheRecord() &&
++      !profile->IsGuestSession() &&
++      profile->GetPath().BaseName() == base::FilePath(FILE_PATH_LITERAL("Default"));
++}
++
++class ImportService final : public KeyedService {
++ public:
++  explicit ImportService(Profile* profile) : profile_(profile) {
++    // Establish process ownership synchronously: --no-startup-window must not
++    // exit between eager service creation and the posted import task.
++    if (!KeepAliveRegistry::GetInstance()->IsShuttingDown()) {
++      browser_keepalive_ = std::make_unique<ScopedKeepAlive>(
++          KeepAliveOrigin::SHARDX_COOKIE_IMPORT, KeepAliveRestartOption::DISABLED);
++    }
++    // Eager factory creation establishes kPending before startup/restore tabs
++    // can navigate. Start is independent of any navigation or DevTools target.
++    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE, base::BindOnce(&ImportService::Start, weak_factory_.GetWeakPtr()));
++  }
++  ~ImportService() override = default;
++
++  State state() const { return state_; }
++  base::WeakPtr<ImportService> GetWeakPtr() { return weak_factory_.GetWeakPtr(); }
++  base::CallbackListSubscription Observe(base::RepeatingCallback<void(bool)> callback) {
++    return observers_.Add(std::move(callback));
++  }
++
++  void Shutdown() override {
++    shutting_down_ = true;
++    timer_.Stop();
++    weak_factory_.InvalidateWeakPtrs();
++    manager_.reset();
++    if (state_ != State::kCompleted && state_ != State::kFailed) {
++      state_ = State::kFailed;
++      observers_.Notify(false);
++      // Do not race an already publishing terminal receipt. Otherwise this
++      // is a best-effort cancellation receipt; the launcher also detects exit.
++      if (binding_ && !publishing_) {
++        file_runner_->PostTask(FROM_HERE, base::BindOnce(
++            [](Binding binding, base::DictValue receipt) {
++              PublishReceipt(binding, receipt);
++            }, *binding_, MakeReceipt(*binding_, batch_.get(), counts_, false, "cancelled")));
++      }
++    }
++    ReleaseKeepalives();
++  }
++
++ private:
++  void Start() {
++    if (shutting_down_ || !TargetProfile(profile_))
++      return;
++    if (KeepAliveRegistry::GetInstance()->IsShuttingDown()) {
++      Finish(false);
++      return;
++    }
++    binding_ = ParseBinding(profile_->GetPath(), *base::CommandLine::ForCurrentProcess());
++    if (!binding_) {
++      Finish(false);
++      return;
++    }
++    profile_keepalive_ = ScopedProfileKeepAlive::TryAcquire(
++        profile_, ProfileKeepAliveOrigin::kShardXCookieImport);
++    if (!profile_keepalive_) {
++      Finish(false);
++      return;
++    }
++    if (KeepAliveRegistry::GetInstance()->IsShuttingDown()) {
++      Finish(false);
++      return;
++    }
++    timer_.Start(FROM_HERE, base::Seconds(60),
++                 base::BindOnce(&ImportService::OnTimeout, weak_factory_.GetWeakPtr()));
++    file_runner_->PostTaskAndReplyWithResult(
++        FROM_HERE, base::BindOnce(&ReadAndPrepare, *binding_),
++        base::BindOnce(&ImportService::OnPrepared, weak_factory_.GetWeakPtr()));
++  }
++
++  void OnPrepared(Prepared prepared) {
++    if (state_ != State::kPending)
++      return;
++    if (prepared.previous_completion) {
++      Finish(true);
++      return;
++    }
++    batch_ = std::move(prepared.batch);
++    if (!batch_) {
++      Fail(prepared.error);
++      return;
++    }
++    const base::TimeDelta remaining = batch_->deadline - base::Time::Now();
++    if (remaining <= base::TimeDelta()) {
++      Fail("timeout");
++      return;
++    }
++    timer_.Start(FROM_HERE, std::min(remaining, base::Seconds(60)),
++        base::BindOnce(&ImportService::OnTimeout, weak_factory_.GetWeakPtr()));
++    profile_->GetDefaultStoragePartition()->GetCookieManagerForBrowserProcess()->CloneInterface(
++        manager_.BindNewPipeAndPassReceiver());
++    manager_.set_disconnect_handler(base::BindOnce(
++        &ImportService::Fail, weak_factory_.GetWeakPtr(), "cookie_manager_disconnected"));
++    state_ = State::kApplying;
++    SetNext();
++  }
++
++  void SetNext() {
++    if (state_ != State::kApplying)
++      return;
++    if (base::Time::Now() >= batch_->deadline) {
++      Fail("timeout");
++      return;
++    }
++    if (counts_.accepted == batch_->cookies.size()) {
++      state_ = State::kFlushing;
++      manager_->FlushCookieStore(base::BindOnce(
++          &ImportService::OnFlushed, weak_factory_.GetWeakPtr()));
++      return;
++    }
++    const auto& cookie = *batch_->cookies.at(counts_.accepted);
++    net::CookieOptions options;
++    options.set_include_httponly();
++    options.set_same_site_cookie_context(net::CookieOptions::SameSiteCookieContext::MakeInclusive());
++    ++counts_.attempted;
++    counts_.in_flight = true;
++    manager_->SetCanonicalCookie(cookie,
++        batch_->source_urls.at(counts_.accepted), options,
++        base::BindOnce(&ImportService::OnSet, weak_factory_.GetWeakPtr()));
++  }
++
++  void OnSet(net::CookieAccessResult result) {
++    if (state_ != State::kApplying)
++      return;
++    counts_.in_flight = false;
++    if (!result.status.IsInclude()) {
++      Fail("cookie_set_rejected");
++      return;
++    }
++    ++counts_.accepted;
++    SetNext();
++  }
++
++  void OnFlushed() {
++    if (state_ != State::kFlushing)
++      return;
++    state_ = State::kVerifying;
++    manager_->GetAllCookies(base::BindOnce(
++        &ImportService::OnReadback, weak_factory_.GetWeakPtr()));
++  }
++
++  void OnReadback(const net::CookieList& cookies) {
++    if (state_ != State::kVerifying)
++      return;
++    if (!VerifyReadback(*batch_, cookies, base::Time::Now(), &counts_)) {
++      Fail("readback_mismatch");
++      return;
++    }
++    if (base::Time::Now() >= batch_->deadline) {
++      Fail("timeout");
++      return;
++    }
++    manager_.reset();
++    state_ = State::kPublishing;
++    publishing_ = true;
++    file_runner_->PostTaskAndReplyWithResult(
++        FROM_HERE, base::BindOnce(&PublishReceipt, *binding_,
++            MakeReceipt(*binding_, batch_.get(), counts_, true, "")),
++        base::BindOnce(&ImportService::OnPublished, weak_factory_.GetWeakPtr(), true));
++  }
++
++  void Fail(std::string error) {
++    if (state_ == State::kCompleted || state_ == State::kFailed || publishing_)
++      return;
++    state_ = State::kFailed;
++    manager_.reset();
++    observers_.Notify(false);
++    if (!binding_) {
++      ReleaseKeepalives();
++      return;
++    }
++    publishing_ = true;
++    file_runner_->PostTaskAndReplyWithResult(
++        FROM_HERE, base::BindOnce(&PublishReceipt, *binding_,
++            MakeReceipt(*binding_, batch_.get(), counts_, false, error)),
++        base::BindOnce(&ImportService::OnPublished, weak_factory_.GetWeakPtr(), false));
++    // A timeout itself has exhausted the import deadline; allow only a small
++    // bounded opportunity to publish its failure before dropping keepalives.
++    if (!timer_.IsRunning()) {
++      timer_.Start(FROM_HERE, base::Seconds(2),
++          base::BindOnce(&ImportService::ReleaseKeepalives, weak_factory_.GetWeakPtr()));
++    }
++  }
++
++  void OnPublished(bool success, bool written) {
++    publishing_ = false;
++    if (success && state_ == State::kFailed)
++      return;  // A late receipt cannot revive a timed-out/cancelled launch.
++    if (success && batch_ && base::Time::Now() >= batch_->deadline) {
++      Finish(false);
++      return;
++    }
++    Finish(success && written);
++  }
++
++  void OnTimeout() {
++    if (publishing_) {
++      // Do not race the publication with a contradictory receipt. Its eventual
++      // completed ledger may recover the operation on a later launch, but this
++      // attempt is terminally failed and no waiting navigation may resume.
++      Finish(false);
++      return;
++    }
++    Fail("timeout");
++  }
++
++  void ReleaseKeepalives() {
++    auto profile = std::move(profile_keepalive_);
++    auto browser = std::move(browser_keepalive_);
++  }
++
++  void Finish(bool success) {
++    timer_.Stop();
++    state_ = success ? State::kCompleted : State::kFailed;
++    manager_.reset();
++    batch_.reset();
++    // Keep local ownership across notifications, which can destroy a deferred
++    // navigation/window. No member is accessed after releasing these locals.
++    auto profile = std::move(profile_keepalive_);
++    auto browser = std::move(browser_keepalive_);
++    observers_.Notify(success);
++  }
++
++  raw_ptr<Profile> profile_;
++  State state_ = State::kPending;
++  bool shutting_down_ = false;
++  bool publishing_ = false;
++  std::optional<Binding> binding_;
++  std::unique_ptr<Batch> batch_;
++  Counts counts_;
++  scoped_refptr<base::SequencedTaskRunner> file_runner_ =
++      base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock(),
++          base::TaskPriority::USER_BLOCKING, base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN});
++  mojo::Remote<network::mojom::CookieManager> manager_;
++  base::OneShotTimer timer_;
++  std::unique_ptr<ScopedProfileKeepAlive> profile_keepalive_;
++  std::unique_ptr<ScopedKeepAlive> browser_keepalive_;
++  base::RepeatingCallbackList<void(bool)> observers_;
++  base::WeakPtrFactory<ImportService> weak_factory_{this};
++};
++
++class ImportFactory final : public ProfileKeyedServiceFactory {
++ public:
++  static ImportFactory* GetInstance() {
++    static base::NoDestructor<ImportFactory> instance;
++    return instance.get();
++  }
++  static ImportService* Get(Profile* profile) {
++    return static_cast<ImportService*>(GetInstance()->GetServiceForBrowserContext(profile, true));
++  }
++ private:
++  friend class base::NoDestructor<ImportFactory>;
++  ImportFactory() : ProfileKeyedServiceFactory("ShardXCookieBootstrap",
++      ProfileSelections::Builder().WithRegular(ProfileSelection::kOriginalOnly)
++          .WithGuest(ProfileSelection::kNone).WithSystem(ProfileSelection::kNone)
++          .WithAshInternals(ProfileSelection::kNone).Build()) {}
++  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
++      content::BrowserContext* context) const override {
++    auto* profile = Profile::FromBrowserContext(context);
++    if (!TargetProfile(profile) || !HasRequest(*base::CommandLine::ForCurrentProcess()))
++      return nullptr;
++    return std::make_unique<ImportService>(profile);
++  }
++  bool ServiceIsCreatedWithBrowserContext() const override { return true; }
++  bool ServiceIsNULLWhileTesting() const override { return true; }
++};
++
++class ImportThrottle final : public content::NavigationThrottle {
++ public:
++  ImportThrottle(content::NavigationThrottleRegistry& registry, ImportService* service)
++      : content::NavigationThrottle(registry), service_(service->GetWeakPtr()) {}
++  ThrottleCheckResult WillStartRequest() override {
++    if (!service_)
++      return {CANCEL, net::ERR_BLOCKED_BY_CLIENT};
++    if (service_->state() == State::kCompleted)
++      return PROCEED;
++    if (service_->state() == State::kFailed)
++      return {CANCEL, net::ERR_BLOCKED_BY_CLIENT};
++    waiting_ = true;
++    // Notifications never synchronously destroy a navigation/profile from
++    // inside the service's CallbackList::Notify() stack.
++    subscription_ = service_->Observe(base::BindPostTask(base::SingleThreadTaskRunner::GetCurrentDefault(),
++        base::BindRepeating(&ImportThrottle::OnComplete, weak_factory_.GetWeakPtr())));
++    return DEFER;
++  }
++  const char* GetNameForLogging() override { return "ShardXCookieBootstrap"; }
++ private:
++  void OnComplete(bool success) {
++    if (!waiting_)
++      return;
++    waiting_ = false;
++    subscription_ = {};
++    if (success) Resume();
++    else CancelDeferredNavigation({CANCEL, net::ERR_BLOCKED_BY_CLIENT});
++  }
++  base::WeakPtr<ImportService> service_;
++  bool waiting_ = false;
++  base::CallbackListSubscription subscription_;
++  base::WeakPtrFactory<ImportThrottle> weak_factory_{this};
++};
++}  // namespace
++
++void EnsureFactoryBuilt() { ImportFactory::GetInstance(); }
++
++void MaybeCreateThrottle(content::NavigationThrottleRegistry& registry) {
++  auto* profile = Profile::FromBrowserContext(
++      registry.GetNavigationHandle().GetWebContents()->GetBrowserContext());
++  if (!TargetProfile(profile) || !HasRequest(*base::CommandLine::ForCurrentProcess()))
++    return;
++  if (auto* service = ImportFactory::Get(profile))
++    registry.AddThrottle(std::make_unique<ImportThrottle>(registry, service));
++}
++}  // namespace shardx::cookie_import
+diff --git a/chrome/browser/profiles/shardx_cookie_bootstrap.h b/chrome/browser/profiles/shardx_cookie_bootstrap.h
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/profiles/shardx_cookie_bootstrap.h
+@@ -0,0 +1,16 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#ifndef CHROME_BROWSER_PROFILES_SHARDX_COOKIE_BOOTSTRAP_H_
++#define CHROME_BROWSER_PROFILES_SHARDX_COOKIE_BOOTSTRAP_H_
++
++namespace content {
++class NavigationThrottleRegistry;
++}
++
++namespace shardx::cookie_import {
++// Register the eager ProfileKeyedService before Profile services are created.
++void EnsureFactoryBuilt();
++// Adds a navigation waiter; this never starts or performs the import itself.
++void MaybeCreateThrottle(content::NavigationThrottleRegistry& registry);
++}  // namespace shardx::cookie_import
++#endif
+diff --git a/chrome/browser/profiles/shardx_cookie_bootstrap_internal.cc b/chrome/browser/profiles/shardx_cookie_bootstrap_internal.cc
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/profiles/shardx_cookie_bootstrap_internal.cc
+@@ -0,0 +1,437 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#include "chrome/browser/profiles/shardx_cookie_bootstrap_internal.h"
++
++#include <windows.h>
++
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <map>
++#include <set>
++#include <utility>
++
++#include "base/containers/span.h"
++#include "base/files/file.h"
++#include "base/files/file_util.h"
++#include "base/files/important_file_writer.h"
++#include "base/json/json_reader.h"
++#include "base/json/json_writer.h"
++#include "base/process/process_handle.h"
++#include "base/strings/string_number_conversions.h"
++#include "base/uuid.h"
++#include "crypto/hash.h"
++#include "net/cookies/cookie_inclusion_status.h"
++#include "net/cookies/unique_cookie_key.h"
++#include "url/gurl.h"
++
++namespace shardx::cookie_import {
++namespace {
++
++bool Hex64(std::string_view value) {
++  return value.size() == 64 && std::ranges::all_of(value, [](char c) {
++    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
++  });
++}
++
++bool PlainPath(const base::FilePath& path) {
++  if (!path.IsAbsolute() || path.ReferencesParent())
++    return false;
++  for (base::FilePath current = path;; current = current.DirName()) {
++    const DWORD attributes = ::GetFileAttributesW(current.value().c_str());
++    if (attributes == INVALID_FILE_ATTRIBUTES ||
++        (attributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
++      return false;
++    }
++    if (current.DirName() == current)
++      return true;
++  }
++}
++
++std::optional<std::string> ReadBounded(const base::FilePath& path,
++                                     size_t limit) {
++  if (!PlainPath(path))
++    return std::nullopt;
++  HANDLE handle = ::CreateFileW(path.value().c_str(), GENERIC_READ,
++      FILE_SHARE_READ, nullptr, OPEN_EXISTING,
++      FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
++  if (handle == INVALID_HANDLE_VALUE)
++    return std::nullopt;
++  base::File file(handle);
++  BY_HANDLE_FILE_INFORMATION attributes = {};
++  base::File::Info info;
++  if (!::GetFileInformationByHandle(handle, &attributes) ||
++      (attributes.dwFileAttributes &
++       (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) ||
++      !file.GetInfo(&info) || info.size < 0 ||
++      static_cast<uint64_t>(info.size) > limit) {
++    return std::nullopt;
++  }
++  std::string bytes(static_cast<size_t>(info.size), '\0');
++  if (!file.ReadAtCurrentPosAndCheck(base::as_writable_byte_span(bytes)))
++    return std::nullopt;
++  std::array<uint8_t, 1> extra;
++  const auto additional = file.ReadAtCurrentPos(extra);
++  if (!additional || *additional != 0)
++    return std::nullopt;
++  return bytes;
++}
++
++std::optional<base::DictValue> ReadReceipt(const Binding& binding) {
++  auto bytes = ReadBounded(binding.receipt_path, 64 * 1024);
++  if (!bytes)
++    return std::nullopt;
++  auto value = base::JSONReader::Read(*bytes, base::JSON_PARSE_RFC);
++  if (!value || !value->is_dict())
++    return std::nullopt;
++  return std::move(value->GetDict());
++}
++
++bool Equals(const base::DictValue& dictionary,
++            std::string_view key,
++            std::string_view expected) {
++  const auto* value = dictionary.FindString(key);
++  return value && *value == expected;
++}
++
++std::unique_ptr<net::CanonicalCookie> ParseCookie(const base::Value& value,
++                                                 base::Time now,
++                                                 GURL* cookie_source_url) {
++  if (!value.is_dict())
++    return nullptr;
++  const auto& item = value.GetDict();
++  static constexpr std::string_view allowed[] = {
++      "name", "value", "url", "domain", "path", "secure", "httpOnly",
++      "sameSite", "expires", "priority"};
++  for (const auto entry : item) {
++    if (std::ranges::find(allowed, entry.first) == std::end(allowed))
++      return nullptr;
++  }
++  const auto* name = item.FindString("name");
++  const auto* cookie_value = item.FindString("value");
++  const auto* url_string = item.FindString("url");
++  const auto* domain_string = item.FindString("domain");
++  const auto* path_string = item.FindString("path");
++  if (!name || !cookie_value || (item.contains("url") == item.contains("domain")) ||
++      (item.contains("url") && !url_string) || (item.contains("domain") && !domain_string))
++    return nullptr;
++  for (std::string_view key : {"secure", "httpOnly"}) {
++    if (item.contains(key) && !item.FindBool(key).has_value())
++      return nullptr;
++  }
++  if (item.contains("path") && !path_string)
++    return nullptr;
++  const bool secure = item.FindBool("secure").value_or(false);
++  const bool http_only = item.FindBool("httpOnly").value_or(false);
++  std::string host;
++  std::string domain;
++  const std::string path = path_string ? *path_string : "";
++  if (!path.empty() && path.front() != '/')
++    return nullptr;
++  GURL canonical_url;
++  if (url_string) {
++    const GURL source(*url_string);
++    if (!source.is_valid() || !source.SchemeIsHTTPOrHTTPS() || !source.has_host())
++      return nullptr;
++    canonical_url = source;
++  } else {
++    if (domain_string->empty())
++      return nullptr;
++    domain = *domain_string;
++    host = *domain_string;
++    if (host.front() == '.')
++      host.erase(0, 1);
++    canonical_url = GURL((secure ? "https://" : "http://") + host + "/");
++  }
++  if (!canonical_url.is_valid() || !canonical_url.SchemeIsHTTPOrHTTPS() ||
++      !canonical_url.has_host()) {
++    return nullptr;
++  }
++  net::CookieSameSite same_site = net::CookieSameSite::UNSPECIFIED;
++  const auto* site = item.FindString("sameSite");
++  if (item.contains("sameSite") && !site)
++    return nullptr;
++  if (site) {
++    if (*site == "Lax") same_site = net::CookieSameSite::LAX_MODE;
++    else if (*site == "Strict") same_site = net::CookieSameSite::STRICT_MODE;
++    else if (*site == "None") same_site = net::CookieSameSite::NO_RESTRICTION;
++    else if (*site != "Unspecified") return nullptr;
++  }
++  net::CookiePriority priority = net::CookiePriority::COOKIE_PRIORITY_MEDIUM;
++  if (item.contains("priority")) {
++    const auto* value = item.FindString("priority");
++    if (!value) return nullptr;
++    if (*value == "Low") priority = net::CookiePriority::COOKIE_PRIORITY_LOW;
++    else if (*value == "Medium") priority = net::CookiePriority::COOKIE_PRIORITY_MEDIUM;
++    else if (*value == "High") priority = net::CookiePriority::COOKIE_PRIORITY_HIGH;
++    else return nullptr;
++  }
++  base::Time expiry;
++  if (const base::Value* value = item.Find("expires")) {
++    if (!value->is_double() && !value->is_int())
++      return nullptr;
++    const double seconds = value->GetDouble();
++    if (!std::isfinite(seconds) || (seconds < 0 && seconds != -1))
++      return nullptr;
++    if (seconds >= 0) {
++      expiry = seconds == 0 ? base::Time::UnixEpoch()
++                            : base::Time::FromSecondsSinceUnixEpoch(seconds);
++      if (expiry.is_null() || expiry.is_inf())
++        return nullptr;
++    }
++  }
++  net::CookieInclusionStatus status;
++  *cookie_source_url = canonical_url;
++  return net::CanonicalCookie::CreateSanitizedCookie(
++      canonical_url, *name, *cookie_value, domain, path, now, expiry, now,
++      secure, http_only, same_site, priority,
++      std::nullopt, &status);
++}
++}  // namespace
++
++bool HasRequest(const base::CommandLine& command_line) {
++  return command_line.HasSwitch(kImportFlag) || command_line.HasSwitch(kDigestFlag);
++}
++
++std::optional<Binding> ParseBinding(const base::FilePath& profile_path,
++                                   const base::CommandLine& command_line) {
++  Binding binding;
++  binding.environment_id = command_line.GetSwitchValueASCII("shardx-managed-environment");
++  binding.envelope_sha256 = command_line.GetSwitchValueASCII(kDigestFlag);
++  binding.envelope_path = command_line.GetSwitchValuePath(kImportFlag).NormalizePathSeparators();
++  if (command_line.HasSwitch("incognito") || command_line.HasSwitch("guest") ||
++      (command_line.HasSwitch("profile-directory") &&
++       command_line.GetSwitchValuePath("profile-directory") !=
++           base::FilePath(FILE_PATH_LITERAL("Default")))) {
++    return std::nullopt;
++  }
++  if (!base::Uuid::ParseLowercase(binding.environment_id).is_valid() ||
++      !Hex64(binding.envelope_sha256) || !binding.envelope_path.IsAbsolute() ||
++      binding.envelope_path.ReferencesParent() ||
++      profile_path.BaseName() != base::FilePath(FILE_PATH_LITERAL("Default"))) {
++    return std::nullopt;
++  }
++  const std::string filename = binding.envelope_path.BaseName().AsUTF8Unsafe();
++  if (filename.size() != 106 || filename.at(64) != '.' ||
++      !filename.ends_with(".json")) {
++    return std::nullopt;
++  }
++  binding.token = filename.substr(0, 64);
++  binding.request_id = filename.substr(65, 36);
++  if (!Hex64(binding.token) || !base::Uuid::ParseLowercase(binding.request_id).is_valid())
++    return std::nullopt;
++  binding.user_data_dir = profile_path.DirName().NormalizePathSeparators();
++  const base::FilePath imports = binding.user_data_dir.Append(FILE_PATH_LITERAL("ShardX Cookie Imports"));
++  const base::FilePath expected = imports.Append(FILE_PATH_LITERAL("requests")).AppendASCII(filename);
++  if (!base::FilePath::CompareEqualIgnoreCase(expected.value(), binding.envelope_path.value()))
++    return std::nullopt;
++  binding.receipt_path = imports.Append(FILE_PATH_LITERAL("receipts")).AppendASCII(binding.token + ".json");
++  return binding;
++}
++
++bool SameImportedAttributes(const net::CanonicalCookie& expected,
++                            const net::CanonicalCookie& actual) {
++  return expected.UniqueKey() == actual.UniqueKey() &&
++      expected.Name() == actual.Name() && expected.Value() == actual.Value() &&
++      expected.Domain() == actual.Domain() && expected.Path() == actual.Path() &&
++      expected.SecureAttribute() == actual.SecureAttribute() &&
++      expected.IsHttpOnly() == actual.IsHttpOnly() && expected.SameSite() == actual.SameSite() &&
++      expected.IsPersistent() == actual.IsPersistent() && expected.ExpiryDate() == actual.ExpiryDate() &&
++      expected.Priority() == actual.Priority() && expected.PartitionKey() == actual.PartitionKey() &&
++      expected.SourceScheme() == actual.SourceScheme() && expected.SourcePort() == actual.SourcePort();
++}
++
++std::unique_ptr<Batch> ParseEnvelope(std::string_view bytes,
++                                    const Binding& binding,
++                                    base::Time now,
++                                    std::string* error) {
++  *error = "invalid_envelope";
++  if (bytes.size() > kMaxEnvelopeBytes ||
++      base::HexEncodeLower(crypto::hash::Sha256(bytes)) != binding.envelope_sha256) {
++    *error = "envelope_digest_mismatch";
++    return nullptr;
++  }
++  auto value = base::JSONReader::Read(bytes, base::JSON_PARSE_RFC);
++  if (!value || !value->is_dict())
++    return nullptr;
++  const auto& envelope = value->GetDict();
++  const auto* source = envelope.FindString("sourceSha256");
++  const auto* cookies = envelope.FindList("cookies");
++  const auto count = envelope.FindInt("cookieCount");
++  const auto deadline_ms = envelope.FindDouble("deadlineUnixMs");
++  if (envelope.FindInt("schemaVersion") != 1 || !Equals(envelope, "contract", kContract) ||
++      !Equals(envelope, "environmentId", binding.environment_id) ||
++      !Equals(envelope, "requestId", binding.request_id) || !Equals(envelope, "token", binding.token) ||
++      !Equals(envelope, "profileDirectory", "Default") || !source || !Hex64(*source) ||
++      !cookies || !count || *count < 0 || static_cast<size_t>(*count) != cookies->size() ||
++      cookies->size() > kMaxCookies || !deadline_ms || !std::isfinite(*deadline_ms) ||
++      *deadline_ms < 1 || std::floor(*deadline_ms) != *deadline_ms) {
++    return nullptr;
++  }
++  auto batch = std::make_unique<Batch>();
++  batch->binding = binding;
++  batch->source_sha256 = *source;
++  batch->deadline = base::Time::FromMillisecondsSinceUnixEpoch(*deadline_ms);
++  if (batch->deadline.is_null() || batch->deadline.is_inf())
++    return nullptr;
++  batch->cookie_count = cookies->size();
++  std::map<net::UniqueCookieKey, size_t> keys;
++  for (const auto& item : *cookies) {
++    GURL source_url;
++    auto cookie = ParseCookie(item, now, &source_url);
++    if (!cookie || !cookie->IsCanonical()) {
++      *error = "invalid_cookie";
++      return nullptr;
++    }
++    auto [found, added] = keys.emplace(cookie->UniqueKey(), batch->cookies.size());
++    if (!added) {
++      if (!SameImportedAttributes(*batch->cookies.at(found->second), *cookie)) {
++        *error = "conflicting_cookie_key";
++        return nullptr;
++      }
++      ++batch->duplicate_count;
++    } else {
++      batch->cookies.push_back(std::move(cookie));
++      batch->source_urls.push_back(std::move(source_url));
++    }
++  }
++  error->clear();
++  return batch;
++}
++
++bool VerifyReadback(const Batch& batch, const net::CookieList& actual,
++                    base::Time now, Counts* counts) {
++  counts->verified = counts->expired = 0;
++  std::map<net::UniqueCookieKey, const net::CanonicalCookie*> stored;
++  for (const auto& cookie : actual)
++    stored.emplace(cookie.UniqueKey(), &cookie);
++  for (const auto& expected : batch.cookies) {
++    const auto found = stored.find(expected->UniqueKey());
++    if (expected->IsExpired(now)) {
++      if (found != stored.end())
++        return false;
++      ++counts->expired;
++    } else {
++      if (found == stored.end() || !SameImportedAttributes(*expected, *found->second))
++        return false;
++      ++counts->verified;
++    }
++  }
++  return true;
++}
++
++bool IsCompletedReceipt(const base::DictValue& receipt, const Binding& binding,
++                        const Batch* batch, bool require_same_request) {
++  const auto count = receipt.FindInt("cookieCount");
++  const auto unique = receipt.FindInt("uniqueCookieCount");
++  const auto accepted = receipt.FindInt("acceptedCookieCount");
++  const auto attempted = receipt.FindInt("attemptedCookieCount");
++  const auto verified = receipt.FindInt("verifiedCookieCount");
++  const auto expired = receipt.FindInt("expiredCookieCount");
++  const auto duplicates = receipt.FindInt("duplicateCookieCount");
++  const auto* source = receipt.FindString("sourceSha256");
++  const auto* request = receipt.FindString("requestId");
++  const auto* envelope = receipt.FindString("envelopeSha256");
++  const auto pid = receipt.FindDouble("browserPid");
++  const auto deadline = receipt.FindDouble("deadlineUnixMs");
++  if (receipt.FindInt("schemaVersion") != 1 || !Equals(receipt, "contract", kContract) ||
++      !Equals(receipt, "status", "completed") || !Equals(receipt, "token", binding.token) ||
++      !Equals(receipt, "environmentId", binding.environment_id) ||
++      !Equals(receipt, "profileDirectory", "Default") || !source || !Hex64(*source) ||
++      !request || !base::Uuid::ParseLowercase(*request).is_valid() || !envelope || !Hex64(*envelope) ||
++      !pid || !std::isfinite(*pid) || *pid < 1 || *pid > 4294967295.0 || std::floor(*pid) != *pid ||
++      !deadline || !std::isfinite(*deadline) || *deadline < 1 || std::floor(*deadline) != *deadline ||
++      receipt.FindBool("partialApplied") != false ||
++      receipt.FindBool("writeOutcomeUnknown") != false ||
++      receipt.FindBool("rollbackPerformed") != false ||
++      !count || !unique || !accepted || !attempted || !verified || !expired || !duplicates ||
++      *count < 0 || *count > static_cast<int>(kMaxCookies) || *unique < 0 || *unique > *count ||
++      *accepted != *unique || *attempted != *accepted || *verified < 0 || *expired < 0 || *duplicates < 0 ||
++      *verified > *unique || *expired != *unique - *verified || *duplicates != *count - *unique) {
++    return false;
++  }
++  if (require_same_request && (*request != binding.request_id || *envelope != binding.envelope_sha256))
++    return false;
++  return !batch || (*source == batch->source_sha256 && *count == static_cast<int>(batch->cookie_count));
++}
++
++Prepared ReadAndPrepare(const Binding& binding) {
++  Prepared result;
++  const auto old = ReadReceipt(binding);
++  if (base::PathExists(binding.receipt_path) &&
++      (!old || old->FindInt("schemaVersion") != 1 || !Equals(*old, "contract", kContract) ||
++       !Equals(*old, "environmentId", binding.environment_id) ||
++       !Equals(*old, "token", binding.token) || !Equals(*old, "profileDirectory", "Default") ||
++       (!Equals(*old, "status", "completed") && !Equals(*old, "status", "failed")))) {
++    result.error = "receipt_conflict";
++    return result;
++  }
++  // The launcher may have deleted this request after consuming its completion.
++  // A recreated Default Profile in this process must not reimport session data.
++  if (old && IsCompletedReceipt(*old, binding, nullptr, true)) {
++    result.previous_completion = true;
++    return result;
++  }
++  const auto bytes = ReadBounded(binding.envelope_path, kMaxEnvelopeBytes);
++  if (!bytes) {
++    result.error = "envelope_read_failed";
++    return result;
++  }
++  result.batch = ParseEnvelope(*bytes, binding, base::Time::Now(), &result.error);
++  if (result.batch && old && IsCompletedReceipt(*old, binding, result.batch.get(), false)) {
++    result.previous_completion = true;
++    result.batch.reset();
++  } else if (old && Equals(*old, "status", "completed")) {
++    result.batch.reset();
++    result.error = "receipt_conflict";
++  }
++  return result;
++}
++
++base::DictValue MakeReceipt(const Binding& binding, const Batch* batch,
++                            const Counts& counts, bool completed,
++                            std::string_view error) {
++  base::DictValue receipt;
++  receipt.Set("schemaVersion", 1);
++  receipt.Set("contract", kContract);
++  receipt.Set("environmentId", binding.environment_id);
++  receipt.Set("requestId", binding.request_id);
++  receipt.Set("token", binding.token);
++  receipt.Set("envelopeSha256", binding.envelope_sha256);
++  receipt.Set("profileDirectory", "Default");
++  receipt.Set("browserPid", static_cast<double>(base::GetCurrentProcId()));
++  receipt.Set("status", completed ? "completed" : "failed");
++  receipt.Set("partialApplied", !completed && counts.accepted > 0);
++  receipt.Set("writeOutcomeUnknown", !completed && counts.in_flight);
++  receipt.Set("rollbackPerformed", false);
++  receipt.Set("attemptedCookieCount", static_cast<int>(counts.attempted));
++  receipt.Set("acceptedCookieCount", static_cast<int>(counts.accepted));
++  receipt.Set("verifiedCookieCount", static_cast<int>(counts.verified));
++  receipt.Set("expiredCookieCount", static_cast<int>(counts.expired));
++  if (batch) {
++    receipt.Set("deadlineUnixMs", static_cast<double>(batch->deadline.InMillisecondsSinceUnixEpoch()));
++    receipt.Set("sourceSha256", batch->source_sha256);
++    receipt.Set("cookieCount", static_cast<int>(batch->cookie_count));
++    receipt.Set("uniqueCookieCount", static_cast<int>(batch->cookies.size()));
++    receipt.Set("duplicateCookieCount", static_cast<int>(batch->duplicate_count));
++  }
++  if (!completed)
++    receipt.Set("errorCode", std::string(error));
++  return receipt;
++}
++
++bool PublishReceipt(const Binding& binding, const base::DictValue& receipt) {
++  const auto old = ReadReceipt(binding);
++  if (old && Equals(*old, "status", "completed"))
++    return false;  // Never destroy a once-only completion ledger.
++  if (!PlainPath(binding.receipt_path.DirName().DirName()) ||
++      !base::CreateDirectory(binding.receipt_path.DirName()) ||
++      !PlainPath(binding.receipt_path.DirName()) ||
++      (base::PathExists(binding.receipt_path) && !PlainPath(binding.receipt_path))) {
++    return false;
++  }
++  const auto json = base::WriteJson(receipt);
++  return json && base::ImportantFileWriter::WriteFileAtomically(
++      binding.receipt_path, *json, "ShardXCookieImport");
++}
++}  // namespace shardx::cookie_import
+diff --git a/chrome/browser/profiles/shardx_cookie_bootstrap_internal.h b/chrome/browser/profiles/shardx_cookie_bootstrap_internal.h
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/profiles/shardx_cookie_bootstrap_internal.h
+@@ -0,0 +1,87 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#ifndef CHROME_BROWSER_PROFILES_SHARDX_COOKIE_BOOTSTRAP_INTERNAL_H_
++#define CHROME_BROWSER_PROFILES_SHARDX_COOKIE_BOOTSTRAP_INTERNAL_H_
++
++#include <memory>
++#include <optional>
++#include <string>
++#include <string_view>
++#include <vector>
++
++#include "base/command_line.h"
++#include "base/files/file_path.h"
++#include "base/time/time.h"
++#include "base/values.h"
++#include "net/cookies/canonical_cookie.h"
++#include "url/gurl.h"
++
++namespace shardx::cookie_import {
++inline constexpr char kContract[] = "shardx-native-cookie-v1";
++inline constexpr char kImportFlag[] = "shardx-cookie-import";
++inline constexpr char kDigestFlag[] = "shardx-cookie-import-sha256";
++inline constexpr size_t kMaxEnvelopeBytes = 16 * 1024 * 1024;
++inline constexpr size_t kMaxCookies = 10000;
++
++struct Binding {
++  base::FilePath user_data_dir;
++  base::FilePath envelope_path;
++  base::FilePath receipt_path;
++  std::string environment_id;
++  std::string request_id;
++  std::string token;
++  std::string envelope_sha256;
++};
++
++struct Batch {
++  Binding binding;
++  std::string source_sha256;
++  base::Time deadline;
++  size_t cookie_count = 0;
++  size_t duplicate_count = 0;
++  std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
++  std::vector<GURL> source_urls;
++};
++
++struct Counts {
++  size_t attempted = 0;
++  size_t accepted = 0;
++  size_t verified = 0;
++  size_t expired = 0;
++  bool in_flight = false;
++};
++
++struct Prepared {
++  std::unique_ptr<Batch> batch;
++  bool previous_completion = false;
++  std::string error;
++};
++
++bool HasRequest(const base::CommandLine& command_line);
++std::optional<Binding> ParseBinding(const base::FilePath& profile_path,
++                                   const base::CommandLine& command_line);
++std::unique_ptr<Batch> ParseEnvelope(std::string_view bytes,
++                                    const Binding& binding,
++                                    base::Time now,
++                                    std::string* error);
++bool SameImportedAttributes(const net::CanonicalCookie& expected,
++                            const net::CanonicalCookie& actual);
++bool VerifyReadback(const Batch& batch,
++                    const net::CookieList& actual,
++                    base::Time now,
++                    Counts* counts);
++bool IsCompletedReceipt(const base::DictValue& receipt,
++                        const Binding& binding,
++                        const Batch* batch,
++                        bool require_same_request);
++Prepared ReadAndPrepare(const Binding& binding);
++base::DictValue MakeReceipt(const Binding& binding,
++                            const Batch* batch,
++                            const Counts& counts,
++                            bool completed,
++                            std::string_view error);
++// Runs only on the sequenced file runner. Never replaces a valid completion
++// with failure; returns false if no receipt could be published.
++bool PublishReceipt(const Binding& binding, const base::DictValue& receipt);
++}  // namespace shardx::cookie_import
++#endif

@@ -293,7 +293,7 @@ def validate_build_linkage(build, source_record, receipt, binding):
     if not all(isinstance(value, dict) for value in (build, source_record, receipt)):
         raise ValueError('Native-session build records must be objects')
     if (type(build.get('schema_version')) is not int or build['schema_version'] != 1
-            or build.get('build_variant') != 'fingerprint-modes-win156'
+            or build.get('build_variant') != 'fingerprint-modes-win157'
             or build.get('chromium_version') != security.VERSION
             or not re.fullmatch('[a-f0-9]{40}', str(source_record.get('source_commit', '')))
             or source_record['source_commit'] != build.get('source_commit')

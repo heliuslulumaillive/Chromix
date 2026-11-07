@@ -10,7 +10,7 @@ import re
 
 FINGERPRINT_VERSIONS = {
     'fingerprint-modes-win155': '155.0.8059.39',
-    'fingerprint-modes-win156': '156.0.8078.79',
+    'fingerprint-modes-win157': '157.0.8103.38',
 }
 
 
@@ -86,13 +86,13 @@ def main():
         record['build_variant'] = source['build_variant']
     if 'patch_kind' in source:
         record['patch_kind'] = source['patch_kind']
-    if source.get('build_variant') == 'fingerprint-modes-win156':
+    if source.get('build_variant') == 'fingerprint-modes-win157':
         record['native_test_executable'] = native_test_identity(args.gn_args)
     destination = args.bundle / 'google-services-build.json'
     for path in sorted(args.bundle.rglob('*')):
         if path.is_file() and path != destination:
             record['files'][path.relative_to(args.bundle).as_posix()] = sha256(path)
-    if source.get('build_variant') == 'fingerprint-modes-win156':
+    if source.get('build_variant') == 'fingerprint-modes-win157':
         record['created_at_utc'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
     destination.write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
 

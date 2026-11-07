@@ -25,8 +25,8 @@ class TransferTests(unittest.TestCase):
                                     'sha256': hashlib.sha256(v).hexdigest()}
                                    for i, v in enumerate(self.parts, 1)]}
         self.run = {'id': 123, 'head_sha': 'a' * 40, 'run_attempt': 1}
-        names = ['security-win156-checkpoint-s1', 'security-win156-s1-part1',
-                 'security-win156-s1-part2']
+        names = ['security-win157-checkpoint-s1', 'security-win157-s1-part1',
+                 'security-win157-s1-part2']
         self.artifacts = [{'id': i + 1, 'name': n, 'size_in_bytes': 100, 'expired': False,
                            'digest': 'sha256:' + str(i) * 64} for i, n in enumerate(names)]
         self.downloaded = []
@@ -62,7 +62,7 @@ class TransferTests(unittest.TestCase):
         plan = self.plan()
         self.assertEqual(plan['stage'], 1)
         self.assertEqual(len(plan['volume_artifacts']), 2)
-        self.assertEqual(self.downloaded, ['security-win156-checkpoint-s1'])
+        self.assertEqual(self.downloaded, ['security-win157-checkpoint-s1'])
 
     def test_missing_volume_fails_before_large_download(self):
         self.artifacts.pop()
@@ -114,7 +114,7 @@ class TransferTests(unittest.TestCase):
         self.assertEqual((dest / 'tree.7z.001').read_bytes(), self.parts[0])
         self.fail_part = None
         c.restore(self.root, dest, '123', 1, 1, False, plan_file)
-        self.assertEqual(self.downloaded.count('security-win156-s1-part1'), 1)
+        self.assertEqual(self.downloaded.count('security-win157-s1-part1'), 1)
         self.assertEqual((dest / 'tree.7z.002').read_bytes(), self.parts[1])
         self.assertTrue((dest / 'checkpoint.json').is_file())
 
@@ -122,10 +122,10 @@ class TransferTests(unittest.TestCase):
         dest = self.root / 'transfer'
         c.restore(self.root, dest, '123', 1, 1)
         (dest / 'tree.7z.001').write_bytes(b'X' * len(self.parts[0]))
-        before = self.downloaded.count('security-win156-s1-part1')
+        before = self.downloaded.count('security-win157-s1-part1')
         with self.assertRaisesRegex(ValueError, 'content mismatch'):
             c.restore(self.root, dest, '123', 1, 1)
-        self.assertEqual(self.downloaded.count('security-win156-s1-part1'), before)
+        self.assertEqual(self.downloaded.count('security-win157-s1-part1'), before)
 
     def test_transient_download_retry_uses_a_fresh_directory_and_reuses_other_volume(self):
         directories = []
@@ -146,7 +146,7 @@ class TransferTests(unittest.TestCase):
         self.assertEqual(len(directories), 2)
         self.assertNotEqual(directories[0], directories[1])
         self.assertTrue(all(not p.exists() for p in directories))
-        self.assertEqual(self.downloaded.count('security-win156-s1-part1'), 1)
+        self.assertEqual(self.downloaded.count('security-win157-s1-part1'), 1)
         self.assertEqual((destination / 'tree.7z.002').read_bytes(), self.parts[1])
 
     def test_transport_retry_is_bounded_and_permission_failures_are_not_retried(self):

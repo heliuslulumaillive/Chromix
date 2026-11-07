@@ -16,8 +16,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class ProductTests(unittest.TestCase):
     def test_product_and_legacy_are_explicit_separate_profiles(self):
-        self.assertEqual(len(patch_selection.select(ROOT, 'windows', profile='lite')[1]), 24)
-        self.assertEqual(len(patch_selection.select(ROOT, 'windows')[1]), 231)
+        self.assertEqual(len(patch_selection.select(ROOT, 'windows', profile='lite')[1]), 26)
+        with self.assertRaisesRegex(ValueError, 'unsupported Chromium patch version'):
+            patch_selection.select(ROOT, 'windows')
         for platform in ('linux', 'macos', None):
             with self.assertRaises(ValueError):
                 patch_selection.select(ROOT, platform, profile='lite')
@@ -37,7 +38,13 @@ class ProductTests(unittest.TestCase):
         final = {row['path']: row['after_sha256'] for row in manifest['source_files']}
         for name in REMOVED_FILES:
             self.assertIsNone(final.get(name))
-        self.assertEqual(manifest['legacy_equivalence']['result'], 'byte-identical')
+        self.assertEqual(manifest['legacy_equivalence']['result'], 'ported-to-reviewed157-source')
+        self.assertEqual(manifest['legacy_equivalence']['baseline_version'], '156.0.8078.79')
+        self.assertIs(manifest['legacy_equivalence']['cross_version_byte_equivalence_claimed'], False)
+        self.assertEqual(manifest['runtime']['chromium_version'], '157.0.8103.38')
+        self.assertEqual(manifest['upstream_port']['chromium_commit'], 'a733b5afbb3ba618844ff8876b89ad1a774b2f18')
+        self.assertEqual([Path(row['path']).name for row in manifest['patches'][-2:]],
+                         ['25-signin-failure-recovery.patch', '26-history-sync-default.patch'])
 
     def test_manifest_and_patch_tampering_rejected(self):
         with tempfile.TemporaryDirectory(prefix='lite-product-test-') as tmp:
@@ -82,7 +89,7 @@ class ProductTests(unittest.TestCase):
 
     def test_unknown_version_cannot_reuse_product_stack(self):
         with mock.patch.object(stack, 'load_pins', return_value={'ChromiumVersion': '157.0.0.1',
-                'UngoogledWindowsVersion': '156.0.8078.79-1.1', 'UngoogledCommit': '0' * 40,
+                'UngoogledWindowsVersion': '157.0.8103.38-1.1', 'UngoogledCommit': '0' * 40,
                 'UngoogledWindowsCommit': '0' * 40}):
             with self.assertRaises(ValueError):
                 stack.load(ROOT)
@@ -121,7 +128,7 @@ class ProductTests(unittest.TestCase):
             src, core = root / 'src', root / 'core'
             (src / 'chrome').mkdir(parents=True)
             core.mkdir()
-            (core / 'chromium_version.txt').write_text('156.0.8078.79\n')
+            (core / 'chromium_version.txt').write_text('157.0.8103.38\n')
             (src / 'chrome/VERSION').write_text('MAJOR=157\nMINOR=0\nBUILD=8078\nPATCH=79\n')
             (root / 'google-services-source.json').write_text(json.dumps({'patch_kind': stack.KIND,
                 'patch_sha256': product['stack_sha256']}))
@@ -139,10 +146,10 @@ class ProductTests(unittest.TestCase):
                 mock.patch.object(prepare_google_services, 'pinned_inverse_rules', return_value=[]):
             work = Path(tmp)
             (work / 'src/chrome').mkdir(parents=True)
-            (work / 'src/chrome/VERSION').write_text('MAJOR=156\nMINOR=0\nBUILD=8078\nPATCH=79\n')
+            (work / 'src/chrome/VERSION').write_text('MAJOR=157\nMINOR=0\nBUILD=8103\nPATCH=38\n')
             saved = {'patch_kind': stack.KIND, 'patch_sha256': product['stack_sha256'],
-                     'chromium_version': '156.0.8078.79', 'variant': 'wrong',
-                     'build_variant': 'fingerprint-modes-win156', 'preparation_inputs': {},
+                     'chromium_version': '157.0.8103.38', 'variant': 'wrong',
+                     'build_variant': 'fingerprint-modes-win157', 'preparation_inputs': {},
                      'preparation_sha256': hashlib.sha256(b'{}').hexdigest()}
             (work / 'google-services-source.json').write_text(json.dumps(saved))
             with self.assertRaisesRegex(ValueError, 'registered product migration'):

@@ -51,7 +51,7 @@ def registered_rule(repo: Path, manifest: dict) -> dict:
             raise ValueError('Migration recipe has not been finalized: ' + key)
     if rule['source_recipe_sha256'] == rule['target_recipe_sha256']:
         raise ValueError('Identical payloads must use ordinary resume')
-    product_kind = 'lite-windows156-product'
+    product_kind = 'lite-windows157-product'
     if any(rule.get(side + '_patch_kind') not in (None, product_kind) for side in ('source', 'target')):
         raise ValueError('Unknown migration patch identity kind')
     if rule.get('source_patch_kind') == product_kind:
@@ -62,7 +62,7 @@ def registered_rule(repo: Path, manifest: dict) -> dict:
         history = repo / 'patches/google-services/history' / (rule['source_aggregate_sha256'] + '.patch')
         if sha256(plain(history)) != rule['source_aggregate_sha256']:
             raise ValueError('Exact donor source patch is unavailable for the reviewed transition')
-    if rule.get('target_patch_kind') == 'lite-windows156-product':
+    if rule.get('target_patch_kind') == 'lite-windows157-product':
         try:
             from .lite_patch_stack import load
         except ImportError:
@@ -77,7 +77,7 @@ def registered_rule(repo: Path, manifest: dict) -> dict:
 
 def check_receipt(receipt, rule, side):
     if (receipt.get('variant') != 'google-services-self-use'
-            or receipt.get('build_variant') != 'fingerprint-modes-win156'
+            or receipt.get('build_variant') != 'fingerprint-modes-win157'
             or receipt.get('chromium_version') != VERSION
             or receipt.get('patch_sha256') != rule[side + '_aggregate_sha256']
             or receipt.get('preparation_sha256') != rule[side + '_preparation_sha256']):

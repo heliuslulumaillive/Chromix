@@ -21,7 +21,7 @@ $restore = 'C:\security-restore'
 $upstreamCache = 'C:\security-upstream'
 $statePath = Join-Path $evidence 'stage-state.json'
 $preflight = Join-Path $evidence 'checkpoint-preflight.json'
-$version = '156.0.8078.79'
+$version = '157.0.8103.38'
 $utf8 = [Text.UTF8Encoding]::new($false)
 $seven = (Get-Command 7z.exe -ErrorAction Stop).Source
 $python = (Get-Command python.exe -ErrorAction Stop).Source
@@ -378,8 +378,8 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
     'Acquire' {
       $pins = & "$PSScriptRoot\read-platform-pins.ps1" -Repo $repo
       if ($pins.ChromiumVersion -cne $version -or
-          $pins.UngoogledCommit -cne '28a211ab4ab6b83d919966a4f58a6df23cf4fb29' -or
-          $pins.UngoogledWindowsCommit -cne '8492884eb30fdd9417ea7816aa92def805c97c74') { throw 'Security lane target pins differ' }
+          $pins.UngoogledCommit -cne 'de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c' -or
+          $pins.UngoogledWindowsCommit -cne 'f85bc55429c37b1c748b676b18fe79b38eee3207') { throw 'Security lane target pins differ' }
       if (Test-Path -LiteralPath $work) { throw 'Acquisition requires a fresh runner work path' }
       if ($Operation -in @('resume','upgrade')) {
         if (-not $SourceRun) { throw 'Checkpoint acquisition requires a numeric donor run' }
@@ -400,9 +400,9 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         Confirm-HostedCompilerPrerequisites
         if ($Operation -eq 'upstream') {
           Invoke-Owned 'exact-upstream-download' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\fetch_upstream_cache.py'),
-            '--platform','windows','--arch','x64','--destination',$upstreamCache,'--run-id','41098495420') -GitHubReadToken
+            '--platform','windows','--arch','x64','--destination',$upstreamCache,'--run-id','42046998774') -GitHubReadToken
           $download = Get-Content -LiteralPath (Join-Path $upstreamCache 'result.json') -Raw | ConvertFrom-Json
-          if ($download.status -cne 'hit') { throw 'Exact 156 upstream snapshot unavailable; explicit fresh operation is required, no fallback performed.' }
+          if ($download.status -cne 'hit') { throw 'Exact 157 upstream snapshot unavailable; explicit fresh operation is required, no fallback performed.' }
         }
       }
     }
@@ -564,14 +564,14 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'security-runtime.json'))}
       @{label='accept-security-runtime';depends=@('security-runtime');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_candidate.py'),
         '--security-tests-json',(Join-Path $evidence 'security-runtime.json'),'--source-record',(Join-Path $evidence 'build-inputs.json'),
-        '--bundle',$bundle,'--build-variant','fingerprint-modes-win156')}
+        '--bundle',$bundle,'--build-variant','fingerprint-modes-win157')}
       @{label='google-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_runtime.py'),'--browser',(Join-Path $bundle 'chrome.exe'),'--report',(Join-Path $evidence 'google-services-runtime.json'))}
       @{label='fingerprint-runtime';command=@($pwsh,'-NoProfile','-File',"$PSScriptRoot\verify-fingerprint-modes.ps1",'-Out',$out,'-Bundle',$bundle,'-Report',(Join-Path $evidence 'fingerprint-modes-validation.json'))}
       @{label='accept-native-passkey';depends=@('native-passkey');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\native_compiled_evidence.py'),
         '--summary',(Join-Path $evidence 'native-passkey-unittests.json'),'--launcher',(Join-Path $evidence 'native-passkey-launcher.json'),
         '--build-record',(Join-Path $bundle 'google-services-build.json'),'--kind','passkey')}
       @{label='accept-fingerprint';depends=@('fingerprint-runtime');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_candidate.py'),
-        '--fingerprint-tests-json',(Join-Path $evidence 'fingerprint-modes-validation.json'),'--bundle',$bundle,'--build-variant','fingerprint-modes-win156')}
+        '--fingerprint-tests-json',(Join-Path $evidence 'fingerprint-modes-validation.json'),'--bundle',$bundle,'--build-variant','fingerprint-modes-win157')}
       )
       Invoke-VerificationPlan $checks
     }

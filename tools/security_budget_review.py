@@ -60,7 +60,7 @@ def verify(repository, source_run, job, preflight, review):
             or any(not re.fullmatch(r'[a-f0-9]{64}', str(v)) for v in review['files_sha256'].values())):
         raise ValueError('Missing explicit reviewed budget evidence identities')
     expected = review.get('artifact', {})
-    artifact_name = f'security-win156-evidence-s{preflight["stage"]}'
+    artifact_name = f'security-win157-evidence-s{preflight["stage"]}'
     if not isinstance(expected, dict) or expected.get('name') != artifact_name:
         raise ValueError('Unexpected reviewed evidence artifact')
     base = f'repos/{repository}/actions/runs/{source_run}'

@@ -1,0 +1,396 @@
+diff --git a/chrome/browser/signin/dice_response_handler.cc b/chrome/browser/signin/dice_response_handler.cc
+--- a/chrome/browser/signin/dice_response_handler.cc
++++ b/chrome/browser/signin/dice_response_handler.cc
+@@ -344,6 +344,11 @@
+ 
+   if (account.no_authorization_code) {
+     handler_->OnNoAuthorizationCode();
++    // A secondary account failure must not abort a successful initiator flow.
++    if (account.account_info.gaia_id ==
++        signin_info_.GetInitiator()->account_info.gaia_id) {
++      delegate_->HandleNoAuthorizationCode(account.account_info.email);
++    }
+     return;
+   }
+ 
+diff --git a/chrome/browser/signin/dice_response_handler.h b/chrome/browser/signin/dice_response_handler.h
+--- a/chrome/browser/signin/dice_response_handler.h
++++ b/chrome/browser/signin/dice_response_handler.h
+@@ -84,6 +84,11 @@
+       const std::string& email,
+       const GoogleServiceAuthError& error) = 0;
+ 
++  // Google completed web sign-in without authorizing a browser token. UI
++  // delegates may report this for an explicit sign-in; non-UI delegates keep
++  // the default no-op behavior. This does not authorize or create an account.
++  virtual void HandleNoAuthorizationCode(const std::string& email) {}
++
+   // Called when the entire Dice signin session is complete (all fetches
+   // finished).
+   virtual void OnDiceSigninSessionComplete(
+diff --git a/chrome/browser/signin/dice_response_handler_unittest.cc b/chrome/browser/signin/dice_response_handler_unittest.cc
+--- a/chrome/browser/signin/dice_response_handler_unittest.cc
++++ b/chrome/browser/signin/dice_response_handler_unittest.cc
+@@ -132,6 +132,10 @@
+   void CompleteChromeSignInAfterGaiaSignin(
+       const CoreAccountInfo& account_info) {
+     complete_profile_signin_account_info_ = account_info;
++  }
++
++  void HandleNoAuthorizationCode(const std::string& email) {
++    no_authorization_code_email_ = email;
+   }
+ 
+   void HandleTokenExchangeFailure(const std::string& email,
+@@ -302,6 +306,7 @@
+   base::test::ScopedFeatureList feature_list_{
+       switches::kEnableChromeRefreshTokenBinding};
+   base::HistogramTester histogram_tester_;
++  std::string no_authorization_code_email_;
+   bool session_complete_called_ = false;
+   std::vector<CoreAccountId> completed_secondary_accounts_;
+   std::unique_ptr<DiceResponseHandler> dice_response_handler_;
+@@ -333,6 +338,10 @@
+       const std::string& email,
+       const GoogleServiceAuthError& error) override {
+     owner_->HandleTokenExchangeFailure(email, error);
++  }
++
++  void HandleNoAuthorizationCode(const std::string& email) override {
++    owner_->HandleNoAuthorizationCode(email);
+   }
+ 
+   signin_metrics::AccessPoint GetAccessPoint() override {
+@@ -1179,6 +1188,10 @@
+   dice_response_handler_->ProcessDiceHeader(
+       std::move(dice_params),
+       std::make_unique<TestProcessDiceHeaderDelegate>(this));
++  EXPECT_EQ(kEmail, no_authorization_code_email_);
++  EXPECT_EQ(nullptr, signin_client_.GetAndClearConsumer());
++  EXPECT_TRUE(identity_manager()->GetAccountsWithRefreshTokens().empty());
++  EXPECT_TRUE(complete_profile_signin_account_info_.IsEmpty());
+   // Check that the reconcilor was blocked and not unblocked before timeout.
+   EXPECT_EQ(1, reconcilor_blocked_count_);
+   EXPECT_EQ(0, reconcilor_unblocked_count_);
+@@ -2642,3 +2655,28 @@
+ }
+ 
+ }  // namespace
++
++TEST_F(DiceResponseHandlerTest, NoAuthorizationCodeSecondaryKeepsInitiator) {
++  DiceResponseParams params;
++  auto* info = &params.data.emplace<DiceResponseParams::SigninInfo>();
++  info->AddAccount({GetDiceResponseParamsAccountInfo(kEmail), kAuthorizationCode,
++                   false, std::string(), false});
++  const std::string secondary = "secondary@example.com";
++  info->AddAccount({GetDiceResponseParamsAccountInfo(secondary), std::string(),
++                   true, std::string(), false});
++  DiceResponseParams::SigninInfo::LinkedAccountsMetadata metadata;
++  metadata.initiator_id = GetDiceResponseParamsAccountInfo(kEmail).gaia_id;
++  metadata.primary_is_connected = signin::Tribool::kTrue;
++  info->set_linked_accounts_metadata(std::move(metadata));
++  dice_response_handler_->ProcessDiceHeader(
++      std::move(params), std::make_unique<TestProcessDiceHeaderDelegate>(this));
++  EXPECT_TRUE(no_authorization_code_email_.empty());
++  GaiaAuthConsumer* consumer = signin_client_.GetAndClearConsumer();
++  ASSERT_NE(nullptr, consumer);
++  EXPECT_EQ(nullptr, signin_client_.GetAndClearConsumer());
++  consumer->OnClientOAuthSuccess(GaiaAuthConsumer::ClientOAuthResult(
++      "refresh_token", "access_token", 10, false, false));
++  EXPECT_FALSE(token_exchange_account_id_.empty());
++  EXPECT_TRUE(no_authorization_code_email_.empty());
++  EXPECT_EQ(1u, identity_manager()->GetAccountsWithRefreshTokens().size());
++}
+diff --git a/chrome/browser/signin/dice_tab_helper.cc b/chrome/browser/signin/dice_tab_helper.cc
+--- a/chrome/browser/signin/dice_tab_helper.cc
++++ b/chrome/browser/signin/dice_tab_helper.cc
+@@ -435,6 +435,7 @@
+ }
+ 
+ void DiceTabHelper::Reset() {
++  ++signin_flow_generation_;
+   state_ = std::make_unique<ResetableState>();
+ }
+ 
+diff --git a/chrome/browser/signin/dice_tab_helper.h b/chrome/browser/signin/dice_tab_helper.h
+--- a/chrome/browser/signin/dice_tab_helper.h
++++ b/chrome/browser/signin/dice_tab_helper.h
+@@ -4,6 +4,8 @@
+ 
+ #ifndef CHROME_BROWSER_SIGNIN_DICE_TAB_HELPER_H_
+ #define CHROME_BROWSER_SIGNIN_DICE_TAB_HELPER_H_
++
++#include <stdint.h>
+ 
+ #include "base/functional/callback_forward.h"
+ #include "base/memory/scoped_refptr.h"
+@@ -143,6 +145,9 @@
+   // normal web signin).
+   bool IsChromeSigninInProgress() const;
+ 
++  // Identifies the current flow so a deferred error cannot terminate a retry.
++  uint64_t signin_flow_generation() const { return signin_flow_generation_; }
++
+   // Called to notify that the sign-in flow is complete.
+   void OnSigninFlowComplete();
+   // Called to notify that the auth token exchange is complete.
+@@ -245,6 +250,7 @@
+   static base::TimeDelta g_delay_before_interception_bubble_retry;
+ 
+   std::unique_ptr<ResetableState> state_;
++  uint64_t signin_flow_generation_ = 0;
+ 
+   bool is_chrome_signin_page_ = false;
+   bool signin_page_load_recorded_ = false;
+diff --git a/chrome/browser/signin/process_dice_header_delegate_impl.cc b/chrome/browser/signin/process_dice_header_delegate_impl.cc
+--- a/chrome/browser/signin/process_dice_header_delegate_impl.cc
++++ b/chrome/browser/signin/process_dice_header_delegate_impl.cc
+@@ -9,8 +9,10 @@
+ #include "base/command_line.h"
+ #include "base/functional/bind.h"
+ #include "base/functional/callback.h"
++#include "base/location.h"
+ #include "base/logging.h"
+ #include "base/metrics/histogram_functions.h"
++#include "base/task/single_thread_task_runner.h"
+ #include "chrome/browser/metrics/profile_metrics_service_factory.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/signin/dice_tab_helper.h"
+@@ -34,6 +36,7 @@
+ #include "content/public/browser/navigation_controller.h"
+ #include "content/public/browser/web_contents.h"
+ #include "google_apis/gaia/core_account_id.h"
++#include "google_apis/gaia/google_service_auth_error.h"
+ #include "ui/base/page_transition_types.h"
+ #include "url/gurl.h"
+ 
+@@ -406,6 +409,39 @@
+            SigninUIError::FromGoogleServiceAuthError(email, error));
+ }
+ 
++void ProcessDiceHeaderDelegateImpl::HandleNoAuthorizationCode(
++    const std::string& email) {
++  DiceTabHelper* helper = GetDiceTabHelperFromWebContents(web_contents_.get());
++  if (!is_chrome_signin_tab_ || !helper ||
++      !helper->IsChromeSigninInProgress()) {
++    return;
++  }
++
++  // Profile-picker error recovery can destroy the profile and its DICE
++  // handler. Defer UI work until the response/session stack has unwound.
++  // Do not retain this delegate or a raw Profile across that task.
++  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++      FROM_HERE,
++      base::BindOnce(
++          [](base::WeakPtr<content::WebContents> contents, uint64_t generation,
++             const std::string& email) {
++            DiceTabHelper* helper =
++                GetDiceTabHelperFromWebContents(contents.get());
++            if (!helper || !helper->IsChromeSigninInProgress() ||
++                helper->signin_flow_generation() != generation) {
++              return;
++            }
++            // Rebind to the live flow. Completion resets its generation, so
++            // duplicate errors, cancellation and a newer retry are safe.
++            auto delegate = ProcessDiceHeaderDelegateImpl::Create(contents.get());
++            delegate->HandleTokenExchangeFailure(
++                email, GoogleServiceAuthError::FromServiceError(
++                           "Google did not provide the authorization required "
++                           "for browser sign-in."));
++          },
++          web_contents_, helper->signin_flow_generation(), email));
++}
++
+ signin_metrics::AccessPoint ProcessDiceHeaderDelegateImpl::GetAccessPoint() {
+   return access_point_;
+ }
+diff --git a/chrome/browser/signin/process_dice_header_delegate_impl.h b/chrome/browser/signin/process_dice_header_delegate_impl.h
+--- a/chrome/browser/signin/process_dice_header_delegate_impl.h
++++ b/chrome/browser/signin/process_dice_header_delegate_impl.h
+@@ -87,6 +87,7 @@
+       const CoreAccountInfo& account_info) override;
+   void HandleTokenExchangeFailure(const std::string& email,
+                                   const GoogleServiceAuthError& error) override;
++  void HandleNoAuthorizationCode(const std::string& email) override;
+   signin_metrics::AccessPoint GetAccessPoint() override;
+   void OnDiceSigninSessionComplete(
+       std::vector<CoreAccountId> secondary_accounts) override;
+diff --git a/chrome/browser/signin/process_dice_header_delegate_impl_unittest.cc b/chrome/browser/signin/process_dice_header_delegate_impl_unittest.cc
+--- a/chrome/browser/signin/process_dice_header_delegate_impl_unittest.cc
++++ b/chrome/browser/signin/process_dice_header_delegate_impl_unittest.cc
+@@ -10,6 +10,7 @@
+ 
+ #include "base/functional/bind.h"
+ #include "base/functional/callback_helpers.h"
++#include "base/run_loop.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/test/metrics/histogram_tester.h"
+ #include "chrome/browser/signin/dice_tab_helper.h"
+@@ -260,6 +261,7 @@
+     EXPECT_EQ(base::UTF8ToUTF16(auth_error_.ToString()), error.message());
+     EXPECT_EQ(base::UTF8ToUTF16(email_), error.email());
+     show_error_called_ = true;
++    ++show_error_count_;
+   }
+ 
+   MockDiceWebSigninInterceptor* mock_interceptor() {
+@@ -274,6 +276,7 @@
+   bool enable_sync_called_ = false;
+   bool signin_header_received_ = false;
+   bool show_error_called_ = false;
++  int show_error_count_ = 0;
+   bool history_sync_optin_started_ = false;
+   CoreAccountInfo account_info_;
+   std::string email_;
+@@ -624,3 +627,56 @@
+     ::testing::ValuesIn(kHandleTokenExchangeSuccessTestCases));
+ 
+ }  // namespace
++
++TEST_F(ProcessDiceHeaderDelegateImplTest,
++       NoAuthorizationCodeReportsOnceAfterDelegateDestruction) {
++  auth_error_ = GoogleServiceAuthError::FromServiceError(
++      "Google did not provide the authorization required for browser sign-in.");
++  auto delegate = CreateDelegateAndNavigateToSignin(true, GURL());
++  delegate->HandleNoAuthorizationCode(email_);
++  delegate->HandleNoAuthorizationCode(email_);
++  EXPECT_FALSE(show_error_called_);
++  delegate.reset();
++  base::RunLoop().RunUntilIdle();
++  EXPECT_EQ(1, show_error_count_);
++  EXPECT_FALSE(enable_sync_called_);
++  EXPECT_FALSE(history_sync_optin_started_);
++  EXPECT_FALSE(DiceTabHelper::FromWebContents(web_contents())
++                   ->IsChromeSigninInProgress());
++  EXPECT_FALSE(IdentityManagerFactory::GetForProfile(profile())
++                   ->HasPrimaryAccount(signin::ConsentLevel::kSignin));
++}
++
++TEST_F(ProcessDiceHeaderDelegateImplTest, NoAuthorizationCodeWebSigninIsSilent) {
++  auto delegate = CreateDelegateAndNavigateToSignin(false, GURL());
++  delegate->HandleNoAuthorizationCode(email_);
++  base::RunLoop().RunUntilIdle();
++  EXPECT_FALSE(show_error_called_);
++}
++
++TEST_F(ProcessDiceHeaderDelegateImplTest, NoAuthorizationCodeClosedTabIsSafe) {
++  auto delegate = CreateDelegateAndNavigateToSignin(true, GURL());
++  delegate->HandleNoAuthorizationCode(email_);
++  DeleteContents();
++  delegate.reset();
++  base::RunLoop().RunUntilIdle();
++  EXPECT_FALSE(show_error_called_);
++}
++
++TEST_F(ProcessDiceHeaderDelegateImplTest, NoAuthorizationCodeCancelledFlowIsSafe) {
++  auto delegate = CreateDelegateAndNavigateToSignin(true, GURL());
++  delegate->HandleNoAuthorizationCode(email_);
++  DiceTabHelper::FromWebContents(web_contents())->OnSigninFlowComplete();
++  base::RunLoop().RunUntilIdle();
++  EXPECT_FALSE(show_error_called_);
++}
++
++TEST_F(ProcessDiceHeaderDelegateImplTest, NoAuthorizationCodeDoesNotAbortRetry) {
++  auto delegate = CreateDelegateAndNavigateToSignin(true, GURL());
++  delegate->HandleNoAuthorizationCode(email_);
++  auto retry = CreateDelegateAndNavigateToSignin(true, GURL());
++  base::RunLoop().RunUntilIdle();
++  EXPECT_FALSE(show_error_called_);
++  EXPECT_TRUE(DiceTabHelper::FromWebContents(web_contents())
++                  ->IsChromeSigninInProgress());
++}
+diff --git a/chrome/browser/ui/views/profiles/profile_picker_sign_in_provider.cc b/chrome/browser/ui/views/profiles/profile_picker_sign_in_provider.cc
+--- a/chrome/browser/ui/views/profiles/profile_picker_sign_in_provider.cc
++++ b/chrome/browser/ui/views/profiles/profile_picker_sign_in_provider.cc
+@@ -34,7 +34,6 @@
+ #include "components/signin/public/base/signin_metrics.h"
+ #include "components/signin/public/identity_manager/account_info.h"
+ #include "components/signin/public/identity_manager/identity_manager.h"
+-#include "components/sync/base/features.h"
+ #include "components/web_modal/web_contents_modal_dialog_manager.h"
+ #include "content/public/browser/context_menu_params.h"
+ #include "content/public/browser/render_frame_host.h"
+@@ -353,9 +352,8 @@
+     Profile* profile,
+     content::WebContents* contents,
+     const SigninUIError& error) {
+-  if (!syncer::IsReplaceSyncPromosWithSignInPromosEnabled()) {
+-    return;
+-  }
++  // Both legacy sync and sign-in promo flows need to leave the blank Gaia
++  // continuation when browser authorization fails.
+   delegate_->ShowSigninError(profile, error);
+ }
+ 
+diff --git a/chrome/browser/ui/views/profiles/profile_picker_sign_in_provider_browsertest.cc b/chrome/browser/ui/views/profiles/profile_picker_sign_in_provider_browsertest.cc
+--- a/chrome/browser/ui/views/profiles/profile_picker_sign_in_provider_browsertest.cc
++++ b/chrome/browser/ui/views/profiles/profile_picker_sign_in_provider_browsertest.cc
+@@ -5,10 +5,14 @@
+ #include "chrome/browser/ui/views/profiles/profile_picker_sign_in_provider.h"
+ 
+ #include "base/functional/callback_helpers.h"
++#include "base/run_loop.h"
++#include "base/test/scoped_feature_list.h"
+ #include "base/test/mock_callback.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/profiles/nuke_profile_directory_utils.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/signin/identity_manager_factory.h"
++#include "chrome/browser/signin/process_dice_header_delegate_impl.h"
+ #include "chrome/browser/profiles/profile_attributes_entry.h"
+ #include "chrome/browser/profiles/profile_attributes_storage.h"
+ #include "chrome/browser/profiles/profile_manager.h"
+@@ -19,6 +23,8 @@
+ #include "chrome/test/base/in_process_browser_test.h"
+ #include "chrome/test/base/profile_deletion_observer.h"
+ #include "components/signin/public/base/signin_metrics.h"
++#include "components/signin/public/identity_manager/identity_manager.h"
++#include "components/sync/base/features.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/browser/web_contents_delegate.h"
+ #include "content/public/test/browser_test.h"
+@@ -151,3 +157,44 @@
+   // Since a profile has been passed in, the provider should not delete it.
+   EXPECT_FALSE(IsProfileDirectoryMarkedForDeletion(provider_profile_path));
+ }
++
++class ProfilePickerNoAuthorizationCodeBrowserTest
++    : public ProfilePickerSignInProviderBrowserTest,
++      public testing::WithParamInterface<bool> {
++ public:
++  ProfilePickerNoAuthorizationCodeBrowserTest() {
++    features_.InitWithFeatureState(syncer::kReplaceSyncPromosWithSignInPromos,
++                                  GetParam());
++  }
++ private:
++  base::test::ScopedFeatureList features_;
++};
++
++INSTANTIATE_TEST_SUITE_P(All, ProfilePickerNoAuthorizationCodeBrowserTest,
++                         testing::Bool());
++
++IN_PROC_BROWSER_TEST_P(ProfilePickerNoAuthorizationCodeBrowserTest,
++                       ReportsFailureWithoutFinishingProfile) {
++  base::RunLoop initialized;
++  base::MockCallback<SignInStepFinishedCallback> finished;
++  EXPECT_CALL(finished, Run(_, _, _, _)).Times(0);
++  testing::StrictMock<MockProfilePickerSignInProviderDelegate> delegate;
++  ProfilePickerSignInProvider provider{
++      host(), &delegate, signin_metrics::AccessPoint::kUserManager,
++      std::string(), finished.Get()};
++  EXPECT_CALL(*host(), ShowScreen(_, _, _))
++      .WillOnce([](content::WebContents*, const GURL&, base::OnceClosure done) {
++        std::move(done).Run();
++      });
++  provider.SwitchToSignIn(StepSwitchFinishedCallback(
++      base::IgnoreArgs<bool>(initialized.QuitClosure())));
++  initialized.Run();
++  Profile* profile = GetContentsProfile(provider.contents());
++  EXPECT_CALL(delegate, ShowSigninError(profile, _)).Times(1);
++  auto dice_delegate = ProcessDiceHeaderDelegateImpl::Create(provider.contents());
++  dice_delegate->HandleNoAuthorizationCode("person@example.com");
++  dice_delegate.reset();
++  base::RunLoop().RunUntilIdle();
++  EXPECT_FALSE(IdentityManagerFactory::GetForProfile(profile)
++                   ->HasPrimaryAccount(signin::ConsentLevel::kSignin));
++}

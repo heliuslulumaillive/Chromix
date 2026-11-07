@@ -21,6 +21,7 @@ def test_platform_number_gap_does_not_drop_integrity_checks():
         return check_patches.Report()
     report = check_patches.Report()
     with mock.patch.object(check_patches.patch_selection, 'validate_overrides'), \
+         mock.patch.object(check_patches.patch_selection, 'active_profile', return_value='legacy'), \
          mock.patch.object(check_patches.patch_selection, 'select', return_value=({'selection': {'version': 'test'}}, selected)), \
          mock.patch.object(check_patches, 'run_checks', side_effect=inspect):
         check_patches.check_selected_stacks(report, Path('.'))
@@ -31,6 +32,7 @@ def test_platform_number_gap_does_not_drop_integrity_checks():
 def test_changed_addition_still_rejected_by_selection():
     report = check_patches.Report()
     with mock.patch.object(check_patches.patch_selection, 'validate_overrides'), \
+         mock.patch.object(check_patches.patch_selection, 'active_profile', return_value='legacy'), \
          mock.patch.object(check_patches.patch_selection, 'select', side_effect=ValueError('changed addition')):
         check_patches.check_selected_stacks(report, Path('.'))
     assert report.failures

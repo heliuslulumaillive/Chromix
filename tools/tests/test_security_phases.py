@@ -13,7 +13,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 STAGE = ROOT / 'build/windows/security-stage.ps1'
-WORKER = ROOT / '.github/workflows/security-win156-worker.yml'
+WORKER = ROOT / '.github/workflows/security-win157-worker.yml'
 PWSH = shutil.which('pwsh') or shutil.which('pwsh.exe')
 PHASES = ['Acquire', 'Extract', 'Prepare', 'Configure', 'Compile', 'Bundle', 'Verify', 'Archive']
 HARNESS = r'''

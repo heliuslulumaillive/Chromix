@@ -98,7 +98,7 @@ def find_dispatch(plan, state):
     earliest = datetime.fromisoformat(state['requested_at']).astimezone(timezone.utc) - timedelta(seconds=5)
     candidates = [r for r in gh_json(endpoint)['workflow_runs']
                   if r.get('head_sha') == plan['target_commit']
-                  and r.get('display_title') == 'Windows 156 / upgrade / ' + plan['handoff_id']
+                  and r.get('display_title') == 'Windows 157 / upgrade / ' + plan['handoff_id']
                   and datetime.fromisoformat(r['created_at'].replace('Z', '+00:00')) >= earliest]
     if len(candidates) > 1:
         raise ValueError('Multiple matching continuations; refuse to dispatch or cancel anything else')
@@ -167,7 +167,7 @@ def handoff(repo, plan, state_path):
                      'producer_job_completed_before_dispatch': True}
             write_json(state_path, state)
             args = ['workflow', 'run', plan['workflow'], '--repo', plan['repository'],
-                    '--ref', plan['target_branch'], '-f', 'build_variant=fingerprint-modes-win156',
+                    '--ref', plan['target_branch'], '-f', 'build_variant=fingerprint-modes-win157',
                     '-f', 'operation=upgrade', '-f', 'source_run=' + str(plan['donor_run']),
                     '-f', 'source_stage=' + str(plan['donor_stage']),
                     '-f', 'handoff_id=' + plan['handoff_id'],

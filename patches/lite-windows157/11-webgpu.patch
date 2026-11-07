@@ -1,0 +1,301 @@
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu.cc b/third_party/blink/renderer/modules/webgpu/gpu.cc
+--- a/third_party/blink/renderer/modules/webgpu/gpu.cc
++++ b/third_party/blink/renderer/modules/webgpu/gpu.cc
+@@ -401,6 +401,8 @@
+ }
+ 
+ wgpu::TextureFormat GPU::GetPreferredCanvasFormat() {
++  // The native format includes backend interoperability workarounds.
++  // A persona preference must not bypass them.
+ #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+   // Interop of vulkan and GL has mesa driver bugs for BGRA format
+   // See anglebug.com/40644739
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc b/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
+--- a/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
++++ b/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
+@@ -4,7 +4,15 @@
+ 
+ #include "third_party/blink/renderer/modules/webgpu/gpu_adapter.h"
+ 
++#include <optional>
++#include <set>
++#include <string>
++
++#include "base/strings/string_split.h"
++#include "base/strings/string_util.h"
+ #include "services/metrics/public/cpp/ukm_builders.h"
++#include "base/uxr_config.h"  // UXR
++#include "base/uxr_gpu_modes.h"
+ #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+ #include "third_party/blink/renderer/bindings/core/v8/v8_object_builder.h"
+ #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_device_descriptor.h"
+@@ -31,9 +39,52 @@
+ 
+ namespace {
+ 
++base::UxrGpuMode WebGPUCapabilityMode(const char* key) {
++  const auto& config = base::UxrConfig::GetInstance();
++  return base::UxrResolveGpuModeV1(
++      config.Get(key), {}, config.Get("uxr-fingerprint-off") == "true");
++}
++
++std::optional<base::UxrGpuProfileV1> WebGPUConfiguredProfile() {
++  const auto& config = base::UxrConfig::GetInstance();
++  int index = -1;
++  config.GetInt("uxr-hardware-resolved-index", &index);
++  return base::UxrFindGpuProfileV1(
++      config.Get("uxr-hardware-resolved-family"), index);
++}
++
+ GPUSupportedFeatures* MakeFeatureNameSet(wgpu::Adapter adapter) {
+   GPUSupportedFeatures* features = MakeGarbageCollected<GPUSupportedFeatures>();
+   DCHECK(features->FeatureNameSet().empty());
++
++  // An explicit empty allowlist exposes no features; unset preserves Dawn's set.
++  const base::UxrConfig& config = base::UxrConfig::GetInstance();
++  const auto mode = WebGPUCapabilityMode("uxr-webgpu-features-mode");
++  const bool custom_filter = mode == base::UxrGpuMode::kCustom;
++  const bool ph_filter =
++      (custom_filter ||
++       (mode == base::UxrGpuMode::kLegacy &&
++        config.GpuBackendPolicy().capability_overrides)) &&
++      config.Has("uxr-webgpu-features");
++  const auto cloak_profile = mode == base::UxrGpuMode::kCloak
++                                 ? WebGPUConfiguredProfile()
++                                 : std::nullopt;
++  const std::string platform_version =
++      config.Get("uxr-hardware-platform-version");
++  const bool windows_modern =
++      platform_version.empty() || platform_version == "19.0.0";
++  std::set<std::string> ph_allowed;
++  if (ph_filter) {
++    const std::string ph_allow_raw = config.Get("uxr-webgpu-features");
++    for (const auto& ph_token : base::SplitString(
++             ph_allow_raw, ",", base::TRIM_WHITESPACE,
++             base::SPLIT_WANT_NONEMPTY)) {
++      ph_allowed.insert(base::ToLowerASCII(ph_token));
++    }
++    if (ph_allowed.empty() && !custom_filter) {
++      return features;
++    }
++  }
+ 
+   wgpu::SupportedFeatures supported_features;
+   adapter.GetFeatures(&supported_features);
+@@ -44,9 +95,25 @@
+     auto feature_name_enum_optional =
+         GPUSupportedFeatures::ToV8FeatureNameEnum(f);
+     if (feature_name_enum_optional) {
++      const V8GPUFeatureName ph_name(feature_name_enum_optional.value());
++      const std::string ph_str = std::string(ph_name.AsString().Utf8());
++      if (ph_filter) {
++        // A custom empty list disables optional features, not the actual core
++        // feature level which Dawn can expose on every default device.
++        const bool actual_core =
++            custom_filter && ph_str == "core-features-and-limits";
++        if (!actual_core &&
++            !ph_allowed.contains(String(ph_str.c_str()).ToAsciiLower().Utf8())) {
++          continue;  // persona does not advertise this exact feature token
++        }
++      }
++      if (cloak_profile &&
++          !base::UxrCloakGpuFeatureAllowedV1(*cloak_profile, ph_str,
++                                           windows_modern))
++        continue;
+       features->AddFeatureName(
+           V8GPUFeatureName(feature_name_enum_optional.value()));
+-      }
++    }
+   }
+   return features;
+ }
+@@ -118,7 +185,13 @@
+ 
+   GPUSupportedLimits::ComboLimits limits;
+   GetHandle().GetLimits(limits.GetLinked());
+-  limits_ = MakeGarbageCollected<GPUSupportedLimits>(limits);
++  const auto cloak_profile =
++      WebGPUCapabilityMode("uxr-webgpu-limits-mode") == base::UxrGpuMode::kCloak
++          ? WebGPUConfiguredProfile()
++          : std::nullopt;
++  limits_ = MakeGarbageCollected<GPUSupportedLimits>(
++      limits, cloak_profile.has_value(),
++      cloak_profile && cloak_profile->macos());
+ 
+   info_ = CreateAdapterInfoForAdapter();
+ }
+@@ -260,7 +333,14 @@
+                                       descriptor->requiredLimits(), resolver)) {
+       return promise;
+     }
+-  }
++    if (WebGPUCapabilityMode("uxr-webgpu-limits-mode") ==
++            base::UxrGpuMode::kCloak &&
++        !limits_->ValidateCompatibleRequest(required_limits, resolver)) {
++      return promise;
++    }
++  }
++  // The descriptor proceeds unchanged to Dawn. Never drop an unsupported
++  // requested feature or clamp a required limit then claim it was granted.
+ 
+   // Use a set to prevent duplicate features.
+   HashSet<wgpu::FeatureName> required_features_set;
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc b/third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc
+--- a/third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc
++++ b/third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc
+@@ -4,8 +4,12 @@
+ 
+ #include "third_party/blink/renderer/modules/webgpu/gpu_adapter_info.h"
+ 
++#include "base/uxr_config.h"
++#include "base/uxr_gpu_modes.h"
++
+ #include "third_party/blink/renderer/modules/webgpu/gpu_memory_heap_info.h"
+ #include "third_party/blink/renderer/modules/webgpu/gpu_subgroup_matrix_config.h"
++#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+ 
+ namespace blink {
+ 
+@@ -34,7 +38,46 @@
+       type_(type),
+       d3d_shader_model_(d3d_shader_model),
+       vk_driver_version_(vk_driver_version),
+-      power_preference_(power_preference) {}
++      power_preference_(power_preference) {
++  // Identity overrides cannot turn a software adapter into hardware.
++  if (is_fallback_adapter_)
++    return;
++  const auto& config = base::UxrConfig::GetInstance();
++  const auto identity_mode = base::UxrResolveGpuModeV1(
++      config.Get("uxr-webgpu-identity-mode"), config.Get("uxr-gpu-mode"),
++      config.Get("uxr-fingerprint-off") == "true");
++  if (identity_mode != base::UxrGpuMode::kLegacy) {
++    if (identity_mode == base::UxrGpuMode::kNative)
++      return;
++    std::string selected_vendor = config.Get("uxr-webgpu-vendor");
++    std::string selected_architecture = config.Get("uxr-webgpu-architecture");
++    if ((selected_vendor.empty() || selected_architecture.empty()) &&
++        identity_mode == base::UxrGpuMode::kCloak) {
++      int index = -1;
++      config.GetInt("uxr-hardware-resolved-index", &index);
++      const auto profile = base::UxrFindGpuProfileV1(
++          config.Get("uxr-hardware-resolved-family"), index);
++      if (!profile)
++        return;
++      selected_vendor = profile->family;
++      selected_architecture = profile->architecture;
++    }
++    if (selected_vendor.empty() || selected_architecture.empty())
++      return;
++    vendor_ = String(selected_vendor.c_str());
++    architecture_ = String(selected_architecture.c_str());
++    description_ =
++        RuntimeEnabledFeatures::WebGPUDeveloperFeaturesEnabled()
++            ? String(config.Get("uxr-webgpu-description").c_str())
++            : String();
++    device_ = String();
++    driver_ = String();
++    // Subgroup sizes, fallback status, backend, and actual capabilities are
++    // properties of the real adapter, never of the selected metadata catalog.
++    return;
++  }
++
++}
+ 
+ void GPUAdapterInfo::AppendMemoryHeapInfo(GPUMemoryHeapInfo* info) {
+   memory_heaps_.push_back(info);
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc b/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc
+--- a/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc
++++ b/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc
+@@ -5,8 +5,10 @@
+ #include "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h"
+ 
+ #include <algorithm>
++#include <bit>
+ 
+ #include "base/numerics/checked_math.h"
++#include "base/uxr_gpu_modes.h"
+ #include "third_party/blink/renderer/bindings/core/v8/v8_union_undefined_unsignedlonglongenforcerange.h"
+ #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_extent_3d_dict.h"
+ #include "third_party/blink/renderer/core/dom/dom_exception.h"
+@@ -70,8 +72,48 @@
+ 
+ // GPUSupportedLimits
+ 
+-GPUSupportedLimits::GPUSupportedLimits(const ComboLimits& limits) {
++GPUSupportedLimits::GPUSupportedLimits(const ComboLimits& limits,
++                                       bool cloak_compatible,
++                                       bool macos_profile) {
++  // Device callers use the default and expose Dawn's actual validated limits.
++  // Only an explicitly configured adapter applies compatible privacy ceilings.
+   limits.UnlinkedCopyTo(&limits_);
++  if (!cloak_compatible)
++    return;
++#define X(name)                                                           \
++  {                                                                       \
++    using T = decltype(ComboLimits::name);                                 \
++    const auto rule = base::UxrCloakGpuLimitRuleV1(#name);                  \
++    if (rule && limits_.name != UndefinedLimitValue<T>()) {                \
++      limits_.name = static_cast<T>(base::UxrRestrictGpuLimitV1(           \
++          limits_.name, macos_profile ? rule->macos_value                 \
++                                     : rule->windows_value,             \
++          rule->minimum));                                               \
++    }                                                                     \
++  }
++  SUPPORTED_LIMITS(X)
++#undef X
++}
++
++bool GPUSupportedLimits::ValidateCompatibleRequest(
++    const ComboLimits& requested, ScriptPromiseResolverBase* resolver) const {
++#define X(name)                                                           \
++  {                                                                       \
++    using T = decltype(ComboLimits::name);                                 \
++    const auto rule = base::UxrCloakGpuLimitRuleV1(#name);                  \
++    if (rule && requested.name != UndefinedLimitValue<T>() &&             \
++        limits_.name != UndefinedLimitValue<T>() &&                       \
++        !base::UxrGpuLimitRequestAllowedV1(                               \
++            requested.name, limits_.name, rule->minimum)) {               \
++      resolver->RejectWithDOMException(                                   \
++          DOMExceptionCode::kOperationError,                              \
++          "Required " #name " exceeds the adapter's compatible limit.");  \
++      return false;                                                       \
++    }                                                                     \
++  }
++  SUPPORTED_LIMITS(X)
++#undef X
++  return true;
+ }
+ 
+ // static
+@@ -104,6 +146,14 @@
+                ") exceeds the maximum representable value for its type."}));  \
+       return false;                                                           \
+     }                                                                         \
++    if ((limitName == "minUniformBufferOffsetAlignment" ||                    \
++         limitName == "minStorageBufferOffsetAlignment") &&                   \
++        !std::has_single_bit(static_cast<T>(value.ValueOrDie()))) {           \
++      resolver->RejectWithDOMException(                                       \
++          DOMExceptionCode::kOperationError,                                  \
++          "Required " #name " limit must be a power of two.");                \
++      return false;                                                           \
++    }                                                                         \
+     out->name = value.ValueOrDie();                                           \
+     continue;                                                                 \
+   }
+diff --git a/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h b/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h
+--- a/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h
++++ b/third_party/blink/renderer/modules/webgpu/gpu_supported_limits.h
+@@ -39,7 +39,11 @@
+     wgpu::Limits* GetLinked();
+   };
+ 
+-  explicit GPUSupportedLimits(const ComboLimits& limits);
++  explicit GPUSupportedLimits(const ComboLimits& limits,
++                              bool cloak_compatible = false,
++                              bool macos_profile = false);
++  bool ValidateCompatibleRequest(const ComboLimits& requested,
++                                 ScriptPromiseResolverBase*) const;
+ 
+   // Returns true if populated, false if not and the ScriptPromiseResolverBase
+   // has been rejected.

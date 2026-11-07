@@ -219,10 +219,34 @@ def run_checks(patches_dir: Path, verbose: bool = False) -> Report:
     return rep
 
 
+def check_product_stack(rep: Report, repo: Path) -> None:
+    """Authenticate compact topics and parse every hunk without legacy surface rules."""
+    try:
+        try:
+            from .apply_restored_patches import ApplyError, transform_patch
+        except ImportError:
+            from apply_restored_patches import ApplyError, transform_patch
+        # Product selection binds the closed topic inventory, patch hashes,
+        # disjoint file ownership and exact before/after source identities.
+        identity, patches = patch_selection.select(repo, 'windows', profile='lite')
+        for name, raw in patches:
+            try:
+                transform_patch(raw, set(), [])
+            except ApplyError as error:
+                raise ValueError(name + ': ' + str(error)) from error
+        rep.check('selected-windows', True,
+                  f"{len(patches)} authenticated product topics; " + identity['selection']['version'])
+    except (OSError, ValueError) as error:
+        rep.check('selected-windows', False, str(error))
+
+
 def check_selected_stacks(rep: Report, repo: Path, verbose: bool = False) -> None:
     try:
         patch_selection.validate_overrides(repo)
         for platform in ('linux', 'windows', 'macos'):
+            if patch_selection.active_profile(repo, platform) == 'lite':
+                check_product_stack(rep, repo)
+                continue
             identity, patches = patch_selection.select(repo, platform)
             with tempfile.TemporaryDirectory(prefix='chromix-selected-lint-') as temporary:
                 directory = Path(temporary)

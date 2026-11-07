@@ -1,0 +1,218 @@
+diff --git a/chrome/browser/resources/history/side_bar.html.ts b/chrome/browser/resources/history/side_bar.html.ts
+--- a/chrome/browser/resources/history/side_bar.html.ts
++++ b/chrome/browser/resources/history/side_bar.html.ts
+@@ -18,6 +18,13 @@
+       @click="${this.onItemClick_}">
+     <cr-icon icon="cr:history"></cr-icon>
+     $i18n{historyMenuItem}
++    <cr-ripple></cr-ripple>
++  </a>
++  <a id="syncedTabs" role="menuitem" href="/syncedTabs"
++      class="page-item cr-nav-menu-item" path="syncedTabs"
++      @click="${this.onItemClick_}">
++    <cr-icon icon="cr:devices"></cr-icon>
++    $i18n{openTabsMenuItem}
+     <cr-ripple></cr-ripple>
+   </a>
+   <a role="menuitem" id="clear-browsing-data" class="cr-nav-menu-item"
+diff --git a/chrome/browser/resources/history/side_bar.ts b/chrome/browser/resources/history/side_bar.ts
+--- a/chrome/browser/resources/history/side_bar.ts
++++ b/chrome/browser/resources/history/side_bar.ts
+@@ -31,6 +31,7 @@
+   $: {
+     history: HTMLAnchorElement,
+     menu: CrMenuSelectorElement,
++    syncedTabs: HTMLElement,
+   };
+ }
+ 
+diff --git a/chrome/browser/ui/webui/cr_components/history/history_util.cc b/chrome/browser/ui/webui/cr_components/history/history_util.cc
+--- a/chrome/browser/ui/webui/cr_components/history/history_util.cc
++++ b/chrome/browser/ui/webui/cr_components/history/history_util.cc
+@@ -23,6 +23,7 @@
+ #include "components/history/core/common/pref_names.h"
+ #include "components/history_clusters/core/history_clusters_prefs.h"
+ #include "components/prefs/pref_service.h"
++#include "components/signin/public/base/signin_pref_names.h"
+ #include "components/strings/grit/components_strings.h"
+ #include "content/public/browser/web_ui_data_source.h"
+ #include "ui/base/l10n/l10n_util.h"
+@@ -111,7 +112,7 @@
+ 
+   source->AddBoolean("isGuestSession", profile->IsGuestSession());
+   source->AddBoolean("isSignInAllowed",
+-                     false);
++                     prefs->GetBoolean(prefs::kSigninAllowed));
+ 
+   source->AddInteger(
+       "lastSelectedTab",
+diff --git a/chrome/browser/ui/webui/history/browsing_history_handler.cc b/chrome/browser/ui/webui/history/browsing_history_handler.cc
+--- a/chrome/browser/ui/webui/history/browsing_history_handler.cc
++++ b/chrome/browser/ui/webui/history/browsing_history_handler.cc
+@@ -64,6 +64,7 @@
+ #include "components/keyed_service/core/service_access_type.h"
+ #include "components/prefs/pref_service.h"
+ #include "components/query_parser/snippet.h"
++#include "components/signin/public/base/signin_pref_names.h"
+ #include "components/signin/public/base/signin_prefs.h"
+ #include "components/signin/public/identity_manager/account_info.h"
+ #include "components/signin/public/identity_manager/identity_manager.h"
+diff --git a/components/history/core/browser/expire_history_backend.cc b/components/history/core/browser/expire_history_backend.cc
+--- a/components/history/core/browser/expire_history_backend.cc
++++ b/components/history/core/browser/expire_history_backend.cc
+@@ -390,8 +390,9 @@
+ }
+ 
+ void ExpireHistoryBackend::StartExpiringOldStuff(
+-    base::TimeDelta expiration_threshold) {
++    base::TimeDelta expiration_threshold, bool expire_visits) {
+   expiration_threshold_ = expiration_threshold;
++  expire_visits_ = expire_visits;
+ 
+   // Remove all readers, just in case this was method was called before.
+   readers_.clear();
+@@ -656,7 +657,7 @@
+   }
+ 
+   const ExpiringVisitsReader* reader = work_queue_.front();
+-  bool more_to_expire = ExpireSomeOldHistory(
++  bool more_to_expire = expire_visits_ && ExpireSomeOldHistory(
+       GetCurrentExpirationTime(), reader, kNumExpirePerIteration);
+ 
+   work_queue_.pop();
+@@ -671,7 +672,8 @@
+         base::Days(internal::kOnDemandFaviconIsOldAfterDays));
+   }
+ 
+-  ExpireOldSegmentData(GetCurrentExpirationTime());
++  // Segment aggregates are maintenance data, not retained visits.
++  ExpireOldSegmentData(base::Time::Now() - expiration_threshold_);
+ 
+   ScheduleExpire();
+ }
+diff --git a/components/history/core/browser/expire_history_backend.h b/components/history/core/browser/expire_history_backend.h
+--- a/components/history/core/browser/expire_history_backend.h
++++ b/components/history/core/browser/expire_history_backend.h
+@@ -80,7 +80,9 @@
+ 
+   // Begins periodic expiration of history older than the given threshold. This
+   // will continue until the object is deleted.
+-  void StartExpiringOldStuff(base::TimeDelta expiration_threshold);
++  // Disabling visit expiry retains periodic favicon and segment maintenance.
++  void StartExpiringOldStuff(base::TimeDelta expiration_threshold,
++                             bool expire_visits = true);
+ 
+   // Deletes everything associated with a URL until `end_time`.
+   void DeleteURL(const GURL& url, base::Time end_time);
+@@ -119,7 +121,8 @@
+   // Note that this as an absolute time rather than a delta, so the caller
+   // should not save it.
+   base::Time GetCurrentExpirationTime() const {
+-    return base::Time::Now() - expiration_threshold_;
++    return expire_visits_ ? base::Time::Now() - expiration_threshold_
++                          : base::Time::Min();
+   }
+ 
+  private:
+@@ -293,6 +296,7 @@
+ 
+   // The threshold for "old" history where we will automatically delete it.
+   base::TimeDelta expiration_threshold_;
++  bool expire_visits_ = true;
+ 
+   // The time at which we expect the expiration code to run.
+   base::Time expected_expiration_time_;
+diff --git a/components/history/core/browser/history_backend.cc b/components/history/core/browser/history_backend.cc
+--- a/components/history/core/browser/history_backend.cc
++++ b/components/history/core/browser/history_backend.cc
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ #include "components/history/core/browser/history_backend.h"
++#include "components/history/core/browser/shardx_history_retention.h"
+ 
+ #include <algorithm>
+ #include <functional>
+@@ -17,7 +18,6 @@
+ #include <utility>
+ #include <vector>
+ 
+-#include "base/command_line.h"
+ #include "base/compiler_specific.h"
+ #include "base/containers/flat_map.h"
+ #include "base/containers/flat_set.h"
+@@ -1392,8 +1392,9 @@
+   db_->GetStartDate(&first_recorded_time_);
+ 
+   // Start expiring old stuff.
+-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch("keep-old-history"))
+-    expirer_.StartExpiringOldStuff(base::Days(kExpireDaysThreshold));
++  const int days = shardx::CurrentHistoryDays();
++  expirer_.StartExpiringOldStuff(
++      base::Days(days == 0 ? kExpireDaysThreshold : days), days != 0);
+ }
+ 
+ void HistoryBackend::CloseAllDatabases() {
+@@ -1621,8 +1622,6 @@
+ }
+ 
+ bool HistoryBackend::IsExpiredVisitTime(const base::Time& time) const {
+-  if (base::CommandLine::ForCurrentProcess()->HasSwitch("keep-old-history"))
+-    return false;
+   return time < expirer_.GetCurrentExpirationTime();
+ }
+ 
+diff --git a/components/history/core/browser/shardx_history_retention.h b/components/history/core/browser/shardx_history_retention.h
+new file mode 100644
+--- /dev/null
++++ b/components/history/core/browser/shardx_history_retention.h
+@@ -0,0 +1,49 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#ifndef COMPONENTS_HISTORY_CORE_BROWSER_SHARDX_HISTORY_RETENTION_H_
++#define COMPONENTS_HISTORY_CORE_BROWSER_SHARDX_HISTORY_RETENTION_H_
++
++#include <optional>
++#include <string_view>
++#include "base/check.h"
++#include "base/command_line.h"
++#include "base/uuid.h"
++
++namespace history::shardx {
++inline constexpr int kMaximumHistoryDays = 106751991;
++inline constexpr char kHistoryDaysSwitch[] = "shardx-history-retention-days";
++
++inline std::optional<int> ParseHistoryDays(std::string_view value) {
++  if (value.empty() || (value.size() > 1 && value.front() == '0'))
++    return std::nullopt;
++  int days = 0;
++  for (char character : value) {
++    if (character < '0' || character > '9')
++      return std::nullopt;
++    const int digit = character - '0';
++    if (days > (kMaximumHistoryDays - digit) / 10)
++      return std::nullopt;
++    days = days * 10 + digit;
++  }
++  return days;
++}
++
++// Missing policy is allowed for unmanaged Chromium only. Zero means permanent.
++inline std::optional<int> HistoryDays(const base::CommandLine& command_line) {
++  if (!command_line.HasSwitch("shardx-managed-environment")) {
++    return command_line.HasSwitch(kHistoryDaysSwitch) ? std::nullopt
++                                                    : std::optional<int>(90);
++  }
++  if (!base::Uuid::ParseCaseInsensitive(command_line.GetSwitchValueASCII(
++          "shardx-managed-environment")).is_valid())
++    return std::nullopt;
++  return ParseHistoryDays(command_line.GetSwitchValueASCII(kHistoryDaysSwitch));
++}
++
++inline int CurrentHistoryDays() {
++  const auto days = HistoryDays(*base::CommandLine::ForCurrentProcess());
++  CHECK(days.has_value());
++  return *days;
++}
++}  // namespace history::shardx
++#endif  // COMPONENTS_HISTORY_CORE_BROWSER_SHARDX_HISTORY_RETENTION_H_

@@ -1,0 +1,541 @@
+diff --git a/net/base/port_util.cc b/net/base/port_util.cc
+--- a/net/base/port_util.cc
++++ b/net/base/port_util.cc
+@@ -7,6 +7,8 @@
+ #include <limits>
+ #include <set>
+ 
++#include "base/command_line.h"
++#include "net/base/shardx_environment_controls.h"
+ #include "base/containers/fixed_flat_map.h"
+ #include "base/containers/flat_set.h"
+ #include "base/feature_list.h"
+@@ -181,6 +183,18 @@
+   if (!IsPortValid(port))
+     return false;
+ 
++  // This is an environment-level deny policy. Evaluate the parsed effective
++  // port before explicit allow exceptions, irrespective of IPv4/IPv6 spelling.
++  // The immutable browser command line is forwarded to network/renderer children.
++  static const base::NoDestructor<net::shardx::BlockedPorts> managed_ports([] {
++    const auto* command_line = base::CommandLine::ForCurrentProcess();
++    return command_line->HasSwitch("shardx-managed-environment")
++               ? net::shardx::ParseBlockedPorts(
++                     command_line->GetSwitchValueASCII("shardx-blocked-ports"))
++               : net::shardx::BlockedPorts();
++  }());
++  if (managed_ports->Contains(port)) return false;
++
+   // Allow explicitly allowed ports for any scheme.
+   if (GetExplicitlyAllowedPorts().count(port) > 0) {
+     return true;
+diff --git a/net/base/shardx_environment_controls.h b/net/base/shardx_environment_controls.h
+new file mode 100644
+--- /dev/null
++++ b/net/base/shardx_environment_controls.h
+@@ -0,0 +1,63 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#ifndef NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
++#define NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
++
++#include <algorithm>
++#include <cstddef>
++#include <string_view>
++#include <vector>
++
++namespace net::shardx {
++struct BlockedPorts {
++  bool valid = true;
++  std::vector<int> ports;
++  bool Contains(int port) const {
++    // Malformed explicit policy never silently becomes unrestricted access.
++    return !valid || std::binary_search(ports.begin(), ports.end(), port);
++  }
++};
++
++inline BlockedPorts ParseBlockedPorts(std::string_view value) {
++  BlockedPorts result;
++  if (value.empty()) return result;
++  if (value.size() > 1535) { result.valid = false; return result; }
++  size_t start = 0;
++  do {
++    if (result.ports.size() >= 256) { result.valid = false; return result; }
++    const size_t end = value.find(',', start);
++    const auto part = value.substr(start, end == std::string_view::npos
++                                             ? value.size() - start : end - start);
++    if (part.empty()) {
++      result.valid = false;
++      return result;
++    }
++    int port = 0;
++    for (const char digit : part) {
++      if (digit < '0' || digit > '9') {
++        result.valid = false;
++        return result;
++      }
++      const int digit_value = digit - '0';
++      // Bound the next decimal step before multiplication, including very
++      // long inputs. Range iteration never exposes an unchecked pointer pair.
++      if (port > (65535 - digit_value) / 10) {
++        result.valid = false;
++        return result;
++      }
++      port = port * 10 + digit_value;
++    }
++    if (port < 1) {
++      result.valid = false;
++      return result;
++    }
++    result.ports.push_back(port);
++    if (end == std::string_view::npos) break;
++    start = end + 1;
++  } while (true);
++  std::sort(result.ports.begin(), result.ports.end());
++  result.ports.erase(std::unique(result.ports.begin(), result.ports.end()), result.ports.end());
++  return result;
++}
++}  // namespace net::shardx
++#endif  // NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
+diff --git a/net/base/url_util.cc b/net/base/url_util.cc
+--- a/net/base/url_util.cc
++++ b/net/base/url_util.cc
+@@ -550,6 +550,28 @@
+ }
+ 
+ bool IsGoogleHost(std::string_view host) {
++  static const char* kGoogleHostSuffixes[] = {
++      ".google.com",
++      ".youtube.com",
++      ".gmail.com",
++      ".doubleclick.net",
++      ".gstatic.com",
++      ".googlevideo.com",
++      ".googleusercontent.com",
++      ".googlesyndication.com",
++      ".google-analytics.com",
++      ".googleadservices.com",
++      ".googleapis.com",
++      ".ytimg.com",
++  };
++  for (const char* suffix : kGoogleHostSuffixes) {
++    // Here it's possible to get away with faster case-sensitive comparisons
++    // because the list above is all lowercase, and a GURL's host name will
++    // always be canonicalized to lowercase as well.
++    if (host.ends_with(suffix)) {
++      return true;
++    }
++  }
+   return false;
+ }
+ 
+diff --git a/net/socket/socks5_client_socket.cc b/net/socket/socks5_client_socket.cc
+--- a/net/socket/socks5_client_socket.cc
++++ b/net/socket/socks5_client_socket.cc
+@@ -38,11 +38,13 @@
+ SOCKS5ClientSocket::SOCKS5ClientSocket(
+     std::unique_ptr<StreamSocket> transport_socket,
+     const HostPortPair& destination,
+-    const NetworkTrafficAnnotationTag& traffic_annotation)
++    const NetworkTrafficAnnotationTag& traffic_annotation,
++    std::optional<Credentials> credentials)
+     : io_callback_(base::BindRepeating(&SOCKS5ClientSocket::OnIOComplete,
+                                        base::Unretained(this))),
+       transport_socket_(std::move(transport_socket)),
+       destination_(destination),
++      credentials_(std::move(credentials)),
+       net_log_(transport_socket_->NetLog()),
+       traffic_annotation_(traffic_annotation) {}
+ 
+@@ -58,6 +60,13 @@
+   // If already connected, then just return OK.
+   if (completed_handshake_)
+     return OK;
++
++  if (credentials_ && (credentials_->username.empty() ||
++                       credentials_->username.size() > 255 ||
++                       credentials_->password.empty() ||
++                       credentials_->password.size() > 255)) {
++    return ERR_INVALID_ARGUMENT;
++  }
+ 
+   net_log_.BeginEvent(NetLogEventType::SOCKS5_CONNECT);
+ 
+@@ -82,6 +91,8 @@
+   // These are the states initialized by Connect().
+   next_state_ = STATE_NONE;
+   user_callback_.Reset();
++  write_buf_.reset();
++  read_buf_.reset();
+ }
+ 
+ bool SOCKS5ClientSocket::IsConnected() const {
+@@ -224,6 +235,18 @@
+         net_log_.EndEventWithNetErrorCode(NetLogEventType::SOCKS5_GREET_READ,
+                                           rv);
+         break;
++      case STATE_AUTH_WRITE:
++        rv = DoAuthWrite();
++        break;
++      case STATE_AUTH_WRITE_COMPLETE:
++        rv = DoAuthWriteComplete(rv);
++        break;
++      case STATE_AUTH_READ:
++        rv = DoAuthRead();
++        break;
++      case STATE_AUTH_READ_COMPLETE:
++        rv = DoAuthReadComplete(rv);
++        break;
+       case STATE_HANDSHAKE_WRITE:
+         DCHECK_EQ(OK, rv);
+         net_log_.BeginEvent(NetLogEventType::SOCKS5_HANDSHAKE_WRITE);
+@@ -253,6 +276,8 @@
+ 
+ static constexpr std::array<uint8_t, 3> kSOCKS5GreetWriteData{
+     0x05, 0x01, 0x00};  // no authentication
++static constexpr std::array<uint8_t, 3> kSOCKS5AuthGreetWriteData{
++    0x05, 0x01, 0x02};  // require username/password; never downgrade to no-auth
+ 
+ int SOCKS5ClientSocket::DoGreetWrite() {
+   // Since we only have 1 byte to send the hostname length in, if the
+@@ -264,7 +289,8 @@
+ 
+   if (!write_buf_) {
+     auto greet_buffer =
+-        base::MakeRefCounted<WrappedIOBuffer>(kSOCKS5GreetWriteData);
++        base::MakeRefCounted<WrappedIOBuffer>(
++            credentials_ ? kSOCKS5AuthGreetWriteData : kSOCKS5GreetWriteData);
+     write_buf_ = base::MakeRefCounted<DrainableIOBuffer>(
+         std::move(greet_buffer), greet_buffer->size());
+   }
+@@ -323,12 +349,87 @@
+                                    "version", read_data[0]);
+     return ERR_SOCKS_CONNECTION_FAILED;
+   }
+-  if (read_data[1] != 0x00) {
++  if (read_data[1] != (credentials_ ? 0x02 : 0x00)) {
+     net_log_.AddEventWithIntParams(NetLogEventType::SOCKS_UNEXPECTED_AUTH,
+                                    "method", read_data[1]);
+     return ERR_SOCKS_CONNECTION_FAILED;
+   }
+ 
++  read_buf_.reset();
++  next_state_ = credentials_ ? STATE_AUTH_WRITE : STATE_HANDSHAKE_WRITE;
++  return OK;
++}
++
++// Credentials are deliberately not emitted as NetLog event parameters.
++scoped_refptr<DrainableIOBuffer> SOCKS5ClientSocket::BuildAuthWriteBuffer()
++    const {
++  DCHECK(credentials_);
++  const auto& username = credentials_->username;
++  const auto& password = credentials_->password;
++  std::vector<uint8_t> auth;
++  auth.reserve(3 + username.size() + password.size());
++  auth.push_back(0x01);  // RFC 1929 subnegotiation version (not SOCKS version).
++  auth.push_back(base::checked_cast<uint8_t>(username.size()));
++  auth.insert(auth.end(), username.begin(), username.end());
++  auth.push_back(base::checked_cast<uint8_t>(password.size()));
++  auth.insert(auth.end(), password.begin(), password.end());
++  auto buffer = base::MakeRefCounted<VectorIOBuffer>(std::move(auth));
++  const int size = buffer->size();
++  return base::MakeRefCounted<DrainableIOBuffer>(std::move(buffer), size);
++}
++
++int SOCKS5ClientSocket::DoAuthWrite() {
++  if (!write_buf_) {
++    write_buf_ = BuildAuthWriteBuffer();
++  }
++  next_state_ = STATE_AUTH_WRITE_COMPLETE;
++  return transport_socket_->Write(write_buf_.get(), write_buf_->BytesRemaining(),
++                                  io_callback_, traffic_annotation_);
++}
++
++int SOCKS5ClientSocket::DoAuthWriteComplete(int result) {
++  if (result < 0) {
++    return result;
++  }
++  if (result == 0) {
++    return ERR_CONNECTION_CLOSED;
++  }
++  write_buf_->DidConsume(result);
++  if (write_buf_->BytesRemaining()) {
++    next_state_ = STATE_AUTH_WRITE;
++  } else {
++    write_buf_.reset();
++    next_state_ = STATE_AUTH_READ;
++  }
++  return OK;
++}
++
++int SOCKS5ClientSocket::DoAuthRead() {
++  if (!read_buf_) {
++    read_buf_ = base::MakeRefCounted<GrowableIOBuffer>();
++    read_buf_->SetCapacity(2);
++  }
++  next_state_ = STATE_AUTH_READ_COMPLETE;
++  return transport_socket_->Read(read_buf_.get(), read_buf_->RemainingCapacity(),
++                                 io_callback_);
++}
++
++int SOCKS5ClientSocket::DoAuthReadComplete(int result) {
++  if (result < 0) {
++    return result;
++  }
++  if (result == 0) {
++    return ERR_SOCKS_CONNECTION_FAILED;
++  }
++  read_buf_->set_offset(read_buf_->offset() + result);
++  if (read_buf_->RemainingCapacity()) {
++    next_state_ = STATE_AUTH_READ;
++    return OK;
++  }
++  const auto reply = read_buf_->span_before_offset();
++  if (reply[0] != 0x01 || reply[1] != 0x00) {
++    return ERR_SOCKS_CONNECTION_FAILED;
++  }
+   read_buf_.reset();
+   next_state_ = STATE_HANDSHAKE_WRITE;
+   return OK;
+diff --git a/net/socket/socks5_client_socket.h b/net/socket/socks5_client_socket.h
+--- a/net/socket/socks5_client_socket.h
++++ b/net/socket/socks5_client_socket.h
+@@ -9,6 +9,7 @@
+ #include <stdint.h>
+ 
+ #include <memory>
++#include <optional>
+ #include <string>
+ 
+ #include "base/memory/scoped_refptr.h"
+@@ -28,9 +29,14 @@
+ class GrowableIOBuffer;
+ 
+ // This StreamSocket is used to setup a SOCKSv5 handshake with a socks proxy.
+-// Currently no SOCKSv5 authentication is supported.
++// Supports no-auth and explicit RFC 1929 username/password authentication.
+ class NET_EXPORT_PRIVATE SOCKS5ClientSocket : public StreamSocket {
+  public:
++  struct Credentials {
++    std::string username;
++    std::string password;
++  };
++
+   // |destination| contains the hostname and port to which the socket above will
+   // communicate to via the SOCKS layer.
+   //
+@@ -39,7 +45,8 @@
+   // proxy side.
+   SOCKS5ClientSocket(std::unique_ptr<StreamSocket> transport_socket,
+                      const HostPortPair& destination,
+-                     const NetworkTrafficAnnotationTag& traffic_annotation);
++                     const NetworkTrafficAnnotationTag& traffic_annotation,
++                     std::optional<Credentials> credentials = std::nullopt);
+ 
+   SOCKS5ClientSocket(const SOCKS5ClientSocket&) = delete;
+   SOCKS5ClientSocket& operator=(const SOCKS5ClientSocket&) = delete;
+@@ -82,6 +89,10 @@
+     STATE_GREET_WRITE_COMPLETE,
+     STATE_GREET_READ,
+     STATE_GREET_READ_COMPLETE,
++    STATE_AUTH_WRITE,
++    STATE_AUTH_WRITE_COMPLETE,
++    STATE_AUTH_READ,
++    STATE_AUTH_READ_COMPLETE,
+     STATE_HANDSHAKE_WRITE,
+     STATE_HANDSHAKE_WRITE_COMPLETE,
+     STATE_HANDSHAKE_READ,
+@@ -108,6 +119,11 @@
+   void OnReadWriteComplete(CompletionOnceCallback callback, int result);
+ 
+   int DoLoop(int last_io_result);
++  int DoAuthWrite();
++  int DoAuthWriteComplete(int result);
++  int DoAuthRead();
++  int DoAuthReadComplete(int result);
++  scoped_refptr<DrainableIOBuffer> BuildAuthWriteBuffer() const;
+   int DoHandshakeRead();
+   int DoHandshakeReadComplete(int result);
+   int DoHandshakeWrite();
+@@ -144,6 +160,7 @@
+   bool was_ever_used_ = false;
+ 
+   const HostPortPair destination_;
++  const std::optional<Credentials> credentials_;
+ 
+   NetLogWithSource net_log_;
+ 
+diff --git a/net/socket/socks5_client_socket_unittest.cc b/net/socket/socks5_client_socket_unittest.cc
+--- a/net/socket/socks5_client_socket_unittest.cc
++++ b/net/socket/socks5_client_socket_unittest.cc
+@@ -59,7 +59,8 @@
+       base::span<const MockWrite> writes,
+       std::string_view hostname,
+       int port,
+-      NetLog* net_log);
++      NetLog* net_log,
++      std::optional<SOCKS5ClientSocket::Credentials> credentials = std::nullopt);
+ 
+   void SetUp() override;
+ 
+@@ -91,7 +92,8 @@
+     base::span<const MockWrite> writes,
+     std::string_view hostname,
+     int port,
+-    NetLog* net_log) {
++    NetLog* net_log,
++    std::optional<SOCKS5ClientSocket::Credentials> credentials) {
+   TestCompletionCallback callback;
+   data_ = std::make_unique<StaticSocketDataProvider>(reads, writes);
+   auto tcp_sock = std::make_unique<MockTCPClientSocket>(address_list_, net_log,
+@@ -108,7 +110,56 @@
+   // non-owning pointer to it.
+   return std::make_unique<SOCKS5ClientSocket>(std::move(tcp_sock),
+                                               HostPortPair(hostname, port),
+-                                              TRAFFIC_ANNOTATION_FOR_TESTS);
++                                              TRAFFIC_ANNOTATION_FOR_TESTS,
++                                              std::move(credentials));
++}
++
++// RFC 1929 reads may be fragmented, with synchronous or async completion.
++TEST_F(SOCKS5ClientSocketTest, UsernamePasswordHandshake) {
++  const uint8_t greet[] = {5, 1, 2};
++  const uint8_t auth[] = {1, 4, 'u', 's', 'e', 'r', 4, 'p', 'a', 's', 's'};
++  const uint8_t request[] = {5, 1, 0, 3, 9, 'l', 'o', 'c', 'a', 'l', 'h', 'o',
++                             's', 't', 0, 80};
++  const uint8_t response[] = {5, 2, 1, 0};
++  for (IoMode mode : {SYNCHRONOUS, ASYNC}) {
++    MockWrite writes[] = {MockWrite(mode, base::span(greet)), MockWrite(mode, base::span(auth)),
++                           MockWrite(mode, base::span(request))};
++    MockRead reads[] = {
++        MockRead(mode, base::span(response).subspan(0, 1)),
++        MockRead(mode, base::span(response).subspan(1, 1)),
++        MockRead(mode, base::span(response).subspan(2, 1)),
++        MockRead(mode, base::span(response).subspan(3, 1)),
++        MockRead(mode, kSOCKS5OkResponse)};
++    user_sock_ = BuildMockSocket(reads, writes, "localhost", 80, NetLog::Get(),
++                                SOCKS5ClientSocket::Credentials{"user", "pass"});
++    EXPECT_THAT(callback_.GetResult(user_sock_->Connect(callback_.callback())), IsOk());
++    EXPECT_TRUE(user_sock_->IsConnected());
++    user_sock_->Disconnect();
++    user_sock_.reset();
++  }
++}
++
++TEST_F(SOCKS5ClientSocketTest, RejectUsernamePasswordDowngrade) {
++  const uint8_t greet[] = {5, 1, 2};
++  MockWrite writes[] = {MockWrite(ASYNC, base::span(greet))};
++  MockRead reads[] = {MockRead(ASYNC, kSOCKS5GreetResponse)};
++  user_sock_ = BuildMockSocket(reads, writes, "localhost", 80, NetLog::Get(),
++                              SOCKS5ClientSocket::Credentials{"user", "pass"});
++  EXPECT_THAT(callback_.GetResult(user_sock_->Connect(callback_.callback())),
++              IsError(ERR_SOCKS_CONNECTION_FAILED));
++  EXPECT_FALSE(user_sock_->IsConnected());
++}
++
++TEST_F(SOCKS5ClientSocketTest, InvalidCredentialLengthFailsBeforeWriting) {
++  for (const auto& credentials : {
++           SOCKS5ClientSocket::Credentials{"", "pass"},
++           SOCKS5ClientSocket::Credentials{"user", ""},
++           SOCKS5ClientSocket::Credentials{std::string(256, 'x'), "pass"},
++           SOCKS5ClientSocket::Credentials{"user", std::string(256, 'x')}}) {
++    user_sock_ = BuildMockSocket({}, {}, "localhost", 80, NetLog::Get(), credentials);
++    EXPECT_THAT(user_sock_->Connect(callback_.callback()), IsError(ERR_INVALID_ARGUMENT));
++    user_sock_.reset();
++  }
+ }
+ 
+ // Tests a complete SOCKS5 handshake and the disconnection.
+diff --git a/net/socket/socks_connect_job.cc b/net/socket/socks_connect_job.cc
+--- a/net/socket/socks_connect_job.cc
++++ b/net/socket/socks_connect_job.cc
+@@ -7,7 +7,10 @@
+ #include <memory>
+ #include <utility>
+ 
++#include "base/environment.h"
+ #include "base/functional/bind.h"
++#include "base/json/json_reader.h"
++#include "net/base/proxy_server.h"
+ #include "net/base/net_errors.h"
+ #include "net/log/net_log_source_type.h"
+ #include "net/log/net_log_with_source.h"
+@@ -19,6 +22,48 @@
+ #include "net/socket/transport_connect_job.h"
+ 
+ namespace net {
++
++namespace {
++
++// Browser-launch-scoped configuration inherited by the network service. Keep
++// credentials out of argv and bind them to one canonical proxy endpoint; this
++// is not an HTTP-auth cache and must not answer origin authentication prompts.
++int ReadSocks5Credentials(
++    const TransportSocketParams::Endpoint& destination,
++    std::optional<SOCKS5ClientSocket::Credentials>* credentials) {
++  auto raw = base::Environment::Create()->GetVar("CHROMIX_SOCKS5_AUTH");
++  if (!raw || raw->empty()) {
++    return OK;
++  }
++  if (raw->size() > 4096) {
++    return ERR_INVALID_ARGUMENT;
++  }
++  auto value = base::JSONReader::ReadDict(*raw, base::JSON_PARSE_RFC);
++  if (!value || value->size() != 5 || value->FindInt("version") != 1) {
++    return ERR_INVALID_ARGUMENT;
++  }
++  const auto* host = value->FindString("host");
++  const auto port = value->FindInt("port");
++  const auto* username = value->FindString("username");
++  const auto* password = value->FindString("password");
++  if (!host || !port || *port <= 0 || *port > 65535 || !username || !password ||
++      username->empty() || username->size() > 255 || password->empty() ||
++      password->size() > 255) {
++    return ERR_INVALID_ARGUMENT;
++  }
++  const auto server = ProxyServer::FromSchemeHostAndPort(
++      ProxyServer::SCHEME_SOCKS5, *host, static_cast<uint16_t>(*port));
++  const auto* endpoint = std::get_if<HostPortPair>(&destination);
++  if (!server.is_valid() || !endpoint) {
++    return ERR_INVALID_ARGUMENT;
++  }
++  if (server.host_port_pair() == *endpoint) {
++    *credentials = SOCKS5ClientSocket::Credentials{*username, *password};
++  }
++  return OK;
++}
++
++}  // namespace
+ 
+ // SOCKSConnectJobs will time out if the SOCKS handshake takes longer than this.
+ static constexpr base::TimeDelta kSOCKSConnectJobTimeout = base::Seconds(30);
+@@ -172,13 +217,19 @@
+ }
+ 
+ int SOCKSConnectJob::DoSOCKSConnect() {
+-  next_state_ = STATE_SOCKS_CONNECT_COMPLETE;
+ 
+   // Add a SOCKS connection on top of the tcp socket.
+   if (socks_params_->is_socks_v5()) {
++    std::optional<SOCKS5ClientSocket::Credentials> credentials;
++    const int result = ReadSocks5Credentials(
++        socks_params_->transport_params()->destination(), &credentials);
++    if (result != OK) {
++      transport_connect_job_.reset();
++      return result;
++    }
+     socket_ = std::make_unique<SOCKS5ClientSocket>(
+         transport_connect_job_->PassSocket(), socks_params_->destination(),
+-        socks_params_->traffic_annotation());
++        socks_params_->traffic_annotation(), std::move(credentials));
+   } else {
+     auto socks_socket = std::make_unique<SOCKSClientSocket>(
+         transport_connect_job_->PassSocket(), socks_params_->destination(),
+@@ -189,6 +240,7 @@
+     socket_ = std::move(socks_socket);
+   }
+   transport_connect_job_.reset();
++  next_state_ = STATE_SOCKS_CONNECT_COMPLETE;
+   return socket_->Connect(
+       base::BindOnce(&SOCKSConnectJob::OnIOComplete, base::Unretained(this)));
+ }

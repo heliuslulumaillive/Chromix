@@ -1,0 +1,2859 @@
+diff --git a/base/uxr_graphics_noise.cc b/base/uxr_graphics_noise.cc
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_graphics_noise.cc
+@@ -0,0 +1,556 @@
++// Copyright 2026. Independent implementation from byte-verified models.
++#include "base/uxr_graphics_noise.h"
++
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <cstring>
++#include <limits>
++#include <string>
++
++#include "base/uxr_pixel_noise.h"
++
++namespace base {
++namespace {
++
++uint32_t RotateLeft(uint32_t value, unsigned count) {
++  return (value << count) | (value >> (32 - count));
++}
++
++uint32_t Fmix32(uint32_t value) {
++  value ^= value >> 16;
++  value *= 0x85ebca6bu;
++  value ^= value >> 13;
++  value *= 0xc2b2ae35u;
++  return value ^ (value >> 16);
++}
++
++class Xoshiro128 {
++ public:
++  explicit Xoshiro128(uint32_t seed) {
++    for (uint32_t i = 0; i < 4; ++i)
++      state_[i] = Fmix32(seed + (i + 1) * 0x9e3779b9u);
++  }
++  uint32_t Next() {
++    const uint32_t result = RotateLeft(state_[1] * 5u, 7) * 9u;
++    const uint32_t temporary = state_[1] << 9;
++    state_[2] ^= state_[0];
++    state_[3] ^= state_[1];
++    state_[1] ^= state_[2];
++    state_[0] ^= state_[3];
++    state_[2] ^= temporary;
++    state_[3] = RotateLeft(state_[3], 11);
++    return result;
++  }
++
++ private:
++  std::array<uint32_t, 4> state_;
++};
++
++bool ValidLayout(const UxrPixelRegion& region) {
++  if (region.width == 0 || region.height == 0)
++    return false;
++  const size_t row_bytes = static_cast<size_t>(region.width) * 4;
++  if (row_bytes / 4 != region.width || region.row_stride < row_bytes ||
++      region.bytes.size() < row_bytes)
++    return false;
++  return region.height - 1 <=
++         (region.bytes.size() - row_bytes) / region.row_stride;
++}
++
++span<uint8_t> Pixel(const UxrPixelRegion& region, uint32_t x, uint32_t y) {
++  return region.bytes.subspan(
++      static_cast<size_t>(y) * region.row_stride + static_cast<size_t>(x) * 4,
++      size_t{4});
++}
++
++uint32_t Channel(const UxrPixelRegion& region, uint32_t logical_rgb) {
++  return region.bgra ? 2 - logical_rgb : logical_rgb;
++}
++
++bool AssignShardBit(span<uint8_t> pixel, uint32_t channel, uint32_t bit) {
++  const uint32_t alpha = pixel[3];
++  if (alpha == 0)
++    return false;
++  const uint32_t candidate = (pixel[channel] & 0xfeu) | bit;
++  if (alpha != 255) {
++    const uint32_t product = candidate * alpha;
++    const uint32_t premultiplied =
++        (product + ((product + 128u) >> 8) + 128u) >> 8;
++    const uint32_t scale = 0xff000000u / alpha;
++    const uint32_t back = (premultiplied * scale + 0x800000u) >> 24;
++    if (candidate != back)
++      return false;
++  }
++  const bool changed = pixel[channel] != candidate;
++  pixel[channel] = static_cast<uint8_t>(candidate);
++  return changed;
++}
++
++UxrPixelResult ApplyChromix(const UxrSurfacePolicy& policy,
++                            UxrPixelSurface surface,
++                            const UxrPixelRegion& region) {
++  const uint32_t seed = UxrPixelNoiseSeed(policy.seed);
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    const uint32_t absolute_y =
++        surface == UxrPixelSurface::kWebGLReadback
++            ? region.canvas_height - 1 -
++                  (static_cast<uint32_t>(region.origin_y) + y)
++            : static_cast<uint32_t>(region.origin_y) + y;
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (pixel[3] == 0)
++        continue;
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        const uint32_t index = Channel(region, channel);
++        const uint8_t value =
++            UxrNoiseChannel(seed, static_cast<uint32_t>(region.origin_x) + x,
++                            absolute_y, channel, pixel[index]);
++        changed |= value != pixel[index];
++        pixel[index] = value;
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++bool ValidNeighborhood(const UxrPixelNeighborhood& view, size_t pixel_bytes) {
++  if (view.bytes.empty())
++    return view.width == 0 && view.height == 0;
++  const size_t row_bytes = static_cast<size_t>(view.width) * pixel_bytes;
++  return view.width && view.height && row_bytes / pixel_bytes == view.width &&
++         view.row_stride >= row_bytes && view.bytes.size() >= row_bytes &&
++         view.height - 1 <= (view.bytes.size() - row_bytes) / view.row_stride;
++}
++
++// Absolute 2x2 cells are independent of the requested crop. Clamp only when
++// the halo's completed read reaches a real surface edge. RGB bit zero is not
++// part of the decision; otherwise a previous assignment could move the guard.
++bool ShardFlatCell(const UxrPixelRegion& region, UxrPixelSurface surface,
++                   uint32_t x, uint32_t y, bool floating = false) {
++  const auto& view = region.neighborhood;
++  if (view.bytes.empty())
++    return false;  // historical/reference helper calls retain their old path
++  const int64_t ax = int64_t{region.origin_x} + x;
++  const int64_t ay = int64_t{region.origin_y} + y;
++  const int64_t last_x = int64_t{view.origin_x} + view.width - 1;
++  const int64_t last_y = int64_t{view.origin_y} + view.height - 1;
++  if (ax < view.origin_x || ay < view.origin_y || ax > last_x || ay > last_y)
++    return true;  // native clipped/unknown pixels are never invented
++  const int64_t px = std::clamp(ax ^ 1, int64_t{view.origin_x}, last_x);
++  // WebGL's mask is anchored at the framebuffer bottom. Export rows are
++  // top-down, including odd-height surfaces whose 2x2 parity would otherwise
++  // disagree with readPixels.
++  const int64_t paired_y = surface == UxrPixelSurface::kWebGLExport
++      ? int64_t{region.canvas_height} - 1 -
++            ((int64_t{region.canvas_height} - 1 - ay) ^ 1)
++      : ay ^ 1;
++  const int64_t py = std::clamp(paired_y, int64_t{view.origin_y}, last_y);
++  const size_t bytes_per_pixel = floating ? 16 : 4;
++  auto canonical = [&](int64_t cx, int64_t cy) {
++    const size_t offset = static_cast<size_t>(cy - view.origin_y) * view.row_stride +
++                          static_cast<size_t>(cx - view.origin_x) * bytes_per_pixel;
++    auto pixel = view.bytes.subspan(offset, bytes_per_pixel);
++    std::array<uint32_t, 4> value;
++    if (floating) {
++      for (size_t channel = 0; channel < 4; ++channel) {
++        std::memcpy(&value[channel], pixel.subspan(channel * 4, size_t{4}).data(), 4);
++        if (channel != 3)
++          value[channel] &= ~1u;
++      }
++    } else {
++      value[3] = pixel[3];
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        uint32_t component = pixel[Channel(region, channel)];
++        if (region.premultiplied && surface == UxrPixelSurface::kWebGLExport &&
++            value[3] != 255) {
++          const uint32_t product = component * value[3];
++          component = (product + ((product + 128u) >> 8) + 128u) >> 8;
++        }
++        value[channel] = component & 0xfeu;
++      }
++    }
++    return value;
++  };
++  const auto center = canonical(ax, ay);
++  return center == canonical(px, ay) && center == canonical(ax, py) &&
++         center == canonical(px, py);
++}
++
++std::array<uint32_t, 2> ShardWebGLMask(uint32_t seed, uint32_t x, uint32_t y);
++
++UxrPixelResult ApplyShardCanvasSemantic(const UxrSurfacePolicy& policy,
++                                        const UxrPixelRegion& region) {
++  if (uint64_t{region.canvas_width} * region.canvas_height < 1024)
++    return UxrPixelResult::kUnchanged;
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (!pixel[3])
++        continue;
++      // Separate Canvas's coordinate stream from WebGL. One candidate per
++      // 256 non-flat pixels, one selected RGB low bit, no read counter or
++      // content-dependent early stop. Large blank margins do not dilute it.
++      const auto mask = ShardWebGLMask(static_cast<uint32_t>(policy.seed) ^ 0x43415633u,
++          static_cast<uint32_t>(int64_t{region.origin_x} + x),
++          static_cast<uint32_t>(int64_t{region.origin_y} + y));
++      // The coordinate mask is independent of pixel contents. Only selected
++      // candidates can change; flatness need not be read for the other pixels.
++      if ((mask[0] & 255u) != 0 ||
++          ShardFlatCell(region, UxrPixelSurface::kCanvas2D, x, y))
++        continue;
++      changed |= AssignShardBit(pixel, Channel(region, (mask[0] >> 8) % 3),
++                                mask[1] & 1u);
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++UxrPixelResult ApplyShardCanvas(const UxrSurfacePolicy& policy,
++                                const UxrPixelRegion& region) {
++  const uint64_t pixels = uint64_t{region.canvas_width} * region.canvas_height;
++  if (pixels < 1024)
++    return UxrPixelResult::kUnchanged;
++  Xoshiro128 random(static_cast<uint32_t>(policy.seed));
++  bool changed = false;
++  for (uint32_t iteration = 0; iteration < 32; ++iteration) {
++    const uint32_t value = random.Next();
++    const uint64_t position = value % pixels;
++    const int64_t x =
++        static_cast<int64_t>(position % region.canvas_width) - region.origin_x;
++    const int64_t y =
++        static_cast<int64_t>(position / region.canvas_width) - region.origin_y;
++    if (x < 0 || y < 0 || x >= region.width || y >= region.height)
++      continue;
++    changed |= AssignShardBit(
++        Pixel(region, static_cast<uint32_t>(x), static_cast<uint32_t>(y)),
++        Channel(region, (value >> 16) % 3), (value >> 24) & 1);
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++// A ShardX-derived sparse mask addressed by absolute pixel coordinates.
++// There is no process counter and no restart at a crop/tile boundary.
++// Assignment (rather than XOR) prevents repeated application accumulating.
++std::array<uint32_t, 2> ShardWebGLMask(uint32_t seed, uint32_t x, uint32_t y) {
++  Xoshiro128 random(seed ^ Fmix32(x + 0x9e3779b9u) ^
++                    RotateLeft(Fmix32(y + 0x85ebca6bu), 16));
++  return {random.Next(), random.Next()};
++}
++
++bool AssignShardWebGLBit(span<uint8_t> pixel, uint32_t channel,
++                        uint32_t bit, bool premultiplied, bool exported) {
++  const uint32_t alpha = pixel[3];
++  if (!alpha)
++    return false;
++  uint32_t value = pixel[channel];
++  if (premultiplied && exported && alpha != 255) {
++    const uint32_t product = value * alpha;
++    value = (product + ((product + 128u) >> 8) + 128u) >> 8;
++  }
++  // Exact color endpoints carry no fractional rendering detail. Preserve
++  // them just as the floating-point path preserves 0 and 1. For premultiplied
++  // storage, alpha is the maximum representable color, including exports
++  // mapped back to that same storage lattice.
++  const uint32_t maximum = premultiplied ? alpha : 255;
++  if (value == 0 || value == maximum)
++    return false;
++  uint32_t candidate = (value & 0xfeu) | bit;
++  // A one-step change in premultiplied storage is representable even at very
++  // low alpha. Perturbing a straight LSB instead could make every sample at
++  // alpha 64 a no-op. Keep invalid premultiplied colors on their native path.
++  if (premultiplied && (value > alpha || candidate > alpha))
++    return false;
++  if (premultiplied && exported && alpha != 255)
++    candidate = (candidate * (0xff000000u / alpha) + 0x800000u) >> 24;
++  const bool changed = pixel[channel] != candidate;
++  pixel[channel] = static_cast<uint8_t>(candidate);
++  return changed;
++}
++
++UxrPixelResult ApplyShardWebGLV2(const UxrSurfacePolicy& policy,
++                                UxrPixelSurface surface,
++                                const UxrPixelRegion& region) {
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    const uint32_t absolute_y = surface == UxrPixelSurface::kWebGLReadback
++        ? static_cast<uint32_t>(region.origin_y) + y
++        : region.canvas_height - 1 -
++              (static_cast<uint32_t>(region.origin_y) + y);
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (!pixel[3])
++        continue;
++      const auto mask = ShardWebGLMask(static_cast<uint32_t>(policy.seed),
++          static_cast<uint32_t>(region.origin_x) + x, absolute_y);
++      if (((mask[0] & 255u) != 0 && ((mask[0] >> 8) & 255u) != 0 &&
++           ((mask[0] >> 16) & 255u) != 0) ||
++          ShardFlatCell(region, surface, x, y))
++        continue;
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        if (((mask[0] >> (channel * 8)) & 255u) == 0)
++          changed |= AssignShardWebGLBit(pixel, Channel(region, channel),
++              (mask[1] >> channel) & 1u, region.premultiplied,
++              surface == UxrPixelSurface::kWebGLExport);
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++UxrPixelResult ApplyShardWebGL(const UxrSurfacePolicy& policy,
++                               const UxrPixelRegion& region,
++                               uint32_t sequence) {
++  Xoshiro128 random(static_cast<uint32_t>(policy.seed) ^ sequence);
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (pixel[3] == 0)
++        continue;
++      const uint32_t value = random.Next();
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        if (((value >> (channel * 8)) & 255u) == 0) {
++          pixel[Channel(region, channel)] ^= 1;
++          changed = true;
++        }
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++UxrPixelResult ApplyCloak(const UxrSurfacePolicy& policy,
++                          UxrPixelSurface surface,
++                          const UxrPixelRegion& region,
++                          UxrPixelFlavor flavor) {
++  const bool compatible = flavor == UxrPixelFlavor::kCompatibleV1;
++  if (!compatible && surface == UxrPixelSurface::kCanvas2D &&
++      (region.origin_x != 0 || region.origin_y != 0 ||
++       region.width != region.canvas_width ||
++       region.height != region.canvas_height)) {
++    return UxrPixelResult::kUnsupportedRegion;
++  }
++  const uint32_t whole_width = compatible ? region.canvas_width : region.width;
++  const uint32_t whole_height =
++      compatible ? region.canvas_height : region.height;
++  if (whole_width < 8 || whole_height < 8)
++    return UxrPixelResult::kUnchanged;
++  // Half-transparent arithmetic was not byte-verified for this target.
++  // Check before modifying anything, including when a later pixel is partial.
++  if (!compatible) {
++    for (uint32_t y = 0; y < region.height; ++y) {
++      for (uint32_t x = 0; x < region.width; ++x) {
++        const uint8_t alpha = Pixel(region, x, y)[3];
++        if (alpha != 0 && alpha != 255)
++          return UxrPixelResult::kUnsupportedAlpha;
++      }
++    }
++  }
++  const uint64_t pixels = uint64_t{whole_width} * whole_height;
++  const std::string seed = std::to_string(policy.seed);
++  const uint32_t position_hash = UxrCloakHashV1(seed + "_pos");
++  bool changed = false;
++  for (uint32_t i = 0; i < 10; ++i) {
++    const uint32_t mixed = (position_hash ^ i) * 0x17385ca9u + 0x47502932u;
++    const uint64_t position = mixed % pixels;
++    const uint32_t x = static_cast<uint32_t>(position % whole_width);
++    const uint32_t y = static_cast<uint32_t>(position / whole_width);
++    const int64_t local_x = compatible ? int64_t{x} - region.origin_x : x;
++    const int64_t local_y =
++        !compatible ? y
++        : surface == UxrPixelSurface::kWebGLReadback
++            ? int64_t{whole_height} - 1 - y - region.origin_y
++            : int64_t{y} - region.origin_y;
++    if (local_x < 0 || local_y < 0 || local_x >= region.width ||
++        local_y >= region.height) {
++      continue;
++    }
++    auto pixel = Pixel(region, static_cast<uint32_t>(local_x),
++                       static_cast<uint32_t>(local_y));
++    if (pixel[3] == 0)
++      continue;
++    // Compatible v1 leaves partial-alpha pixels native. Unlike a whole-image
++    // rejection this remains consistent when an opaque region is cropped.
++    if (compatible && pixel[3] != 255)
++      continue;
++    const uint32_t bits = UxrCloakHashV1(seed + "_" + std::to_string(x) + "_" +
++                                         std::to_string(y));
++    // Reference goldens retain the original physical-slot discrepancy.
++    // The explicit compatible-v1 production flavor uses logical RGB.
++    for (uint32_t channel = 0; channel < 3; ++channel) {
++      const uint32_t index = compatible ? Channel(region, channel) : channel;
++      const uint8_t value = (pixel[index] & 0xfeu) | ((bits >> channel) & 1u);
++      changed |= value != pixel[index];
++      pixel[index] = value;
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++}  // namespace
++
++uint32_t UxrCloakHashV1(std::string_view bytes) {
++  if (bytes.empty() || bytes.size() >= 0x80000000u)
++    return 0;
++  uint32_t hash = static_cast<uint32_t>(bytes.size());
++  size_t offset = 0;
++  const auto read16 = [&bytes](size_t at) {
++    return static_cast<uint32_t>(static_cast<unsigned char>(bytes[at])) |
++           (static_cast<uint32_t>(static_cast<unsigned char>(bytes[at + 1]))
++            << 8);
++  };
++  for (; bytes.size() - offset >= 4; offset += 4) {
++    hash += read16(offset);
++    const uint32_t temporary = (read16(offset + 2) << 11) ^ hash;
++    hash = (hash << 16) ^ temporary;
++    hash += hash >> 11;
++  }
++  const auto signed_byte = [&bytes](size_t at) {
++    const uint32_t value = static_cast<unsigned char>(bytes[at]);
++    return value < 128 ? value : value - 256u;
++  };
++  switch (bytes.size() - offset) {
++    case 3:
++      hash += read16(offset);
++      hash ^= hash << 16;
++      hash ^= signed_byte(offset + 2) << 18;
++      hash += hash >> 11;
++      break;
++    case 2:
++      hash += read16(offset);
++      hash ^= hash << 11;
++      hash += hash >> 17;
++      break;
++    case 1:
++      hash += signed_byte(offset);
++      hash ^= hash << 10;
++      hash += hash >> 1;
++      break;
++    default:
++      break;
++  }
++  hash ^= hash << 3;
++  hash += hash >> 5;
++  hash ^= hash << 4;
++  hash += hash >> 17;
++  hash ^= hash << 25;
++  return hash + (hash >> 6);
++}
++
++UxrPixelResult UxrApplyGraphicsNoiseV1(const UxrSurfacePolicy& policy,
++                                       UxrPixelSurface surface,
++                                       const UxrPixelRegion& region,
++                                       uint32_t shard_webgl_sequence,
++                                       UxrPixelFlavor flavor) {
++  if (policy.IsLegacy())
++    return UxrPixelResult::kLegacy;
++  if (policy.IsNative())
++    return UxrPixelResult::kNative;
++  if (policy.seed == 0 ||
++      (policy.mode == UxrSurfaceMode::kShardX &&
++       policy.seed > std::numeric_limits<uint32_t>::max())) {
++    return UxrPixelResult::kUnsupportedSeed;
++  }
++  if (region.width == 0 || region.height == 0)
++    return UxrPixelResult::kUnchanged;
++  if (!ValidLayout(region))
++    return UxrPixelResult::kInvalidLayout;
++  if (policy.mode == UxrSurfaceMode::kShardX &&
++      !ValidNeighborhood(region.neighborhood, 4))
++    return UxrPixelResult::kInvalidLayout;
++  switch (policy.mode) {
++    case UxrSurfaceMode::kChromix:
++      return ApplyChromix(policy, surface, region);
++    case UxrSurfaceMode::kShardX:
++      if (surface == UxrPixelSurface::kCanvas2D)
++        return flavor == UxrPixelFlavor::kCompatibleV1 && !region.neighborhood.bytes.empty()
++                   ? ApplyShardCanvasSemantic(policy, region)
++                   : ApplyShardCanvas(policy, region);
++      if (flavor == UxrPixelFlavor::kCompatibleV1)
++        return ApplyShardWebGLV2(policy, surface, region);
++      if (surface == UxrPixelSurface::kWebGLExport)
++        return UxrPixelResult::kUnchanged;
++      return ApplyShardWebGL(policy, region, shard_webgl_sequence);
++    case UxrSurfaceMode::kCloak:
++      return ApplyCloak(policy, surface, region, flavor);
++    case UxrSurfaceMode::kLegacy:
++      return UxrPixelResult::kLegacy;
++    case UxrSurfaceMode::kNative:
++      return UxrPixelResult::kNative;
++  }
++  return UxrPixelResult::kInvalidLayout;
++}
++
++UxrPixelResult UxrApplyShardWebGLFloatV2(
++    const UxrSurfacePolicy& policy, const UxrPixelRegion& region) {
++  const size_t row_bytes = static_cast<size_t>(region.width) * 16;
++  if (!region.width || !region.height || row_bytes / 16 != region.width ||
++      region.row_stride < row_bytes || region.bytes.size() < row_bytes ||
++      region.height - 1 > (region.bytes.size() - row_bytes) / region.row_stride)
++    return UxrPixelResult::kInvalidLayout;
++  if (!ValidNeighborhood(region.neighborhood, 16))
++    return UxrPixelResult::kInvalidLayout;
++  if (policy.mode != UxrSurfaceMode::kShardX || !policy.seed ||
++      policy.seed > std::numeric_limits<uint32_t>::max())
++    return UxrPixelResult::kUnsupportedSeed;
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = region.bytes.subspan(y * region.row_stride + x * size_t{16},
++                                        size_t{16});
++      float alpha;
++      std::memcpy(&alpha, pixel.subspan(size_t{12}, size_t{4}).data(), sizeof(alpha));
++      if (!std::isfinite(alpha) || alpha == 0)
++        continue;
++      const auto mask = ShardWebGLMask(static_cast<uint32_t>(policy.seed),
++          static_cast<uint32_t>(region.origin_x) + x,
++          static_cast<uint32_t>(region.origin_y) + y);
++      if (((mask[0] & 255u) != 0 && ((mask[0] >> 8) & 255u) != 0 &&
++           ((mask[0] >> 16) & 255u) != 0) ||
++          ShardFlatCell(region, UxrPixelSurface::kWebGLReadback, x, y, true))
++        continue;
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        if (((mask[0] >> (channel * 8)) & 255u) != 0)
++          continue;
++        float value;
++        uint32_t bits;
++        auto bytes = pixel.subspan(channel * size_t{4}, size_t{4});
++        std::memcpy(&value, bytes.data(), sizeof(value));
++        if (!std::isfinite(value) || value == 0 || value == 1)
++          continue;
++        std::memcpy(&bits, &value, sizeof(bits));
++        const uint32_t replacement = (bits & ~1u) | ((mask[1] >> channel) & 1u);
++        changed |= bits != replacement;
++        std::memcpy(bytes.data(), &replacement, sizeof(replacement));
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++const char* UxrPixelResultName(UxrPixelResult result) {
++  switch (result) {
++    case UxrPixelResult::kApplied:
++      return "applied";
++    case UxrPixelResult::kUnchanged:
++      return "unchanged";
++    case UxrPixelResult::kNative:
++      return "native";
++    case UxrPixelResult::kLegacy:
++      return "legacy";
++    case UxrPixelResult::kInvalidLayout:
++      return "invalid-layout";
++    case UxrPixelResult::kUnsupportedSeed:
++      return "unsupported-seed";
++    case UxrPixelResult::kUnsupportedAlpha:
++      return "unsupported-alpha";
++    case UxrPixelResult::kUnsupportedRegion:
++      return "unsupported-region";
++  }
++  return "invalid-result";
++}
++
++}  // namespace base
+diff --git a/base/uxr_graphics_noise.h b/base/uxr_graphics_noise.h
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_graphics_noise.h
+@@ -0,0 +1,87 @@
++// Copyright 2026. Independently reconstructed, versioned pixel algorithms.
++#ifndef BASE_UXR_GRAPHICS_NOISE_H_
++#define BASE_UXR_GRAPHICS_NOISE_H_
++
++#include <cstddef>
++#include <cstdint>
++#include <string_view>
++
++#include "base/base_export.h"
++#include "base/containers/span.h"
++#include "base/uxr_surface_modes.h"
++
++namespace base {
++
++inline constexpr uint32_t kUxrGraphicsAlgorithmVersion = 1;
++inline constexpr bool kUxrCloakCanvasReferenceBankSupported = false;
++
++enum class UxrPixelSurface { kCanvas2D, kWebGLReadback, kWebGLExport };
++// Reference flavor exists for historical byte goldens, not production routing.
++enum class UxrPixelFlavor { kCompatibleV1, kReferenceV1 };
++enum class UxrPixelResult {
++  kApplied,
++  kUnchanged,
++  kNative,
++  kLegacy,
++  kInvalidLayout,
++  kUnsupportedSeed,
++  kUnsupportedAlpha,
++  kUnsupportedRegion,
++};
++
++// A successful read of the same surface, including the one-pixel halo needed
++// at crop boundaries. It uses the output's component format and orientation.
++// Comparisons ignore only bits assigned by noise, so aliasing the output is
++// safe: earlier assignments cannot change which subsequent pixels are flat.
++struct UxrPixelNeighborhood {
++  span<const uint8_t> bytes;
++  size_t row_stride = 0;
++  uint32_t width = 0;
++  uint32_t height = 0;
++  int32_t origin_x = 0;
++  int32_t origin_y = 0;
++};
++
++// An owned, completed RGBA8/BGRA8 readback. Padding is never a pixel.
++// Canvas origin is top-left. WebGL readback origin is bottom-left.
++struct UxrPixelRegion {
++  span<uint8_t> bytes;
++  size_t row_stride = 0;
++  uint32_t width = 0;
++  uint32_t height = 0;
++  uint32_t canvas_width = 0;
++  uint32_t canvas_height = 0;
++  int32_t origin_x = 0;
++  int32_t origin_y = 0;
++  bool bgra = false;
++  // WebGL default framebuffer storage convention. Exports arrive as straight
++  // RGBA and use this to reconstruct the same representable storage lattice.
++  // FBO data has no compositor alpha convention.
++  bool premultiplied = false;
++  UxrPixelNeighborhood neighborhood;
++};
++
++// The recovered byte hash includes signed 8-bit tail loads and uint32 wrap.
++BASE_EXPORT uint32_t UxrCloakHashV1(std::string_view bytes);
++
++// This function performs no allocation of image storage and no GL operations.
++// Shard Canvas projects full-canvas positions into the requested crop.
++// Compatible Cloak projects full-canvas points and preserves partial alpha;
++// its reference flavor is restricted to the original verified full buffers.
++BASE_EXPORT UxrPixelResult
++UxrApplyGraphicsNoiseV1(const UxrSurfacePolicy& policy,
++                        UxrPixelSurface surface,
++                        const UxrPixelRegion& region,
++                        uint32_t shard_webgl_sequence = 0,
++                        UxrPixelFlavor flavor = UxrPixelFlavor::kCompatibleV1);
++
++// RGBA32F readback uses the same coordinate mask with idempotent mantissa
++// assignments; this is not an 8-bit quantizer and preserves nonfinite/zero data.
++BASE_EXPORT UxrPixelResult UxrApplyShardWebGLFloatV2(
++    const UxrSurfacePolicy& policy, const UxrPixelRegion& region);
++
++BASE_EXPORT const char* UxrPixelResultName(UxrPixelResult result);
++
++}  // namespace base
++
++#endif  // BASE_UXR_GRAPHICS_NOISE_H_
+diff --git a/base/uxr_mask_first_equivalence.h b/base/uxr_mask_first_equivalence.h
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_mask_first_equivalence.h
+@@ -0,0 +1,183 @@
++// Native differential acceptance for the mask-before-flatness optimization.
++// Compares the shipping helper with a separately named frozen 9a06334 oracle.
++#ifndef BASE_UXR_MASK_FIRST_EQUIVALENCE_H_
++#define BASE_UXR_MASK_FIRST_EQUIVALENCE_H_
++#include "base/uxr_graphics_noise.h"
++#include "base/uxr_mask_first_reference.h"
++#include <algorithm>
++#include <array>
++#include <bit>
++#include <cstring>
++#include <fstream>
++#include <iostream>
++#include <iterator>
++#include <limits>
++#include <sstream>
++#include <string>
++#include <utility>
++#include <vector>
++
++namespace base::mask_first_equivalence {
++inline constexpr char kOracleRevision[] = "9a06334258ed6039c597360038183f8693347e45";
++inline constexpr char kOracleSha256[] = "2bcefcc4b7b8ab34b070b964a4fdd81c643e88052b48fd0c3a75cf18d8965465";
++using Bytes = std::vector<uint8_t>;
++inline uint64_t compared=0,cases=0,failures=0,checksum=1469598103934665603ull;
++inline uint32_t corpus_records=0,mutation_controls=0,mutation_rejections=0;
++struct Args {
++  uint32_t width=0,height=0,canvas_w=0,canvas_h=0;
++  int32_t x=0,y=0;
++  uint64_t seed=32452843;
++  size_t stride=0;
++  int surface=0,flavor=0,mode=3;
++  uint32_t sequence=0;
++  bool floating=false,bgra=false,premultiplied=false;
++  uint32_t view_w=0,view_h=0;
++  int32_t view_x=0,view_y=0;
++  size_t view_stride=0;
++};
++
++uint64_t Hash(const Bytes& bytes) {
++  uint64_t result=1469598103934665603ull;
++  for(auto value:bytes) result=(result^value)*1099511628211ull;
++  return result;
++}
++bool Equivalent(int expected_result,const Bytes& expected,int actual_result,const Bytes& actual) {
++  return expected_result==actual_result && expected==actual;
++}
++int Run(bool reference,uint8_t* bytes,size_t size,const uint8_t* view,size_t view_size,const Args& a) {
++  UxrSurfacePolicy policy;policy.mode=static_cast<UxrSurfaceMode>(a.mode);policy.seed=a.seed;
++  UxrPixelRegion region{span<uint8_t>(bytes,size),a.stride,a.width,a.height,a.canvas_w,a.canvas_h,a.x,a.y,a.bgra,a.premultiplied};
++  region.neighborhood={span<const uint8_t>(view,view_size),a.view_stride,a.view_w,a.view_h,a.view_x,a.view_y};
++  if(reference) return static_cast<int>(a.floating?
++      mask_first_reference::UxrApplyShardWebGLFloatV2(policy,region):
++      mask_first_reference::UxrApplyGraphicsNoiseV1(policy,static_cast<UxrPixelSurface>(a.surface),region,a.sequence,static_cast<UxrPixelFlavor>(a.flavor)));
++  return static_cast<int>(a.floating?base::UxrApplyShardWebGLFloatV2(policy,region):
++      base::UxrApplyGraphicsNoiseV1(policy,static_cast<UxrPixelSurface>(a.surface),region,a.sequence,static_cast<UxrPixelFlavor>(a.flavor)));
++}
++int before_run(uint8_t* bytes,size_t size,const uint8_t* view,size_t view_size,const Args& args) {
++  return Run(true,bytes,size,view,view_size,args);
++}
++int after_run(uint8_t* bytes,size_t size,const uint8_t* view,size_t view_size,const Args& args) {
++  return Run(false,bytes,size,view,view_size,args);
++}
++Bytes Scene(unsigned w,unsigned h,bool floating,int pattern,unsigned alpha,size_t stride){
++ const size_t bpp=floating?16:4;Bytes out(stride*h,0x5a);uint32_t rng=0x1234abcd;
++ for(unsigned y=0;y<h;y++)for(unsigned x=0;x<w;x++){
++  auto* p=out.data()+y*stride+x*bpp;rng^=rng<<13;rng^=rng>>17;rng^=rng<<5;
++  unsigned v[4]={137,73,91,alpha};
++  if(pattern==1){v[0]=(x*7+y*3)%256;v[1]=(x*3+y*11)%256;v[2]=(x*13+y*5)%256;}
++  if(pattern==2){v[0]=rng&255;v[1]=(rng>>8)&255;v[2]=(rng>>16)&255;v[3]=(x+y)%9?alpha:(rng>>24);}
++  if(pattern==3){v[0]=(x%2)*255;v[1]=(y%2)*255;v[2]=((x+y)%3)*127;}
++  if(pattern==4&&x>w/3&&x<w*2/3&&y>h/3&&y<h*2/3){v[0]=unsigned(x*17+y*3)&255;v[1]=unsigned(x*3+y*9)&255;v[2]=unsigned(x*11+y*7)&255;}
++  if(!floating){for(int c=0;c<4;c++)p[c]=uint8_t(v[c]);}
++  else for(int c=0;c<4;c++){
++   float f=float(v[c])/255.f;
++   if(pattern==2&&c!=3){if((x+y+c)%17==0)f=std::numeric_limits<float>::infinity();if((x+y+c)%19==0)f=std::bit_cast<float>(0x7fc01235u);if((x+y+c)%23==0)f=-0.f;if((x+y+c)%29==0)f=std::numeric_limits<float>::denorm_min();}
++   if(pattern==3&&c==3&&(x+y)%13==0)f=std::bit_cast<float>(0x7fc01235u);
++   std::memcpy(p+c*4,&f,4);
++  }
++ }
++ return out;
++}
++Bytes Crop(const Bytes& full,unsigned w,unsigned h,size_t stride,int x,int y,unsigned cw,unsigned ch,size_t outstride,size_t bpp){
++ Bytes out(outstride*ch,0xa5);
++ for(unsigned oy=0;oy<ch;oy++)for(unsigned ox=0;ox<cw;ox++){
++  auto* p=out.data()+oy*outstride+ox*bpp;
++  if(x+int(ox)<0||y+int(oy)<0||x+ox>=w||y+oy>=h)std::memset(p,0,bpp);
++  else std::memcpy(p,full.data()+(y+oy)*stride+(x+ox)*bpp,bpp);
++ }
++ return out;
++}
++void Compare(Bytes input,const Bytes& view,Args a,int viewmode,const char* tag){
++ Bytes b=input,c=input;const uint8_t *bv=view.data(),*cv=view.data();size_t size=view.size();
++ if(viewmode==1){bv=b.data();cv=c.data();size=b.size();a.view_w=a.width;a.view_h=a.height;a.view_x=a.x;a.view_y=a.y;a.view_stride=a.stride;}
++ if(viewmode==2){bv=cv=nullptr;size=0;a.view_w=a.view_h=0;a.view_stride=0;}
++ const int rb=before_run(b.data(),b.size(),bv,size,a),rc=after_run(c.data(),c.size(),cv,size,a);
++ cases++;compared+=b.size();checksum^=Hash(b)+uint64_t(rb);checksum*=1099511628211ull;
++ if(!Equivalent(rb,b,rc,c)){failures++;if(failures<10)std::cerr<<"Mismatch "<<tag<<" case="<<cases<<" dimensions="<<a.width<<"x"<<a.height<<" origin="<<a.x<<","<<a.y<<" float="<<a.floating<<" surface="<<a.surface<<" seed="<<a.seed<<" view="<<viewmode<<"\n";}
++}
++void Equivalence(){
++ for(bool f:{false,true})for(auto [w,h]:{std::pair{1u,1u},{31u,33u},{67u,33u},{128u,97u}})
++ for(uint64_t seed:{1ull,42ull,314159ull,32452843ull,49979687ull,0xffffffffull})
++ for(int pattern:{0,1,2,3,4})for(unsigned alpha:{0u,1u,64u,255u}){
++  const size_t bpp=f?16:4,stride=w*bpp+8;auto full=Scene(w,h,f,pattern,alpha,stride);
++  for(int surface:{0,1,2}){if(f&&surface!=1)continue;for(bool bgra:{false,true})for(bool premul:{false,true}){
++   if(f&&(bgra||premul))continue;
++   for(auto crop:{std::array<int,4>{0,0,int(w),int(h)},std::array<int,4>{1,1,1,1},std::array<int,4>{int(w)-1,int(h)-1,1,1},std::array<int,4>{-1,-1,5,3},std::array<int,4>{3,5,11,9}}){
++    Args a;a.width=crop[2];a.height=crop[3];a.canvas_w=w;a.canvas_h=h;a.x=crop[0];a.y=crop[1];a.seed=seed;a.stride=a.width*bpp+12;a.surface=surface;a.floating=f;a.bgra=bgra;a.premultiplied=premul;a.view_w=w;a.view_h=h;a.view_stride=stride;
++    auto input=Crop(full,w,h,stride,a.x,a.y,a.width,a.height,a.stride,bpp);
++    for(int viewmode:{0,1,2})Compare(input,full,a,viewmode,"generated");
++   }
++  }}
++ }
++ // Unchanged surface modes, reference flavor, out-of-domain seeds and layouts.
++ auto full=Scene(67,33,false,2,255,67*4);Args a;a.width=a.canvas_w=67;a.height=a.canvas_h=33;a.stride=a.view_stride=67*4;a.view_w=67;a.view_h=33;
++ for(int mode:{0,1,2,3,4})for(int surface:{0,1,2})for(int flavor:{0,1})for(uint64_t seed:{0ull,1ull,0x100000000ull,~0ull}){a.mode=mode;a.surface=surface;a.flavor=flavor;a.seed=seed;Compare(full,full,a,0,"mode-seed");}
++ a.mode=3;a.flavor=0;a.seed=42;
++ for(int invalid=0;invalid<5;invalid++){Args bad=a;if(invalid==0)bad.width=0;if(invalid==1)bad.height=0;if(invalid==2)bad.stride=1;if(invalid==3)bad.view_stride=1;if(invalid==4)bad.view_h=0xffffffffu;Compare(full,full,bad,0,"invalid");}
++}
++
++void Corpus(const std::string& root) {
++  std::ifstream data(root+"/pixel-semantics-v1/pixels.bin",std::ios::binary);
++  std::ifstream list(root+"/pixel-semantics-v1/cases.tsv");
++  if(!data||!list) {++failures;return;}
++  Bytes pool{std::istreambuf_iterator<char>(data),std::istreambuf_iterator<char>()};
++  std::string line;std::getline(list,line);
++  while(std::getline(list,line)) {
++    if(line.empty()) continue;
++    std::istringstream input(line);std::string name,extra;uint64_t width=0,height=0,offset=0,size=0;
++    if(!(input>>name>>width>>height>>offset>>size)||input>>extra||!width||!height||
++        width>65536||height>65536||size!=width*height*4||offset>pool.size()||size>pool.size()-offset) {
++      ++failures;return;
++    }
++    Bytes bytes(pool.begin()+offset,pool.begin()+offset+size);++corpus_records;
++    for(uint64_t seed:{1ull,2ull,42ull,314159ull,32452843ull,49979687ull,123456789ull,0xffffffffull})
++      for(int surface:{0,1,2})for(int viewmode:{0,1,2}) {
++        Args a;a.width=a.canvas_w=a.view_w=static_cast<uint32_t>(width);
++        a.height=a.canvas_h=a.view_h=static_cast<uint32_t>(height);
++        a.stride=a.view_stride=width*4;a.surface=surface;a.seed=seed;
++        Compare(bytes,bytes,a,viewmode,"browser-corpus");
++      }
++  }
++  if(corpus_records!=3) ++failures;
++}
++
++void MutationControls() {
++  // A positive comparison is not useful if a changed seed or output bit can
++  // also pass. Exercise the same comparator with independently damaged results.
++  for(int route:{0,1,2,3}) {
++    Args a;a.width=a.canvas_w=a.view_w=128;a.height=a.canvas_h=a.view_h=97;
++    a.floating=route==3;a.surface=a.floating?1:route;a.seed=42;
++    const size_t bpp=a.floating?16:4;a.stride=a.view_stride=a.width*bpp;
++    auto input=Scene(a.width,a.height,a.floating,1,255,a.stride),expected=input,actual=input;
++    const int before=before_run(expected.data(),expected.size(),input.data(),input.size(),a);
++    Args wrong_seed=a;wrong_seed.seed^=0x9e3779b9u;
++    const int altered=after_run(actual.data(),actual.size(),input.data(),input.size(),wrong_seed);
++    ++mutation_controls;
++    if(!Equivalent(before,expected,altered,actual)) ++mutation_rejections;else ++failures;
++    actual=input;const int current=after_run(actual.data(),actual.size(),input.data(),input.size(),a);
++    actual[17]^=1u;
++    ++mutation_controls;
++    if(!Equivalent(before,expected,current,actual)) ++mutation_rejections;else ++failures;
++  }
++}
++}  // namespace base::mask_first_equivalence
++
++inline std::pair<size_t,size_t> RunPixelMaskFirstEquivalence(const std::string& fixture_root) {
++  using namespace base::mask_first_equivalence;
++  cases=compared=failures=0;checksum=1469598103934665603ull;
++  corpus_records=mutation_controls=mutation_rejections=0;
++  Equivalence();Corpus(fixture_root);MutationControls();
++  if(cases!=93941||compared!=439779036||mutation_controls!=8||mutation_rejections!=8) ++failures;
++  std::cout<<"{\"mask_first_oracle_revision\":\""<<kOracleRevision
++           <<"\",\"mask_first_oracle_sha256\":\""<<kOracleSha256
++           <<"\",\"mask_first_equivalence_cases\":"<<cases
++           <<",\"mask_first_equivalence_bytes\":"<<compared
++           <<",\"mask_first_corpus_records\":"<<corpus_records
++           <<",\"mask_first_mutation_controls\":"<<mutation_controls
++           <<",\"mask_first_mutation_rejections\":"<<mutation_rejections
++           <<",\"mask_first_oracle_checksum\":"<<checksum
++           <<",\"failures\":"<<failures<<"}\n";
++  return {static_cast<size_t>(cases),static_cast<size_t>(failures)};
++}
++#endif  // BASE_UXR_MASK_FIRST_EQUIVALENCE_H_
+diff --git a/base/uxr_mask_first_reference.h b/base/uxr_mask_first_reference.h
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_mask_first_reference.h
+@@ -0,0 +1,563 @@
++// Test-only oracle: exact pre-optimization helper from commit
++// 9a06334258ed6039c597360038183f8693347e45, SHA-256
++// 2bcefcc4b7b8ab34b070b964a4fdd81c643e88052b48fd0c3a75cf18d8965465.
++// The body below differs only in its namespace. Never refresh it from the
++// implementation under test. Included by the graphics test translation unit only.
++#ifndef BASE_UXR_MASK_FIRST_REFERENCE_H_
++#define BASE_UXR_MASK_FIRST_REFERENCE_H_
++#include "base/uxr_graphics_noise.h"
++
++namespace base::mask_first_reference {
++// Preserve the original header's forward declaration in the oracle namespace:
++// ApplyCloak must not resolve its hash function to the implementation under test.
++uint32_t UxrCloakHashV1(std::string_view bytes);
++}
++
++// BEGIN FROZEN 9a06334 HELPER
++// Copyright 2026. Independent implementation from byte-verified models.
++#include "base/uxr_graphics_noise.h"
++
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <cstring>
++#include <limits>
++#include <string>
++
++#include "base/uxr_pixel_noise.h"
++
++namespace base::mask_first_reference {
++namespace {
++
++uint32_t RotateLeft(uint32_t value, unsigned count) {
++  return (value << count) | (value >> (32 - count));
++}
++
++uint32_t Fmix32(uint32_t value) {
++  value ^= value >> 16;
++  value *= 0x85ebca6bu;
++  value ^= value >> 13;
++  value *= 0xc2b2ae35u;
++  return value ^ (value >> 16);
++}
++
++class Xoshiro128 {
++ public:
++  explicit Xoshiro128(uint32_t seed) {
++    for (uint32_t i = 0; i < 4; ++i)
++      state_[i] = Fmix32(seed + (i + 1) * 0x9e3779b9u);
++  }
++  uint32_t Next() {
++    const uint32_t result = RotateLeft(state_[1] * 5u, 7) * 9u;
++    const uint32_t temporary = state_[1] << 9;
++    state_[2] ^= state_[0];
++    state_[3] ^= state_[1];
++    state_[1] ^= state_[2];
++    state_[0] ^= state_[3];
++    state_[2] ^= temporary;
++    state_[3] = RotateLeft(state_[3], 11);
++    return result;
++  }
++
++ private:
++  std::array<uint32_t, 4> state_;
++};
++
++bool ValidLayout(const UxrPixelRegion& region) {
++  if (region.width == 0 || region.height == 0)
++    return false;
++  const size_t row_bytes = static_cast<size_t>(region.width) * 4;
++  if (row_bytes / 4 != region.width || region.row_stride < row_bytes ||
++      region.bytes.size() < row_bytes)
++    return false;
++  return region.height - 1 <=
++         (region.bytes.size() - row_bytes) / region.row_stride;
++}
++
++span<uint8_t> Pixel(const UxrPixelRegion& region, uint32_t x, uint32_t y) {
++  return region.bytes.subspan(
++      static_cast<size_t>(y) * region.row_stride + static_cast<size_t>(x) * 4,
++      size_t{4});
++}
++
++uint32_t Channel(const UxrPixelRegion& region, uint32_t logical_rgb) {
++  return region.bgra ? 2 - logical_rgb : logical_rgb;
++}
++
++bool AssignShardBit(span<uint8_t> pixel, uint32_t channel, uint32_t bit) {
++  const uint32_t alpha = pixel[3];
++  if (alpha == 0)
++    return false;
++  const uint32_t candidate = (pixel[channel] & 0xfeu) | bit;
++  if (alpha != 255) {
++    const uint32_t product = candidate * alpha;
++    const uint32_t premultiplied =
++        (product + ((product + 128u) >> 8) + 128u) >> 8;
++    const uint32_t scale = 0xff000000u / alpha;
++    const uint32_t back = (premultiplied * scale + 0x800000u) >> 24;
++    if (candidate != back)
++      return false;
++  }
++  const bool changed = pixel[channel] != candidate;
++  pixel[channel] = static_cast<uint8_t>(candidate);
++  return changed;
++}
++
++UxrPixelResult ApplyChromix(const UxrSurfacePolicy& policy,
++                            UxrPixelSurface surface,
++                            const UxrPixelRegion& region) {
++  const uint32_t seed = UxrPixelNoiseSeed(policy.seed);
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    const uint32_t absolute_y =
++        surface == UxrPixelSurface::kWebGLReadback
++            ? region.canvas_height - 1 -
++                  (static_cast<uint32_t>(region.origin_y) + y)
++            : static_cast<uint32_t>(region.origin_y) + y;
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (pixel[3] == 0)
++        continue;
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        const uint32_t index = Channel(region, channel);
++        const uint8_t value =
++            UxrNoiseChannel(seed, static_cast<uint32_t>(region.origin_x) + x,
++                            absolute_y, channel, pixel[index]);
++        changed |= value != pixel[index];
++        pixel[index] = value;
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++bool ValidNeighborhood(const UxrPixelNeighborhood& view, size_t pixel_bytes) {
++  if (view.bytes.empty())
++    return view.width == 0 && view.height == 0;
++  const size_t row_bytes = static_cast<size_t>(view.width) * pixel_bytes;
++  return view.width && view.height && row_bytes / pixel_bytes == view.width &&
++         view.row_stride >= row_bytes && view.bytes.size() >= row_bytes &&
++         view.height - 1 <= (view.bytes.size() - row_bytes) / view.row_stride;
++}
++
++// Absolute 2x2 cells are independent of the requested crop. Clamp only when
++// the halo's completed read reaches a real surface edge. RGB bit zero is not
++// part of the decision; otherwise a previous assignment could move the guard.
++bool ShardFlatCell(const UxrPixelRegion& region, UxrPixelSurface surface,
++                   uint32_t x, uint32_t y, bool floating = false) {
++  const auto& view = region.neighborhood;
++  if (view.bytes.empty())
++    return false;  // historical/reference helper calls retain their old path
++  const int64_t ax = int64_t{region.origin_x} + x;
++  const int64_t ay = int64_t{region.origin_y} + y;
++  const int64_t last_x = int64_t{view.origin_x} + view.width - 1;
++  const int64_t last_y = int64_t{view.origin_y} + view.height - 1;
++  if (ax < view.origin_x || ay < view.origin_y || ax > last_x || ay > last_y)
++    return true;  // native clipped/unknown pixels are never invented
++  const int64_t px = std::clamp(ax ^ 1, int64_t{view.origin_x}, last_x);
++  // WebGL's mask is anchored at the framebuffer bottom. Export rows are
++  // top-down, including odd-height surfaces whose 2x2 parity would otherwise
++  // disagree with readPixels.
++  const int64_t paired_y = surface == UxrPixelSurface::kWebGLExport
++      ? int64_t{region.canvas_height} - 1 -
++            ((int64_t{region.canvas_height} - 1 - ay) ^ 1)
++      : ay ^ 1;
++  const int64_t py = std::clamp(paired_y, int64_t{view.origin_y}, last_y);
++  const size_t bytes_per_pixel = floating ? 16 : 4;
++  auto canonical = [&](int64_t cx, int64_t cy) {
++    const size_t offset = static_cast<size_t>(cy - view.origin_y) * view.row_stride +
++                          static_cast<size_t>(cx - view.origin_x) * bytes_per_pixel;
++    auto pixel = view.bytes.subspan(offset, bytes_per_pixel);
++    std::array<uint32_t, 4> value;
++    if (floating) {
++      for (size_t channel = 0; channel < 4; ++channel) {
++        std::memcpy(&value[channel], pixel.subspan(channel * 4, size_t{4}).data(), 4);
++        if (channel != 3)
++          value[channel] &= ~1u;
++      }
++    } else {
++      value[3] = pixel[3];
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        uint32_t component = pixel[Channel(region, channel)];
++        if (region.premultiplied && surface == UxrPixelSurface::kWebGLExport &&
++            value[3] != 255) {
++          const uint32_t product = component * value[3];
++          component = (product + ((product + 128u) >> 8) + 128u) >> 8;
++        }
++        value[channel] = component & 0xfeu;
++      }
++    }
++    return value;
++  };
++  const auto center = canonical(ax, ay);
++  return center == canonical(px, ay) && center == canonical(ax, py) &&
++         center == canonical(px, py);
++}
++
++std::array<uint32_t, 2> ShardWebGLMask(uint32_t seed, uint32_t x, uint32_t y);
++
++UxrPixelResult ApplyShardCanvasSemantic(const UxrSurfacePolicy& policy,
++                                        const UxrPixelRegion& region) {
++  if (uint64_t{region.canvas_width} * region.canvas_height < 1024)
++    return UxrPixelResult::kUnchanged;
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (!pixel[3] || ShardFlatCell(region, UxrPixelSurface::kCanvas2D, x, y))
++        continue;
++      // Separate Canvas's coordinate stream from WebGL. One candidate per
++      // 256 non-flat pixels, one selected RGB low bit, no read counter or
++      // content-dependent early stop. Large blank margins do not dilute it.
++      const auto mask = ShardWebGLMask(static_cast<uint32_t>(policy.seed) ^ 0x43415633u,
++          static_cast<uint32_t>(int64_t{region.origin_x} + x),
++          static_cast<uint32_t>(int64_t{region.origin_y} + y));
++      if ((mask[0] & 255u) == 0)
++        changed |= AssignShardBit(pixel, Channel(region, (mask[0] >> 8) % 3),
++                                  mask[1] & 1u);
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++UxrPixelResult ApplyShardCanvas(const UxrSurfacePolicy& policy,
++                                const UxrPixelRegion& region) {
++  const uint64_t pixels = uint64_t{region.canvas_width} * region.canvas_height;
++  if (pixels < 1024)
++    return UxrPixelResult::kUnchanged;
++  Xoshiro128 random(static_cast<uint32_t>(policy.seed));
++  bool changed = false;
++  for (uint32_t iteration = 0; iteration < 32; ++iteration) {
++    const uint32_t value = random.Next();
++    const uint64_t position = value % pixels;
++    const int64_t x =
++        static_cast<int64_t>(position % region.canvas_width) - region.origin_x;
++    const int64_t y =
++        static_cast<int64_t>(position / region.canvas_width) - region.origin_y;
++    if (x < 0 || y < 0 || x >= region.width || y >= region.height)
++      continue;
++    changed |= AssignShardBit(
++        Pixel(region, static_cast<uint32_t>(x), static_cast<uint32_t>(y)),
++        Channel(region, (value >> 16) % 3), (value >> 24) & 1);
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++// A ShardX-derived sparse mask addressed by absolute pixel coordinates.
++// There is no process counter and no restart at a crop/tile boundary.
++// Assignment (rather than XOR) prevents repeated application accumulating.
++std::array<uint32_t, 2> ShardWebGLMask(uint32_t seed, uint32_t x, uint32_t y) {
++  Xoshiro128 random(seed ^ Fmix32(x + 0x9e3779b9u) ^
++                    RotateLeft(Fmix32(y + 0x85ebca6bu), 16));
++  return {random.Next(), random.Next()};
++}
++
++bool AssignShardWebGLBit(span<uint8_t> pixel, uint32_t channel,
++                        uint32_t bit, bool premultiplied, bool exported) {
++  const uint32_t alpha = pixel[3];
++  if (!alpha)
++    return false;
++  uint32_t value = pixel[channel];
++  if (premultiplied && exported && alpha != 255) {
++    const uint32_t product = value * alpha;
++    value = (product + ((product + 128u) >> 8) + 128u) >> 8;
++  }
++  // Exact color endpoints carry no fractional rendering detail. Preserve
++  // them just as the floating-point path preserves 0 and 1. For premultiplied
++  // storage, alpha is the maximum representable color, including exports
++  // mapped back to that same storage lattice.
++  const uint32_t maximum = premultiplied ? alpha : 255;
++  if (value == 0 || value == maximum)
++    return false;
++  uint32_t candidate = (value & 0xfeu) | bit;
++  // A one-step change in premultiplied storage is representable even at very
++  // low alpha. Perturbing a straight LSB instead could make every sample at
++  // alpha 64 a no-op. Keep invalid premultiplied colors on their native path.
++  if (premultiplied && (value > alpha || candidate > alpha))
++    return false;
++  if (premultiplied && exported && alpha != 255)
++    candidate = (candidate * (0xff000000u / alpha) + 0x800000u) >> 24;
++  const bool changed = pixel[channel] != candidate;
++  pixel[channel] = static_cast<uint8_t>(candidate);
++  return changed;
++}
++
++UxrPixelResult ApplyShardWebGLV2(const UxrSurfacePolicy& policy,
++                                UxrPixelSurface surface,
++                                const UxrPixelRegion& region) {
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    const uint32_t absolute_y = surface == UxrPixelSurface::kWebGLReadback
++        ? static_cast<uint32_t>(region.origin_y) + y
++        : region.canvas_height - 1 -
++              (static_cast<uint32_t>(region.origin_y) + y);
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (!pixel[3] || ShardFlatCell(region, surface, x, y))
++        continue;
++      const auto mask = ShardWebGLMask(static_cast<uint32_t>(policy.seed),
++          static_cast<uint32_t>(region.origin_x) + x, absolute_y);
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        if (((mask[0] >> (channel * 8)) & 255u) == 0)
++          changed |= AssignShardWebGLBit(pixel, Channel(region, channel),
++              (mask[1] >> channel) & 1u, region.premultiplied,
++              surface == UxrPixelSurface::kWebGLExport);
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++UxrPixelResult ApplyShardWebGL(const UxrSurfacePolicy& policy,
++                               const UxrPixelRegion& region,
++                               uint32_t sequence) {
++  Xoshiro128 random(static_cast<uint32_t>(policy.seed) ^ sequence);
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = Pixel(region, x, y);
++      if (pixel[3] == 0)
++        continue;
++      const uint32_t value = random.Next();
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        if (((value >> (channel * 8)) & 255u) == 0) {
++          pixel[Channel(region, channel)] ^= 1;
++          changed = true;
++        }
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++UxrPixelResult ApplyCloak(const UxrSurfacePolicy& policy,
++                          UxrPixelSurface surface,
++                          const UxrPixelRegion& region,
++                          UxrPixelFlavor flavor) {
++  const bool compatible = flavor == UxrPixelFlavor::kCompatibleV1;
++  if (!compatible && surface == UxrPixelSurface::kCanvas2D &&
++      (region.origin_x != 0 || region.origin_y != 0 ||
++       region.width != region.canvas_width ||
++       region.height != region.canvas_height)) {
++    return UxrPixelResult::kUnsupportedRegion;
++  }
++  const uint32_t whole_width = compatible ? region.canvas_width : region.width;
++  const uint32_t whole_height =
++      compatible ? region.canvas_height : region.height;
++  if (whole_width < 8 || whole_height < 8)
++    return UxrPixelResult::kUnchanged;
++  // Half-transparent arithmetic was not byte-verified for this target.
++  // Check before modifying anything, including when a later pixel is partial.
++  if (!compatible) {
++    for (uint32_t y = 0; y < region.height; ++y) {
++      for (uint32_t x = 0; x < region.width; ++x) {
++        const uint8_t alpha = Pixel(region, x, y)[3];
++        if (alpha != 0 && alpha != 255)
++          return UxrPixelResult::kUnsupportedAlpha;
++      }
++    }
++  }
++  const uint64_t pixels = uint64_t{whole_width} * whole_height;
++  const std::string seed = std::to_string(policy.seed);
++  const uint32_t position_hash = UxrCloakHashV1(seed + "_pos");
++  bool changed = false;
++  for (uint32_t i = 0; i < 10; ++i) {
++    const uint32_t mixed = (position_hash ^ i) * 0x17385ca9u + 0x47502932u;
++    const uint64_t position = mixed % pixels;
++    const uint32_t x = static_cast<uint32_t>(position % whole_width);
++    const uint32_t y = static_cast<uint32_t>(position / whole_width);
++    const int64_t local_x = compatible ? int64_t{x} - region.origin_x : x;
++    const int64_t local_y =
++        !compatible ? y
++        : surface == UxrPixelSurface::kWebGLReadback
++            ? int64_t{whole_height} - 1 - y - region.origin_y
++            : int64_t{y} - region.origin_y;
++    if (local_x < 0 || local_y < 0 || local_x >= region.width ||
++        local_y >= region.height) {
++      continue;
++    }
++    auto pixel = Pixel(region, static_cast<uint32_t>(local_x),
++                       static_cast<uint32_t>(local_y));
++    if (pixel[3] == 0)
++      continue;
++    // Compatible v1 leaves partial-alpha pixels native. Unlike a whole-image
++    // rejection this remains consistent when an opaque region is cropped.
++    if (compatible && pixel[3] != 255)
++      continue;
++    const uint32_t bits = UxrCloakHashV1(seed + "_" + std::to_string(x) + "_" +
++                                         std::to_string(y));
++    // Reference goldens retain the original physical-slot discrepancy.
++    // The explicit compatible-v1 production flavor uses logical RGB.
++    for (uint32_t channel = 0; channel < 3; ++channel) {
++      const uint32_t index = compatible ? Channel(region, channel) : channel;
++      const uint8_t value = (pixel[index] & 0xfeu) | ((bits >> channel) & 1u);
++      changed |= value != pixel[index];
++      pixel[index] = value;
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++}  // namespace
++
++uint32_t UxrCloakHashV1(std::string_view bytes) {
++  if (bytes.empty() || bytes.size() >= 0x80000000u)
++    return 0;
++  uint32_t hash = static_cast<uint32_t>(bytes.size());
++  size_t offset = 0;
++  const auto read16 = [&bytes](size_t at) {
++    return static_cast<uint32_t>(static_cast<unsigned char>(bytes[at])) |
++           (static_cast<uint32_t>(static_cast<unsigned char>(bytes[at + 1]))
++            << 8);
++  };
++  for (; bytes.size() - offset >= 4; offset += 4) {
++    hash += read16(offset);
++    const uint32_t temporary = (read16(offset + 2) << 11) ^ hash;
++    hash = (hash << 16) ^ temporary;
++    hash += hash >> 11;
++  }
++  const auto signed_byte = [&bytes](size_t at) {
++    const uint32_t value = static_cast<unsigned char>(bytes[at]);
++    return value < 128 ? value : value - 256u;
++  };
++  switch (bytes.size() - offset) {
++    case 3:
++      hash += read16(offset);
++      hash ^= hash << 16;
++      hash ^= signed_byte(offset + 2) << 18;
++      hash += hash >> 11;
++      break;
++    case 2:
++      hash += read16(offset);
++      hash ^= hash << 11;
++      hash += hash >> 17;
++      break;
++    case 1:
++      hash += signed_byte(offset);
++      hash ^= hash << 10;
++      hash += hash >> 1;
++      break;
++    default:
++      break;
++  }
++  hash ^= hash << 3;
++  hash += hash >> 5;
++  hash ^= hash << 4;
++  hash += hash >> 17;
++  hash ^= hash << 25;
++  return hash + (hash >> 6);
++}
++
++UxrPixelResult UxrApplyGraphicsNoiseV1(const UxrSurfacePolicy& policy,
++                                       UxrPixelSurface surface,
++                                       const UxrPixelRegion& region,
++                                       uint32_t shard_webgl_sequence,
++                                       UxrPixelFlavor flavor) {
++  if (policy.IsLegacy())
++    return UxrPixelResult::kLegacy;
++  if (policy.IsNative())
++    return UxrPixelResult::kNative;
++  if (policy.seed == 0 ||
++      (policy.mode == UxrSurfaceMode::kShardX &&
++       policy.seed > std::numeric_limits<uint32_t>::max())) {
++    return UxrPixelResult::kUnsupportedSeed;
++  }
++  if (region.width == 0 || region.height == 0)
++    return UxrPixelResult::kUnchanged;
++  if (!ValidLayout(region))
++    return UxrPixelResult::kInvalidLayout;
++  if (policy.mode == UxrSurfaceMode::kShardX &&
++      !ValidNeighborhood(region.neighborhood, 4))
++    return UxrPixelResult::kInvalidLayout;
++  switch (policy.mode) {
++    case UxrSurfaceMode::kChromix:
++      return ApplyChromix(policy, surface, region);
++    case UxrSurfaceMode::kShardX:
++      if (surface == UxrPixelSurface::kCanvas2D)
++        return flavor == UxrPixelFlavor::kCompatibleV1 && !region.neighborhood.bytes.empty()
++                   ? ApplyShardCanvasSemantic(policy, region)
++                   : ApplyShardCanvas(policy, region);
++      if (flavor == UxrPixelFlavor::kCompatibleV1)
++        return ApplyShardWebGLV2(policy, surface, region);
++      if (surface == UxrPixelSurface::kWebGLExport)
++        return UxrPixelResult::kUnchanged;
++      return ApplyShardWebGL(policy, region, shard_webgl_sequence);
++    case UxrSurfaceMode::kCloak:
++      return ApplyCloak(policy, surface, region, flavor);
++    case UxrSurfaceMode::kLegacy:
++      return UxrPixelResult::kLegacy;
++    case UxrSurfaceMode::kNative:
++      return UxrPixelResult::kNative;
++  }
++  return UxrPixelResult::kInvalidLayout;
++}
++
++UxrPixelResult UxrApplyShardWebGLFloatV2(
++    const UxrSurfacePolicy& policy, const UxrPixelRegion& region) {
++  const size_t row_bytes = static_cast<size_t>(region.width) * 16;
++  if (!region.width || !region.height || row_bytes / 16 != region.width ||
++      region.row_stride < row_bytes || region.bytes.size() < row_bytes ||
++      region.height - 1 > (region.bytes.size() - row_bytes) / region.row_stride)
++    return UxrPixelResult::kInvalidLayout;
++  if (!ValidNeighborhood(region.neighborhood, 16))
++    return UxrPixelResult::kInvalidLayout;
++  if (policy.mode != UxrSurfaceMode::kShardX || !policy.seed ||
++      policy.seed > std::numeric_limits<uint32_t>::max())
++    return UxrPixelResult::kUnsupportedSeed;
++  bool changed = false;
++  for (uint32_t y = 0; y < region.height; ++y) {
++    for (uint32_t x = 0; x < region.width; ++x) {
++      auto pixel = region.bytes.subspan(y * region.row_stride + x * size_t{16},
++                                        size_t{16});
++      float alpha;
++      std::memcpy(&alpha, pixel.subspan(size_t{12}, size_t{4}).data(), sizeof(alpha));
++      if (!std::isfinite(alpha) || alpha == 0 ||
++          ShardFlatCell(region, UxrPixelSurface::kWebGLReadback, x, y, true))
++        continue;
++      const auto mask = ShardWebGLMask(static_cast<uint32_t>(policy.seed),
++          static_cast<uint32_t>(region.origin_x) + x,
++          static_cast<uint32_t>(region.origin_y) + y);
++      for (uint32_t channel = 0; channel < 3; ++channel) {
++        if (((mask[0] >> (channel * 8)) & 255u) != 0)
++          continue;
++        float value;
++        uint32_t bits;
++        auto bytes = pixel.subspan(channel * size_t{4}, size_t{4});
++        std::memcpy(&value, bytes.data(), sizeof(value));
++        if (!std::isfinite(value) || value == 0 || value == 1)
++          continue;
++        std::memcpy(&bits, &value, sizeof(bits));
++        const uint32_t replacement = (bits & ~1u) | ((mask[1] >> channel) & 1u);
++        changed |= bits != replacement;
++        std::memcpy(bytes.data(), &replacement, sizeof(replacement));
++      }
++    }
++  }
++  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
++}
++
++const char* UxrPixelResultName(UxrPixelResult result) {
++  switch (result) {
++    case UxrPixelResult::kApplied:
++      return "applied";
++    case UxrPixelResult::kUnchanged:
++      return "unchanged";
++    case UxrPixelResult::kNative:
++      return "native";
++    case UxrPixelResult::kLegacy:
++      return "legacy";
++    case UxrPixelResult::kInvalidLayout:
++      return "invalid-layout";
++    case UxrPixelResult::kUnsupportedSeed:
++      return "unsupported-seed";
++    case UxrPixelResult::kUnsupportedAlpha:
++      return "unsupported-alpha";
++    case UxrPixelResult::kUnsupportedRegion:
++      return "unsupported-region";
++  }
++  return "invalid-result";
++}
++
++}  // namespace base::mask_first_reference
++// END FROZEN 9a06334 HELPER
++#endif  // BASE_UXR_MASK_FIRST_REFERENCE_H_
+diff --git a/base/uxr_pixel_noise.h b/base/uxr_pixel_noise.h
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_pixel_noise.h
+@@ -0,0 +1,39 @@
++// Copyright 2026.
++#ifndef BASE_UXR_PIXEL_NOISE_H_
++#define BASE_UXR_PIXEL_NOISE_H_
++
++#include <cstdint>
++
++namespace base {
++
++inline uint32_t UxrPixelNoiseSeed(uint64_t seed) {
++  // SplitMix64's finalizer folds high bits without changing legacy 32-bit seeds.
++  uint64_t high = seed >> 32;
++  high = (high ^ (high >> 30)) * 0xbf58476d1ce4e5b9ULL;
++  high = (high ^ (high >> 27)) * 0x94d049bb133111ebULL;
++  high ^= high >> 31;
++  return static_cast<uint32_t>(seed) ^ static_cast<uint32_t>(high) ^
++         static_cast<uint32_t>(high >> 32);
++}
++
++// Coordinates are absolute; channel is logical RGB, independent of byte order.
++// Callers skip transparent pixels and preserve alpha.
++inline uint8_t UxrNoiseChannel(uint32_t seed,
++                               uint32_t x,
++                               uint32_t y,
++                               uint32_t channel,
++                               uint8_t value) {
++  uint32_t z = seed ^ (x * 374761393u) ^ (y * 668265263u) ^
++               (channel * 0x9e3779b9u) ^ (uint32_t{value} * 2654435761u);
++  z ^= z >> 16;
++  z *= 0x85ebca6bu;
++  z ^= z >> 13;
++  z *= 0xc2b2ae35u;
++  z ^= z >> 16;
++  const int result = static_cast<int>(value) + ((z & 1u) ? 1 : -1);
++  return static_cast<uint8_t>(result < 0 ? 0 : (result > 255 ? 255 : result));
++}
++
++}  // namespace base
++
++#endif  // BASE_UXR_PIXEL_NOISE_H_
+diff --git a/base/uxr_pixel_semantic_properties.h b/base/uxr_pixel_semantic_properties.h
+new file mode 100644
+--- /dev/null
++++ b/base/uxr_pixel_semantic_properties.h
+@@ -0,0 +1,233 @@
++// Properties of the production implementation; no duplicate noise algorithm.
++#ifndef BASE_UXR_PIXEL_SEMANTIC_PROPERTIES_H_
++#define BASE_UXR_PIXEL_SEMANTIC_PROPERTIES_H_
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <cstring>
++#include <fstream>
++#include <iostream>
++#include <iterator>
++#include <limits>
++#include <sstream>
++#include <string>
++#include <utility>
++#include <vector>
++
++inline std::pair<size_t, size_t> RunPixelSemanticProperties(const std::string& fixture_root) {
++  size_t checks = 0, failures = 0;
++  auto check = [&](bool condition) { ++checks; failures += !condition; };
++  const std::array<uint32_t, 8> seeds{1, 2, 42, 314159, 32452843, 49979687,
++                                     123456789, 0xffffffffu};
++  size_t density_pixels = 0, density_changed = 0, positive_cases = 0;
++  size_t old_canvas_changed = 0, new_canvas_changed = 0;
++  auto changed_pixels = [](const auto& a, const auto& b) {
++    size_t n = 0;
++    for (size_t i = 0; i < a.size(); i += 4)
++      n += !std::equal(a.begin() + i, a.begin() + i + 4, b.begin() + i);
++    return n;
++  };
++  for (const auto [w, h] : {std::pair{128u, 96u}, {257u, 65u}, {67u, 33u}}) {
++    for (uint32_t seed : seeds) {
++      base::UxrSurfacePolicy policy;
++      policy.mode = base::UxrSurfaceMode::kShardX;
++      policy.seed = seed;
++      for (auto surface : {base::UxrPixelSurface::kCanvas2D,
++                           base::UxrPixelSurface::kWebGLReadback}) {
++        for (bool premultiplied : {false, true}) {
++          if (surface == base::UxrPixelSurface::kCanvas2D && premultiplied)
++            continue;
++          for (uint8_t alpha : {uint8_t{1}, uint8_t{64}, uint8_t{255}}) {
++            std::vector<uint8_t> original(w * h * 4);
++            for (uint32_t y = 0; y < h; ++y) for (uint32_t x = 0; x < w; ++x) {
++              const size_t i = (y * w + x) * 4;
++              const unsigned range = premultiplied ? alpha + 1 : 256;
++              original[i] = (x * 7 + y * 11 + 13) % range;
++              original[i + 1] = (x * 3 + y * 5 + 17) % range;
++              original[i + 2] = (x * 11 + y * 19 + 29) % range;
++              original[i + 3] = alpha;
++              if (x >= 14 && x < 48 && y >= 10 && y < 28) {
++                original[i] = 13 % range; original[i + 1] = 27 % range;
++                original[i + 2] = 39 % range;
++              }
++            }
++            auto apply = [&](std::vector<uint8_t>& output,
++                             uint32_t ox, uint32_t oy, uint32_t width,
++                             uint32_t height, bool own_halo) {
++              base::UxrPixelRegion r{output, width * size_t{4}, width, height,
++                  w, h, static_cast<int32_t>(ox), static_cast<int32_t>(oy),
++                  false, premultiplied};
++              std::vector<uint8_t> halo;
++              if (own_halo) {
++                const uint32_t left = ox ? ox - 1 : 0, top = oy ? oy - 1 : 0;
++                const uint32_t right = std::min(w, ox + width + 1);
++                const uint32_t bottom = std::min(h, oy + height + 1);
++                halo.resize((right - left) * (bottom - top) * 4);
++                for (uint32_t row = top; row < bottom; ++row)
++                  std::copy_n(original.begin() + (row * w + left) * 4,
++                      (right - left) * 4,
++                      halo.begin() + (row - top) * (right - left) * 4);
++                r.neighborhood = {halo, (right - left) * size_t{4}, right-left,
++                    bottom-top, static_cast<int32_t>(left), static_cast<int32_t>(top)};
++              } else {
++                r.neighborhood = {output, w * size_t{4}, w, h, 0, 0};
++              }
++              return base::UxrApplyGraphicsNoiseV1(policy, surface, r);
++            };
++            auto full = original; apply(full, 0, 0, w, h, false);
++            auto repeat = original; apply(repeat, 0, 0, w, h, true);
++            check(full == repeat);
++            auto twice = full; apply(twice, 0, 0, w, h, false);
++            check(full == twice);
++            const size_t altered = changed_pixels(original, full);
++            if (alpha == 255) {
++              density_pixels += w * h; density_changed += altered;
++              positive_cases += altered > 0;
++              check(altered > 0);
++              check(altered * 100 < w * h * 2);  // below 2% of pixels
++            }
++            for (size_t i = 0; i < full.size(); ++i) {
++              check(i % 4 == 3 ? full[i] == original[i] :
++                    std::abs(int(full[i]) - int(original[i])) <= 1);
++              if (premultiplied && i % 4 != 3)
++                check(full[i] <= alpha);
++            }
++            for (uint32_t y = 12; y < 26; ++y) for (uint32_t x = 16; x < 46; ++x)
++              check(std::equal(full.begin() + (y*w+x)*4,
++                  full.begin() + (y*w+x)*4 + 4, original.begin() + (y*w+x)*4));
++            for (const auto [ox, oy, cw, ch] : {
++                std::array<uint32_t,4>{0,0,1,1}, {1,1,1,1}, {w-1,h-1,1,1},
++                {3,5,31,17}, {16,11,29,15}, {w-3,h-3,3,3}}) {
++              std::vector<uint8_t> part(cw * ch * 4), expected(part.size());
++              for (uint32_t y = 0; y < ch; ++y) {
++                std::copy_n(original.begin() + ((oy+y)*w+ox)*4, cw*4, part.begin()+y*cw*4);
++                std::copy_n(full.begin() + ((oy+y)*w+ox)*4, cw*4, expected.begin()+y*cw*4);
++              }
++              apply(part, ox, oy, cw, ch, true);check(part == expected);
++            }
++            std::vector<uint8_t> flat(w*h*4);
++            for (size_t i=0;i<flat.size();i+=4) {
++              flat[i]=premultiplied ? alpha/3 : 99;
++              flat[i+1]=premultiplied ? alpha/2 : 77;
++              flat[i+2]=premultiplied ? alpha/4 : 155;flat[i+3]=alpha;
++            }
++            const auto flat_before=flat;
++            apply(flat,0,0,w,h,false);check(flat==flat_before);
++            if (surface == base::UxrPixelSurface::kCanvas2D && alpha==255) {
++              auto old=original;
++              base::UxrPixelRegion old_region{old,w*size_t{4},w,h,w,h};
++              base::UxrApplyGraphicsNoiseV1(policy,surface,old_region,0,
++                  base::UxrPixelFlavor::kReferenceV1);
++              old_canvas_changed+=changed_pixels(old,original);
++              new_canvas_changed+=altered;
++            }
++            if (surface == base::UxrPixelSurface::kWebGLReadback) {
++              std::vector<uint8_t> exported(original.size()),expected(original.size());
++              auto straight=[&](uint8_t v){return premultiplied && alpha!=255
++                  ? uint8_t((uint32_t{v}*(0xff000000u/alpha)+0x800000u)>>24) : v;};
++              for(uint32_t y=0;y<h;++y) for(uint32_t x=0;x<w;++x) {
++                const size_t s=(y*w+x)*4,d=((h-1-y)*w+x)*4;
++                for(uint32_t c=0;c<3;++c) {
++                  exported[d+2-c]=straight(original[s+c]);
++                  expected[d+2-c]=straight(full[s+c]);
++                }
++                exported[d+3]=alpha;expected[d+3]=alpha;
++              }
++              base::UxrPixelRegion r{exported,w*size_t{4},w,h,w,h,0,0,true,premultiplied};
++              r.neighborhood={exported,r.row_stride,w,h,0,0};
++              base::UxrApplyGraphicsNoiseV1(policy,base::UxrPixelSurface::kWebGLExport,r);
++              check(exported==expected);
++            }
++          }
++        }
++      }
++      // RGBA32F protects flat cells and keeps crop/assignment invariance.
++      std::vector<float> floats(w*h*4);
++      for(uint32_t y=0;y<h;++y)for(uint32_t x=0;x<w;++x) {
++        size_t i=(y*w+x)*4;
++        floats[i]=(x+1)/float(w+3);floats[i+1]=(y+1)/float(h+5);
++        floats[i+2]=(x+y+3)/float(w+h+7);floats[i+3]=1;
++      }
++      auto span_bytes=[](auto& v){return base::span<uint8_t>(reinterpret_cast<uint8_t*>(v.data()),v.size()*sizeof(float));};
++      auto full=floats;auto bytes=span_bytes(full);
++      base::UxrPixelRegion r{bytes,w*size_t{16},w,h,w,h};
++      r.neighborhood={bytes,r.row_stride,w,h,0,0};
++      base::UxrApplyShardWebGLFloatV2(policy,r);check(full!=floats);
++      auto twice=full;auto twice_bytes=span_bytes(twice);r.bytes=twice_bytes;r.neighborhood.bytes=twice_bytes;
++      base::UxrApplyShardWebGLFloatV2(policy,r);check(twice==full);
++      std::vector<float> part(17*13*4);
++      for(uint32_t y=0;y<13;++y)std::copy_n(floats.begin()+((y+3)*w+5)*4,17*4,part.begin()+y*17*4);
++      auto pbytes=span_bytes(part),sourcebytes=span_bytes(floats);
++      base::UxrPixelRegion crop{pbytes,17*size_t{16},17,13,w,h,5,3};
++      crop.neighborhood={sourcebytes,w*size_t{16},w,h,0,0};
++      base::UxrApplyShardWebGLFloatV2(policy,crop);
++      for(uint32_t y=0;y<13;++y)check(std::equal(part.begin()+y*17*4,part.begin()+(y+1)*17*4,full.begin()+((y+3)*w+5)*4));
++      std::fill(floats.begin(),floats.end(),0.375f);
++      for(size_t i=3;i<floats.size();i+=4)floats[i]=1;
++      const auto before=floats;auto fb=span_bytes(floats);
++      base::UxrPixelRegion flat{fb,w*size_t{16},w,h,w,h};flat.neighborhood={fb,flat.row_stride,w,h,0,0};
++      base::UxrApplyShardWebGLFloatV2(policy,flat);check(floats==before);
++    }
++  }
++  // Retain the existing 64x64 runtime fixture's bounded amplitude/density.
++  // This is not a claim that all script-authored pixels have provenance guards.
++  {
++    std::vector<uint8_t> pixels(64*64*4);
++    for(size_t p=0;p<4096;++p){pixels[p*4]=(p*17+31)&255;pixels[p*4+1]=(p*37+66)&255;pixels[p*4+2]=(p*13+123)&255;pixels[p*4+3]=255;}
++    const auto before=pixels;
++    base::UxrSurfacePolicy policy;policy.mode=base::UxrSurfaceMode::kShardX;policy.seed=314159;
++    base::UxrPixelRegion region{pixels,64*size_t{4},64,64,64,64};
++    region.neighborhood={pixels,region.row_stride,64,64,0,0};
++    base::UxrApplyGraphicsNoiseV1(policy,base::UxrPixelSurface::kCanvas2D,region);
++    size_t changed=0,maximum=0,alpha=0;
++    for(size_t i=0;i<pixels.size();++i){changed+=pixels[i]!=before[i];alpha+=i%4==3&&pixels[i]!=before[i];maximum=std::max(maximum,size_t(std::abs(int(pixels[i])-int(before[i]))));}
++    const bool ok=changed>0&&changed<=32&&maximum<=1&&alpha==0;check(ok);
++    std::cout<<"{\"pixel_runtime_64_changed\":"<<changed<<",\"maximum_delta\":"<<maximum<<",\"alpha_changes\":"<<alpha<<",\"failures\":"<<!ok<<"}\n";
++  }
++  // These inputs were rendered by an independent native Chrome, not generated
++  // from the candidate algorithm or inferred from a detector score.
++  std::ifstream corpus(fixture_root + "/pixel-semantics-v1/cases.tsv");
++  std::ifstream bytes_file(fixture_root + "/pixel-semantics-v1/pixels.bin", std::ios::binary);
++  check(corpus.good() && bytes_file.good());
++  const std::vector<uint8_t> corpus_bytes{std::istreambuf_iterator<char>(bytes_file),
++                                        std::istreambuf_iterator<char>()};
++  size_t corpus_records = 0;
++  std::string line;std::getline(corpus,line);
++  while (std::getline(corpus,line)) {
++    std::istringstream row(line);std::string name;
++    uint32_t w=0,h=0;size_t offset=0,length=0;
++    row >> name >> w >> h >> offset >> length;
++    if (!w || !h || length!=w*size_t{4}*h || offset>corpus_bytes.size() ||
++        length>corpus_bytes.size()-offset) {check(false);continue;}
++    const std::vector<uint8_t> original(corpus_bytes.begin()+offset,
++                                       corpus_bytes.begin()+offset+length);
++    ++corpus_records;
++    for(uint32_t seed:seeds) {
++      base::UxrSurfacePolicy policy;policy.mode=base::UxrSurfaceMode::kShardX;policy.seed=seed;
++      auto old=original,now=original;
++      base::UxrPixelRegion before{old,w*size_t{4},w,h,w,h};
++      base::UxrApplyGraphicsNoiseV1(policy,base::UxrPixelSurface::kCanvas2D,before,0,
++                                   base::UxrPixelFlavor::kReferenceV1);
++      base::UxrPixelRegion after{now,w*size_t{4},w,h,w,h};
++      after.neighborhood={now,after.row_stride,w,h,0,0};
++      base::UxrApplyGraphicsNoiseV1(policy,base::UxrPixelSurface::kCanvas2D,after);
++      const auto old_count=changed_pixels(old,original),new_count=changed_pixels(now,original);
++      size_t maximum=0;for(size_t i=0;i<now.size();++i)maximum=std::max(maximum,size_t(std::abs(int(now[i])-int(original[i]))));
++      check(new_count>0);check(maximum<=1);check(new_count*100<static_cast<size_t>(w)*h);
++      std::cout << "{\"pixel_semantic_corpus\":\"" << name << "\",\"seed\":" << seed
++                << ",\"pixels\":" << w*size_t{h} << ",\"old_changed\":" << old_count
++                << ",\"new_changed\":" << new_count << ",\"maximum_delta\":" << maximum
++                << ",\"failures\":" << (new_count==0 || maximum>1 ? 1 : 0) << "}\n";
++    }
++  }
++  check(corpus_records > 0);
++  std::cout << "{\"pixel_semantic_checks\":" << checks << ",\"pixel_semantic_corpus_records\":" << corpus_records
++            << ",\"failures\":" << failures
++            << ",\"positive_complex_cases\":" << positive_cases
++            << ",\"tested_complex_pixels\":" << density_pixels
++            << ",\"changed_complex_pixels\":" << density_changed
++            << ",\"old_canvas_changed\":" << old_canvas_changed
++            << ",\"new_canvas_changed\":" << new_canvas_changed << "}\n";
++  return {checks,failures};
++}
++#endif
+diff --git a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc b/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
+--- a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
++++ b/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc
+@@ -145,14 +145,16 @@
+     ToBlobFunctionType function_type,
+     base::TimeTicks start_time,
+     ExecutionContext* context,
+-    ScriptPromiseResolver<Blob>* resolver)
++    ScriptPromiseResolver<Blob>* resolver,
++    UxrCanvasExportContext export_context)
+     : CanvasAsyncBlobCreator(image,
+                              options,
+                              function_type,
+                              nullptr,
+                              start_time,
+                              context,
+-                             resolver) {}
++                             resolver,
++                             export_context) {}
+ 
+ CanvasAsyncBlobCreator::CanvasAsyncBlobCreator(
+     scoped_refptr<StaticBitmapImage> image,
+@@ -161,10 +163,12 @@
+     V8BlobCallback* callback,
+     base::TimeTicks start_time,
+     ExecutionContext* context,
+-    ScriptPromiseResolver<Blob>* resolver)
++    ScriptPromiseResolver<Blob>* resolver,
++    UxrCanvasExportContext export_context)
+     : fail_encoder_initialization_for_test_(false),
+       enforce_idle_encoding_for_test_(false),
+       context_(context),
++      fingerprint_export_context_(export_context),
+       function_type_(function_type),
+       start_time_(start_time),
+       static_bitmap_image_loaded_(false),
+@@ -190,8 +194,11 @@
+             skia_image_->imageInfo().colorInfo(), image_->GetHdrMetadata());
+     // It is more efficient to do alpha un-multiplication inside the decoder.
+     // https://crbug.com/557350372
+-    if (target_color_info.makeAlphaType(skia_image_->imageInfo().alphaType()) !=
+-        skia_image_->imageInfo().colorInfo()) {
++    // Normalize opaque PNGs to match the synchronous export's wire format.
++    if ((mime_type_ == kMimeTypePng &&
++         skia_image_->imageInfo().alphaType() == kOpaque_SkAlphaType) ||
++        target_color_info.makeAlphaType(skia_image_->imageInfo().alphaType()) !=
++            skia_image_->imageInfo().colorInfo()) {
+       SkBitmap bitmap;
+       if (bitmap.tryAllocPixels(SkImageInfo::Make(skia_image_->dimensions(),
+                                                   target_color_info)) &&
+@@ -213,8 +220,6 @@
+     }
+ 
+     if (skia_image_->peekPixels(&src_data_)) {
+-      static_bitmap_image_loaded_ = true;
+-
+       // Ensure that the size of the to-be-encoded-image does not pass the
+       // maximum size supported by the encoders.
+       int max_dimension = ImageEncoder::MaxDimension(mime_type_);
+@@ -224,6 +229,15 @@
+                            std::min(info.height(), max_dimension));
+         src_data_.reset(info, src_data_.addr(), src_data_.rowBytes());
+       }
++      // All scheduling paths consume the same once-prepared pixels.
++      image_data_buffer_ =
++          ImageDataBuffer::Create(src_data_, fingerprint_export_context_);
++      if (image_data_buffer_) {
++        src_data_ = image_data_buffer_->GetPixmap();
++        static_bitmap_image_loaded_ = true;
++      } else {
++        src_data_.reset();
++      }
+     }
+   }
+ 
+@@ -243,6 +257,9 @@
+   context_.Clear();
+   callback_.Clear();
+   script_promise_resolver_.Clear();
++  encoder_.reset();
++  src_data_.reset();
++  image_data_buffer_.reset();
+   image_ = nullptr;
+   skia_image_ = nullptr;
+   encoded_image_.clear();
+@@ -318,7 +335,7 @@
+       // we do not need to use background task runner to reduce load on main.
+       // So we just directly encode images on the worker thread.
+       Vector<unsigned char> encoded_image;
+-      if (!EncodeImage(ImageDataBuffer::Create(src_data_), mime_type_, quality,
++      if (!EncodeImage(std::move(image_data_buffer_), mime_type_, quality,
+                        &encoded_image)) {
+         context_->GetTaskRunner(TaskType::kCanvasBlobSerialization)
+             ->PostTask(
+@@ -341,7 +358,7 @@
+           FROM_HERE, CrossThreadBindOnce(
+                          &CanvasAsyncBlobCreator::EncodeImageOnEncoderThread,
+                          MakeCrossThreadHandle(this), parent_frame_task_runner_,
+-                         skia_image_, ImageDataBuffer::Create(src_data_),
++                         skia_image_, std::move(image_data_buffer_),
+                          mime_type_, quality));
+     }
+   } else {
+@@ -368,7 +385,7 @@
+ 
+ void CanvasAsyncBlobCreator::InitiateEncoding(double quality,
+                                               base::TimeTicks deadline) {
+-  if (idle_task_status_ == kIdleTaskSwitchedToImmediateTask) {
++  if (idle_task_status_ != kIdleTaskNotStarted) {
+     return;
+   }
+   RecordInitiateEncodingTimeHistogram(
+@@ -379,6 +396,7 @@
+ 
+   if (!InitializeEncoder(quality)) {
+     idle_task_status_ = kIdleTaskFailed;
++    CreateNullAndReturnResult();
+     return;
+   }
+ 
+@@ -388,7 +406,7 @@
+ }
+ 
+ void CanvasAsyncBlobCreator::IdleEncodeRows(base::TimeTicks deadline) {
+-  if (idle_task_status_ == kIdleTaskSwitchedToImmediateTask) {
++  if (idle_task_status_ != kIdleTaskStarted) {
+     return;
+   }
+ 
+@@ -574,6 +592,8 @@
+                               WrapPersistent(this)));
+     } else {
+       // Failing in initialization of encoder
++      idle_task_status_ = kIdleTaskFailed;
++      CreateNullAndReturnResult();
+       SignalAlternativeCodePathFinishedForTesting();
+     }
+   } else {
+diff --git a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h b/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h
+--- a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h
++++ b/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h
+@@ -15,6 +15,7 @@
+ #include "third_party/blink/renderer/bindings/core/v8/v8_blob_callback.h"
+ #include "third_party/blink/renderer/bindings/core/v8/v8_image_encode_options.h"
+ #include "third_party/blink/renderer/core/core_export.h"
++#include "third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h"
+ #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
+ #include "third_party/blink/renderer/platform/heap/cross_thread_handle.h"
+ #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+@@ -53,14 +54,16 @@
+                          ToBlobFunctionType function_type,
+                          base::TimeTicks start_time,
+                          ExecutionContext*,
+-                         ScriptPromiseResolver<Blob>*);
++                         ScriptPromiseResolver<Blob>*,
++                         UxrCanvasExportContext = {});
+   CanvasAsyncBlobCreator(scoped_refptr<StaticBitmapImage>,
+                          const ImageEncodeOptions*,
+                          ToBlobFunctionType,
+                          V8BlobCallback*,
+                          base::TimeTicks start_time,
+                          ExecutionContext*,
+-                         ScriptPromiseResolver<Blob>* = nullptr);
++                         ScriptPromiseResolver<Blob>* = nullptr,
++                         UxrCanvasExportContext = {});
+   virtual ~CanvasAsyncBlobCreator();
+ 
+   // Methods are virtual for mocking in unit tests
+@@ -96,11 +99,13 @@
+ 
+   scoped_refptr<StaticBitmapImage> image_;
+   Member<ExecutionContext> context_;
++  const UxrCanvasExportContext fingerprint_export_context_;
+ 
+   // The following members are used for progressive/idle encoding,
+   // see comment above the implementation of ScheduleAsyncBlobCreation.
+   sk_sp<SkImage> skia_image_;
+-  SkPixmap src_data_;  // Holds a raw pointer owned by `skia_ìmage`.
++  std::unique_ptr<ImageDataBuffer> image_data_buffer_;
++  SkPixmap src_data_;  // Backed by image_data_buffer_ or skia_image_.
+   std::unique_ptr<ImageEncoder> encoder_;
+   Vector<unsigned char> encoded_image_;
+   int num_rows_completed_;
+diff --git a/third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h b/third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h
+--- a/third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h
++++ b/third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h
+@@ -26,6 +26,8 @@
+ #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CANVAS_CANVAS_RENDERING_CONTEXT_H_
+ #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CANVAS_CANVAS_RENDERING_CONTEXT_H_
+ 
++#include <vector>
++
+ #include "base/byte_size.h"
+ #include "base/containers/span.h"
+ #include "base/functional/callback_forward.h"
+diff --git a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc b/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
+--- a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
++++ b/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
+@@ -32,6 +32,7 @@
+ #include <limits>
+ #include <memory>
+ #include <utility>
++#include <vector>
+ 
+ #include "base/auto_reset.h"
+ #include "base/feature_list.h"
+@@ -43,12 +44,16 @@
+ #include "base/numerics/safe_conversions.h"
+ #include "base/trace_event/trace_event.h"
+ #include "base/trace_event/typed_macros.h"
++#include "base/uxr_config.h"
+ #include "build/build_config.h"
+ #include "cc/layers/texture_layer.h"
++#include "cc/paint/paint_image_builder.h"
+ #include "cc/trees/layer_tree_host.h"
+ #include "services/metrics/public/cpp/ukm_recorder.h"
+ #include "services/metrics/public/cpp/ukm_source_id.h"
+ #include "third_party/blink/public/common/features.h"
++#include "third_party/skia/include/core/SkData.h"
++#include "third_party/skia/include/core/SkImage.h"
+ #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
+ #include "third_party/blink/public/mojom/gpu/gpu.mojom-blink.h"
+ #include "third_party/blink/public/platform/platform.h"
+@@ -1435,8 +1440,17 @@
+ 
+   scoped_refptr<StaticBitmapImage> image_bitmap = Snapshot(source_buffer);
+   if (image_bitmap) {
++    CanvasRenderingContext* context = RenderingContext();
++    const auto source = context && context->IsRenderingContext2D()
++                            ? UxrCanvasExportSource::kCanvas2D
++                        : context && context->IsWebGL()
++                            ? UxrCanvasExportSource::kWebGL
++                            : UxrCanvasExportSource::kOther;
++    const auto export_context = UxrCanvasExportContext::FromModes(
++        base::UxrConfig::GetInstance().SurfaceModes(), source, false,
++        context && context->IsWebGL() && context->CreationAttributes().premultiplied_alpha);
+     std::unique_ptr<ImageDataBuffer> data_buffer =
+-        ImageDataBuffer::Create(image_bitmap);
++        ImageDataBuffer::Create(image_bitmap, export_context);
+     if (!data_buffer)
+       return String("data:,");
+ 
+@@ -1541,10 +1555,18 @@
+   if (image_bitmap) {
+     auto* options = ImageEncodeOptions::Create();
+     options->setType(ImageEncoderUtils::MimeTypeName(encoding_mime_type));
++    const auto source = context_ && context_->IsRenderingContext2D()
++                            ? UxrCanvasExportSource::kCanvas2D
++                        : context_ && context_->IsWebGL()
++                            ? UxrCanvasExportSource::kWebGL
++                            : UxrCanvasExportSource::kOther;
++    const auto export_context = UxrCanvasExportContext::FromModes(
++        base::UxrConfig::GetInstance().SurfaceModes(), source, false,
++        context_ && context_->IsWebGL() && context_->CreationAttributes().premultiplied_alpha);
+     async_creator = MakeGarbageCollected<CanvasAsyncBlobCreator>(
+         image_bitmap, options,
+         CanvasAsyncBlobCreator::kHTMLCanvasToBlobCallback, callback, start_time,
+-        GetExecutionContext());
++        GetExecutionContext(), nullptr, export_context);
+   }
+ 
+   if (async_creator) {
+diff --git a/third_party/blink/renderer/core/html/canvas/text_metrics.cc b/third_party/blink/renderer/core/html/canvas/text_metrics.cc
+--- a/third_party/blink/renderer/core/html/canvas/text_metrics.cc
++++ b/third_party/blink/renderer/core/html/canvas/text_metrics.cc
+@@ -1,6 +1,11 @@
+ // Copyright 2017 The Chromium Authors
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
++
++#include "base/uxr_config.h"
++#include "base/uxr_surface_math.h"
++#include "base/uxr_surface_reference_data.h"
++#include "build/build_config.h"
+ 
+ #include "third_party/blink/renderer/core/html/canvas/text_metrics.h"
+ 
+@@ -92,6 +97,84 @@
+   Update(font, direction, baseline, align, text, text_painter);
+ }
+ 
++
++void TextMetrics::ApplyUxrSurfaceMode(const String& serialized_font) {
++  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
++  if (modes.text.mode == base::UxrSurfaceMode::kShardX &&
++      !modes.noise_disabled && !modes.raw) {
++    width_ = base::uxr_surface_v1::TextWidth(
++        width_, static_cast<uint32_t>(modes.text.seed), modes.text.amount);
++    return;
++  }
++  if (modes.text.mode != base::UxrSurfaceMode::kCloak || modes.raw ||
++      (!text_.empty() && !(width_ > 0))) {
++    return;
++  }
++  std::string font = serialized_font.Utf8();
++  const std::string text = text_.Utf8();
++  const bool mac = base::uxr_surface_v1::AsciiEqual(modes.platform, "macos") ||
++                   base::uxr_surface_v1::AsciiEqual(modes.platform, "MacIntel");
++#if BUILDFLAG(IS_MAC)
++  const bool host_matches = mac;
++#elif BUILDFLAG(IS_WIN)
++  const bool host_matches = modes.platform.empty() ||
++      base::uxr_surface_v1::AsciiEqual(modes.platform, "windows") ||
++      base::uxr_surface_v1::AsciiEqual(modes.platform, "Win32");
++#else
++  const bool host_matches = base::uxr_surface_v1::AsciiEqual(modes.platform, "linux") ||
++      base::uxr_surface_v1::AsciiEqual(modes.platform, "Linux x86_64");
++#endif
++  if (!host_matches || !font_ || !font_->PrimaryFont())
++    return;
++  const std::string requested =
++      font_->GetFontDescription().Family().FamilyName().GetString().Utf8();
++  const std::string actual =
++      font_->PrimaryFont()->PlatformData().FontFamilyName().Utf8();
++  // compatible-v1: no reference correction for generic/aliased/substituted faces.
++  if (!base::uxr_surface_v1::AsciiEqual(requested, actual))
++    return;
++  if (mac && font == "13.7px -apple-system, \"system-ui\", \"Segoe UI\", Roboto, sans-serif")
++    font = "13.7px -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif";
++  const auto& rows = mac ? base::uxr_surface_v1::kMacTextReferences
++                         : base::uxr_surface_v1::kWindowsTextReferences;
++  for (const auto& row : rows) {
++    if (row.font != font || row.text != text)
++      continue;
++    if (width_ != row.values[0] ||
++        actual_bounding_box_right_ != row.values[1] ||
++        actual_bounding_box_ascent_ != row.values[2] ||
++        actual_bounding_box_descent_ != row.values[3] ||
++        actual_bounding_box_left_ != row.values[4])
++      return;
++    struct GlyphSource { const std::string& family; bool matches = true; };
++    GlyphSource source{actual};
++    for (const auto& run : runs_with_offset_) {
++      run.shape_result_->ForEachGlyph(
++          0,
++          [](void* context, unsigned, Glyph, gfx::Vector2dF, float, bool,
++             CanvasRotationInVertical, const SimpleFontData* data) {
++            auto& check = *static_cast<GlyphSource*>(context);
++            if (!data || !base::uxr_surface_v1::AsciiEqual(
++                    data->PlatformData().FontFamilyName().Utf8(), check.family))
++              check.matches = false;
++          }, &source);
++    }
++    if (!source.matches)
++      return;
++    width_ = row.values[0];
++    actual_bounding_box_right_ = row.values[1];
++    actual_bounding_box_ascent_ = row.values[2];
++    actual_bounding_box_descent_ = row.values[3];
++    actual_bounding_box_left_ = row.values[4];
++    font_bounding_box_ascent_ = em_height_ascent_ = row.values[5];
++    font_bounding_box_descent_ = em_height_descent_ = row.values[6];
++    baselines_->setHanging(row.values[7]);
++    baselines_->setIdeographic(row.values[8]);
++    baselines_->setAlphabetic(0);
++    return;
++  }
++}
++
+ void TextMetrics::Shuffle(const double factor) {
+   // x-direction
+   width_ *= factor;
+@@ -110,6 +193,7 @@
+   baselines_->setIdeographic(baselines_->ideographic() * factor);
+ }
+ 
++// Text metrics remain derived from the actual shaped and rendered font.
+ void TextMetrics::Update(const Font* font,
+                          const TextDirection& direction,
+                          const V8CanvasTextBaseline::Enum baseline,
+diff --git a/third_party/blink/renderer/core/html/canvas/text_metrics.h b/third_party/blink/renderer/core/html/canvas/text_metrics.h
+--- a/third_party/blink/renderer/core/html/canvas/text_metrics.h
++++ b/third_party/blink/renderer/core/html/canvas/text_metrics.h
+@@ -111,6 +111,8 @@
+   };
+ 
+   void Shuffle(const double factor);
++  // Called once on the normally shaped result by the measureText entry point.
++  void ApplyUxrSurfaceMode(const String& serialized_font);
+ 
+  private:
+   void Update(const Font*,
+diff --git a/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc b/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
+--- a/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
++++ b/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
+@@ -12,6 +12,7 @@
+ #include "base/numerics/safe_conversions.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/types/optional_util.h"
++#include "base/uxr_config.h"
+ #include "third_party/blink/public/common/features.h"
+ #include "third_party/blink/public/platform/platform.h"
+ #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
+@@ -586,16 +587,36 @@
+   }
+ 
+   base::TimeTicks start_time = base::TimeTicks::Now();
+-  scoped_refptr<StaticBitmapImage> image_bitmap = context_->GetImage();
++  const auto surface_modes = base::UxrConfig::GetInstance().SurfaceModes();
++  // GetImage() uses a premultiplied snapshot. With straight-alpha WebGL this
++  // quantizes colors before export (for example blue 192 -> 191 at alpha 128),
++  // so assigning the same sparse bit no longer agrees with readPixels(). Use
++  // the raw RGBA snapshot already used by HTMLCanvasElement for this context.
++  // Native and other strategies retain the existing snapshot behavior.
++  const bool shard_straight_webgl = context_->IsWebGL() &&
++      !context_->CreationAttributes().premultiplied_alpha &&
++      surface_modes.webgl.mode == base::UxrSurfaceMode::kShardX &&
++      !surface_modes.noise_disabled && !surface_modes.raw;
++  scoped_refptr<StaticBitmapImage> image_bitmap = shard_straight_webgl
++      ? context_->GetRGBAUnacceleratedStaticBitmapImage(kBackBuffer)
++      : context_->GetImage();
+   if (image_bitmap) {
+     auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<Blob>>(
+         script_state, exception_state.GetContext());
+     CanvasAsyncBlobCreator::ToBlobFunctionType function_type =
+         CanvasAsyncBlobCreator::kOffscreenCanvasConvertToBlobPromise;
+     auto* execution_context = ExecutionContext::From(script_state);
++    const auto source = context_->IsRenderingContext2D()
++                            ? UxrCanvasExportSource::kCanvas2D
++                        : context_->IsWebGL()
++                            ? UxrCanvasExportSource::kWebGL
++                            : UxrCanvasExportSource::kOther;
++    const auto export_context = UxrCanvasExportContext::FromModes(
++        surface_modes, source, true,
++        context_->IsWebGL() && context_->CreationAttributes().premultiplied_alpha);
+     auto* async_creator = MakeGarbageCollected<CanvasAsyncBlobCreator>(
+         image_bitmap, options, function_type, start_time, execution_context,
+-        resolver);
++        resolver, export_context);
+     async_creator->ScheduleAsyncBlobCreation(options->quality());
+     return resolver->Promise();
+   }
+diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+--- a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
++++ b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+@@ -6,7 +6,16 @@
+ 
+ #include <inttypes.h>
+ 
++#include "base/strings/string_number_conversions.h"
++#include "base/uxr_config.h"
++#include "base/uxr_graphics_noise.h"
++#include "base/uxr_pixel_noise.h"
++
++#include <algorithm>
++#include <array>
++#include <bit>
+ #include <cmath>
++#include <cstring>
+ #include <cstdint>
+ #include <cstdlib>
+ #include <limits>
+@@ -14,9 +23,11 @@
+ #include <optional>
+ #include <string>
+ #include <utility>
++#include <vector>
+ 
+ #include "base/byte_size.h"
+ #include "base/check.h"
++#include "base/containers/span.h"
+ #include "base/check_op.h"
+ #include "base/location.h"
+ #include "base/memory/scoped_refptr.h"
+@@ -85,6 +96,7 @@
+ #include "third_party/blink/renderer/modules/webgpu/gpu_device.h"
+ #include "third_party/blink/renderer/modules/webgpu/gpu_texture.h"
+ #include "third_party/blink/renderer/platform/bindings/exception_code.h"
++#include "third_party/blink/renderer/platform/weborigin/security_origin.h"
+ #include "third_party/blink/renderer/platform/fonts/font.h"
+ #include "third_party/blink/renderer/platform/fonts/font_selection_types.h"
+ #include "third_party/blink/renderer/platform/fonts/font_selector.h"
+@@ -128,8 +140,10 @@
+ #include "third_party/skia/include/core/SkColorSpace.h"
+ #include "third_party/skia/include/core/SkImageInfo.h"
+ #include "third_party/skia/include/core/SkSurface.h"
++#include "third_party/skia/include/core/SkBitmap.h"
+ #include "ui/gfx/geometry/skia_conversions.h"
+ #include "ui/gfx/geometry/vector2d_f.h"
++#include "ui/gfx/skia_span_util.h"
+ 
+ // Including "base/time/time.h" triggers a bug in IWYU.
+ // https://github.com/include-what-you-use/include-what-you-use/issues/1122
+@@ -143,6 +157,123 @@
+ class MemoryManagedPaintCanvas;
+ 
+ namespace {
++
++struct UxrOpaqueAlpha {
++  std::array<uint8_t, 4> bytes{};
++  size_t component_bytes = 0;
++};
++
++std::optional<UxrOpaqueAlpha> UxrOpaqueAlphaForColorType(SkColorType type) {
++  UxrOpaqueAlpha alpha;
++  switch (type) {
++    case kRGBA_8888_SkColorType:
++    case kBGRA_8888_SkColorType:
++      alpha.bytes[0] = 255;
++      alpha.component_bytes = 1;
++      break;
++    case kRGBA_F16_SkColorType: {
++      const auto one = std::bit_cast<std::array<uint8_t, 2>>(uint16_t{0x3c00});
++      alpha.bytes[0] = one[0];
++      alpha.bytes[1] = one[1];
++      alpha.component_bytes = 2;
++      break;
++    }
++    case kRGBA_F32_SkColorType:
++      alpha.bytes = std::bit_cast<std::array<uint8_t, 4>>(1.0f);
++      alpha.component_bytes = 4;
++      break;
++    default:
++      return std::nullopt;
++  }
++  return alpha;
++}
++
++// An unallocated opaque canvas still has logical opaque-black pixels. Readback
++// must initialize alpha only inside its bounds; OOB pixels/padding stay zero.
++// This writes the newly allocated ImageData, never a shared source resource.
++// A lost context is handled by the caller and retains the native lost path.
++bool UxrInitializeOpaqueReadback(const SkPixmap& destination,
++                                 int canvas_width,
++                                 int canvas_height,
++                                 int source_x,
++                                 int source_y) {
++  auto alpha_value = UxrOpaqueAlphaForColorType(destination.colorType());
++  if (!alpha_value || !destination.addr() || destination.info().isEmpty() ||
++      !destination.info().validRowBytes(destination.rowBytes()) ||
++      SkImageInfo::ByteSizeOverflowed(
++          destination.info().computeByteSize(destination.rowBytes()))) {
++    return false;
++  }
++  const int64_t left = std::max<int64_t>(0, source_x);
++  const int64_t top = std::max<int64_t>(0, source_y);
++  const int64_t right = std::min<int64_t>(
++      canvas_width, static_cast<int64_t>(source_x) + destination.width());
++  const int64_t bottom = std::min<int64_t>(
++      canvas_height, static_cast<int64_t>(source_y) + destination.height());
++  if (left >= right || top >= bottom)
++    return true;
++  SkPixmap clipped;
++  if (!destination.extractSubset(
++          &clipped,
++          SkIRect::MakeXYWH(static_cast<int>(left - source_x),
++                           static_cast<int>(top - source_y),
++                           static_cast<int>(right - left),
++                           static_cast<int>(bottom - top)))) {
++    return false;
++  }
++  auto bytes = gfx::SkPixmapToWritableSpan(clipped);
++  const size_t component_bytes = alpha_value->component_bytes;
++  const auto alpha = base::span(alpha_value->bytes).first(component_bytes);
++  for (int y = 0; y < clipped.height(); ++y) {
++    auto row = bytes.subspan(static_cast<size_t>(y) * clipped.rowBytes(),
++                            clipped.info().minRowBytes());
++    for (int x = 0; x < clipped.width(); ++x) {
++      row.subspan(static_cast<size_t>(x) * component_bytes * 4,
++                  component_bytes * 4)
++          .last(component_bytes)
++          .copy_from(alpha);
++    }
++  }
++  return true;
++}
++
++// Opaque canvas uploads contain opaque alpha bytes, not merely kOpaque
++// metadata. Share the exact RGBA/BGRA8/F16/F32 alpha encoding with lazy readback.
++// Copy only the clipped dirty rectangle; never modify script-owned ImageData.
++bool UxrCopyOpaqueImageData(const SkPixmap& source,
++                            const gfx::Rect& source_rect,
++                            SkBitmap& owned_copy) {
++  auto alpha_value = UxrOpaqueAlphaForColorType(source.colorType());
++  if (!alpha_value)
++    return false;
++  const size_t component_bytes = alpha_value->component_bytes;
++  SkPixmap clipped;
++  if (!source.extractSubset(&clipped, gfx::RectToSkIRect(source_rect)) ||
++      !owned_copy.tryAllocPixels(clipped.info())) {
++    return false;
++  }
++  const SkPixmap& copy = owned_copy.pixmap();
++  const auto source_bytes = gfx::SkPixmapToSpan(clipped);
++  auto bytes = gfx::SkPixmapToWritableSpan(copy);
++  const auto alpha = base::span(alpha_value->bytes).first(component_bytes);
++  for (int y = 0; y < copy.height(); ++y) {
++    auto row = bytes.subspan(static_cast<size_t>(y) * copy.rowBytes(),
++                             copy.info().minRowBytes());
++    // Copy components verbatim, including RGB at zero alpha and F16/F32 bit
++    // patterns. No color conversion or premultiplication belongs in this step.
++    row.copy_from(
++        source_bytes.subspan(static_cast<size_t>(y) * clipped.rowBytes(),
++                             clipped.info().minRowBytes()));
++    for (int x = 0; x < copy.width(); ++x) {
++      row.subspan(static_cast<size_t>(x) * component_bytes * 4,
++                  component_bytes * 4)
++          .last(component_bytes)
++          .copy_from(alpha);
++    }
++  }
++  return true;
++}
++
+ 
+ 
+ bool IsContextProviderValid() {
+@@ -716,6 +847,9 @@
+ }
+ perfetto::EventContext GetEventContext();
+ 
++
++
++
+ ImageData* BaseRenderingContext2D::getImageDataInternal(
+     int sx,
+     int sy,
+@@ -856,6 +990,18 @@
+   if (!image_data)
+     return nullptr;
+ 
++  if (!snapshot && !HasAlpha() && !isContextLost() &&
++      !UxrInitializeOpaqueReadback(image_data->GetSkPixmap(), Width(), Height(),
++                                   sx, sy)) {
++    exception_state.ThrowRangeError("Invalid opaque ImageData storage");
++    return nullptr;
++  }
++
++  const auto surface_modes = base::UxrConfig::GetInstance().SurfaceModes();
++  // An absent snapshot can also mean a resource/read failure. New strategies
++  // require a successful actual read; the existing lazy-native output stays.
++  bool surface_read_complete = false;
++
+   // Read pixels into |image_data|.
+   if (snapshot) {
+     gfx::Rect snapshot_rect{snapshot->Size()};
+@@ -871,13 +1017,100 @@
+         snapshot->PaintImageForCurrentFrame().readPixels(
+             image_data_pixmap.info(), image_data_pixmap.writable_addr(),
+             image_data_pixmap.rowBytes(), sx, sy);
++    surface_read_complete = read_pixels_successful;
+     if (!read_pixels_successful) {
+       SkIRect bounds =
+           snapshot->PaintImageForCurrentFrame().GetSkImageInfo().bounds();
+       DCHECK(!bounds.intersect(SkIRect::MakeXYWH(sx, sy, sw, sh)));
+     }
+-    if (read_pixels_successful && RuntimeEnabledFeatures::FingerprintingCanvasImageDataNoiseEnabled()) {
++    const auto& noise_config = base::UxrConfig::GetInstance();
++    const auto noise_seed_text = noise_config.Get("uxr-canvas-seed");
++    uint64_t noise_seed = 0u;
++    const bool persona_noise =
++        !noise_seed_text.empty() &&
++        noise_seed_text.find_first_not_of("0123456789") == std::string::npos &&
++        base::StringToUint64(noise_seed_text, &noise_seed) && noise_seed != 0u;
++    if (surface_modes.canvas.IsLegacy() && read_pixels_successful &&
++        noise_config.GpuBackendPolicy().canvas_pixel_noise && !persona_noise &&
++        RuntimeEnabledFeatures::FingerprintingCanvasImageDataNoiseEnabled()) {
+       StaticBitmapImage::ShuffleSubchannelColorData(image_data_pixmap.addr(), image_data_pixmap.info());
++    }
++  }
++
++  if (surface_modes.canvas.IsConfigured()) {
++    const SkPixmap pixmap = image_data->GetSkPixmap();
++    if (surface_read_complete && !surface_modes.noise_disabled &&
++        !surface_modes.raw && pixmap.addr() &&
++        (pixmap.colorType() == kRGBA_8888_SkColorType ||
++         pixmap.colorType() == kBGRA_8888_SkColorType)) {
++      base::UxrPixelRegion region{
++          gfx::SkPixmapToWritableSpan(pixmap), pixmap.rowBytes(),
++          static_cast<uint32_t>(pixmap.width()),
++          static_cast<uint32_t>(pixmap.height()),
++          static_cast<uint32_t>(Width()), static_cast<uint32_t>(Height()),
++          sx, sy, pixmap.colorType() == kBGRA_8888_SkColorType};
++      SkBitmap neighborhood;
++      if (surface_modes.canvas.mode == base::UxrSurfaceMode::kShardX) {
++        // Read the halo from the same immutable snapshot as getImageData.
++        // The caller's crop edge is not a semantic boundary of the image.
++        const int64_t left = std::max<int64_t>(0, int64_t{sx} - 1);
++        const int64_t top = std::max<int64_t>(0, int64_t{sy} - 1);
++        const int64_t right = std::min<int64_t>(snapshot->Size().width(),
++            int64_t{sx} + pixmap.width() + 1);
++        const int64_t bottom = std::min<int64_t>(snapshot->Size().height(),
++            int64_t{sy} + pixmap.height() + 1);
++        if (right <= left || bottom <= top ||
++            !neighborhood.tryAllocPixels(pixmap.info().makeWH(
++                static_cast<int>(right - left), static_cast<int>(bottom - top))))
++          return image_data;
++        const SkPixmap halo = neighborhood.pixmap();
++        if (!snapshot->PaintImageForCurrentFrame().readPixels(halo.info(),
++                halo.writable_addr(), halo.rowBytes(), static_cast<int>(left),
++                static_cast<int>(top)))
++          return image_data;
++        region.neighborhood = {gfx::SkPixmapToSpan(halo), halo.rowBytes(),
++            static_cast<uint32_t>(halo.width()), static_cast<uint32_t>(halo.height()),
++            static_cast<int32_t>(left), static_cast<int32_t>(top)};
++      }
++      base::UxrApplyGraphicsNoiseV1(surface_modes.canvas,
++                                   base::UxrPixelSurface::kCanvas2D, region);
++    }
++    return image_data;
++  }
++
++  const auto& ph_config = base::UxrConfig::GetInstance();
++  const auto ph_seed_text = ph_config.Get("uxr-canvas-seed");
++  uint64_t ph_seed64 = 0u;
++  if (ph_config.GpuBackendPolicy().canvas_pixel_noise && !ph_seed_text.empty() &&
++      ph_seed_text.find_first_not_of("0123456789") == std::string::npos &&
++      base::StringToUint64(ph_seed_text, &ph_seed64) && ph_seed64 != 0u) {
++    const uint32_t ph_seed = base::UxrPixelNoiseSeed(ph_seed64);
++    const SkPixmap ph_pm = image_data->GetSkPixmap();
++    const SkColorType ph_ct = ph_pm.colorType();
++    if (ph_pm.addr() && (ph_ct == kRGBA_8888_SkColorType ||
++                         ph_ct == kBGRA_8888_SkColorType)) {
++      auto ph_pixels = gfx::SkPixmapToWritableSpan(ph_pm);
++      if (!ph_pixels.empty()) {
++        for (int ph_y = 0; ph_y < ph_pm.height(); ++ph_y) {
++          auto ph_row = ph_pixels.subspan(
++              static_cast<size_t>(ph_y) * ph_pm.rowBytes(),
++              ph_pm.info().minRowBytes());
++          for (int ph_x = 0; ph_x < ph_pm.width(); ++ph_x) {
++            auto ph_pixel = ph_row.subspan(static_cast<size_t>(ph_x) * 4, size_t{4});
++            if (ph_pixel[3] == 0)
++              continue;
++            const uint32_t ax =
++                static_cast<uint32_t>(sx) + static_cast<uint32_t>(ph_x);
++            const uint32_t ay =
++                static_cast<uint32_t>(sy) + static_cast<uint32_t>(ph_y);
++            for (uint32_t ch = 0; ch < 3; ++ch) {
++              const size_t index = ph_ct == kBGRA_8888_SkColorType ? 2 - ch : ch;
++              ph_pixel[index] = base::UxrNoiseChannel(
++                  ph_seed, ax, ay, ch, ph_pixel[index]);
++            }
++          }
++        }
++      }
+     }
+   }
+ 
+@@ -953,6 +1186,19 @@
+   source_rect.Offset(-dest_offset);
+ 
+   SkPixmap data_pixmap = data->GetSkPixmap();
++
++  SkBitmap opaque_upload;
++  if (!HasAlpha()) {
++    if (!UxrCopyOpaqueImageData(data_pixmap, source_rect, opaque_upload)) {
++      exception_state.ThrowRangeError("Out of memory in putImageData");
++      return;
++    }
++    data_pixmap = opaque_upload.pixmap();
++    // The private pixmap starts at the clipped dirty rectangle's origin.
++    // Its destination is unchanged even for negative dx/dy or clipped input.
++    source_rect = gfx::Rect(source_rect.size());
++    dest_offset = gfx::Vector2d(dest_rect.x(), dest_rect.y());
++  }
+ 
+   // WritePixels (called by PutByteArray) requires that the source and
+   // destination pixel formats have the same bytes per pixel.
+@@ -1589,8 +1835,16 @@
+       font, direction, state.GetTextBaseline(), state.GetTextAlign(), text,
+       host->GetPlainTextPainter());
+ 
++  const auto text_policy =
++      base::UxrConfig::GetInstance().SurfaceModes().text;
++  const bool use_legacy_text =
++      text_policy.IsLegacy() ||
++      text_policy.mode == base::UxrSurfaceMode::kChromix;
++
+   // Scale text metrics if enabled
+-  if (RuntimeEnabledFeatures::FingerprintingCanvasMeasureTextNoiseEnabled()) {
++  if (use_legacy_text &&
++      base::UxrConfig::GetInstance().GpuBackendPolicy().canvas_text_noise &&
++      RuntimeEnabledFeatures::FingerprintingCanvasMeasureTextNoiseEnabled()) {
+     if (HostAsOffscreenCanvas()) {
+       if (auto* window = DynamicTo<LocalDOMWindow>(GetTopExecutionContext())) {
+         if (window->GetFrame() && window->GetFrame()->GetDocument())
+@@ -1600,6 +1854,10 @@
+       text_metrics->Shuffle(canvas->GetDocument().GetNoiseFactorX());
+     }
+   }
++  if (text_policy.mode == base::UxrSurfaceMode::kCloak)
++    text_metrics->ApplyUxrSurfaceMode(this->font());
++  else if (text_policy.mode == base::UxrSurfaceMode::kShardX)
++    text_metrics->ApplyUxrSurfaceMode(String());
+   return text_metrics;
+ }
+ 
+diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h
+--- a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h
++++ b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h
+@@ -4,6 +4,9 @@
+ 
+ #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_CANVAS2D_BASE_RENDERING_CONTEXT_2D_H_
+ #define THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_CANVAS2D_BASE_RENDERING_CONTEXT_2D_H_
++
++#include <string>
++#include <vector>
+ 
+ #include <cstddef>
+ #include <memory>
+diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.cc b/third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.cc
+--- a/third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.cc
++++ b/third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.cc
+@@ -154,7 +154,7 @@
+                                   double double_cpy,
+                                   double double_x,
+                                   double double_y) {
+-  float cpx = base::saturated_cast<float>(double_cpx);
++float cpx = base::saturated_cast<float>(double_cpx);
+   float cpy = base::saturated_cast<float>(double_cpy);
+   float x = base::saturated_cast<float>(double_x);
+   float y = base::saturated_cast<float>(double_y);
+@@ -185,7 +185,7 @@
+                                double double_cp2y,
+                                double double_x,
+                                double double_y) {
+-  float cp1x = base::saturated_cast<float>(double_cp1x);
++float cp1x = base::saturated_cast<float>(double_cp1x);
+   float cp1y = base::saturated_cast<float>(double_cp1y);
+   float cp2x = base::saturated_cast<float>(double_cp2x);
+   float cp2y = base::saturated_cast<float>(double_cp2y);
+@@ -220,7 +220,7 @@
+                        double double_y2,
+                        double double_r,
+                        ExceptionState& exception_state) {
+-  float x1 = base::saturated_cast<float>(double_x1);
++float x1 = base::saturated_cast<float>(double_x1);
+   float y1 = base::saturated_cast<float>(double_y1);
+   float x2 = base::saturated_cast<float>(double_x2);
+   float y2 = base::saturated_cast<float>(double_y2);
+@@ -431,7 +431,7 @@
+                      double double_end_angle,
+                      bool anticlockwise,
+                      ExceptionState& exception_state) {
+-  float x = base::saturated_cast<float>(double_x);
++float x = base::saturated_cast<float>(double_x);
+   float y = base::saturated_cast<float>(double_y);
+   float radius = base::saturated_cast<float>(double_radius);
+   float start_angle = base::saturated_cast<float>(double_start_angle);
+@@ -488,7 +488,7 @@
+                          ExceptionState& exception_state) {
+   float x = base::saturated_cast<float>(double_x);
+   float y = base::saturated_cast<float>(double_y);
+-  float radius_x = base::saturated_cast<float>(double_radius_x);
++float radius_x = base::saturated_cast<float>(double_radius_x);
+   float radius_y = base::saturated_cast<float>(double_radius_y);
+   float rotation = base::saturated_cast<float>(double_rotation);
+   float start_angle = base::saturated_cast<float>(double_start_angle);
+@@ -542,7 +542,7 @@
+                       double double_height) {
+   float x = base::saturated_cast<float>(double_x);
+   float y = base::saturated_cast<float>(double_y);
+-  float width = base::saturated_cast<float>(double_width);
++float width = base::saturated_cast<float>(double_width);
+   float height = base::saturated_cast<float>(double_height);
+   if (!IsTransformInvertible()) [[unlikely]] {
+     return;
+diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.h b/third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.h
+--- a/third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.h
++++ b/third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.h
+@@ -28,6 +28,10 @@
+  */
+ 
+ #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_CANVAS2D_CANVAS_PATH_H_
++
++#include <cstdint>
++#include <string>
++#include <vector>
+ #define THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_CANVAS2D_CANVAS_PATH_H_
+ 
+ #include "base/check.h"
+diff --git a/third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h b/third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h
+new file mode 100644
+--- /dev/null
++++ b/third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h
+@@ -0,0 +1,37 @@
++// Copyright 2026. Export routing contains values, never DOM/GC pointers.
++#ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CANVAS_FINGERPRINT_CONTEXT_H_
++#define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CANVAS_FINGERPRINT_CONTEXT_H_
++
++#include "base/uxr_surface_modes.h"
++
++namespace blink {
++
++enum class UxrCanvasExportSource { kOther, kCanvas2D, kWebGL };
++
++struct UxrCanvasExportContext {
++  UxrCanvasExportSource source = UxrCanvasExportSource::kOther;
++  base::UxrSurfacePolicy policy;
++  bool noise_disabled = false;
++  bool offscreen = false;
++  bool webgl_premultiplied = false;
++
++  static UxrCanvasExportContext FromModes(const base::UxrSurfaceModes& modes,
++                                          UxrCanvasExportSource source,
++                                          bool offscreen,
++                                          bool webgl_premultiplied = false) {
++    UxrCanvasExportContext result;
++    result.source = source;
++    result.offscreen = offscreen;
++    result.webgl_premultiplied = webgl_premultiplied;
++    result.noise_disabled = modes.noise_disabled || modes.raw;
++    if (source == UxrCanvasExportSource::kCanvas2D)
++      result.policy = modes.canvas;
++    else if (source == UxrCanvasExportSource::kWebGL)
++      result.policy = modes.webgl;
++    return result;
++  }
++};
++
++}  // namespace blink
++
++#endif
+diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
+--- a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
++++ b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
+@@ -35,6 +35,10 @@
+ #include "base/compiler_specific.h"
+ #include "base/logging.h"
+ #include "base/memory/ptr_util.h"
++#include "base/strings/string_number_conversions.h"
++#include "base/uxr_config.h"
++#include "base/uxr_graphics_noise.h"
++#include "base/uxr_pixel_noise.h"
+ #include "third_party/blink/renderer/platform/image-encoders/image_encoder_utils.h"
+ #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+ #include "third_party/blink/renderer/platform/wtf/text/base64.h"
+@@ -46,7 +50,115 @@
+ 
+ namespace blink {
+ 
+-ImageDataBuffer::ImageDataBuffer(scoped_refptr<StaticBitmapImage> image) {
++namespace {
++bool UxrCopyAndNoiseEncodeBuffer(
++    SkPixmap& pm,
++    sk_sp<SkImage>& retained_image,
++    const UxrCanvasExportContext& export_context) {
++  if (!pm.addr() || pm.info().isEmpty() ||
++      !pm.info().validRowBytes(pm.rowBytes()) ||
++      SkImageInfo::ByteSizeOverflowed(pm.computeByteSize())) {
++    return false;
++  }
++  const auto& config = base::UxrConfig::GetInstance();
++  if (export_context.policy.IsConfigured()) {
++    const SkColorType color_type = pm.colorType();
++    if (export_context.policy.IsNative() || export_context.noise_disabled ||
++        (color_type != kRGBA_8888_SkColorType &&
++         color_type != kBGRA_8888_SkColorType)) {
++      return true;
++    }
++    auto data = gfx::MakeSkDataFromSpanWithCopy(gfx::SkPixmapToSpan(pm));
++    if (!data)
++      return false;
++    const SkImageInfo info = pm.info().makeAlphaType(kUnpremul_SkAlphaType);
++    SkPixmap copy(info, data->writable_data(), pm.rowBytes());
++    if (pm.info().alphaType() != kUnpremul_SkAlphaType &&
++        !pm.readPixels(info, copy.writable_addr(), copy.rowBytes())) {
++      return false;
++    }
++    base::UxrPixelRegion region{
++        gfx::SkPixmapToWritableSpan(copy), copy.rowBytes(),
++        static_cast<uint32_t>(copy.width()),
++        static_cast<uint32_t>(copy.height()),
++        static_cast<uint32_t>(copy.width()),
++        static_cast<uint32_t>(copy.height()), 0, 0,
++        color_type == kBGRA_8888_SkColorType,
++        export_context.webgl_premultiplied};
++    if (export_context.policy.mode == base::UxrSurfaceMode::kShardX)
++      region.neighborhood = {region.bytes, region.row_stride, region.width,
++                             region.height, 0, 0};
++    const auto result = base::UxrApplyGraphicsNoiseV1(
++        export_context.policy,
++        export_context.source == UxrCanvasExportSource::kWebGL
++            ? base::UxrPixelSurface::kWebGLExport
++            : base::UxrPixelSurface::kCanvas2D,
++        region);
++    // Unchanged and unsupported paths preserve the original encoder input.
++    // Coverage/fallbacks are published by the v1 capability manifest.
++    if (result != base::UxrPixelResult::kApplied)
++      return true;
++    auto image = SkImages::RasterFromData(copy.info(), std::move(data),
++                                          copy.rowBytes());
++    if (!image)
++      return false;
++    retained_image = std::move(image);
++    pm = copy;
++    return true;
++  }
++  const auto seed_text = config.Get("uxr-canvas-seed");
++  uint64_t seed64 = 0u;
++  const SkColorType ct = pm.colorType();
++  const bool apply_noise =
++      config.GpuBackendPolicy().canvas_pixel_noise && !seed_text.empty() &&
++      seed_text.find_first_not_of("0123456789") == std::string::npos &&
++      base::StringToUint64(seed_text, &seed64) && seed64 != 0u &&
++      (ct == kRGBA_8888_SkColorType || ct == kBGRA_8888_SkColorType);
++  const uint32_t seed = base::UxrPixelNoiseSeed(seed64);
++  const bool normalize_alpha = pm.info().alphaType() != kUnpremul_SkAlphaType;
++  // Disabled noise must preserve the native pixmap/encoder alpha path.
++  if (!apply_noise)
++    return true;
++  auto data = gfx::MakeSkDataFromSpanWithCopy(gfx::SkPixmapToSpan(pm));
++  if (!data)
++    return false;
++  const SkImageInfo info =
++      normalize_alpha ? pm.info().makeAlphaType(kUnpremul_SkAlphaType) : pm.info();
++  SkPixmap copy(info, data->writable_data(), pm.rowBytes());
++  if (normalize_alpha &&
++      !pm.readPixels(info, copy.writable_addr(), copy.rowBytes())) {
++    return false;
++  }
++  auto pixels = gfx::SkPixmapToWritableSpan(copy);
++  for (int y = 0; apply_noise && y < copy.height(); ++y) {
++    auto row = pixels.subspan(static_cast<size_t>(y) * copy.rowBytes(),
++                              copy.info().minRowBytes());
++    for (int x = 0; x < copy.width(); ++x) {
++      auto pixel = row.subspan(static_cast<size_t>(x) * 4, size_t{4});
++      if (pixel[3] == 0)
++        continue;
++      for (uint32_t ch = 0; ch < 3; ++ch) {
++        const size_t index = ct == kBGRA_8888_SkColorType ? 2 - ch : ch;
++        pixel[index] = base::UxrNoiseChannel(
++            seed, static_cast<uint32_t>(x), static_cast<uint32_t>(y), ch,
++            pixel[index]);
++      }
++    }
++  }
++  auto image = SkImages::RasterFromData(copy.info(), std::move(data),
++                                       copy.rowBytes());
++  if (!image)
++    return false;
++  // RasterFromData retains the private pixel storage backing the pixmap.
++  retained_image = std::move(image);
++  pm = copy;
++  return true;
++}
++}  // namespace
++
++ImageDataBuffer::ImageDataBuffer(
++    scoped_refptr<StaticBitmapImage> image,
++    const UxrCanvasExportContext& export_context) {
+   if (!image)
+     return;
+   PaintImage paint_image = image->PaintImageForCurrentFrame();
+@@ -83,6 +195,8 @@
+       return;
+ 
+     sk_sp<SkData> data = SkData::MakeUninitialized(size);
++    if (!data)
++      return;
+     pixmap_ = {info, data->writable_data(), info.minRowBytes()};
+     if (!paint_image.readPixels(info, pixmap_.writable_addr(), row_bytes, 0,
+                                 0)) {
+@@ -98,13 +212,26 @@
+       return;
+     MSAN_CHECK_MEM_IS_INITIALIZED(pixmap_.addr(), pixmap_.computeByteSize());
+   }
++  if (!retained_image_ ||
++      !UxrCopyAndNoiseEncodeBuffer(pixmap_, retained_image_, export_context)) {
++    pixmap_.reset();
++    return;
++  }
+   is_valid_ = true;
+ }
+ 
+-ImageDataBuffer::ImageDataBuffer(const SkPixmap& pixmap)
++ImageDataBuffer::ImageDataBuffer(
++    const SkPixmap& pixmap,
++    const UxrCanvasExportContext& export_context)
+     : pixmap_(pixmap),
+       is_valid_(pixmap_.addr() &&
+                 !gfx::Size(pixmap.width(), pixmap.height()).IsEmpty()) {
++  if (is_valid_ &&
++      !UxrCopyAndNoiseEncodeBuffer(pixmap_, retained_image_, export_context)) {
++    pixmap_.reset();
++    is_valid_ = false;
++    return;
++  }
+   // Any color space or alpha conversion should have been performed by the
+   // caller higher up in the stack (e.g. in CanvasAsyncBlobCreator).
+   if (ImageEncoderUtils::GetColorInfoForEncoder(pixmap_.info().colorInfo(),
+@@ -116,18 +243,20 @@
+ }
+ 
+ std::unique_ptr<ImageDataBuffer> ImageDataBuffer::Create(
+-    scoped_refptr<StaticBitmapImage> image) {
++    scoped_refptr<StaticBitmapImage> image,
++    UxrCanvasExportContext export_context) {
+   std::unique_ptr<ImageDataBuffer> buffer =
+-      base::WrapUnique(new ImageDataBuffer(image));
++      base::WrapUnique(new ImageDataBuffer(image, export_context));
+   if (!buffer->IsValid())
+     return nullptr;
+   return buffer;
+ }
+ 
+ std::unique_ptr<ImageDataBuffer> ImageDataBuffer::Create(
+-    const SkPixmap& pixmap) {
++    const SkPixmap& pixmap,
++    UxrCanvasExportContext export_context) {
+   std::unique_ptr<ImageDataBuffer> buffer =
+-      base::WrapUnique(new ImageDataBuffer(pixmap));
++      base::WrapUnique(new ImageDataBuffer(pixmap, export_context));
+   if (!buffer->IsValid())
+     return nullptr;
+   return buffer;
+diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.h b/third_party/blink/renderer/platform/graphics/image_data_buffer.h
+--- a/third_party/blink/renderer/platform/graphics/image_data_buffer.h
++++ b/third_party/blink/renderer/platform/graphics/image_data_buffer.h
+@@ -32,6 +32,7 @@
+ 
+ #include "base/containers/span.h"
+ #include "base/memory/scoped_refptr.h"
++#include "third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h"
+ #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
+ #include "third_party/blink/renderer/platform/image-encoders/image_encoder.h"
+ #include "third_party/blink/renderer/platform/platform_export.h"
+@@ -48,8 +49,10 @@
+ 
+  public:
+   static std::unique_ptr<ImageDataBuffer> Create(
+-      scoped_refptr<StaticBitmapImage>);
+-  static std::unique_ptr<ImageDataBuffer> Create(const SkPixmap&);
++      scoped_refptr<StaticBitmapImage>,
++      UxrCanvasExportContext = {});
++  static std::unique_ptr<ImageDataBuffer> Create(
++      const SkPixmap&, UxrCanvasExportContext = {});
+ 
+   String ToDataURL(const ImageEncodingMimeType mime_type,
+                    const double& quality) const;
+@@ -58,10 +61,12 @@
+                    Vector<unsigned char>* encoded_image) const;
+ 
+   base::span<const uint8_t> PixelData() const;
++  const SkPixmap& GetPixmap() const { return pixmap_; }
+ 
+  private:
+-  ImageDataBuffer(const SkPixmap&);
+-  ImageDataBuffer(scoped_refptr<StaticBitmapImage>);
++  ImageDataBuffer(const SkPixmap&, const UxrCanvasExportContext&);
++  ImageDataBuffer(scoped_refptr<StaticBitmapImage>,
++                  const UxrCanvasExportContext&);
+ 
+   bool IsValid() { return is_valid_; }  // Only used by Create()
+ 
+diff --git a/third_party/blink/renderer/platform/image-encoders/image_encoder.cc b/third_party/blink/renderer/platform/image-encoders/image_encoder.cc
+--- a/third_party/blink/renderer/platform/image-encoders/image_encoder.cc
++++ b/third_party/blink/renderer/platform/image-encoders/image_encoder.cc
+@@ -13,8 +13,6 @@
+ #include <stdio.h>  // Needed by jpeglib.h
+ 
+ #include "jpeglib.h"  // for JPEG_MAX_DIMENSION
+-#include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
+-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+ #include "third_party/libwebp/src/src/webp/encode.h"  // for WEBP_MAX_DIMENSION
+ 
+ namespace blink {
+@@ -46,10 +44,6 @@
+                           const SkPixmap& src,
+                           ImageEncodingMimeType mime_type,
+                           double quality) {
+-  if (RuntimeEnabledFeatures::FingerprintingCanvasImageDataNoiseEnabled()) {
+-    // shuffle subchannel color data within the pixmap
+-    StaticBitmapImage::ShuffleSubchannelColorData(src.writable_addr(), src.info());
+-  }
+   switch (mime_type) {
+     case kMimeTypeJpeg: {
+       SkJpegEncoder::Options options;

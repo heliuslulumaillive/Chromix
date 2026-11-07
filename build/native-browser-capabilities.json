@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "contract": "shardx-native-browser-v1",
-  "chromium_version": "156.0.8078.79",
-  "build_variant": "fingerprint-modes-win156",
+  "chromium_version": "157.0.8103.38",
+  "build_variant": "fingerprint-modes-win157",
   "qualification": "Source contract only; exact compiled and packaged runtime acceptance is required.",
   "google_defaults": {
     "search_provider": "native-google-definition",

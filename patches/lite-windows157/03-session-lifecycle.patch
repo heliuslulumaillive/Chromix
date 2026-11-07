@@ -1,0 +1,142 @@
+diff --git a/chrome/browser/process_singleton_win.cc b/chrome/browser/process_singleton_win.cc
+--- a/chrome/browser/process_singleton_win.cc
++++ b/chrome/browser/process_singleton_win.cc
+@@ -3,6 +3,9 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/process_singleton.h"
++#include "base/task/single_thread_task_runner.h"
++#include "chrome/browser/lifetime/application_lifetime.h"
++#include "chrome/browser/profiles/shardx_session_policy.h"
+ 
+ #include <windows.h>
+ 
+@@ -145,6 +148,16 @@
+     WPARAM wparam,
+     LPARAM lparam,
+     LRESULT* result) {
++  // The singleton's message-only window survives the last visible window.
++  // Use the same native quit operation for background-only environments.
++  static const UINT exit_message = ::RegisterWindowMessageW(shardx::kExitEnvironmentMessage);
++  if (exit_message && message == exit_message && wparam == shardx::kExitEnvironmentAck &&
++      shardx::ManagedSessionRestore(*base::CommandLine::ForCurrentProcess()).has_value()) {
++    *result = shardx::kExitEnvironmentAck;
++    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE, base::BindOnce(&chrome::AttemptExit));
++    return true;
++  }
+   if (message != WM_COPYDATA)
+     return false;
+ 
+diff --git a/chrome/browser/sessions/session_restore.cc b/chrome/browser/sessions/session_restore.cc
+--- a/chrome/browser/sessions/session_restore.cc
++++ b/chrome/browser/sessions/session_restore.cc
+@@ -45,6 +45,7 @@
+ #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
+ #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/profiles/shardx_session_policy.h"
+ #include "chrome/browser/profiles/profile_attributes_entry.h"
+ #include "chrome/browser/profiles/profile_attributes_storage.h"
+ #include "chrome/browser/profiles/profile_manager.h"
+@@ -804,6 +805,21 @@
+     DVLOG(1) << "ProcessSessionWindows " << windows->size();
+ 
+     PruneWindows(windows);
++    if (shardx::ManagedSessionRestore(*base::CommandLine::ForCurrentProcess()).value_or(false)) {
++      // Deduplicate only additional startup pages. The saved session may
++      // intentionally contain duplicate tabs and must remain unchanged.
++      std::erase_if(startup_tabs_, [&](const StartupTab& startup) {
++        for (const auto& window : *windows) {
++          for (const auto& tab : window->tabs) {
++            if (tab->navigations.empty()) continue;
++            const int index = std::clamp(tab->current_navigation_index, 0,
++                static_cast<int>(tab->navigations.size()) - 1);
++            if (tab->navigations[index].virtual_url() == startup.url) return true;
++          }
++        }
++        return false;
++      });
++    }
+ 
+     if (windows->empty()) {
+       // Restore was unsuccessful. The cookie/storage systems can also delete
+diff --git a/chrome/browser/sessions/session_service.cc b/chrome/browser/sessions/session_service.cc
+--- a/chrome/browser/sessions/session_service.cc
++++ b/chrome/browser/sessions/session_service.cc
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/sessions/session_service.h"
++#include "chrome/browser/profiles/shardx_session_policy.h"
+ 
+ #include <stddef.h>
+ 
+@@ -156,6 +157,13 @@
+ }
+ 
+ SessionService::~SessionService() {
++  // A normal whole-browser exit destroys this service before closing windows.
++  // Capture the current model, including very recently opened tabs, instead of
++  // relying solely on previously queued navigation notifications.
++  if (has_open_trackable_browsers_ && pending_window_close_ids_.empty() &&
++      shardx::ManagedSessionRestore(*base::CommandLine::ForCurrentProcess()).has_value()) {
++    ResetFromCurrentBrowsers();
++  }
+   base::UmaHistogramCounts100("SessionRestore.UnrecoverableWriteErrorCount",
+                               unrecoverable_write_error_count_);
+ 
+@@ -446,6 +454,15 @@
+   // If Chrome is closed immediately after a history deletion, we have to
+   // rebuild commands before this window is closed, otherwise these tabs would
+   // be lost.
++  if (!pending_window_close_ids_.contains(window_id) &&
++      !window_closing_ids_.contains(window_id) &&
++      shardx::ManagedSessionRestore(*base::CommandLine::ForCurrentProcess()).has_value()) {
++    // Preserve the final window's current tabs before their models disappear.
++    // OnWindowClosing reenters after CloseAllTabs; never replace the saved
++    // snapshot with that now-empty model during the second notification.
++    // Native WindowClosed commands still remove intentionally closed windows.
++    ResetFromCurrentBrowsers();
++  }
+   RebuildCommandsIfRequired();
+ 
+   // The window is about to close. If there are other tabbed browsers with the
+diff --git a/chrome/browser/sessions/session_service_base.cc b/chrome/browser/sessions/session_service_base.cc
+--- a/chrome/browser/sessions/session_service_base.cc
++++ b/chrome/browser/sessions/session_service_base.cc
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ #include "chrome/browser/sessions/session_service_base.h"
++#include "chrome/browser/profiles/shardx_session_policy.h"
+ 
+ #include <stddef.h>
+ 
+@@ -625,7 +626,16 @@
+   const int max_index =
+       std::min(current_index + sessions::gMaxPersistNavigationCount,
+                tab->GetController().GetEntryCount());
+-  const int pending_index = tab->GetController().GetPendingEntryIndex();
++  const int original_pending_index = tab->GetController().GetPendingEntryIndex();
++  // A brand-new tab can show its requested URL while its first response is
++  // still pending. It has no committed navigation to restore yet. Serialize
++  // that request into the initial slot, using the native navigation format.
++  // Existing tabs retain upstream history/reload/POST handling unchanged.
++  const bool save_initial_pending = original_pending_index == -1 &&
++      tab->GetController().GetPendingEntry() &&
++      tab->GetController().GetLastCommittedEntry()->IsInitialEntry() &&
++      shardx::ManagedSessionRestore(*base::CommandLine::ForCurrentProcess()).has_value();
++  const int pending_index = save_initial_pending ? current_index : original_pending_index;
+   if (tab_to_available_range) {
+     (*tab_to_available_range)[session_id] =
+         std::pair<int, int>(min_index, max_index);
+@@ -650,7 +660,7 @@
+                                  : tab->GetController().GetEntryAtIndex(i);
+     DCHECK(entry);
+     if (ShouldTrackURLForRestore(entry->GetVirtualURL()) &&
+-        !entry->IsInitialEntry()) {
++        (!entry->IsInitialEntry() || (save_initial_pending && i == pending_index))) {
+       // Don't try to persist initial NavigationEntry, as it is not actually
+       // associated with any navigation and will just result in about:blank on
+       // session restore.

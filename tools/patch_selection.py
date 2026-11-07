@@ -14,6 +14,18 @@ try:
 except ImportError:
     from platform_pins import PLATFORMS, load_pins, load_shared_pins
 
+def active_profile(repo: Path, platform: str | None) -> str:
+    """Select the active profile for read-only tooling, keeping legacy APIs explicit."""
+    if platform == 'windows':
+        try:
+            from .lite_patch_stack import MANIFEST
+        except ImportError:
+            from lite_patch_stack import MANIFEST
+        if (Path(repo) / MANIFEST).is_file():
+            return 'lite'
+    return 'legacy'
+
+
 VERSION = "154.0.8037.97"
 CORE = "37085e47cf580c815a30402917d350ce97399ded"
 MACOS154_CORE = "3e46b13825f808f0886e484d44532372655e5fe4"

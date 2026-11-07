@@ -107,7 +107,7 @@ def plain(path: Path) -> Path:
 def source_identity(path: Path, expected_recipe: str) -> dict:
     path = plain(path)
     value = json.loads(path.read_text(encoding='utf-8-sig'))
-    if (value.get('schema_version') != 1 or value.get('build_variant') != 'security-win156'
+    if (value.get('schema_version') != 1 or value.get('build_variant') != 'security-win157'
             or value.get('chromium_version') != VERSION):
         raise ValueError('Expected the Windows 156 security build record')
     for key in ('recipe_sha256', 'source_receipt_sha256'):

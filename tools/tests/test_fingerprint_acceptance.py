@@ -40,6 +40,28 @@ def test_provenance_records_locale_canonicalizer_version(monkeypatch):
     assert 'tools/fingerprint-requirements.txt' in result['runner_files']
 
 
+def test_windows_provenance_selects_the_authenticated_current_product(monkeypatch):
+    monkeypatch.setattr(audit.sys, 'platform', 'win32')
+    monkeypatch.setattr(audit.importlib.metadata, 'version', lambda name:'fixture-version')
+    result = audit.provenance()
+    assert result['patch_inputs']['selection']['profile'] == 'lite'
+    assert result['patch_inputs']['selection']['version'] == '157.0.8103.38'
+    assert len(result['patch_inputs']['patches']) == 26
+
+
+def test_source_target_fallback_uses_the_same_active_windows_profile(tmp_path, monkeypatch):
+    path, _, _ = receipt(tmp_path)
+    monkeypatch.setattr(audit.sys, 'platform', 'win32')
+    calls = []
+    def selected(repo, **kwargs):
+        calls.append(kwargs)
+        return INPUTS, [('fixture.patch', b'', [('file.cc', 'modify', None)])]
+    monkeypatch.setattr(audit, 'load_stack', selected)
+    result = audit.check_source(path, None, INPUTS)
+    assert result['check'] == 'producer-receipt-only'
+    assert calls == [{'platform':'windows', 'profile':'lite'}]
+
+
 def test_current_source_and_producer_receipt(tmp_path):
     path, source, _ = receipt(tmp_path)
     for root, kind in ((source, 'live-source-hashes'), (None, 'producer-receipt-only')):

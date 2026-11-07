@@ -53,7 +53,7 @@ def verify(src, repo, *, core=None, tooling=None, platform=None, profile="legacy
         raise ValueError('Product source preparation is still in progress')
     if profile == 'lite' and final_receipt.is_file():
         saved = json.loads(final_receipt.read_text('utf-8-sig'))
-        if saved.get('patch_kind') == 'lite-windows156-product':
+        if saved.get('patch_kind') == 'lite-windows157-product':
             try:
                 from .lite_patch_stack import load, select as select_product, verify_source
                 from .prepare_google_services import pinned_inverse_rules
