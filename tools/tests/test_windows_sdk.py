@@ -178,7 +178,9 @@ class WindowsSdkBehaviorTest(unittest.TestCase):
     def setUp(self):
         temp = tempfile.TemporaryDirectory(prefix='windows sdk ')
         self.addCleanup(temp.cleanup)
-        self.root = Path(temp.name)
+        # Hosted Windows can expose TEMP through an 8.3 alias (RUNNER~1),
+        # while PowerShell expands it. Derive fixtures from the same real path.
+        self.root = Path(temp.name).resolve()
         self.sdk = self.root / 'Windows Kits/10'
         self.template = self.root / 'complete sdk'
         self.download = self.root / 'download cache'
