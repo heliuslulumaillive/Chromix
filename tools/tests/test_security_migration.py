@@ -153,6 +153,8 @@ class RegisteredCheckoutTest(unittest.TestCase):
             with self.subTest(migration=rule['id']):
                 donor = {**c.IDENTITY, 'source_commit': rule['source_commit'],
                          'recipe_sha256': rule['source_recipe_sha256']}
+                if rule.get('product_source_updates'):
+                    donor.update(run_id=rule['source_run'], stage=rule['source_stage'])
                 self.assertEqual(m.registered_rule(root, donor)['id'], rule['id'])
                 profile = 'lite' if rule.get('target_patch_kind') == 'lite-windows157-product' else 'legacy'
                 self.assertEqual(rule['target_preparation_sha256'], preparation.recipe_identity(root, profile=profile)[0])

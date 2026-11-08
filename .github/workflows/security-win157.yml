@@ -3,11 +3,14 @@ on:
   push:
     branches: [main]
     paths:
+      - '.gitattributes'
       - '.github/workflows/security-win157.yml'
       - '.github/workflows/security-win157-worker.yml'
       - 'build/windows/**'
       - 'build/lite-windows157.json'
       - 'build/windows157-port.json'
+      - 'build/checkpoint-migrations.json'
+      - 'build/checkpoint-sources/**'
       - 'build/ungoogled-revisions.psd1'
       - 'CHROMIUM_WINDOWS_VERSION'
       - 'UNGOOGLED_WINDOWS_VERSION'
@@ -20,6 +23,7 @@ on:
       - 'patches/lite-win156/retirement-manifest.json'
       - 'tools/lite_patch_stack.py'
       - 'tools/prepare_lite_product.py'
+      - 'tools/lite_product_migration.py'
       - 'tools/patch_selection.py'
       - 'tools/platform_pins.py'
       - 'tools/build_resources.py'

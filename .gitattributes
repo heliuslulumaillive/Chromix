@@ -45,6 +45,7 @@ tools/google-services-requirements.txt text eol=lf
 *.dat     binary
 *.bin     binary
 /build/security-resources/etw_events/*.BIN binary
+/build/checkpoint-sources/** text eol=lf
 *.pb      binary
 /tools/tests/fixtures/pixel-semantics-v1/cases.tsv text eol=lf
 /tools/tests/fixtures/pixel-semantics-v1/*.gz binary

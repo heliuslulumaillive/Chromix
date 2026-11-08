@@ -187,10 +187,11 @@
     },
     {
       "path": "patches/lite-windows157/09-timezone.patch",
-      "sha256": "401afecbac7d5a0d015e72517120ce0fa34068f8716bb3c7bb9c5852b22f9c1c",
+      "sha256": "9c5618d133087d574b39a4940f1544369d0c18f144f0440a776914d41be64ee6",
       "files": [
         "third_party/blink/renderer/core/timezone/timezone_controller.cc",
-        "third_party/blink/renderer/core/timezone/timezone_controller.h"
+        "third_party/blink/renderer/core/timezone/timezone_controller.h",
+        "third_party/blink/renderer/core/inspector/locale_controller.cc"
       ]
     },
     {
@@ -3674,6 +3675,11 @@
       "after_sha256": "1f1a985420a111b289db598eb922d30253d3210004577685ed1c43a535152474"
     },
     {
+      "path": "third_party/blink/renderer/core/inspector/locale_controller.cc",
+      "before_sha256": "78db7722703ba0a9ccf308a2d8fa8f74cec718788ee97c63333ae6ad55c126f1",
+      "after_sha256": "2a8ec0ced0de3e4a62f16391611c193fea5d8489362542445ce7684f7539fd49"
+    },
+    {
       "path": "third_party/blink/renderer/core/layout/layout_theme_font_provider_default.cc",
       "before_sha256": "9ad0222c1b88020879caa047a006656d622101b4b67b8fea0b008786a06df289",
       "after_sha256": "06d4e778633950fd04de52c1ee900ce86e7553709c41c3aca00fb35ad4f80701"
@@ -3686,7 +3692,7 @@
     {
       "path": "third_party/blink/renderer/core/timezone/timezone_controller.cc",
       "before_sha256": "c378fecb1cd84682c73ac7ec7122dff402f4a1c9afc4156803f53ccb2db1ea3b",
-      "after_sha256": "40225baef1c45eb180cb9b026af5278bfb27676e47995a162556765faaae4538"
+      "after_sha256": "064f7082c14a4fb42ab728ad71756932e471f12a442a2339551c257459abcd69"
     },
     {
       "path": "third_party/blink/renderer/core/timezone/timezone_controller.h",
@@ -4712,7 +4718,7 @@
     "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
     "cross_version_byte_equivalence_claimed": false
   },
-  "stack_sha256": "c2be62157c1f788ebac5f2392a0ea386c888356f8d7f31133385855dc4f1c4aa",
+  "stack_sha256": "37c9aee874125e15693e6c62c2d20f5e0f8c023f74208e4f1758dd64b1ead914",
   "upstream_port": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",

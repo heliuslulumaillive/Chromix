@@ -41,6 +41,7 @@ def prepare(repo: Path, work: Path, *, migration=False):
     capabilities = json.loads(owned(repo, 'build/fingerprint-modes-capabilities.json').read_text('utf-8'))
     variant = validate_fingerprint_identity(config, capabilities)
     checks = {'require_security': True, 'require_lite_retirement': True, 'product': True}
+    source_updates = []
     if migration:
         try:
             from .security_migration import registered_rule, check_receipt
@@ -54,11 +55,17 @@ def prepare(repo: Path, work: Path, *, migration=False):
                 or transition.get('policy_sha256') != stack.digest(owned(repo, 'build/checkpoint-migrations.json').read_bytes())):
             raise ValueError('Product migration requires the exact admitted donor receipt')
         check_receipt(saved, rule, 'source')
-        expected_source = data['stack_sha256'] if saved.get('patch_kind') == stack.KIND else data['legacy_equivalence']['aggregate_sha256']
-        if saved['patch_sha256'] != expected_source:
-            raise ValueError('Only a reviewed byte-equivalent source can migrate without source writes')
-        # Check every final file before changing even a resource or receipt.
-        stack.verify_source(repo, src, inverse_rules=rules)
+        if saved.get('patch_kind') == stack.KIND and saved['patch_sha256'] != data['stack_sha256']:
+            try:
+                from .lite_product_migration import verify_donor_sources
+            except ImportError:
+                from lite_product_migration import verify_donor_sources
+            source_updates = verify_donor_sources(repo, src, rule, inverse_rules=rules)
+        else:
+            expected_source = data['stack_sha256'] if saved.get('patch_kind') == stack.KIND else data['legacy_equivalence']['aggregate_sha256']
+            if saved['patch_sha256'] != expected_source:
+                raise ValueError('Only a reviewed byte-equivalent source can migrate without source writes')
+            stack.verify_source(repo, src, inverse_rules=rules)
         verify(src, repo, config)
     elif saved:
         if (saved.get('patch_kind') != stack.KIND or saved.get('patch_sha256') != data['stack_sha256']
@@ -75,11 +82,18 @@ def prepare(repo: Path, work: Path, *, migration=False):
         if owned(src, '.chromix-patches').read_text('ascii').strip() != expected:
             raise ValueError('Fresh product preparation requires the complete selected Lite patch stack')
     write_if_changed(blocker, data['stack_sha256'].encode())
+    if source_updates:
+        try:
+            from .lite_product_migration import apply_source_updates
+        except ImportError:
+            from lite_product_migration import apply_source_updates
+        apply_source_updates(repo, src, rule, inverse_rules=rules)
     restored = restore(src, repo, config)
     stack.verify_source(repo, src, inverse_rules=rules, phase='before-domains' if not saved else 'final')
     # A registered equivalent donor has already restored domains. Preserve all
     # bytes and mtimes; ordinary fresh sources still scan the pinned full list.
-    domains = {'strategy': 'verified-equivalent-donor', 'files_changed': 0}
+    domains = {'strategy': 'verified-source-update-donor' if source_updates else 'verified-equivalent-donor',
+               'files_changed': 0}
     if not migration:
         domains = restore_domains(src, None, rules_path,
             owned(work, 'tooling/ungoogled-chromium-windows/domain_substitution.list'),
@@ -90,7 +104,8 @@ def prepare(repo: Path, work: Path, *, migration=False):
         raise ValueError('Product inputs changed during preparation')
     if migration:
         # Re-identify layers only after the donor and every final source byte
-        # were verified. No source/object file is rewritten during compaction.
+        # were verified. Only registered source repairs are written; objects
+        # and every unchanged source retain their bytes and timestamps.
         key = preparation_key(repo, 'windows', 'windows', profile='lite')
         for name in ('.chromix-patches', '.chromix-patch-selection'):
             write_if_changed(owned(src, name), (key + '\n').encode())
@@ -102,8 +117,10 @@ def prepare(repo: Path, work: Path, *, migration=False):
               'preparation_inputs': inputs, 'source_checks': checked,
               'security_restoration': config['security_restoration'],
               'restored_pruned_resources': restored, 'domain_restoration': domains,
-              'unchanged_source_timestamps_preserved': len(data['source_files']) if migration else 0,
+              'unchanged_source_timestamps_preserved': len(data['source_files']) - len(source_updates) if migration else 0,
               'google_account_and_cloud_access': 'not_tested', 'credentials': 'runtime_environment_only'}
+    if source_updates:
+        report['reviewed_source_updates'] = [row['path'] for row in source_updates]
     write_if_changed(marker, (json.dumps(report, indent=2) + '\n').encode())
     blocker.unlink()
     return report

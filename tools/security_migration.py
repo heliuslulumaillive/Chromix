@@ -55,9 +55,20 @@ def registered_rule(repo: Path, manifest: dict) -> dict:
     if any(rule.get(side + '_patch_kind') not in (None, product_kind) for side in ('source', 'target')):
         raise ValueError('Unknown migration patch identity kind')
     if rule.get('source_patch_kind') == product_kind:
-        if (rule.get('target_patch_kind') != product_kind
-                or rule['source_aggregate_sha256'] != rule['target_aggregate_sha256']):
-            raise ValueError('Product checkpoint migration currently requires an identical source stack')
+        if rule.get('target_patch_kind') != product_kind:
+            raise ValueError('Product checkpoint migration must retain the product identity kind')
+        if rule['source_aggregate_sha256'] != rule['target_aggregate_sha256']:
+            try:
+                from .lite_product_migration import reviewed_updates
+            except ImportError:
+                from lite_product_migration import reviewed_updates
+            reviewed_updates(repo, rule)
+            if (str(rule.get('source_run')) != str(manifest.get('run_id'))
+                    or type(rule.get('source_stage')) is not int
+                    or rule['source_stage'] != manifest.get('stage')):
+                raise ValueError('Product source repair is registered for another donor run/stage')
+        elif rule.get('product_source_updates'):
+            raise ValueError('Identical product stacks cannot authorize source updates')
     else:
         history = repo / 'patches/google-services/history' / (rule['source_aggregate_sha256'] + '.patch')
         if sha256(plain(history)) != rule['source_aggregate_sha256']:

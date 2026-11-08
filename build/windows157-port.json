@@ -4,7 +4,7 @@
   "target_version": "157.0.8103.38",
   "source_version": "156.0.8078.79",
   "previous_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
-  "product_stack_sha256": "c2be62157c1f788ebac5f2392a0ea386c888356f8d7f31133385855dc4f1c4aa",
+  "product_stack_sha256": "37c9aee874125e15693e6c62c2d20f5e0f8c023f74208e4f1758dd64b1ead914",
   "upstream_identity": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",
@@ -109,7 +109,7 @@
       "blocks": 0
     }
   ],
-  "source_files": 668,
+  "source_files": 669,
   "product_topics": 26,
   "existing_pruned_resources_reused": [
     "components/safe_browsing/content/resources/empty_file_type_policy.pb",
@@ -137,5 +137,28 @@
     "receipt_sha256": "299d2b3ef00004919c06c37f0904b5098f5426cb51d6db3fa8ddcefdde48dd93"
   },
   "compiled_at_source_review": false,
-  "runtime_accepted_at_source_review": false
+  "runtime_accepted_at_source_review": false,
+  "compile_repairs": [
+    {
+      "source_run": "42416735586",
+      "stage": 3,
+      "diagnostic": "SetICUDefaultLocale removed by Chromium 157 default-ICU-locale passkey migration",
+      "source_updates": [
+        {
+          "path": "third_party/blink/renderer/core/timezone/timezone_controller.cc",
+          "before_sha256": "40225baef1c45eb180cb9b026af5278bfb27676e47995a162556765faaae4538",
+          "after_sha256": "064f7082c14a4fb42ab728ad71756932e471f12a442a2339551c257459abcd69",
+          "replacement_path": "build/checkpoint-sources/064f7082c14a4fb42ab728ad71756932e471f12a442a2339551c257459abcd69.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/inspector/locale_controller.cc",
+          "before_sha256": "78db7722703ba0a9ccf308a2d8fa8f74cec718788ee97c63333ae6ad55c126f1",
+          "after_sha256": "2a8ec0ced0de3e4a62f16391611c193fea5d8489362542445ce7684f7539fd49",
+          "replacement_path": "build/checkpoint-sources/2a8ec0ced0de3e4a62f16391611c193fea5d8489362542445ce7684f7539fd49.cc"
+        }
+      ],
+      "compiled": false,
+      "runtime_accepted": false
+    }
+  ]
 }

@@ -102,7 +102,7 @@ def input_hashes(repo):
     names = {MANIFEST, 'CHROMIUM_WINDOWS_VERSION', 'UNGOOGLED_WINDOWS_VERSION',
              'build/ungoogled-revisions.psd1', 'build/args.windows.gn', 'build/args.security.gn', 'build/windows157-port.json',
              'build/windows/prepare-ungoogled.ps1', 'tools/patch_selection.py',
-             'tools/lite_patch_stack.py', 'tools/prepare_lite_product.py',
+             'tools/lite_patch_stack.py', 'tools/prepare_lite_product.py', 'tools/lite_product_migration.py',
              'tools/prepare_google_services.py', 'tools/google_services_inputs.py',
              'tools/platform_pins.py', 'tools/restored_source_resources.py',
              'tools/apply_restored_patches.py', 'tools/verify_patch_stack.py',
@@ -128,9 +128,13 @@ def verify_source(repo, src, *, inverse_rules=(), phase='final'):
     Accept either raw or domain-substituted comments in donor trees, but never
     unrelated source edits. The preparation step restores executable domains.
     """
+    return _verify_manifest_source(load(repo), src, inverse_rules=inverse_rules, phase=phase)
+
+
+def _verify_manifest_source(data, src, *, inverse_rules=(), phase='final'):
+    """Shared byte checker; callers must authenticate their expected manifest."""
     if phase not in ('before-domains', 'final'):
         raise ValueError('Unknown product source verification phase')
-    data = load(repo)
     full = set(data.get('domain_full_files', ()))
     for row in data['source_files']:
         path = owned(src, row['path'])

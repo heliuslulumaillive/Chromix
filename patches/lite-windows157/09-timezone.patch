@@ -1,39 +1,26 @@
 diff --git a/third_party/blink/renderer/core/timezone/timezone_controller.cc b/third_party/blink/renderer/core/timezone/timezone_controller.cc
 --- a/third_party/blink/renderer/core/timezone/timezone_controller.cc
 +++ b/third_party/blink/renderer/core/timezone/timezone_controller.cc
-@@ -5,6 +5,10 @@
+@@ -5,6 +5,8 @@
  #include "third_party/blink/renderer/core/timezone/timezone_controller.h"
  
  #include "base/command_line.h"
 +#include "base/uxr_config.h"
-+#include "base/i18n/rtl.h"
-+#include "base/strings/string_split.h"
-+#include "third_party/icu/source/common/unicode/locid.h"
++#include "third_party/blink/renderer/core/inspector/locale_controller.h"
  #include "base/feature_list.h"
  #include "mojo/public/cpp/bindings/pending_remote.h"
  #include "mojo/public/cpp/bindings/remote.h"
-@@ -105,6 +109,20 @@
+@@ -105,6 +107,9 @@
  
  // static
  void TimeZoneController::Init() {
-+  // Core initialization runs before the first Blink isolate and worker.
-+  const auto languages = base::SplitString(
-+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("uxr-languages"),
-+      ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-+  if (!languages.empty()) {
-+    UErrorCode status = U_ZERO_ERROR;
-+    const icu::Locale locale =
-+        icu::Locale::forLanguageTag(languages.front(), status);
-+    if (U_SUCCESS(status) && !locale.isBogus() && *locale.getLanguage()) {
-+      // Legacy ICU names preserve extensions and avoid es-419 host remapping.
-+      base::i18n::SetICUDefaultLocale(locale.getName());
-+    }
-+  }
++  // Construct the locale owner before the first Blink isolate and worker.
++  LocaleController::instance();
 +
    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
            blink::switches::kTopChromeWebUI) &&
        base::FeatureList::IsEnabled(features::kWebUIBypassMojoConnections)) {
-@@ -248,17 +266,44 @@
+@@ -248,17 +253,44 @@
    return true;
  }
  
@@ -99,3 +86,40 @@ diff --git a/third_party/blink/renderer/core/timezone/timezone_controller.h b/th
  
    enum class TimeZoneOverrideStatus {
      kSuccess,
+diff --git a/third_party/blink/renderer/core/inspector/locale_controller.cc b/third_party/blink/renderer/core/inspector/locale_controller.cc
+--- a/third_party/blink/renderer/core/inspector/locale_controller.cc
++++ b/third_party/blink/renderer/core/inspector/locale_controller.cc
+@@ -4,8 +4,10 @@
+ 
+ #include "third_party/blink/renderer/core/inspector/locale_controller.h"
+ 
++#include "base/command_line.h"
+ #include "base/i18n/icubridge/default_icu_locale.h"
+ #include "base/i18n/tag_converters.h"
++#include "base/strings/string_split.h"
+ #include "third_party/blink/renderer/core/workers/worker_or_worklet_global_scope.h"
+ #include "third_party/blink/renderer/core/workers/worker_thread.h"
+ #include "third_party/blink/renderer/platform/scheduler/public/main_thread.h"
+@@ -39,7 +41,21 @@
+ }  // namespace
+ 
+ LocaleController::LocaleController()
+-    : embedder_locale_(base::i18n::GetDefaultIcuLocale()) {}
++    : embedder_locale_(base::i18n::GetDefaultIcuLocale()) {
++  const auto languages = base::SplitString(
++      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("uxr-languages"),
++      ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
++  if (languages.empty())
++    return;
++  const auto tag = base::i18n::GetLanguageTagFromString(languages.front());
++  if (!tag || tag->language_subtag() == "und")
++    return;
++  // Preserve BCP47 tags without the old application-locale remapping. DevTools
++  // resets return to this configured locale without claiming its override.
++  embedder_locale_ = *tag;
++  base::i18n::SetDefaultIcuLocale(base::i18n::DefaultIcuLocaleSetterKey(),
++                                embedder_locale_);
++}
+ 
+ String LocaleController::SetLocaleOverride(const String& locale,
+                                            bool is_claiming_override) {

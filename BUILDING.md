@@ -15,6 +15,13 @@ to the same exact 157 identity and recipe. A 156 checkpoint cannot authorize a
 available on this branch and calls the 157 worker; only the 157 entry builds on
 main pushes.
 
+Run `42416735586` retained a complete stage-3 checkpoint after the removed ICU
+locale API failed to compile. Its explicit `upgrade` transition (source stage
+`3`) authenticates every product source and rewrites only the two registered
+locale files. Unchanged sources and object state retain their timestamps;
+ordinary resume still refuses changed recipes. This transition grants no
+runtime or DLL acceptance.
+
 The Windows SDK directory version is **10.0.28000.0**, using Microsoft's servicing
 release **10.0.28000.2705**. `build/windows/ensure-windows-sdk.ps1` verifies the
 required headers, libraries and tools before large transfers. Installer identity

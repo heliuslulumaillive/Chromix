@@ -226,6 +226,39 @@
       "target_patch_kind": "lite-windows156-product",
       "target_aggregate_sha256": "9a3f372a77fe35fbc30ede81355b0ce7a6455abb6d8b83bab99f9d633df09a41",
       "scope": "Explicit same-156 legacy-to-product compaction. Every reviewed final source file must match before receipts/layer identities change. Preserve source/object bytes and mtimes. Runtime/DLL acceptance is not inherited."
+    },
+    {
+      "id": "lite157-icu-default-locale-repair-v1",
+      "chromium_version": "157.0.8103.38",
+      "core_commit": "de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c",
+      "windows_commit": "f85bc55429c37b1c748b676b18fe79b38eee3207",
+      "arch": "x64",
+      "source_commit": "59c786bc31a3a04922cb3215686f452cd1566221",
+      "source_run": "42416735586",
+      "source_stage": 3,
+      "source_recipe_sha256": "4e4e96b044789960e521ddfb25f770b87c40c3ef83223ee5f880384bc90cdc37",
+      "target_recipe_sha256": "faa81a085f09d7b20780083d147be85b2a41964b58b09035a5dff0f95e6cf5dc",
+      "source_preparation_sha256": "4e4e96b044789960e521ddfb25f770b87c40c3ef83223ee5f880384bc90cdc37",
+      "target_preparation_sha256": "faa81a085f09d7b20780083d147be85b2a41964b58b09035a5dff0f95e6cf5dc",
+      "source_aggregate_sha256": "c2be62157c1f788ebac5f2392a0ea386c888356f8d7f31133385855dc4f1c4aa",
+      "target_aggregate_sha256": "37c9aee874125e15693e6c62c2d20f5e0f8c023f74208e4f1758dd64b1ead914",
+      "source_patch_kind": "lite-windows157-product",
+      "target_patch_kind": "lite-windows157-product",
+      "product_source_updates": [
+        {
+          "path": "third_party/blink/renderer/core/timezone/timezone_controller.cc",
+          "before_sha256": "40225baef1c45eb180cb9b026af5278bfb27676e47995a162556765faaae4538",
+          "after_sha256": "064f7082c14a4fb42ab728ad71756932e471f12a442a2339551c257459abcd69",
+          "replacement_path": "build/checkpoint-sources/064f7082c14a4fb42ab728ad71756932e471f12a442a2339551c257459abcd69.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/inspector/locale_controller.cc",
+          "before_sha256": "78db7722703ba0a9ccf308a2d8fa8f74cec718788ee97c63333ae6ad55c126f1",
+          "after_sha256": "2a8ec0ced0de3e4a62f16391611c193fea5d8489362542445ce7684f7539fd49",
+          "replacement_path": "build/checkpoint-sources/2a8ec0ced0de3e4a62f16391611c193fea5d8489362542445ce7684f7539fd49.cc"
+        }
+      ],
+      "scope": "Exact same-157 stage-3 ICU API repair. Authenticate all product sources before writes; replace only the two registered preimages. Preserve all unchanged source/object bytes and mtimes. No runtime or DLL acceptance is inherited."
     }
   ]
 }
