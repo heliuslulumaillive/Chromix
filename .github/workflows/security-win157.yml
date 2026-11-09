@@ -24,6 +24,8 @@ on:
       - 'tools/lite_patch_stack.py'
       - 'tools/prepare_lite_product.py'
       - 'tools/lite_product_migration.py'
+      - 'tools/prepare_restored_build.py'
+      - 'tools/repair_windows_midl.py'
       - 'tools/patch_selection.py'
       - 'tools/platform_pins.py'
       - 'tools/build_resources.py'
@@ -46,6 +48,8 @@ on:
       - 'tools/tests/test_lite_*.py'
       - 'tools/tests/test_security_*.py'
       - 'tools/tests/test_native_*.py'
+      - 'tools/tests/test_windows157_midl.py'
+      - 'tools/tests/fixtures/windows157-domain-regex.list'
   workflow_call:
     secrets:
       UPSTREAM_ACTIONS_TOKEN:

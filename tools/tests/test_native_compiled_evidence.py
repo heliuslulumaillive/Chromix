@@ -60,8 +60,11 @@ class ExactCompiledGateTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
 
-    def test_exact_frozen_67_9_10_sets_pass(self):
-        self.assertEqual({key: len(value) for key, value in gate.REQUIRED_TESTS.items()}, {'passkey': 67, 'browser': 9, 'cookie': 10})
+    def test_exact_157_67_10_10_and_retained_156_browser_inventory(self):
+        self.assertEqual({key: len(value) for key, value in gate.REQUIRED_TESTS.items()}, {'passkey': 67, 'browser': 10, 'cookie': 10})
+        self.assertEqual(len(gate.WINDOWS156_BROWSER_TESTS), 9)
+        self.assertEqual(gate.REQUIRED_TESTS['browser'] - gate.WINDOWS156_BROWSER_TESTS,
+                         {'ShardXNativeBrowserTest.RestoredSecurityPrefsHaveNativeSyncMetadata'})
         for kind in gate.REQUIRED_TESTS:
             with self.subTest(kind=kind):
                 paths = suite_fixture(self.root, kind)

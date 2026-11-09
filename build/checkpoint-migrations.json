@@ -259,6 +259,45 @@
         }
       ],
       "scope": "Exact same-157 stage-3 ICU API repair. Authenticate all product sources before writes; replace only the two registered preimages. Preserve all unchanged source/object bytes and mtimes. No runtime or DLL acceptance is inherited."
+    },
+    {
+      "id": "lite157-midl-sync-pref-repair-v1",
+      "chromium_version": "157.0.8103.38",
+      "core_commit": "de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c",
+      "windows_commit": "f85bc55429c37b1c748b676b18fe79b38eee3207",
+      "arch": "x64",
+      "source_commit": "c338e0c4c697d469e2cf64e301ed9a2a7cbdbe2a",
+      "source_run": "42488966846",
+      "source_stage": 1,
+      "source_recipe_sha256": "faa81a085f09d7b20780083d147be85b2a41964b58b09035a5dff0f95e6cf5dc",
+      "target_recipe_sha256": "641a092c5b8d339485e3dfdade03d20a0c8e08d4f1b86431f4af0b17f375baef",
+      "source_preparation_sha256": "faa81a085f09d7b20780083d147be85b2a41964b58b09035a5dff0f95e6cf5dc",
+      "target_preparation_sha256": "641a092c5b8d339485e3dfdade03d20a0c8e08d4f1b86431f4af0b17f375baef",
+      "source_aggregate_sha256": "37c9aee874125e15693e6c62c2d20f5e0f8c023f74208e4f1758dd64b1ead914",
+      "target_aggregate_sha256": "c48a84c522f4432d339a981ee17fc4aece2b4619931b831f4b31303254d3f37b",
+      "source_patch_kind": "lite-windows157-product",
+      "target_patch_kind": "lite-windows157-product",
+      "product_source_updates": [
+        {
+          "path": "chrome/browser/profiles/shardx_native_browser_unittest.cc",
+          "before_sha256": "413354880763b3fee6b4bd200fdbd8f614c5f830f5f236c8cf1337dcaf79fa02",
+          "after_sha256": "ee680cc978c7a54404c903a8956c82a759ebfce89078a631648c3f50b3e7bc44",
+          "replacement_path": "build/checkpoint-sources/ee680cc978c7a54404c903a8956c82a759ebfce89078a631648c3f50b3e7bc44.cc"
+        },
+        {
+          "path": "chrome/test/BUILD.gn",
+          "before_sha256": "261d3aa5d81c55d9897ea6392538f28b27e8c2aafddc61347ecac69162fdba95",
+          "after_sha256": "03650947ffd838772f6d0afc81ae6394d8c911205f122823ec1af538a691b6c9",
+          "replacement_path": "build/checkpoint-sources/03650947ffd838772f6d0afc81ae6394d8c911205f122823ec1af538a691b6c9.gn"
+        },
+        {
+          "path": "components/sync_preferences/common_syncable_prefs_database.cc",
+          "before_sha256": "846edad23c5de47129971d5775fb895146a0f130fe42b306585d9e5dd0d98b15",
+          "after_sha256": "17dc95f06175255801dc8bdb96b4fa82955b3d22f0567499ec72293b3e0d5e5a",
+          "replacement_path": "build/checkpoint-sources/17dc95f06175255801dc8bdb96b4fa82955b3d22f0567499ec72293b3e0d5e5a.cc"
+        }
+      ],
+      "scope": "Exact same-157 source repair from run42488966846/stage1. Authenticate all product sources; restore native security-sync metadata, require its compiled regression and direct GN dependency. The separately byte-pinned 157 MIDL wrapper regenerates empty TLBs with native MIDL and invalidates only declared generated MIDL outputs once. Preserve all other source/object bytes and mtimes. Runtime/DLL acceptance is not inherited."
     }
   ]
 }

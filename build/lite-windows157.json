@@ -49,7 +49,7 @@
   "patches": [
     {
       "path": "patches/lite-windows157/01-build-integration.patch",
-      "sha256": "5de23610b0cb6792c742df624783a55ccf8e4c9d93fd40ecbf3b6b10741d0edf",
+      "sha256": "52bfbbe2f5d8ebb721ca81e7d8477dbb9b31bb787441a89ebc7cb2223e7cea1e",
       "files": [
         "BUILD.gn",
         "base/BUILD.gn",
@@ -553,7 +553,7 @@
     },
     {
       "path": "patches/lite-windows157/23-native-profile.patch",
-      "sha256": "bc6b7bf5af9a474e938fbf3bb18e3b3b731b263787306ec50b4ce8c49de337ea",
+      "sha256": "16e0edd3826f870cb8353b48f3055199b6b2e0cc57f639dd99cf4d235b45e5dd",
       "files": [
         "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc",
         "chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc",
@@ -579,7 +579,7 @@
     },
     {
       "path": "patches/lite-windows157/24-google-services-and-browser.patch",
-      "sha256": "0092b5f550e5a047b25f0d79eb5ddcc9d02beb944c6920dcf1198ce2f92f8118",
+      "sha256": "3432b34d935eb5e400fc2183940825e78a02318c8cc6da836e467c88830ec307",
       "files": [
         "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
         "chrome/browser/chrome_browser_main.cc",
@@ -1587,7 +1587,7 @@
     {
       "path": "chrome/browser/profiles/shardx_native_browser_unittest.cc",
       "before_sha256": null,
-      "after_sha256": "413354880763b3fee6b4bd200fdbd8f614c5f830f5f236c8cf1337dcaf79fa02"
+      "after_sha256": "ee680cc978c7a54404c903a8956c82a759ebfce89078a631648c3f50b3e7bc44"
     },
     {
       "path": "chrome/browser/profiles/shardx_native_cookie_unittest.cc",
@@ -2367,7 +2367,7 @@
     {
       "path": "chrome/test/BUILD.gn",
       "before_sha256": "f88714ad70ec566f23595554ab5f4aa699087ca10759d02efbf3929ab15b751d",
-      "after_sha256": "261d3aa5d81c55d9897ea6392538f28b27e8c2aafddc61347ecac69162fdba95"
+      "after_sha256": "03650947ffd838772f6d0afc81ae6394d8c911205f122823ec1af538a691b6c9"
     },
     {
       "path": "chrome/test/base/BUILD.gn",
@@ -3057,7 +3057,7 @@
     {
       "path": "components/sync_preferences/common_syncable_prefs_database.cc",
       "before_sha256": "3bc09b2fe1f1103c5055c7bb26f5cba8e6cd370fc0a8bc46b09cf9b89c96c429",
-      "after_sha256": "846edad23c5de47129971d5775fb895146a0f130fe42b306585d9e5dd0d98b15"
+      "after_sha256": "17dc95f06175255801dc8bdb96b4fa82955b3d22f0567499ec72293b3e0d5e5a"
     },
     {
       "path": "components/translate/content/browser/content_translate_driver.cc",
@@ -4718,7 +4718,7 @@
     "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
     "cross_version_byte_equivalence_claimed": false
   },
-  "stack_sha256": "37c9aee874125e15693e6c62c2d20f5e0f8c023f74208e4f1758dd64b1ead914",
+  "stack_sha256": "c48a84c522f4432d339a981ee17fc4aece2b4619931b831f4b31303254d3f37b",
   "upstream_port": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",

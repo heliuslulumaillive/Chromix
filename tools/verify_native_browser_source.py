@@ -126,6 +126,37 @@ def verify_shell(src: Path):
     return checked
 
 
+def verify_security_sync_prefs(src: Path):
+    """Registered restored preferences must retain their native sync metadata."""
+    database = 'components/sync_preferences/common_syncable_prefs_database.cc'
+    registration = 'components/safe_browsing/core/common/safe_browsing_prefs.cc'
+    names = 'components/safe_browsing/core/common/safe_browsing_prefs.h'
+    tests = 'chrome/browser/profiles/shardx_native_browser_unittest.cc'
+    source = read(src, database)
+    require(source, ['kAccountTailoredSecurityUpdateTimestamp = 46',
+                     'kSafeBrowsingEnabled = 48', 'kSafeBrowsingEnhanced = 79',
+        '''{prefs::kAccountTailoredSecurityUpdateTimestamp,
+          {syncable_prefs_ids::kAccountTailoredSecurityUpdateTimestamp,
+           syncer::PRIORITY_PREFERENCES, PrefSensitivity::kNone,
+           MergeBehavior::kNone, WriteBehavior::kWriteToBoth}}''',
+        '''{prefs::kSafeBrowsingEnabled,
+          {syncable_prefs_ids::kSafeBrowsingEnabled, syncer::PREFERENCES,
+           PrefSensitivity::kNone, MergeBehavior::kNone, WriteBehavior::kWriteToBoth}}''',
+        '''{prefs::kSafeBrowsingEnhanced,
+          {syncable_prefs_ids::kSafeBrowsingEnhanced, syncer::PREFERENCES,
+           PrefSensitivity::kNone, MergeBehavior::kNone, WriteBehavior::kWriteToBoth}}'''], database)
+    require(read(src, registration), [
+        'registry->RegisterTimePref(prefs::kAccountTailoredSecurityUpdateTimestamp, base::Time(), user_prefs::PrefRegistrySyncable::SYNCABLE_PRIORITY_PREF)',
+        'registry->RegisterBooleanPref(prefs::kSafeBrowsingEnabled, true, user_prefs::PrefRegistrySyncable::SYNCABLE_PREF)',
+        'registry->RegisterBooleanPref(prefs::kSafeBrowsingEnhanced, false, user_prefs::PrefRegistrySyncable::SYNCABLE_PREF)'], registration)
+    require(read(src, names), ['kAccountTailoredSecurityUpdateTimestamp[] = "safebrowsing.aesb_update_time_windows_epoch_micros"'], names)
+    require(read(src, tests), ['TEST(ShardXNativeBrowserTest, RestoredSecurityPrefsHaveNativeSyncMetadata)',
+        'database.GetSyncablePrefMetadata(pref.name)', 'ASSERT_NE(metadata, nullptr)',
+        'metadata->syncable_pref_id()', 'metadata->data_type()',
+        'database.GetSyncablePrefMetadata("safebrowsing.unregistered")'], tests)
+    return [database, registration, names, tests]
+
+
 def verify(src: Path, repo: Path, *, config=None):
     legacy = config is None and not (repo / 'build/lite-windows157.json').is_file()
     if config is None and not legacy:

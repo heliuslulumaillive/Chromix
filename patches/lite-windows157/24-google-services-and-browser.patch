@@ -9696,7 +9696,18 @@ diff --git a/components/sync_preferences/common_syncable_prefs_database.cc b/com
    // kSyncedDefaultSearchProviderGUID = 49, (deprecated)
    kPrefForceTriggerTranslateCount = 50,
    // kPrefNeverPromptSitesDeprecated = 51, (deprecated)
-@@ -376,6 +379,10 @@
+@@ -340,6 +343,10 @@
+          {syncable_prefs_ids::kCanMakePaymentEnabled, syncer::PREFERENCES,
+           PrefSensitivity::kNone, MergeBehavior::kNone,
+           WriteBehavior::kWriteToBoth}},
++        {prefs::kAccountTailoredSecurityUpdateTimestamp,
++         {syncable_prefs_ids::kAccountTailoredSecurityUpdateTimestamp,
++          syncer::PRIORITY_PREFERENCES, PrefSensitivity::kNone,
++          MergeBehavior::kNone, WriteBehavior::kWriteToBoth}},
+         {prefs::kCookieControlsMode,
+          {syncable_prefs_ids::kCookieControlsMode, syncer::PREFERENCES,
+           PrefSensitivity::kNone, MergeBehavior::kNone,
+@@ -376,6 +383,10 @@
           {syncable_prefs_ids::kCrossDeviceTipsHomeModuleEnabled,
            syncer::PREFERENCES, PrefSensitivity::kNone,
            MergeBehavior::kMergeableDict, WriteBehavior::kWriteToBoth}},
@@ -9707,7 +9718,7 @@ diff --git a/components/sync_preferences/common_syncable_prefs_database.cc b/com
          {tab_groups::prefs::kAutoPinNewTabGroups,
           {syncable_prefs_ids::kAutoPinNewTabGroups, syncer::PREFERENCES,
            PrefSensitivity::kNone, MergeBehavior::kNone,
-@@ -466,6 +473,10 @@
+@@ -466,6 +477,10 @@
            WriteBehavior::kWriteToBoth}},
          {autofill::prefs::kAutofillPaymentCardBenefits,
           {syncable_prefs_ids::kAutofillPaymentCardBenefits, syncer::PREFERENCES,

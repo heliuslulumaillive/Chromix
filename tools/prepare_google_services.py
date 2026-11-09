@@ -201,6 +201,12 @@ def verify_prepared_sources(src: Path, repo: Path, config: dict, *, product=Fals
         except ImportError:
             from verify_native_cookie_source import verify as verify_native_cookie
         checked = sorted(set(checked) | set(verify_native_cookie(src, repo, **({'config': config} if product else {}))))
+    if product:
+        try:
+            from .verify_native_browser_source import verify_security_sync_prefs
+        except ImportError:
+            from verify_native_browser_source import verify_security_sync_prefs
+        checked = sorted(set(checked) | set(verify_security_sync_prefs(src)))
     return checked
 
 

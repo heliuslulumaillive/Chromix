@@ -120,6 +120,36 @@ WINDOWS155_RECORDS = (
         "after_sha256": WINDOWS155_REPAIRED_SHA256,
     }),
 )
+# Independently reconstructed from Chromium a733b5af plus the pinned 157 Windows
+# overlay and domain rules (raw script SHA256 8a805574f0140476837fcd2a5b6cdce8246cfbc416ca70c3b061e99242843564).
+# The upstream form matches the earlier reviewed wrapper. The 157 output also
+# canonicalizes one comment URL so later product domain restoration is stable;
+# this completed x64 producer still has its own immutable identity.
+WINDOWS157_ORIGINAL_SHA256 = "0c0062cc6b73e1d0874e2a3304498f48ad1cb552d11d49eea223319051dde831"
+WINDOWS157_PREPARED_ORIGINAL_SHA256 = "501ad1740d960ab1f2afeb8278162b05163e3772edb6ea167554f67ef82ca99c"
+WINDOWS157_REPAIRED_SHA256 = "f113aabeee53f6ba0fce6d364d45d294b094b656afc03e24029bf7503fb99b3a"
+WINDOWS157_COMMENT_URL_BEFORE = b"https://chromium-review.9oo91esource.qjz9zk/c/chromium/src/+/693223"
+WINDOWS157_COMMENT_URL_AFTER = b"https://chromium-review.googlesource.com/c/chromium/src/+/693223"
+WINDOWS157_RECORDS = (
+    MappingProxyType({
+        "identity": MappingProxyType({
+            "chromium_version": "157.0.8103.38",
+            "ungoogled_commit": "de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c",
+            "head_sha": "f85bc55429c37b1c748b676b18fe79b38eee3207",
+            "platform": "windows", "arch": "x64",
+            "repository": "ungoogled-software/ungoogled-chromium-windows",
+            "repository_id": 177210827,
+            "head_branch": "157.0.8103.38-1.1", "event": "push",
+            "workflow_path": ".github/workflows/build-x64.yml",
+            "run_id": 42046998774,
+            "artifact_id": 13560057174, "artifact_name": "build-artifact",
+            "artifact_digest": "sha256:0dc5c30c4eb0c21e503371e9aa0e28c37c1b478271b4612d82e1fa4dec9bc16d",
+            "artifact_size_in_bytes": 16243947927,
+        }),
+        "before_sha256": WINDOWS157_ORIGINAL_SHA256,
+        "after_sha256": WINDOWS157_REPAIRED_SHA256,
+    }),
+)
 BEFORE = b"""            open(file_path, 'wb').close()
         shutil.copy(file_path, outdir)
 """
@@ -166,6 +196,20 @@ def transform154(payload: bytes) -> bytes:
 def transform155(payload: bytes) -> bytes:
     """Accept only independently reconstructed Windows155 donor or repaired bytes."""
     return _transform(payload, WINDOWS155_ORIGINAL_SHA256, WINDOWS155_REPAIRED_SHA256)
+
+
+def transform157(payload: bytes) -> bytes:
+    """Normalize the one pinned comment URL so product domain restoration is stable.
+
+    Fresh upstream and already-prepared checkpoints have two independently
+    reconstructed original forms. Both become one exact native-generation
+    wrapper; unknown or partially repaired bytes remain rejected.
+    """
+    if hashlib.sha256(payload).hexdigest() == WINDOWS157_ORIGINAL_SHA256:
+        if payload.count(WINDOWS157_COMMENT_URL_BEFORE) != 1:
+            raise ValueError('ambiguous Windows157 MIDL comment normalization')
+        payload = payload.replace(WINDOWS157_COMMENT_URL_BEFORE, WINDOWS157_COMMENT_URL_AFTER, 1)
+    return _transform(payload, WINDOWS157_PREPARED_ORIGINAL_SHA256, WINDOWS157_REPAIRED_SHA256)
 
 
 def _exact_identity(identity: dict, expected) -> bool:
@@ -471,15 +515,16 @@ def _record(src: Path, value: dict) -> None:
 
 
 def _proof(src: Path, identity: dict, *, before_sha256=ORIGINAL_SHA256,
-           after_sha256=REPAIRED_SHA256) -> dict:
+           after_sha256=REPAIRED_SHA256, allowed_before_sha256=None) -> dict:
     path = src / RECORD
     if _safe_stat(path) is None:
         raise ValueError("repaired Windows MIDL script lacks one-time output invalidation record")
     value = json.loads(_read(path)[0])
+    expected_before = tuple(allowed_before_sha256) if allowed_before_sha256 is not None else (before_sha256,)
     if (not isinstance(value, dict) or value.get("schema_version") != 1
             or not _exact_identity(value.get("identity"), identity)
             or value.get("after_sha256") != after_sha256
-            or value.get("before_sha256") != before_sha256
+            or value.get("before_sha256") not in expected_before
             or not isinstance(value.get("outputs"), list) or not isinstance(value.get("graphs"), dict)):
         raise ValueError("invalid Windows MIDL output invalidation record")
     if (not all(isinstance(name, str) for name in value["outputs"])
@@ -498,7 +543,8 @@ def _proof(src: Path, identity: dict, *, before_sha256=ORIGINAL_SHA256,
 
 
 def apply(src: Path, platform: str, arch: str, identity: dict, *,
-          records=WINDOWS154_RECORDS, records155=WINDOWS155_RECORDS) -> dict:
+          records=WINDOWS154_RECORDS, records155=WINDOWS155_RECORDS,
+          records157=WINDOWS157_RECORDS) -> dict:
     """Match a strict-restore identity against independent, reviewed donor pins."""
     if platform != "windows":
         return {"status": "not_applicable"}
@@ -520,12 +566,26 @@ def apply(src: Path, platform: str, arch: str, identity: dict, *,
                                    WINDOWS155_ORIGINAL_SHA256, WINDOWS155_REPAIRED_SHA256)
         before_sha256, after_sha256 = record["before_sha256"], record["after_sha256"]
         repair = transform155
+    elif version.startswith("157."):
+        record = _versioned_record(identity, arch, records157, "157.0.8103.38",
+                                   WINDOWS157_ORIGINAL_SHA256, WINDOWS157_REPAIRED_SHA256)
+        before_sha256, after_sha256 = record["before_sha256"], record["after_sha256"]
+        repair = transform157
     else:
         return {"status": "not_applicable", "path": SCRIPT}
     original, info = _read(path)
+    allowed_before_sha256 = None
+    if version == "157.0.8103.38":
+        allowed_before_sha256 = frozenset((WINDOWS157_ORIGINAL_SHA256, WINDOWS157_PREPARED_ORIGINAL_SHA256))
+        observed = hashlib.sha256(original).hexdigest()
+        if observed in allowed_before_sha256:
+            # Record the actual admitted preimage, never relabel prepared bytes
+            # as the original upstream-domain-substituted representation.
+            before_sha256 = observed
     repaired = repair(original)
     if original == repaired:
-        proof = _proof(src, identity, before_sha256=before_sha256, after_sha256=after_sha256)
+        proof = _proof(src, identity, before_sha256=before_sha256, after_sha256=after_sha256,
+                       allowed_before_sha256=allowed_before_sha256)
         changed, removed = False, []
     else:
         if _safe_stat(src / RECORD) is not None:
@@ -540,7 +600,8 @@ def apply(src: Path, platform: str, arch: str, identity: dict, *,
                 removed.append(name)
         changed = _replace(path, original, repaired, info)
         if not changed:
-            proof = _proof(src, identity, before_sha256=before_sha256, after_sha256=after_sha256)
+            proof = _proof(src, identity, before_sha256=before_sha256, after_sha256=after_sha256,
+                           allowed_before_sha256=allowed_before_sha256)
         else:
             proof = {"schema_version": 1, "identity": identity,
                      "before_sha256": before_sha256, "after_sha256": after_sha256,

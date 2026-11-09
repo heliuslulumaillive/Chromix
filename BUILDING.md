@@ -15,12 +15,16 @@ to the same exact 157 identity and recipe. A 156 checkpoint cannot authorize a
 available on this branch and calls the 157 worker; only the 157 entry builds on
 main pushes.
 
-Run `42416735586` retained a complete stage-3 checkpoint after the removed ICU
-locale API failed to compile. Its explicit `upgrade` transition (source stage
-`3`) authenticates every product source and rewrites only the two registered
-locale files. Unchanged sources and object state retain their timestamps;
-ordinary resume still refuses changed recipes. This transition grants no
-runtime or DLL acceptance.
+Run `42488966846` compiled the ICU locale repair and retained a complete stage-1
+checkpoint after three pruned updater type libraries failed GUID parsing. The
+current explicit `upgrade` transition uses this source stage `1`, restores the
+omitted native security-sync metadata and requires its compiled regression. The
+exact-157 MIDL wrapper generates empty TLBs with native MIDL and invalidates only
+declared generated MIDL outputs once. Its two reviewed original forms normalize
+one documentation URL so product domain restoration and warm verification agree.
+Other sources and object state retain
+their timestamps; ordinary resume still refuses changed recipes. No runtime or
+DLL acceptance is inherited.
 
 The Windows SDK directory version is **10.0.28000.0**, using Microsoft's servicing
 release **10.0.28000.2705**. `build/windows/ensure-windows-sdk.ps1` verifies the

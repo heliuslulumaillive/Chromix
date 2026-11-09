@@ -478,7 +478,7 @@ diff --git a/chrome/test/BUILD.gn b/chrome/test/BUILD.gn
        "//components/safe_browsing/core/browser/db:test_database_manager",
        "//components/saved_tab_groups/internal:service_test_utils",
        "//components/signin/public/base:signin_buildflags",
-@@ -2627,6 +2629,87 @@
+@@ -2627,6 +2629,89 @@
  mojom("test_interfaces") {
    testonly = true
    sources = [ "mojom/echo.test-mojom" ]
@@ -529,6 +529,8 @@ diff --git a/chrome/test/BUILD.gn b/chrome/test/BUILD.gn
 +      "//components/translate/core/common",
 +      "//components/prefs",
 +      "//components/strings",
++      "//components/sync_preferences",
++      "//components/sync_preferences:common_syncable_prefs_database",
 +      "//components/vector_icons",
 +      "//components/webauthn/core/browser:passkey_model",
 +      "//content/test:test_support",
@@ -566,7 +568,7 @@ diff --git a/chrome/test/BUILD.gn b/chrome/test/BUILD.gn
  }
  
  test("unit_tests") {
-@@ -2946,6 +3029,7 @@
+@@ -2946,6 +3031,7 @@
      "//components/reporting/encryption:testing_primitives",
      "//components/reporting/util:test_callbacks_support",
      "//components/safe_browsing:buildflags",
@@ -574,7 +576,7 @@ diff --git a/chrome/test/BUILD.gn b/chrome/test/BUILD.gn
      "//components/safe_browsing/core/browser/db:test_database_manager",
      "//components/segmentation_platform/embedder/default_model:default_model_test_base",
      "//components/sharing_message:unit_tests",
-@@ -4473,6 +4557,7 @@
+@@ -4473,6 +4559,7 @@
        "//chrome/test/media_router:browser_tests",
        "//chrome/test/supervised_user:live_tests",
        "//ui/accessibility:test_support",

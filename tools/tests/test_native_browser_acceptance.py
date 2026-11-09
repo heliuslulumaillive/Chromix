@@ -11,7 +11,7 @@ class NativeBrowserAcceptanceTests(unittest.TestCase):
             verify({'all_tests': list(REQUIRED), 'per_iteration_data': [{}]})
 
     def test_complete_single_execution_passes(self):
-        self.assertEqual(verify(self.good())['executed'], 9)
+        self.assertEqual(verify(self.good())['executed'], 10)
 
     def test_missing_failed_skipped_or_retried_cases_fail(self):
         for value in ([], [{'status': 'FAILURE'}], [{'status': 'SKIPPED'}], [{'status': 'FAILURE'}, {'status': 'SUCCESS'}]):

@@ -1,4 +1,4 @@
-"""Exact Windows 156 native suites bound to the immutable pretest build record."""
+"""Reviewed Windows 157 suites bound to the immutable pretest build record."""
 from __future__ import annotations
 
 import argparse
@@ -93,6 +93,20 @@ PASSKEY_TESTS = frozenset([
     'WinAuthenticatorTest.SignalUnknownCredential_NotSupported',
     'WinAuthenticatorTest.SignalUnknownCredential_WrongRpId',
 ])
+WINDOWS156_BROWSER_TESTS = frozenset({
+    'ShardXNativeBrowserTest.TranslationInitWaitAllowsSlowLibrary',
+    'ShardXNativeBrowserTest.TranslationInitWaitExpiresAtDeadline',
+    'ShardXNativeBrowserTest.TranslationInitWaitIsPerRequest',
+    'ShardXNativeBrowserTest.HistoryRetentionRejectsInvalidValues',
+    'ShardXNativeBrowserTest.ManagedHistoryRequiresExplicitPolicy',
+    'ShardXNativeBrowserTest.ManagedEnvironmentOwnsProfileShellIdentity',
+    'ShardXNativeBrowserTest.InvalidManagedMarkerPreservesNativeIdentity',
+    'ShardXNativeBrowserTest.ManagedProfileShortcutsRemainUnavailable',
+    'ShardXNativeBrowserTest.BlockedPortParserPreservesBoundsAndDenySemantics',
+})
+WINDOWS157_BROWSER_TESTS = WINDOWS156_BROWSER_TESTS | frozenset({
+    'ShardXNativeBrowserTest.RestoredSecurityPrefsHaveNativeSyncMetadata',
+})
 REQUIRED_TESTS = {
     'passkey': PASSKEY_TESTS,
     'browser': frozenset(BROWSER_TESTS),
@@ -150,10 +164,11 @@ def _utc(value):
 
 def validate_compiled_suite(summary_path, launcher_path, build_record_path, kind):
     if kind not in REQUIRED_TESTS:
-        raise ValueError('Unknown Windows 156 native suite')
+        raise ValueError('Unknown Windows 157 native suite')
     required = REQUIRED_TESTS[kind]
-    if {name: len(tests) for name, tests in REQUIRED_TESTS.items()} != {'passkey': 67, 'browser': 9, 'cookie': 10}:
-        raise ValueError('Frozen Windows 156 native suite inventory changed')
+    if ({name: len(tests) for name, tests in REQUIRED_TESTS.items()} != {'passkey': 67, 'browser': 10, 'cookie': 10}
+            or REQUIRED_TESTS['browser'] != WINDOWS157_BROWSER_TESTS):
+        raise ValueError('Native suites differ from the reviewed Windows 157 inventory')
     summary, summary_hash = _read(summary_path)
     launcher, launcher_hash = _read(launcher_path)
     build, build_hash = _read(build_record_path)

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 REQUIRED = {
+    'ShardXNativeBrowserTest.RestoredSecurityPrefsHaveNativeSyncMetadata',
     'ShardXNativeBrowserTest.TranslationInitWaitAllowsSlowLibrary',
     'ShardXNativeBrowserTest.TranslationInitWaitExpiresAtDeadline',
     'ShardXNativeBrowserTest.TranslationInitWaitIsPerRequest',
