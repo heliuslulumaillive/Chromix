@@ -13,6 +13,7 @@ import { fontAcceptanceProbe, validateFontAcceptance, FONT_ACCEPTANCE_ORACLE } f
 import { referenceAcceptanceProbe, validateReferenceAcceptance } from "./fingerprint_reference_acceptance.mjs";
 import { renderbufferAcceptanceProbe, validateRenderbufferAcceptance } from "./fingerprint_renderbuffer_acceptance.mjs";
 import { pixelSemanticProbe, validatePixelSemantics, validateHeadlessScreens, pngDimensions, PIXEL_SCENARIOS, HEADLESS_SCENARIOS } from "./pixel_semantic_acceptance.mjs";
+import { inputPreservationProbe, validateInputPreservation, INPUT_SCENARIOS } from "./canvas_audio_input_acceptance.mjs";
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function deadline(promise, ms, message) {
@@ -148,9 +149,16 @@ async function pageProbe(input) {
     const transparent = document.createElement("canvas"); transparent.width = transparent.height = 16;
     const transctx = transparent.getContext("2d");
     const transparentRaw = b64(transctx.getImageData(0, 0, 16, 16).data);
+    const drawing = document.createElement("canvas"); drawing.width = drawing.height = 64;
+    const draw = drawing.getContext("2d", {willReadFrequently:true});
+    for (let p = 0; p < 4096; p++) {
+      draw.fillStyle = `rgb(${(p * 17 + 31) & 255},${(p * 37 + 66) & 255},${(p * 13 + 123) & 255})`;
+      draw.fillRect(p % 64, Math.floor(p / 64), 1, 1);
+    }
+    const rendered = b64(draw.getImageData(0, 0, 64, 64).data);
     return { width: 64, height: 64, expected, full, repeat, crop, png,
       blob: b64(await blob.arrayBuffer()), offscreen: { raw: offRaw, png: b64(await offBlob.arrayBuffer()) },
-      transparentRaw };
+      transparentRaw, rendered };
   });
   result.layout = await safe("layout", async () => {
     const element = document.createElement("div");
@@ -192,7 +200,15 @@ async function pageProbe(input) {
       tails[method] = { writtenBound: count, tail: [...target.slice(count)],
         unchanged: [...target.slice(count)].every(value => Object.is(value, sentinel)) };
     }
-    return { expected, full, repeat, copied: b64(copied), sampleRate: buffer.sampleRate,
+    const renderContext = new OfflineAudioContext(1, 5000, 44100);
+    const oscillator = renderContext.createOscillator(), compressor = renderContext.createDynamicsCompressor();
+    oscillator.type = "triangle"; oscillator.frequency.value = 10000;
+    compressor.threshold.value = -50; compressor.knee.value = 40; compressor.ratio.value = 12;
+    compressor.attack.value = 0; compressor.release.value = 0.25;
+    oscillator.connect(compressor); compressor.connect(renderContext.destination); oscillator.start();
+    const renderedBuffer = await timed(renderContext.startRendering(), 6000);
+    const rendered = b64(renderedBuffer.getChannelData(0));
+    return { expected, full, repeat, copied: b64(copied), sampleRate: buffer.sampleRate, rendered,
       overlapBefore, overlapAfter, analyserTails: tails };
   });
   result.sensor = input.sensorOverride ? await safe("sensor", () => timed(new Promise((resolve, reject) => {
@@ -676,7 +692,8 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
   if (!baselineOnly && base) {
     const p = id => byId[id]?.probe;
     for (const id of ["legacy_seeded", "canvas_shardx", "hardware_cloak"]) {
-      const diff = difference(bytes(p(id)?.canvas?.full), bytes(base.canvas?.full));
+      check(id, "application_canvas_input_preserved", equal(bytes(p(id)?.canvas?.full), bytes(p(id)?.canvas?.expected)));
+      const diff = difference(bytes(p(id)?.canvas?.rendered), bytes(base.canvas?.rendered));
       check(id, "selected_canvas_noise_reaches_runtime", diff && diff.changed > 0 && diff.alphaChanges === 0 &&
         diff.maxDelta <= 1 && (id === "legacy_seeded" || diff.changed <= (id === "canvas_shardx" ? 32 : 30)), diff);
     }
@@ -697,12 +714,13 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
       for (const header of ["device-memory", "sec-ch-device-memory"])
         check(id, `${header}_matches_js`, Number(value?.headers?.[header]) === memory && typeof value?.headers?.[header] === "string", value?.headers?.[header] ?? null);
     }
-    const shard = p("shard_surfaces"), originalAudio = bytes(base.audio?.full), changedAudio = bytes(shard?.audio?.full);
-    check("shard_surfaces", "audio_changed", originalAudio?.length === 1024 && changedAudio?.length === 1024 && !originalAudio.equals(changedAudio));
-    if (originalAudio?.length === 1024 && changedAudio?.length === 1024) {
-      let preserved = true; for (let i = 0; i < 1024; i += 4) preserved &&= (originalAudio.readUInt32LE(i) & 0xffffff00) === (changedAudio.readUInt32LE(i) & 0xffffff00);
-      check("shard_surfaces", "audio_sign_exponent_high_mantissa_preserved", preserved);
-    }
+    const shard = p("shard_surfaces"), originalAudio = bytes(base.audio?.rendered), changedAudio = bytes(shard?.audio?.rendered);
+    check("shard_surfaces", "application_audio_input_preserved", equal(bytes(shard?.audio?.full), bytes(shard?.audio?.expected)));
+    check("shard_surfaces", "audio_changed", originalAudio?.length === 20000 && changedAudio?.length === 20000 && !originalAudio.equals(changedAudio));
+    let preserved = originalAudio?.length === 20000 && changedAudio?.length === 20000;
+    if (preserved) for (let i = 0; i < 20000; i += 4)
+      preserved &&= (originalAudio.readUInt32LE(i) & 0xffffff00) === (changedAudio.readUInt32LE(i) & 0xffffff00);
+    check("shard_surfaces", "audio_sign_exponent_high_mantissa_preserved", preserved);
     const a = base.layout?.first, b = shard?.layout?.first;
     check("shard_surfaces", "rect_mode_effect_and_bound", !!a && !!b && a.width !== b.width &&
       Math.abs(a.width - b.width) <= 1.0001 && Math.abs(a.height - b.height) <= 1.0001 && a.x === b.x && a.y === b.y);
@@ -783,6 +801,8 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
     checks.push(...nativeSurfaces.checks);notTested.push(...nativeSurfaces.not_tested);
     const pixelResult = validatePixelSemantics(byId, decodePNG);
     checks.push(...pixelResult.checks.filter(c=>!c.name.endsWith("_acceptance_probe_present"))); notTested.push(...pixelResult.not_tested);
+    const inputResult=validateInputPreservation(byId,decodePNG);
+    checks.push(...inputResult.checks);
     const headlessResult = validateHeadlessScreens(byId);
     checks.push(...headlessResult.checks.filter(c=>!c.name.endsWith("_acceptance_probe_present"))); notTested.push(...headlessResult.not_tested);
     const tagged = (id, name, passed, group, detail = null) =>
@@ -1083,6 +1103,9 @@ async function main() {
           basicOnly: BASIC_SCENARIOS.has(scenario.id),
         })})`);
         record.extra = {};
+        if (INPUT_SCENARIOS.includes(scenario.id)) {
+          record.extra.input_preservation = await evaluate(cdp, sessionId, `(${inputPreservationProbe.toString()})()`);
+        }
         if (PIXEL_SCENARIOS.includes(scenario.id)) {
           record.extra.pixel_semantics = await evaluate(cdp, sessionId, `(${pixelSemanticProbe.toString()})()`, true);
         }
@@ -1165,6 +1188,8 @@ async function main() {
     full_strategy_acceptance: report.full_strategy_acceptance, partial: report.partial }));
   return ["passed", "baseline_only"].includes(report.status) ? 0 : 1;
 }
+
+export {connectCDP,evaluate,stopOwned};
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
   process.exitCode = await main().catch(error => { console.error(errorText(error)); return 1; });

@@ -137,48 +137,46 @@ diff --git a/third_party/blink/renderer/modules/webaudio/audio_buffer.cc b/third
  #include "third_party/blink/renderer/modules/webaudio/audio_buffer.h"
  
  #include <memory>
-@@ -222,6 +225,14 @@
+@@ -40,6 +43,7 @@
+ #include "third_party/blink/renderer/platform/bindings/exception_messages.h"
+ #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+ #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
++#include "third_party/blink/renderer/platform/wtf/threading.h"
+ 
+ namespace blink {
+ 
+@@ -222,6 +226,8 @@
      return NotShared<DOMFloat32Array>(nullptr);
    }
  
-+  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
-+  if (modes.audio.mode == base::UxrSurfaceMode::kShardX &&
-+      !modes.noise_disabled && !modes.raw) {
-+    base::uxr_surface_v1::AudioFloats(channels_[channel_index]->AsSpan(),
-+        static_cast<uint32_t>(modes.audio.seed), channel_index * 0x9e3779b9u,
-+        modes.audio.amount);
-+  }
-+  // Legacy/native/Chromix keep the existing shared PCM semantics.
++  // A channel view is application-owned mutable PCM. Reading it must not
++  // rewrite values the application supplied through this or another view.
    return NotShared<DOMFloat32Array>(channels_[channel_index].Get());
  }
  
-@@ -268,6 +279,16 @@
-   DCHECK(dst.data());
- 
-   dst.first(count).copy_from(src.subspan(buffer_offset, count));
-+  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
-+  if (modes.audio.mode == base::UxrSurfaceMode::kShardX &&
-+      !modes.noise_disabled && !modes.raw) {
-+    // Transform the copied destination, not the shared source: destination can
-+    // alias this channel, including an unwritten suffix beyond count.
-+    base::uxr_surface_v1::AudioFloats(
-+        dst.first(count),
-+        static_cast<uint32_t>(modes.audio.seed),
-+        static_cast<uint32_t>(channel_number) * 0x9e3779b9u, modes.audio.amount);
-+  }
- }
- 
- void AudioBuffer::copyToChannel(NotShared<DOMFloat32Array> source,
-@@ -312,6 +333,13 @@
+@@ -312,6 +318,26 @@
    DCHECK(dst.data());
  
    dst.subspan(buffer_offset, count).copy_from(src.first(count));
++}
++
++void AudioBuffer::FinalizeUxrRenderedSamples() {
++  DCHECK(IsMainThread());
++  if (uxr_rendered_samples_finalized_)
++    return;
++  uxr_rendered_samples_finalized_ = true;
 +  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
-+  if (modes.audio.mode == base::UxrSurfaceMode::kShardX &&
-+      !modes.noise_disabled && !modes.raw) {
-+    base::uxr_surface_v1::AudioFloats(dst.subspan(buffer_offset, count),
-+        static_cast<uint32_t>(modes.audio.seed),
-+        static_cast<uint32_t>(channel_number) * 0x9e3779b9u, modes.audio.amount);
++  if (modes.audio.mode != base::UxrSurfaceMode::kShardX ||
++      modes.noise_disabled || modes.raw) {
++    return;
++  }
++  // Preserve the existing sample/seed/channel mapping. Commit the rendered
++  // result once, before exposing it to JS, rather than perturbing reads or
++  // application writes. Subsequent views, copies and edits stay native.
++  for (unsigned channel = 0; channel < channels_.size(); ++channel) {
++    base::uxr_surface_v1::AudioFloats(
++        channels_[channel]->AsSpan(), static_cast<uint32_t>(modes.audio.seed),
++        channel * 0x9e3779b9u, modes.audio.amount);
 +  }
  }
  
@@ -186,10 +184,22 @@ diff --git a/third_party/blink/renderer/modules/webaudio/audio_buffer.cc b/third
 diff --git a/third_party/blink/renderer/modules/webaudio/audio_buffer.h b/third_party/blink/renderer/modules/webaudio/audio_buffer.h
 --- a/third_party/blink/renderer/modules/webaudio/audio_buffer.h
 +++ b/third_party/blink/renderer/modules/webaudio/audio_buffer.h
-@@ -122,6 +122,7 @@
+@@ -109,6 +109,10 @@
+ 
+   void Zero();
+ 
++  // The offline render thread has finished and JS has not seen this result.
++  // Ordinary createBuffer/decode/copy/view paths never call this method.
++  void FinalizeUxrRenderedSamples();
++
+   void Trace(Visitor* visitor) const override {
+     visitor->Trace(channels_);
+     ScriptWrappable::Trace(visitor);
+@@ -122,6 +126,8 @@
    float sample_rate_;
    uint32_t length_;
  
++  bool uxr_rendered_samples_finalized_ = false;
 +  // JS views, channel copies and SharedAudioBuffer use the same mutable PCM.
    HeapVector<Member<DOMFloat32Array>> channels_;
  };
@@ -319,6 +329,14 @@ diff --git a/third_party/blink/renderer/modules/webaudio/offline_audio_context.c
  
  #include "third_party/blink/renderer/modules/webaudio/offline_audio_context.h"
  
+@@ -583,6 +585,7 @@
+   Member<AudioBuffer> rendered_buffer = pending_render_targets_.TakeFirst();
+ 
+   CHECK(rendered_buffer);
++  rendered_buffer->FinalizeUxrRenderedSamples();
+   resolver->Resolve(rendered_buffer.Get());
+ 
+   if (IsRenderComplete()) {
 diff --git a/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc b/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc
 --- a/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc
 +++ b/third_party/blink/renderer/modules/webaudio/realtime_analyser.cc

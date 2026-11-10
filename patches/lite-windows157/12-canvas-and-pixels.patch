@@ -2,7 +2,7 @@ diff --git a/base/uxr_graphics_noise.cc b/base/uxr_graphics_noise.cc
 new file mode 100644
 --- /dev/null
 +++ b/base/uxr_graphics_noise.cc
-@@ -0,0 +1,556 @@
+@@ -0,0 +1,573 @@
 +// Copyright 2026. Independent implementation from byte-verified models.
 +#include "base/uxr_graphics_noise.h"
 +
@@ -59,6 +59,11 @@ new file mode 100644
 +  if (row_bytes / 4 != region.width || region.row_stride < row_bytes ||
 +      region.bytes.size() < row_bytes)
 +    return false;
++  if (!region.preserved_inputs.empty() &&
++      region.preserved_inputs.size() <
++          (uint64_t{region.width} * region.height + 7) / 8) {
++    return false;
++  }
 +  return region.height - 1 <=
 +         (region.bytes.size() - row_bytes) / region.row_stride;
 +}
@@ -105,6 +110,8 @@ new file mode 100644
 +            : static_cast<uint32_t>(region.origin_y) + y;
 +    for (uint32_t x = 0; x < region.width; ++x) {
 +      auto pixel = Pixel(region, x, y);
++      if (UxrPreservesInputPixel(region.preserved_inputs, region.width, x, y))
++        continue;
 +      if (pixel[3] == 0)
 +        continue;
 +      for (uint32_t channel = 0; channel < 3; ++channel) {
@@ -193,6 +200,8 @@ new file mode 100644
 +  for (uint32_t y = 0; y < region.height; ++y) {
 +    for (uint32_t x = 0; x < region.width; ++x) {
 +      auto pixel = Pixel(region, x, y);
++      if (UxrPreservesInputPixel(region.preserved_inputs, region.width, x, y))
++        continue;
 +      if (!pixel[3])
 +        continue;
 +      // Separate Canvas's coordinate stream from WebGL. One candidate per
@@ -228,6 +237,10 @@ new file mode 100644
 +    const int64_t y =
 +        static_cast<int64_t>(position / region.canvas_width) - region.origin_y;
 +    if (x < 0 || y < 0 || x >= region.width || y >= region.height)
++      continue;
++    if (UxrPreservesInputPixel(region.preserved_inputs, region.width,
++                               static_cast<uint32_t>(x),
++                               static_cast<uint32_t>(y)))
 +      continue;
 +    changed |= AssignShardBit(
 +        Pixel(region, static_cast<uint32_t>(x), static_cast<uint32_t>(y)),
@@ -375,6 +388,10 @@ new file mode 100644
 +    }
 +    auto pixel = Pixel(region, static_cast<uint32_t>(local_x),
 +                       static_cast<uint32_t>(local_y));
++    if (UxrPreservesInputPixel(region.preserved_inputs, region.width,
++                               static_cast<uint32_t>(local_x),
++                               static_cast<uint32_t>(local_y)))
++      continue;
 +    if (pixel[3] == 0)
 +      continue;
 +    // Compatible v1 leaves partial-alpha pixels native. Unlike a whole-image
@@ -563,7 +580,7 @@ diff --git a/base/uxr_graphics_noise.h b/base/uxr_graphics_noise.h
 new file mode 100644
 --- /dev/null
 +++ b/base/uxr_graphics_noise.h
-@@ -0,0 +1,87 @@
+@@ -0,0 +1,99 @@
 +// Copyright 2026. Independently reconstructed, versioned pixel algorithms.
 +#ifndef BASE_UXR_GRAPHICS_NOISE_H_
 +#define BASE_UXR_GRAPHICS_NOISE_H_
@@ -625,7 +642,19 @@ new file mode 100644
 +  // FBO data has no compositor alpha convention.
 +  bool premultiplied = false;
 +  UxrPixelNeighborhood neighborhood;
++  // One bit per local pixel, captured from the completed native read before
++  // noise. Set bits identify unchanged application-supplied pixels.
++  span<const uint8_t> preserved_inputs;
 +};
++
++inline bool UxrPreservesInputPixel(span<const uint8_t> mask,
++                                   uint32_t width,
++                                   uint32_t x,
++                                   uint32_t y) {
++  const uint64_t index = uint64_t{y} * width + x;
++  return index / 8 < mask.size() &&
++         (mask[static_cast<size_t>(index / 8)] & (1u << (index % 8)));
++}
 +
 +// The recovered byte hash includes signed 8-bit tail loads and uint32 wrap.
 +BASE_EXPORT uint32_t UxrCloakHashV1(std::string_view bytes);
@@ -1875,15 +1904,34 @@ diff --git a/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creat
 diff --git a/third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h b/third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h
 --- a/third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h
 +++ b/third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h
-@@ -26,6 +26,8 @@
+@@ -26,6 +26,9 @@
  #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CANVAS_CANVAS_RENDERING_CONTEXT_H_
  #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CANVAS_CANVAS_RENDERING_CONTEXT_H_
  
 +#include <vector>
++#include <memory>
 +
  #include "base/byte_size.h"
  #include "base/containers/span.h"
  #include "base/functional/callback_forward.h"
+@@ -68,6 +71,7 @@
+ 
+ namespace blink {
+ 
++class UxrCanvasInputPixels;
+ class ComputedStyle;
+ class Document;
+ class Element;
+@@ -168,6 +172,9 @@
+   virtual bool IsOpaque() const = 0;
+ 
+   virtual scoped_refptr<StaticBitmapImage> GetImage() = 0;
++  virtual std::shared_ptr<const UxrCanvasInputPixels> UxrCanvasInputs() const {
++    return {};
++  }
+   virtual bool IsComposited() const = 0;
+ 
+   // Called when the entire tab is backgrounded or unbackgrounded.
 diff --git a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc b/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
 --- a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
 +++ b/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
@@ -1912,7 +1960,7 @@ diff --git a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc 
  #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
  #include "third_party/blink/public/mojom/gpu/gpu.mojom-blink.h"
  #include "third_party/blink/public/platform/platform.h"
-@@ -1435,8 +1440,17 @@
+@@ -1435,8 +1440,18 @@
  
    scoped_refptr<StaticBitmapImage> image_bitmap = Snapshot(source_buffer);
    if (image_bitmap) {
@@ -1922,16 +1970,17 @@ diff --git a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc 
 +                        : context && context->IsWebGL()
 +                            ? UxrCanvasExportSource::kWebGL
 +                            : UxrCanvasExportSource::kOther;
-+    const auto export_context = UxrCanvasExportContext::FromModes(
++    auto export_context = UxrCanvasExportContext::FromModes(
 +        base::UxrConfig::GetInstance().SurfaceModes(), source, false,
 +        context && context->IsWebGL() && context->CreationAttributes().premultiplied_alpha);
++    export_context.inputs = context ? context->UxrCanvasInputs() : nullptr;
      std::unique_ptr<ImageDataBuffer> data_buffer =
 -        ImageDataBuffer::Create(image_bitmap);
 +        ImageDataBuffer::Create(image_bitmap, export_context);
      if (!data_buffer)
        return String("data:,");
  
-@@ -1541,10 +1555,18 @@
+@@ -1541,10 +1556,19 @@
    if (image_bitmap) {
      auto* options = ImageEncodeOptions::Create();
      options->setType(ImageEncoderUtils::MimeTypeName(encoding_mime_type));
@@ -1940,9 +1989,10 @@ diff --git a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc 
 +                        : context_ && context_->IsWebGL()
 +                            ? UxrCanvasExportSource::kWebGL
 +                            : UxrCanvasExportSource::kOther;
-+    const auto export_context = UxrCanvasExportContext::FromModes(
++    auto export_context = UxrCanvasExportContext::FromModes(
 +        base::UxrConfig::GetInstance().SurfaceModes(), source, false,
 +        context_ && context_->IsWebGL() && context_->CreationAttributes().premultiplied_alpha);
++    export_context.inputs = context_ ? context_->UxrCanvasInputs() : nullptr;
      async_creator = MakeGarbageCollected<CanvasAsyncBlobCreator>(
          image_bitmap, options,
          CanvasAsyncBlobCreator::kHTMLCanvasToBlobCallback, callback, start_time,
@@ -2082,7 +2132,7 @@ diff --git a/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
  #include "third_party/blink/public/common/features.h"
  #include "third_party/blink/public/platform/platform.h"
  #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
-@@ -586,16 +587,36 @@
+@@ -586,16 +587,37 @@
    }
  
    base::TimeTicks start_time = base::TimeTicks::Now();
@@ -2111,9 +2161,10 @@ diff --git a/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
 +                        : context_->IsWebGL()
 +                            ? UxrCanvasExportSource::kWebGL
 +                            : UxrCanvasExportSource::kOther;
-+    const auto export_context = UxrCanvasExportContext::FromModes(
++    auto export_context = UxrCanvasExportContext::FromModes(
 +        surface_modes, source, true,
 +        context_->IsWebGL() && context_->CreationAttributes().premultiplied_alpha);
++    export_context.inputs = context_->UxrCanvasInputs();
      auto* async_creator = MakeGarbageCollected<CanvasAsyncBlobCreator>(
          image_bitmap, options, function_type, start_time, execution_context,
 -        resolver);
@@ -2161,7 +2212,15 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
  #include "third_party/blink/renderer/platform/fonts/font.h"
  #include "third_party/blink/renderer/platform/fonts/font_selection_types.h"
  #include "third_party/blink/renderer/platform/fonts/font_selector.h"
-@@ -128,8 +140,10 @@
+@@ -107,6 +119,7 @@
+ #include "third_party/blink/renderer/platform/graphics/scoped_raster_timer.h"
+ #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
+ #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
++#include "third_party/blink/renderer/platform/graphics/image_data_buffer.h"
+ #include "third_party/blink/renderer/platform/graphics/unaccelerated_static_bitmap_image.h"
+ #include "third_party/blink/renderer/platform/graphics/video_frame_image_util.h"
+ #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+@@ -128,8 +141,10 @@
  #include "third_party/skia/include/core/SkColorSpace.h"
  #include "third_party/skia/include/core/SkImageInfo.h"
  #include "third_party/skia/include/core/SkSurface.h"
@@ -2172,7 +2231,7 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
  
  // Including "base/time/time.h" triggers a bug in IWYU.
  // https://github.com/include-what-you-use/include-what-you-use/issues/1122
-@@ -143,6 +157,123 @@
+@@ -143,6 +158,123 @@
  class MemoryManagedPaintCanvas;
  
  namespace {
@@ -2296,17 +2355,25 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
  
  
  bool IsContextProviderValid() {
-@@ -716,6 +847,9 @@
+@@ -515,6 +647,7 @@
+ }
+ 
+ void BaseRenderingContext2D::ResetInternal() {
++  uxr_canvas_inputs_.reset();
+   Canvas2DRecorderContext::ResetInternal();
+   clear_frame_ = true;
+ }
+@@ -715,6 +848,9 @@
+                               exception_state);
  }
  perfetto::EventContext GetEventContext();
++
++
++
  
-+
-+
-+
  ImageData* BaseRenderingContext2D::getImageDataInternal(
      int sx,
-     int sy,
-@@ -856,6 +990,18 @@
+@@ -856,6 +992,18 @@
    if (!image_data)
      return nullptr;
  
@@ -2325,7 +2392,7 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
    // Read pixels into |image_data|.
    if (snapshot) {
      gfx::Rect snapshot_rect{snapshot->Size()};
-@@ -871,13 +1017,100 @@
+@@ -871,13 +1019,110 @@
          snapshot->PaintImageForCurrentFrame().readPixels(
              image_data_pixmap.info(), image_data_pixmap.writable_addr(),
              image_data_pixmap.rowBytes(), sx, sy);
@@ -2362,6 +2429,10 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
 +          static_cast<uint32_t>(pixmap.height()),
 +          static_cast<uint32_t>(Width()), static_cast<uint32_t>(Height()),
 +          sx, sy, pixmap.colorType() == kBGRA_8888_SkColorType};
++      const auto preserved = UxrCanvasInputs()
++          ? uxr_canvas_inputs_->PreserveMask(pixmap, sx, sy)
++          : std::vector<uint8_t>();
++      region.preserved_inputs = preserved;
 +      SkBitmap neighborhood;
 +      if (surface_modes.canvas.mode == base::UxrSurfaceMode::kShardX) {
 +        // Read the halo from the same immutable snapshot as getImageData.
@@ -2403,12 +2474,18 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
 +    if (ph_pm.addr() && (ph_ct == kRGBA_8888_SkColorType ||
 +                         ph_ct == kBGRA_8888_SkColorType)) {
 +      auto ph_pixels = gfx::SkPixmapToWritableSpan(ph_pm);
++      const auto preserved = UxrCanvasInputs()
++          ? uxr_canvas_inputs_->PreserveMask(ph_pm, sx, sy)
++          : std::vector<uint8_t>();
 +      if (!ph_pixels.empty()) {
 +        for (int ph_y = 0; ph_y < ph_pm.height(); ++ph_y) {
 +          auto ph_row = ph_pixels.subspan(
 +              static_cast<size_t>(ph_y) * ph_pm.rowBytes(),
 +              ph_pm.info().minRowBytes());
 +          for (int ph_x = 0; ph_x < ph_pm.width(); ++ph_x) {
++            if (base::UxrPreservesInputPixel(preserved, ph_pm.width(),
++                                             ph_x, ph_y))
++              continue;
 +            auto ph_pixel = ph_row.subspan(static_cast<size_t>(ph_x) * 4, size_t{4});
 +            if (ph_pixel[3] == 0)
 +              continue;
@@ -2427,7 +2504,7 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
      }
    }
  
-@@ -953,6 +1186,19 @@
+@@ -953,6 +1198,19 @@
    source_rect.Offset(-dest_offset);
  
    SkPixmap data_pixmap = data->GetSkPixmap();
@@ -2447,7 +2524,47 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
  
    // WritePixels (called by PutByteArray) requires that the source and
    // destination pixel formats have the same bytes per pixel.
-@@ -1589,8 +1835,16 @@
+@@ -1008,8 +1266,37 @@
+     info = info.makeAlphaType(kUnpremul_SkAlphaType);
+   }
+ 
+-  WritePixels(info, source.addr(source_rect.x(), source_rect.y()),
+-              source.rowBytes(), dest_x, dest_y);
++  const void* pixels = source.addr(source_rect.x(), source_rect.y());
++  if (WritePixels(info, pixels, source.rowBytes(), dest_x, dest_y)) {
++    const auto& config = base::UxrConfig::GetInstance();
++    const auto modes = config.SurfaceModes();
++    const bool track = !modes.noise_disabled && !modes.raw &&
++        (modes.canvas.IsConfigured() ? !modes.canvas.IsNative()
++                                    : config.GpuBackendPolicy().canvas_pixel_noise);
++    if (track) {
++      auto snapshot = Snapshot();
++      if (snapshot) {
++        const SkImageInfo backing =
++            snapshot->PaintImageForCurrentFrame().GetSkImageInfo();
++        if (!uxr_canvas_inputs_ ||
++            !uxr_canvas_inputs_->HasSize(Width(), Height())) {
++          uxr_canvas_inputs_ = std::make_shared<UxrCanvasInputPixels>(backing);
++        } else if (uxr_canvas_inputs_.use_count() > 1) {
++          uxr_canvas_inputs_ =
++              std::make_shared<UxrCanvasInputPixels>(*uxr_canvas_inputs_);
++        }
++        uxr_canvas_inputs_->Write(SkPixmap(info, pixels, source.rowBytes()),
++                                   dest_x, dest_y);
++      }
++    }
++  }
++}
++
++std::shared_ptr<const UxrCanvasInputPixels>
++BaseRenderingContext2D::UxrCanvasInputs() const {
++  if (uxr_canvas_inputs_ && uxr_canvas_inputs_->HasSize(Width(), Height()))
++    return uxr_canvas_inputs_;
++  return {};
+ }
+ 
+ String BaseRenderingContext2D::letterSpacing() const {
+@@ -1589,8 +1876,16 @@
        font, direction, state.GetTextBaseline(), state.GetTextAlign(), text,
        host->GetPlainTextPainter());
  
@@ -2465,7 +2582,7 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
      if (HostAsOffscreenCanvas()) {
        if (auto* window = DynamicTo<LocalDOMWindow>(GetTopExecutionContext())) {
          if (window->GetFrame() && window->GetFrame()->GetDocument())
-@@ -1600,6 +1854,10 @@
+@@ -1600,6 +1895,10 @@
        text_metrics->Shuffle(canvas->GetDocument().GetNoiseFactorX());
      }
    }
@@ -2489,6 +2606,22 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
  
  #include <cstddef>
  #include <memory>
+@@ -290,6 +293,7 @@
+   void DisableAccelerationForCanvas2D() final { DisableAcceleration(); }
+   void PageVisibilityChanged() override {}
+   void Reset() override;
++  std::shared_ptr<const UxrCanvasInputPixels> UxrCanvasInputs() const override;
+ 
+   void SetRestoreFailedCallbackForTesting(base::RepeatingClosure callback) {
+     on_restore_failed_callback_for_testing_ = std::move(callback);
+@@ -376,6 +380,7 @@
+   bool context_restorable_{true};
+ 
+  private:
++  std::shared_ptr<UxrCanvasInputPixels> uxr_canvas_inputs_;
+   void UpdateRecordingLimits(bool is_graphite);
+   virtual bool IsHibernating() const { return false; }
+   virtual void EnableAccelerationIfPossible() {}
 diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.cc b/third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.cc
 --- a/third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.cc
 +++ b/third_party/blink/renderer/modules/canvas/canvas2d/canvas_path.cc
@@ -2564,14 +2697,17 @@ diff --git a/third_party/blink/renderer/platform/graphics/canvas_fingerprint_con
 new file mode 100644
 --- /dev/null
 +++ b/third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h
-@@ -0,0 +1,37 @@
-+// Copyright 2026. Export routing contains values, never DOM/GC pointers.
+@@ -0,0 +1,41 @@
++// Copyright 2026. Export routing owns immutable values, never DOM/GC pointers.
 +#ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CANVAS_FINGERPRINT_CONTEXT_H_
 +#define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CANVAS_FINGERPRINT_CONTEXT_H_
 +
++#include <memory>
 +#include "base/uxr_surface_modes.h"
 +
 +namespace blink {
++
++class UxrCanvasInputPixels;
 +
 +enum class UxrCanvasExportSource { kOther, kCanvas2D, kWebGL };
 +
@@ -2581,6 +2717,7 @@ new file mode 100644
 +  bool noise_disabled = false;
 +  bool offscreen = false;
 +  bool webgl_premultiplied = false;
++  std::shared_ptr<const UxrCanvasInputPixels> inputs;
 +
 +  static UxrCanvasExportContext FromModes(const base::UxrSurfaceModes& modes,
 +                                          UxrCanvasExportSource source,
@@ -2605,7 +2742,14 @@ new file mode 100644
 diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
 --- a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
 +++ b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
-@@ -35,6 +35,10 @@
+@@ -32,21 +32,263 @@
+ 
+ #include "third_party/blink/renderer/platform/graphics/image_data_buffer.h"
+ 
++#include <algorithm>
++#include <array>
++#include <unordered_map>
++
  #include "base/compiler_specific.h"
  #include "base/logging.h"
  #include "base/memory/ptr_util.h"
@@ -2616,11 +2760,132 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
  #include "third_party/blink/renderer/platform/image-encoders/image_encoder_utils.h"
  #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
  #include "third_party/blink/renderer/platform/wtf/text/base64.h"
-@@ -46,7 +50,115 @@
+ #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
+ #include "third_party/skia/include/core/SkImage.h"
++#include "third_party/skia/include/core/SkBitmap.h"
+ #include "third_party/skia/include/core/SkSurface.h"
+ #include "ui/gfx/hdr_metadata.h"
+ #include "ui/gfx/skia_span_util.h"
  
  namespace blink {
  
 -ImageDataBuffer::ImageDataBuffer(scoped_refptr<StaticBitmapImage> image) {
++struct UxrCanvasInputPixels::Storage {
++  static constexpr int kTileSize = 64;
++  struct Tile {
++    SkBitmap pixels;
++    std::array<uint64_t, kTileSize> written{};
++  };
++  SkImageInfo backing_info;
++  std::unordered_map<uint64_t, std::shared_ptr<Tile>> tiles;
++};
++
++UxrCanvasInputPixels::UxrCanvasInputPixels(const SkImageInfo& backing_info)
++    : storage_(std::make_unique<Storage>()) {
++  storage_->backing_info = backing_info;
++}
++
++UxrCanvasInputPixels::UxrCanvasInputPixels(const UxrCanvasInputPixels& other)
++    : storage_(std::make_unique<Storage>(*other.storage_)) {}
++
++UxrCanvasInputPixels::~UxrCanvasInputPixels() = default;
++
++bool UxrCanvasInputPixels::HasSize(int width, int height) const {
++  return storage_->backing_info.width() == width &&
++         storage_->backing_info.height() == height;
++}
++
++bool UxrCanvasInputPixels::Write(const SkPixmap& source, int x, int y) {
++  if (!source.addr() || x < 0 || y < 0 || source.width() <= 0 ||
++      source.height() <= 0 ||
++      int64_t{x} + source.width() > storage_->backing_info.width() ||
++      int64_t{y} + source.height() > storage_->backing_info.height()) {
++    return false;
++  }
++  constexpr int size = Storage::kTileSize;
++  const int right = x + source.width(), bottom = y + source.height();
++  for (int ty = y / size; ty <= (bottom - 1) / size; ++ty) {
++    for (int tx = x / size; tx <= (right - 1) / size; ++tx) {
++      const int left = tx * size, top = ty * size;
++      const uint64_t key = (uint64_t{static_cast<uint32_t>(ty)} << 32) |
++                           static_cast<uint32_t>(tx);
++      auto& slot = storage_->tiles[key];
++      if (!slot || slot.use_count() > 1) {
++        auto tile = std::make_shared<Storage::Tile>();
++        const SkImageInfo info = storage_->backing_info.makeWH(
++            std::min(size, storage_->backing_info.width() - left),
++            std::min(size, storage_->backing_info.height() - top));
++        if (!tile->pixels.tryAllocPixels(info))
++          return false;
++        tile->pixels.eraseColor(SK_ColorTRANSPARENT);
++        if (slot) {
++          if (!slot->pixels.readPixels(tile->pixels.pixmap(), 0, 0))
++            return false;
++          tile->written = slot->written;
++        }
++        slot = std::move(tile);
++      }
++      if (!slot->pixels.writePixels(source, x - left, y - top))
++        return false;
++      for (int py = std::max(y, top); py < std::min(bottom, top + size); ++py) {
++        for (int px = std::max(x, left); px < std::min(right, left + size); ++px)
++          slot->written[py - top] |= uint64_t{1} << (px - left);
++      }
++    }
++  }
++  return true;
++}
++
++std::vector<uint8_t> UxrCanvasInputPixels::PreserveMask(
++    const SkPixmap& native_readback, int x, int y) const {
++  std::vector<uint8_t> mask;
++  if (!native_readback.addr() || native_readback.width() <= 0 ||
++      native_readback.height() <= 0 ||
++      (native_readback.colorType() != kRGBA_8888_SkColorType &&
++       native_readback.colorType() != kBGRA_8888_SkColorType)) {
++    return mask;
++  }
++  const int64_t right = int64_t{x} + native_readback.width();
++  const int64_t bottom = int64_t{y} + native_readback.height();
++  constexpr int size = Storage::kTileSize;
++  for (const auto& [key, tile] : storage_->tiles) {
++    const int left = static_cast<int>(static_cast<uint32_t>(key)) * size;
++    const int top = static_cast<int>(static_cast<uint32_t>(key >> 32)) * size;
++    const int64_t l = std::max<int64_t>(x, left);
++    const int64_t t = std::max<int64_t>(y, top);
++    const int64_t r = std::min<int64_t>(right, left + tile->pixels.width());
++    const int64_t b = std::min<int64_t>(bottom, top + tile->pixels.height());
++    if (l >= r || t >= b)
++      continue;
++    SkBitmap expected;
++    if (!expected.tryAllocPixels(native_readback.info().makeWH(
++            tile->pixels.width(), tile->pixels.height())) ||
++        !tile->pixels.readPixels(expected.pixmap(), 0, 0)) {
++      continue;
++    }
++    for (int64_t py = t; py < b; ++py) {
++      for (int64_t px = l; px < r; ++px) {
++        const int tx = static_cast<int>(px - left);
++        const int ty = static_cast<int>(py - top);
++        if (!(tile->written[ty] & (uint64_t{1} << tx)) ||
++            *expected.getAddr32(tx, ty) !=
++                *native_readback.addr32(static_cast<int>(px - x),
++                                        static_cast<int>(py - y))) {
++          continue;
++        }
++        if (mask.empty()) {
++          mask.resize((static_cast<size_t>(native_readback.width()) *
++                           native_readback.height() + 7) / 8);
++        }
++        const size_t index = static_cast<size_t>(py - y) *
++                                 native_readback.width() + (px - x);
++        mask[index / 8] |= 1u << (index % 8);
++      }
++    }
++  }
++  return mask;
++}
++
 +namespace {
 +bool UxrCopyAndNoiseEncodeBuffer(
 +    SkPixmap& pm,
@@ -2656,6 +2921,10 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
 +        static_cast<uint32_t>(copy.height()), 0, 0,
 +        color_type == kBGRA_8888_SkColorType,
 +        export_context.webgl_premultiplied};
++    const auto preserved = export_context.inputs
++        ? export_context.inputs->PreserveMask(copy, 0, 0)
++        : std::vector<uint8_t>();
++    region.preserved_inputs = preserved;
 +    if (export_context.policy.mode == base::UxrSurfaceMode::kShardX)
 +      region.neighborhood = {region.bytes, region.row_stride, region.width,
 +                             region.height, 0, 0};
@@ -2701,10 +2970,15 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
 +    return false;
 +  }
 +  auto pixels = gfx::SkPixmapToWritableSpan(copy);
++  const auto preserved = export_context.inputs
++      ? export_context.inputs->PreserveMask(copy, 0, 0)
++      : std::vector<uint8_t>();
 +  for (int y = 0; apply_noise && y < copy.height(); ++y) {
 +    auto row = pixels.subspan(static_cast<size_t>(y) * copy.rowBytes(),
 +                              copy.info().minRowBytes());
 +    for (int x = 0; x < copy.width(); ++x) {
++      if (base::UxrPreservesInputPixel(preserved, copy.width(), x, y))
++        continue;
 +      auto pixel = row.subspan(static_cast<size_t>(x) * 4, size_t{4});
 +      if (pixel[3] == 0)
 +        continue;
@@ -2733,7 +3007,7 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
    if (!image)
      return;
    PaintImage paint_image = image->PaintImageForCurrentFrame();
-@@ -83,6 +195,8 @@
+@@ -83,6 +325,8 @@
        return;
  
      sk_sp<SkData> data = SkData::MakeUninitialized(size);
@@ -2742,7 +3016,7 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
      pixmap_ = {info, data->writable_data(), info.minRowBytes()};
      if (!paint_image.readPixels(info, pixmap_.writable_addr(), row_bytes, 0,
                                  0)) {
-@@ -98,13 +212,26 @@
+@@ -98,13 +342,26 @@
        return;
      MSAN_CHECK_MEM_IS_INITIALIZED(pixmap_.addr(), pixmap_.computeByteSize());
    }
@@ -2770,7 +3044,7 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
    // Any color space or alpha conversion should have been performed by the
    // caller higher up in the stack (e.g. in CanvasAsyncBlobCreator).
    if (ImageEncoderUtils::GetColorInfoForEncoder(pixmap_.info().colorInfo(),
-@@ -116,18 +243,20 @@
+@@ -116,18 +373,20 @@
  }
  
  std::unique_ptr<ImageDataBuffer> ImageDataBuffer::Create(
@@ -2798,7 +3072,11 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
 diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.h b/third_party/blink/renderer/platform/graphics/image_data_buffer.h
 --- a/third_party/blink/renderer/platform/graphics/image_data_buffer.h
 +++ b/third_party/blink/renderer/platform/graphics/image_data_buffer.h
-@@ -32,6 +32,7 @@
+@@ -29,9 +29,11 @@
+ #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_IMAGE_DATA_BUFFER_H_
+ 
+ #include <memory>
++#include <vector>
  
  #include "base/containers/span.h"
  #include "base/memory/scoped_refptr.h"
@@ -2806,7 +3084,30 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.h b/
  #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
  #include "third_party/blink/renderer/platform/image-encoders/image_encoder.h"
  #include "third_party/blink/renderer/platform/platform_export.h"
-@@ -48,8 +49,10 @@
+@@ -43,13 +45,33 @@
+ 
+ namespace blink {
+ 
++// Sparse, copy-on-write tiles of application input in native backing format.
++// Comparing the actual native read with these values preserves untouched
++// input even when a later glyph or shape overlaps its bounding rectangle.
++class PLATFORM_EXPORT UxrCanvasInputPixels {
++ public:
++  explicit UxrCanvasInputPixels(const SkImageInfo& backing_info);
++  UxrCanvasInputPixels(const UxrCanvasInputPixels&);
++  ~UxrCanvasInputPixels();
++  bool HasSize(int width, int height) const;
++  bool Write(const SkPixmap& source, int x, int y);
++  std::vector<uint8_t> PreserveMask(const SkPixmap& native_readback,
++                                    int x, int y) const;
++
++ private:
++  struct Storage;
++  std::unique_ptr<Storage> storage_;
++};
++
+ class PLATFORM_EXPORT ImageDataBuffer {
+   USING_FAST_MALLOC(ImageDataBuffer);
  
   public:
    static std::unique_ptr<ImageDataBuffer> Create(
@@ -2819,7 +3120,7 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.h b/
  
    String ToDataURL(const ImageEncodingMimeType mime_type,
                     const double& quality) const;
-@@ -58,10 +61,12 @@
+@@ -58,10 +80,12 @@
                     Vector<unsigned char>* encoded_image) const;
  
    base::span<const uint8_t> PixelData() const;

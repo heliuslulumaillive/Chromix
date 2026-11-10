@@ -223,7 +223,7 @@
     },
     {
       "path": "patches/lite-windows157/12-canvas-and-pixels.patch",
-      "sha256": "a8f4d09de3be99ade636a97ad7461d2c38a406e890dd626dd896f25a29661805",
+      "sha256": "901ba90bc2e2855248136b410425fc206f5437c383b5538e4368f20af57604c1",
       "files": [
         "base/uxr_graphics_noise.cc",
         "base/uxr_graphics_noise.h",
@@ -268,7 +268,7 @@
     },
     {
       "path": "patches/lite-windows157/14-audio.patch",
-      "sha256": "9be991c2530bd002d4c798aa4feff858b4af2eaf89d6686b2cb796e3c5ea5a68",
+      "sha256": "3c997fb9a43b0b020901300e43ac56ab56940d23e400691331a4bf774a79187f",
       "files": [
         "base/uxr_audio_defaults.h",
         "base/uxr_audio_defaults_tests.cc",
@@ -907,12 +907,12 @@
     {
       "path": "base/uxr_graphics_noise.cc",
       "before_sha256": null,
-      "after_sha256": "46b903dc5b31e46523ef5dfb539ab7872e6e55f910b43c4e6f31309e4b66c6dd"
+      "after_sha256": "f7aff2c0d8e6857bea1f442295bae0b52106d4b83e3cb7bfeafcca60494cdead"
     },
     {
       "path": "base/uxr_graphics_noise.h",
       "before_sha256": null,
-      "after_sha256": "836c32ad538d7e77a1a5fbeed3f8da655cdaa7bfaf55efea6c157778d0ea9768"
+      "after_sha256": "6dc88616f6796d149f274963f61736d5b804d1164f0be237c1e9fc683cfbc881"
     },
     {
       "path": "base/uxr_hardware_golden_tests.cc",
@@ -3637,12 +3637,12 @@
     {
       "path": "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h",
       "before_sha256": "29bee04c3daa40072d77eae3bef237c010f6265ecb3502687201f7fc5bc1d1c0",
-      "after_sha256": "c3c0bf12f4e12e3d2623018042a227fc8019a2eea94f0728c8dd141b2d261e9b"
+      "after_sha256": "3a7adf490c7c991190a8f54f4fb18f48f54aa5ffc844beda92587bd1b18a1829"
     },
     {
       "path": "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc",
       "before_sha256": "ef9e491832b15c944c57d78ac11fe9781d0195b52f531dcc6bb1cebe7a555af5",
-      "after_sha256": "7a07668a5ab14ea06b804ea4d1aad35499796988a2f8080b9088c43d11414fc8"
+      "after_sha256": "df8d129f6599ebcd0fed6c3c1e592b5f9a44391d3af53c71d2ba63f5c156791b"
     },
     {
       "path": "third_party/blink/renderer/core/html/canvas/text_metrics.cc",
@@ -3687,7 +3687,7 @@
     {
       "path": "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc",
       "before_sha256": "af814d11656e85d2e350de69515b3f6f4f4548d71362565f968d9f527e70e0f6",
-      "after_sha256": "3e4a48ba1615e2d9939a537c3b51e38b695e54239f697ca4bb7ab572f6622f8a"
+      "after_sha256": "c4507b832b94c0307e0d6f641a954cb75fbf7e270097e549d126fbf8e6347d34"
     },
     {
       "path": "third_party/blink/renderer/core/timezone/timezone_controller.cc",
@@ -3732,12 +3732,12 @@
     {
       "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
       "before_sha256": "faab662a1e148d22b15aa38d5486625f4dd28f676c8aad27abf2a418a383de54",
-      "after_sha256": "4deed9d2c2014880c1b39d56997f5211886b9283c01ba23755fdb0b8d4136b0c"
+      "after_sha256": "e09628783202172e75f647a50cc7bb7f6c696db4505f070bd53190b9bcbfe722"
     },
     {
       "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h",
       "before_sha256": "134a6eca203c6697866de35fa2dde02d2430123d5114baadc269754bddf7f26f",
-      "after_sha256": "fd7e4602f467c7bc5a3be2b788bcc374c4bc2a11a30ae6f3ccbbc3c4301fae8c"
+      "after_sha256": "8883af3b0e0b837769918887fafda507e931a24e1cc2bcf539158ebb71b1feeb"
     },
     {
       "path": "third_party/blink/renderer/modules/canvas/canvas2d/canvas_2d_recorder_context.cc",
@@ -3887,12 +3887,12 @@
     {
       "path": "third_party/blink/renderer/modules/webaudio/audio_buffer.cc",
       "before_sha256": "0bcbb8f5b03f4a82130e11d25f2086e0a7ad69ef6e80536ed209029422179e25",
-      "after_sha256": "2e544ee04f979e6fb455592dd6a7d3a10db1a1cf138d00f83bd341b6a81ee8e8"
+      "after_sha256": "4a95d222276691ec019491dd0328842cb70d67cd218c3032e7ba60ed0e370cbe"
     },
     {
       "path": "third_party/blink/renderer/modules/webaudio/audio_buffer.h",
       "before_sha256": "7695aaaa41e5e2bb329ffc483a4ede420df376f86a2f2b24fdb27fb4b19b7938",
-      "after_sha256": "8c170e8ba66a670470d432a5086f3951a39b4c62f7911ae18d6ff1b93827d18c"
+      "after_sha256": "f882e1194d2a7f6461ec98069b2ff96db3fcf5b245dd4ef38ecfaa065483c389"
     },
     {
       "path": "third_party/blink/renderer/modules/webaudio/audio_context.cc",
@@ -3912,7 +3912,7 @@
     {
       "path": "third_party/blink/renderer/modules/webaudio/offline_audio_context.cc",
       "before_sha256": "4a133275a79a72084aec40966f55859508eed72f6bfd4e3115c80fc9a12cdd1a",
-      "after_sha256": "dc24a8bcd2f809bc2722eeaa5c11901ed6c59bffaf9681d72610b468e9ad81d3"
+      "after_sha256": "eae08fa2bdc14a91eea9087654203623a893174b3255eda31a0af5515ce6730d"
     },
     {
       "path": "third_party/blink/renderer/modules/webaudio/realtime_analyser.cc",
@@ -4092,17 +4092,17 @@
     {
       "path": "third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h",
       "before_sha256": null,
-      "after_sha256": "a59e287108264d0f24682bf09e486203db33347c83c9f203f60fbcc89ac6797a"
+      "after_sha256": "6547b2061dd9dfd617d3d3a39fb18988ecff55729ff5d283ae861b98fdd90943"
     },
     {
       "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.cc",
       "before_sha256": "bf3150d52ca285a3aae9ac82109b3937b6b83439dcb45aa29bac8d62f8f78f22",
-      "after_sha256": "d3b87b4d7ec4c2f533a14daee0325a474f3b119e7fb7d2ba9e48c8bf894780c4"
+      "after_sha256": "f712420c5def561261f3b9604edfff7c4fa7dfce126d270983af173265bcb337"
     },
     {
       "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.h",
       "before_sha256": "ed326c9490b60d86715f932f7a74c0bf7572fec674e9b8fa33957a16a6c1df91",
-      "after_sha256": "fc453e41586f71f3030f3b0f80625817f408acea4a82d7fd482466c2605bf190"
+      "after_sha256": "142740af0679f9cd50828fb2ef19341e0525b625ac7ac097ac5a13097707ebab"
     },
     {
       "path": "third_party/blink/renderer/platform/graphics/mailbox_texture_backing.cc",
@@ -4718,7 +4718,7 @@
     "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
     "cross_version_byte_equivalence_claimed": false
   },
-  "stack_sha256": "c48a84c522f4432d339a981ee17fc4aece2b4619931b831f4b31303254d3f37b",
+  "stack_sha256": "ff4f2bbc4b894588e8f24640b992280a7e69620cc53e0f84467717907710d4f4",
   "upstream_port": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",

@@ -4,7 +4,7 @@
   "target_version": "157.0.8103.38",
   "source_version": "156.0.8078.79",
   "previous_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
-  "product_stack_sha256": "c48a84c522f4432d339a981ee17fc4aece2b4619931b831f4b31303254d3f37b",
+  "product_stack_sha256": "ff4f2bbc4b894588e8f24640b992280a7e69620cc53e0f84467717907710d4f4",
   "upstream_identity": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",
@@ -193,5 +193,91 @@
         "normalization": "one exact documentation URL; actual admitted preimage recorded; unknown hashes rejected"
       }
     }
-  ]
+  ],
+  "canvas_audio_repair": {
+    "base_commit": "b50fab73e557dcf2a8bcba78dae5a442b6f41ad3",
+    "source_updates": [
+      {
+        "path": "base/uxr_graphics_noise.cc",
+        "before_sha256": "46b903dc5b31e46523ef5dfb539ab7872e6e55f910b43c4e6f31309e4b66c6dd",
+        "after_sha256": "f7aff2c0d8e6857bea1f442295bae0b52106d4b83e3cb7bfeafcca60494cdead",
+        "replacement_path": "build/checkpoint-sources/f7aff2c0d8e6857bea1f442295bae0b52106d4b83e3cb7bfeafcca60494cdead.cc"
+      },
+      {
+        "path": "base/uxr_graphics_noise.h",
+        "before_sha256": "836c32ad538d7e77a1a5fbeed3f8da655cdaa7bfaf55efea6c157778d0ea9768",
+        "after_sha256": "6dc88616f6796d149f274963f61736d5b804d1164f0be237c1e9fc683cfbc881",
+        "replacement_path": "build/checkpoint-sources/6dc88616f6796d149f274963f61736d5b804d1164f0be237c1e9fc683cfbc881.h"
+      },
+      {
+        "path": "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h",
+        "before_sha256": "c3c0bf12f4e12e3d2623018042a227fc8019a2eea94f0728c8dd141b2d261e9b",
+        "after_sha256": "3a7adf490c7c991190a8f54f4fb18f48f54aa5ffc844beda92587bd1b18a1829",
+        "replacement_path": "build/checkpoint-sources/3a7adf490c7c991190a8f54f4fb18f48f54aa5ffc844beda92587bd1b18a1829.h"
+      },
+      {
+        "path": "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc",
+        "before_sha256": "7a07668a5ab14ea06b804ea4d1aad35499796988a2f8080b9088c43d11414fc8",
+        "after_sha256": "df8d129f6599ebcd0fed6c3c1e592b5f9a44391d3af53c71d2ba63f5c156791b",
+        "replacement_path": "build/checkpoint-sources/df8d129f6599ebcd0fed6c3c1e592b5f9a44391d3af53c71d2ba63f5c156791b.cc"
+      },
+      {
+        "path": "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc",
+        "before_sha256": "3e4a48ba1615e2d9939a537c3b51e38b695e54239f697ca4bb7ab572f6622f8a",
+        "after_sha256": "c4507b832b94c0307e0d6f641a954cb75fbf7e270097e549d126fbf8e6347d34",
+        "replacement_path": "build/checkpoint-sources/c4507b832b94c0307e0d6f641a954cb75fbf7e270097e549d126fbf8e6347d34.cc"
+      },
+      {
+        "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+        "before_sha256": "4deed9d2c2014880c1b39d56997f5211886b9283c01ba23755fdb0b8d4136b0c",
+        "after_sha256": "e09628783202172e75f647a50cc7bb7f6c696db4505f070bd53190b9bcbfe722",
+        "replacement_path": "build/checkpoint-sources/e09628783202172e75f647a50cc7bb7f6c696db4505f070bd53190b9bcbfe722.cc"
+      },
+      {
+        "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h",
+        "before_sha256": "fd7e4602f467c7bc5a3be2b788bcc374c4bc2a11a30ae6f3ccbbc3c4301fae8c",
+        "after_sha256": "8883af3b0e0b837769918887fafda507e931a24e1cc2bcf539158ebb71b1feeb",
+        "replacement_path": "build/checkpoint-sources/8883af3b0e0b837769918887fafda507e931a24e1cc2bcf539158ebb71b1feeb.h"
+      },
+      {
+        "path": "third_party/blink/renderer/modules/webaudio/audio_buffer.cc",
+        "before_sha256": "2e544ee04f979e6fb455592dd6a7d3a10db1a1cf138d00f83bd341b6a81ee8e8",
+        "after_sha256": "4a95d222276691ec019491dd0328842cb70d67cd218c3032e7ba60ed0e370cbe",
+        "replacement_path": "build/checkpoint-sources/4a95d222276691ec019491dd0328842cb70d67cd218c3032e7ba60ed0e370cbe.cc"
+      },
+      {
+        "path": "third_party/blink/renderer/modules/webaudio/audio_buffer.h",
+        "before_sha256": "8c170e8ba66a670470d432a5086f3951a39b4c62f7911ae18d6ff1b93827d18c",
+        "after_sha256": "f882e1194d2a7f6461ec98069b2ff96db3fcf5b245dd4ef38ecfaa065483c389",
+        "replacement_path": "build/checkpoint-sources/f882e1194d2a7f6461ec98069b2ff96db3fcf5b245dd4ef38ecfaa065483c389.h"
+      },
+      {
+        "path": "third_party/blink/renderer/modules/webaudio/offline_audio_context.cc",
+        "before_sha256": "dc24a8bcd2f809bc2722eeaa5c11901ed6c59bffaf9681d72610b468e9ad81d3",
+        "after_sha256": "eae08fa2bdc14a91eea9087654203623a893174b3255eda31a0af5515ce6730d",
+        "replacement_path": "build/checkpoint-sources/eae08fa2bdc14a91eea9087654203623a893174b3255eda31a0af5515ce6730d.cc"
+      },
+      {
+        "path": "third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h",
+        "before_sha256": "a59e287108264d0f24682bf09e486203db33347c83c9f203f60fbcc89ac6797a",
+        "after_sha256": "6547b2061dd9dfd617d3d3a39fb18988ecff55729ff5d283ae861b98fdd90943",
+        "replacement_path": "build/checkpoint-sources/6547b2061dd9dfd617d3d3a39fb18988ecff55729ff5d283ae861b98fdd90943.h"
+      },
+      {
+        "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.cc",
+        "before_sha256": "d3b87b4d7ec4c2f533a14daee0325a474f3b119e7fb7d2ba9e48c8bf894780c4",
+        "after_sha256": "f712420c5def561261f3b9604edfff7c4fa7dfce126d270983af173265bcb337",
+        "replacement_path": "build/checkpoint-sources/f712420c5def561261f3b9604edfff7c4fa7dfce126d270983af173265bcb337.cc"
+      },
+      {
+        "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.h",
+        "before_sha256": "fc453e41586f71f3030f3b0f80625817f408acea4a82d7fd482466c2605bf190",
+        "after_sha256": "142740af0679f9cd50828fb2ef19341e0525b625ac7ac097ac5a13097707ebab",
+        "replacement_path": "build/checkpoint-sources/142740af0679f9cd50828fb2ef19341e0525b625ac7ac097ac5a13097707ebab.h"
+      }
+    ],
+    "compiled": false,
+    "runtime_accepted": false,
+    "scope": "Preserve direct Canvas pixel inputs and native AudioBuffer edits; retain existing seeds and rendering algorithms."
+  }
 }
