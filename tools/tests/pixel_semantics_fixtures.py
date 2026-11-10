@@ -11,6 +11,30 @@ def png(width,height,rgba):
     return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',width,height,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(rows))+chunk(b'IEND',b'')
 
 
+def input_preservation_fixture(identity):
+    """Invented complete input evidence; never interpreted as browser testing."""
+    encode=lambda raw:base64.b64encode(raw).decode()
+    def scene(w,h):return bytearray(v for p in range(w*h) for v in ((p*17+31)&255,(p*37+66)&255,(p*13+123)&255,255))
+    value={'version':1,'errors':[],'canvas':{},'audio':{}}
+    for name in ('opaque','partial-alpha','gpu-requested','opaque-context','display-p3','clipped','dirty','mixed','reset','async-snapshot','offscreen'):
+        raw=scene(128,64)
+        if name=='partial-alpha':
+            for p in range(128*64):raw[p*4+3]=(1,64,127,254)[p%4]
+        cropped=b''.join(raw[((y+13)*128+11)*4:((y+13)*128+29)*4] for y in range(16))
+        row={'raw':encode(raw),'repeat':encode(raw),'crop':encode(cropped),'png':encode(png(128,64,raw)),'attributes':{'colorSpace':'display-p3' if name=='display-p3' else 'srgb'}}
+        if name=='reset':row['fresh']=encode(raw)
+        value['canvas'][name]=row
+    pcm=b''.join(struct.pack('<f',.1+i*.001) for i in range(128));edit=encode(struct.pack('<4f',.123,.456,.789,-.321))
+    rendered=bytearray(b''.join(struct.pack('<f',.1+i*.0001) for i in range(5000)))
+    if identity=='shard_surfaces':rendered[0]^=1
+    value['audio']={'input':{'expected':encode(pcm),'view':encode(pcm),'copy':encode(pcm)},'viewEdit':{'expected':edit,'actual':edit},'offsetWrite':{'expected':edit,'actual':edit,'prefixZero':True,'suffixZero':True},'rendered':{'raw':encode(rendered),'repeat':encode(rendered),'copy':encode(rendered)},'renderedEdit':{'expected':edit,'actual':edit,'visibleToExistingView':edit,'sameView':True}}
+    raw=scene(64,64);drawing=raw.copy()
+    if identity in ('legacy_seeded','canvas_shardx','hardware_cloak'):drawing[0]^=1
+    main_pcm=b''.join(struct.pack('<f',.2+i*.001) for i in range(256))
+    parts={'canvas':{'expected':encode(raw),'full':encode(raw),'rendered':encode(drawing)},'audio':{'expected':encode(main_pcm),'full':encode(main_pcm),'rendered':encode(rendered)}}
+    return parts,value
+
+
 def pixel_fixture(identity):
     encode=lambda b:base64.b64encode(b).decode()
     def scene(w,h):return bytearray(v for y in range(h) for x in range(w) for v in ((x*7+y*3)%180+20,(x*3+y*11)%180+20,(x*13+y*5)%180+20,255))

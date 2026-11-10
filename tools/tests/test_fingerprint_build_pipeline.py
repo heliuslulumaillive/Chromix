@@ -18,7 +18,7 @@ import yaml
 
 from tools import google_services_checkpoint as checkpoint
 from tools import google_services_cache_audit as audit
-from tools.tests.pixel_semantics_fixtures import pixel_fixture, headless_fixture
+from tools.tests.pixel_semantics_fixtures import pixel_fixture, headless_fixture, input_preservation_fixture
 
 ROOT = Path(__file__).resolve().parents[2]
 with mock.patch.object(sys, 'path', [str(ROOT / 'tools'), *sys.path]):
@@ -258,6 +258,10 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
     next(s for s in scenarios if s['id'] == 'webgl_shardx')['probe']['webgl'] = {
         kind: {'supported': True} for kind in ('webgl', 'webgl2')}
     for scenario in scenarios:
+        if scenario['id'] in candidate.INPUT_PRESERVATION_SCENARIOS:
+            parts,inputs=input_preservation_fixture(scenario['id'])
+            scenario['probe'].update(parts)
+            scenario['extra']['input_preservation']=inputs
         if scenario['id'] in ('all_native','audio_native_macos'):
             scenario['extra']['audio']['referenceCases']=[{
                 'id':name,'spec':{'id':name,'length':length},'sampleRate':44100,'numberOfChannels':1,
@@ -267,7 +271,7 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
             scenario['extra']['pixel_semantics']=pixel_fixture(scenario['id'])
         if scenario['id'] in candidate.FINGERPRINT_POSITIVE_SCENARIOS['headless_screen']:
             scenario['extra']['headless_screen']=headless_fixture(scenario['id'])
-    required_semantics=candidate.validate_pixel_semantics(scenarios,{'not_tested':missing})|candidate.validate_headless_screens(scenarios)
+    required_semantics=candidate.validate_pixel_semantics(scenarios,{'not_tested':missing})|candidate.validate_headless_screens(scenarios)|candidate.validate_application_inputs(scenarios)
     for scenario,name in sorted(required_semantics):
         existing=next((row for row in checks if row['scenario']==scenario and row['name']==name),None)
         if existing is None:

@@ -1022,7 +1022,7 @@ async function main() {
     started_at: new Date().toISOString(), node: process.version, transport: "Raw CDP; sensor emulation only, no API replacement or automatic UA/font/media/viewport emulation",
     synthetic_media_only: true, credentials_environment_removed: true, external_pages: false, baseline_only: !!args["baseline-only"], scenarios: [],
     oracle_sha256: await sha256(oraclePath),
-    collector_modules_sha256: Object.fromEntries(await Promise.all(["fingerprint_audio_acceptance.mjs", "fingerprint_font_acceptance.mjs", "fingerprint_reference_acceptance.mjs", "fingerprint_renderbuffer_acceptance.mjs", "pixel_semantic_acceptance.mjs"]
+    collector_modules_sha256: Object.fromEntries(await Promise.all(["fingerprint_audio_acceptance.mjs", "fingerprint_font_acceptance.mjs", "fingerprint_reference_acceptance.mjs", "fingerprint_renderbuffer_acceptance.mjs", "pixel_semantic_acceptance.mjs", "canvas_audio_input_acceptance.mjs"]
       .map(async name => [name, await sha256(path.join(toolRoot, name))]))),
     coverage_limits: ["Headless Windows acceptance; not all physical GPUs or driver versions.",
       "Cloak text/audio positive acceptance requires the pinned native input to meet the unchanged strict guard; ineligible rows remain not_tested.",

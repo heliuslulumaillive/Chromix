@@ -46,11 +46,12 @@ export async function inputPreservationProbe(){
 }
 
 export function validateInputPreservation(records,decodePNG){
-  const checks=[],add=(scenario,name,passed)=>checks.push({scenario,name:'input_'+name,passed:passed===true,acceptance_group:'application_input_preservation'});
+  const checks=[],add=(scenario,name,passed)=>checks.push({scenario,name:'input_'+name,passed:passed===true});
   const bytes=x=>typeof x==='string'?Buffer.from(x,'base64'):null;
   const eq=(a,b)=>{const x=bytes(a),y=bytes(b);return !!x?.length&&!!y?.length&&x.equals(y)};
   const crop=raw=>{const source=bytes(raw),out=Buffer.alloc(18*16*4);if(source?.length!==128*64*4)return null;for(let y=0;y<16;y++)source.copy(out,y*18*4,((y+13)*128+11)*4,((y+13)*128+29)*4);return out;};
   const baseline=records.all_native?.extra?.input_preservation;
+  const supplied=Buffer.alloc(32768);for(let p=0;p<8192;p++){supplied[p*4]=(p*17+31)&255;supplied[p*4+1]=(p*37+66)&255;supplied[p*4+2]=(p*13+123)&255;supplied[p*4+3]=255;}
   for(const id of INPUT_SCENARIOS){
     const p=records[id]?.extra?.input_preservation;add(id,'probe_present',p?.version===1&&Array.isArray(p.errors)&&p.errors.length===0);
     for(const name of ['opaque','partial-alpha','gpu-requested','opaque-context','display-p3','clipped','dirty','mixed','reset','async-snapshot','offscreen']){
@@ -62,6 +63,7 @@ export function validateInputPreservation(records,decodePNG){
       add(id,name+'_png',!!decoded&&decoded.width===128&&decoded.height===64&&!!pngExpected?.equals(decoded.rgba));
       if(name==='display-p3')add(id,'display_p3_requested',row?.attributes?.colorSpace==='display-p3');
       if(!['mixed','reset'].includes(name))add(id,name+'_native_inputs',eq(row?.raw,native?.raw));
+      if(['opaque','gpu-requested','async-snapshot','offscreen'].includes(name))add(id,name+'_supplied_bytes',!!bytes(row?.raw)?.equals(supplied));
       if(name==='reset')add(id,'reset_matches_fresh_drawing',eq(row?.raw,row?.fresh));
       if(name==='mixed'){
         const actual=bytes(row?.raw),expected=bytes(native?.raw);let same=actual?.length===32768&&expected?.length===32768;

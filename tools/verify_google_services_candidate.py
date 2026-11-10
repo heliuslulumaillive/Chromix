@@ -36,7 +36,7 @@ FINGERPRINT_REPORTS = ('modes-native.json', 'modes-runtime.json', 'fingerprint-m
 FINGERPRINT_COLLECTOR_MODULES = (
     'fingerprint_audio_acceptance.mjs', 'fingerprint_font_acceptance.mjs',
     'fingerprint_reference_acceptance.mjs', 'fingerprint_renderbuffer_acceptance.mjs',
-    'pixel_semantic_acceptance.mjs',
+    'pixel_semantic_acceptance.mjs', 'canvas_audio_input_acceptance.mjs',
 )
 FINGERPRINT_RUNTIME_HARNESS = 'tools/verify_fingerprint_modes_runtime.mjs'
 FINGERPRINT_RUNTIME_ORACLE = 'tools/tests/fixtures/fingerprint-runtime-v1/positive-oracles.json'
@@ -608,6 +608,93 @@ def validate_runtime_collector_identity(report):
             raise ValueError('Fingerprint runtime collector module identity differs: ' + name)
 
 
+INPUT_PRESERVATION_SCENARIOS = ('all_native', 'legacy_seeded', 'canvas_shardx',
+                               'hardware_cloak', 'shard_surfaces')
+INPUT_CANVAS_CASES = ('opaque', 'partial-alpha', 'gpu-requested', 'opaque-context',
+                     'display-p3', 'clipped', 'dirty', 'mixed', 'reset',
+                     'async-snapshot', 'offscreen')
+
+
+def validate_application_inputs(scenarios):
+    """Recheck raw native/input/rendering evidence, never trust passed labels."""
+    by_id = {row['id']: row for row in scenarios}
+    required = set()
+    png_cache = {}
+    def require(identity, name, condition):
+        if not condition:
+            raise ValueError('Application input evidence disagrees: ' + identity + '/' + name)
+        required.add((identity, 'input_' + name))
+    def data(value, count):
+        return _semantic_bytes(value, count)
+    def png(value):
+        if not isinstance(value, str):
+            raise ValueError('Application input PNG is missing')
+        if value not in png_cache:
+            png_cache[value] = _semantic_png(value, pixels=True)
+        return png_cache[value]
+    baseline = by_id.get('all_native', {}).get('extra', {}).get('input_preservation', {})
+    supplied = bytes(v for p in range(8192) for v in ((p * 17 + 31) & 255, (p * 37 + 66) & 255, (p * 13 + 123) & 255, 255))
+    for identity in INPUT_PRESERVATION_SCENARIOS:
+        value = by_id.get(identity, {}).get('extra', {}).get('input_preservation', {})
+        require(identity, 'probe_present', isinstance(value, dict) and
+                type(value.get('version')) is int and value['version'] == 1 and value.get('errors') == [])
+        for name in INPUT_CANVAS_CASES:
+            row = value.get('canvas', {}).get(name, {})
+            native = baseline.get('canvas', {}).get(name, {})
+            raw = data(row.get('raw'), 32768)
+            require(identity, name + '_repeat', data(row.get('repeat'), 32768) == raw)
+            crop = b''.join(raw[((y + 13) * 128 + 11) * 4:((y + 13) * 128 + 29) * 4] for y in range(16))
+            require(identity, name + '_crop', data(row.get('crop'), 1152) == crop)
+            decoded = png(row.get('png'))
+            expected = png(native.get('png'))['rgba'] if name == 'display-p3' else raw
+            require(identity, name + '_png', decoded['width'] == 128 and decoded['height'] == 64 and decoded['rgba'] == expected)
+            if name == 'display-p3':
+                require(identity, 'display_p3_requested', row.get('attributes', {}).get('colorSpace') == 'display-p3')
+            if name not in ('mixed', 'reset'):
+                require(identity, name + '_native_inputs', raw == data(native.get('raw'), 32768))
+            if name in ('opaque', 'gpu-requested', 'async-snapshot', 'offscreen'):
+                require(identity, name + '_supplied_bytes', raw == supplied)
+            if name == 'reset':
+                require(identity, 'reset_matches_fresh_drawing', raw == data(row.get('fresh'), 32768))
+            if name == 'mixed':
+                native_raw = data(native.get('raw'), 32768)
+                require(identity, 'mixed_untouched_half', all(raw[y * 512:y * 512 + 256] == native_raw[y * 512:y * 512 + 256] for y in range(64)))
+        audio = value.get('audio', {})
+        original = data(audio.get('input', {}).get('expected'), 512)
+        require(identity, 'pcm_view', data(audio.get('input', {}).get('view'), 512) == original)
+        require(identity, 'pcm_copy', data(audio.get('input', {}).get('copy'), 512) == original)
+        edit = audio.get('viewEdit', {})
+        require(identity, 'pcm_view_edit', data(edit.get('expected'), 16) == data(edit.get('actual'), 16))
+        edit = audio.get('offsetWrite', {})
+        require(identity, 'pcm_offset_write', data(edit.get('expected'), 16) == data(edit.get('actual'), 16) and edit.get('prefixZero') is True and edit.get('suffixZero') is True)
+        rendered = audio.get('rendered', {})
+        require(identity, 'rendered_read_paths', data(rendered.get('raw'), 20000) == data(rendered.get('copy'), 20000) == data(rendered.get('repeat'), 20000))
+        edit = audio.get('renderedEdit', {})
+        require(identity, 'rendered_write_preserved', data(edit.get('expected'), 16) == data(edit.get('actual'), 16) == data(edit.get('visibleToExistingView'), 16) and edit.get('sameView') is True)
+    native_probe = by_id['all_native']['probe']
+    native_canvas = data(native_probe.get('canvas', {}).get('rendered'), 16384)
+    for identity in ('legacy_seeded', 'canvas_shardx', 'hardware_cloak'):
+        canvas = by_id[identity]['probe'].get('canvas', {})
+        if data(canvas.get('full'), 16384) != data(canvas.get('expected'), 16384):
+            raise ValueError('Main Canvas probe did not preserve application input')
+        required.add((identity, 'application_canvas_input_preserved'))
+        rendered = data(canvas.get('rendered'), 16384)
+        changed = [i for i, (a, b) in enumerate(zip(rendered, native_canvas)) if a != b]
+        limit = 16384 if identity == 'legacy_seeded' else 32 if identity == 'canvas_shardx' else 30
+        if not changed or len(changed) > limit or any(i % 4 == 3 or abs(rendered[i] - native_canvas[i]) > 1 for i in changed):
+            raise ValueError('Rendering Canvas noise changed its bounds or became a no-op')
+    native_audio = data(native_probe.get('audio', {}).get('rendered'), 20000)
+    current = by_id['shard_surfaces']['probe'].get('audio', {})
+    rendered = data(current.get('rendered'), 20000)
+    if data(current.get('full'), 1024) != data(current.get('expected'), 1024):
+        raise ValueError('Main audio probe did not preserve application input')
+    required.add(('shard_surfaces', 'application_audio_input_preserved'))
+    if native_audio == rendered or any((a & 0xffffff00) != (b & 0xffffff00) for (a,), (b,) in zip(struct.iter_unpack('<I', native_audio), struct.iter_unpack('<I', rendered))):
+        raise ValueError('Rendered audio noise changed high bits or became a no-op')
+    required.add(('shard_surfaces', 'audio_sign_exponent_high_mantissa_preserved'))
+    return required
+
+
 def validate_mode_runtime(report, payload):
     validate_retirement_rejections(report.get("retirement_rejections"))
     validate_runtime_collector_identity(report)
@@ -718,6 +805,7 @@ def validate_mode_runtime(report, payload):
         required.add(('audio_native_macos',name+'_native_reference_bytes'))
     required.update(validate_pixel_semantics(scenarios, report))
     required.update(validate_headless_screens(scenarios))
+    required.update(validate_application_inputs(scenarios))
     if not required.issubset(executed):
         raise ValueError('Runtime mode routing coverage is incomplete')
     validate_positive_coverage(report, checks)
