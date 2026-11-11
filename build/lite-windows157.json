@@ -223,7 +223,7 @@
     },
     {
       "path": "patches/lite-windows157/12-canvas-and-pixels.patch",
-      "sha256": "901ba90bc2e2855248136b410425fc206f5437c383b5538e4368f20af57604c1",
+      "sha256": "1c64ff42c4038621dfa883b59d703af6fa0eaacdd8ec350ad3ea7c35ca712af2",
       "files": [
         "base/uxr_graphics_noise.cc",
         "base/uxr_graphics_noise.h",
@@ -3732,7 +3732,7 @@
     {
       "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
       "before_sha256": "faab662a1e148d22b15aa38d5486625f4dd28f676c8aad27abf2a418a383de54",
-      "after_sha256": "e09628783202172e75f647a50cc7bb7f6c696db4505f070bd53190b9bcbfe722"
+      "after_sha256": "788d52e632da8a3e01241d342efe7e367046c3d1bb25e05f148b2f502f9cb161"
     },
     {
       "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h",
@@ -4097,7 +4097,7 @@
     {
       "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.cc",
       "before_sha256": "bf3150d52ca285a3aae9ac82109b3937b6b83439dcb45aa29bac8d62f8f78f22",
-      "after_sha256": "f712420c5def561261f3b9604edfff7c4fa7dfce126d270983af173265bcb337"
+      "after_sha256": "52508f96c418f937770f8ec377e461e60dad7d6ff50d13763db06fa27c1fcb07"
     },
     {
       "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.h",
@@ -4718,7 +4718,7 @@
     "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
     "cross_version_byte_equivalence_claimed": false
   },
-  "stack_sha256": "ff4f2bbc4b894588e8f24640b992280a7e69620cc53e0f84467717907710d4f4",
+  "stack_sha256": "c96e6ae9bc01c9541a0c5d70d3b229845a4b3c287633d0f12b22356a109cf3d7",
   "upstream_port": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",

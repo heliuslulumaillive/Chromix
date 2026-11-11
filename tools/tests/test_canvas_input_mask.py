@@ -1,6 +1,6 @@
 """Execute the selected product helper, preserving frozen rendering goldens."""
 from pathlib import Path
-import os,shutil,subprocess,sys,tempfile,unittest
+import hashlib,json,os,shutil,subprocess,sys,tempfile,unittest
 
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'tools'))
@@ -56,6 +56,48 @@ class CanvasInputMaskTests(unittest.TestCase):
 
     def test_unchanged_frozen_rendering_goldens(self):
         self.build_and_run('goldens',goldens=True)
+
+    def test_bulk_mask_ranges_match_individual_pixel_updates(self):
+        from tools.tests.test_pixel_semantic_preservation import callsite_excerpt
+        manifest=json.loads((ROOT/'build/lite-windows157.json').read_text())
+        entry=next(row for row in manifest['source_files'] if row['path'].endswith('/graphics/image_data_buffer.cc'))
+        source=(ROOT/'build/checkpoint-sources'/(entry['after_sha256']+'.cc')).read_bytes()
+        self.assertEqual(hashlib.sha256(source).hexdigest(),entry['after_sha256'])
+        helpers='\n'.join(callsite_excerpt(source.decode(),name) for name in ('uint64_t UxrInputColumnBits(', 'void UxrSetInputMaskRange('))
+        self.build_and_run('ranges',r'''
+#include "base/containers/span.h"
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cstdint>
+#include <vector>
+#define CHECK_GE(a,b) assert((a)>=(b))
+#define CHECK_LE(a,b) assert((a)<=(b))
+#define CHECK_EQ(a,b) assert((a)==(b))
+'''+helpers+r'''
+int main(){
+ for(int first=0;first<=64;++first)for(int count=0;count<=64-first;++count){
+  uint64_t expected=0;for(int i=0;i<count;++i)expected|=uint64_t{1}<<(first+i);
+  assert(UxrInputColumnBits(first,count)==expected);
+ }
+ for(size_t pixels:{1,7,8,9,63,64,65,127,128,129,257,1024}){
+  for(size_t first=0;first<=pixels;++first){
+   for(size_t request:{0,1,2,7,8,9,16,63,64,1024}){
+    size_t count=std::min(request,pixels-first);std::vector<uint8_t> actual,expected;
+    if(count)expected.resize((pixels+7)/8);
+    for(size_t i=first;i<first+count;++i)expected[i/8]|=1u<<(i%8);
+    UxrSetInputMaskRange(actual,first,count,pixels);assert(actual==expected);
+    UxrSetInputMaskRange(actual,first,count,pixels);assert(actual==expected);
+    if(pixels>2){
+      if(expected.empty())expected.resize((pixels+7)/8);
+      for(size_t i=1;i<pixels-1;++i)expected[i/8]|=1u<<(i%8);
+      UxrSetInputMaskRange(actual,1,pixels-2,pixels);assert(actual==expected);
+    }
+   }
+  }
+ }
+}
+''')
 
     def test_input_mask_preserves_only_selected_pixels_and_keeps_seed_mapping(self):
         self.build_and_run('mask',r'''

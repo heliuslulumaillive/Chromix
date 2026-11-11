@@ -397,6 +397,39 @@
         }
       ],
       "scope": "Exact 157 source update from run42605866793/stage1. Preserve application-owned Canvas pixels and AudioBuffer writes; unchanged seed algorithms and all unrelated source/object bytes remain verified. Rebuild the changed translation units and dependencies; no runtime or DLL admission is inherited."
+    },
+    {
+      "id": "lite157-canvas-input-tracking-performance-v1",
+      "chromium_version": "157.0.8103.38",
+      "core_commit": "de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c",
+      "windows_commit": "f85bc55429c37b1c748b676b18fe79b38eee3207",
+      "arch": "x64",
+      "source_commit": "eed63ff209542b989f762b7493303584a8b89c13",
+      "source_run": "42876064483",
+      "source_stage": 1,
+      "source_recipe_sha256": "8686d7fa2c4cd4b98a64f4f1a33b9cbc782333f80906d97c1a51168363f5a94a",
+      "target_recipe_sha256": "67cbd826f671ddc037d227ccebd1d076c37dd96a284de31624020268e6c8ba93",
+      "source_preparation_sha256": "8686d7fa2c4cd4b98a64f4f1a33b9cbc782333f80906d97c1a51168363f5a94a",
+      "target_preparation_sha256": "67cbd826f671ddc037d227ccebd1d076c37dd96a284de31624020268e6c8ba93",
+      "source_aggregate_sha256": "ff4f2bbc4b894588e8f24640b992280a7e69620cc53e0f84467717907710d4f4",
+      "target_aggregate_sha256": "c96e6ae9bc01c9541a0c5d70d3b229845a4b3c287633d0f12b22356a109cf3d7",
+      "source_patch_kind": "lite-windows157-product",
+      "target_patch_kind": "lite-windows157-product",
+      "product_source_updates": [
+        {
+          "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+          "before_sha256": "e09628783202172e75f647a50cc7bb7f6c696db4505f070bd53190b9bcbfe722",
+          "after_sha256": "788d52e632da8a3e01241d342efe7e367046c3d1bb25e05f148b2f502f9cb161",
+          "replacement_path": "build/checkpoint-sources/788d52e632da8a3e01241d342efe7e367046c3d1bb25e05f148b2f502f9cb161.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.cc",
+          "before_sha256": "f712420c5def561261f3b9604edfff7c4fa7dfce126d270983af173265bcb337",
+          "after_sha256": "52508f96c418f937770f8ec377e461e60dad7d6ff50d13763db06fa27c1fcb07",
+          "replacement_path": "build/checkpoint-sources/52508f96c418f937770f8ec377e461e60dad7d6ff50d13763db06fa27c1fcb07.cc"
+        }
+      ],
+      "scope": "Exact two-translation-unit update from the accepted run42876064483/stage1 checkpoint. Preserve input semantics and all noise/seed algorithms; avoid upload snapshots, bound cropped matching to intersecting tiles, and coalesce identical rows. Preserve unrelated source and object bytes/mtimes; repeat actual runtime acceptance."
     }
   ]
 }

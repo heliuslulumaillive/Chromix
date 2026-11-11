@@ -2524,7 +2524,7 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
  
    // WritePixels (called by PutByteArray) requires that the source and
    // destination pixel formats have the same bytes per pixel.
-@@ -1008,8 +1266,37 @@
+@@ -1008,8 +1266,41 @@
      info = info.makeAlphaType(kUnpremul_SkAlphaType);
    }
  
@@ -2535,23 +2535,27 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
 +    const auto& config = base::UxrConfig::GetInstance();
 +    const auto modes = config.SurfaceModes();
 +    const bool track = !modes.noise_disabled && !modes.raw &&
-+        (modes.canvas.IsConfigured() ? !modes.canvas.IsNative()
-+                                    : config.GpuBackendPolicy().canvas_pixel_noise);
++                       (modes.canvas.IsConfigured()
++                            ? !modes.canvas.IsNative()
++                            : config.GpuBackendPolicy().canvas_pixel_noise);
 +    if (track) {
-+      auto snapshot = Snapshot();
-+      if (snapshot) {
-+        const SkImageInfo backing =
-+            snapshot->PaintImageForCurrentFrame().GetSkImageInfo();
-+        if (!uxr_canvas_inputs_ ||
-+            !uxr_canvas_inputs_->HasSize(Width(), Height())) {
-+          uxr_canvas_inputs_ = std::make_shared<UxrCanvasInputPixels>(backing);
-+        } else if (uxr_canvas_inputs_.use_count() > 1) {
-+          uxr_canvas_inputs_ =
-+              std::make_shared<UxrCanvasInputPixels>(*uxr_canvas_inputs_);
-+        }
-+        uxr_canvas_inputs_->Write(SkPixmap(info, pixels, source.rowBytes()),
-+                                   dest_x, dest_y);
++      // Use the same format/space as the backing allocation. Taking a
++      // snapshot solely for metadata would retain image resources and can
++      // force a full copy-on-write backing on the next application upload.
++      const SkImageInfo backing = SkImageInfo::Make(
++          Width(), Height(),
++          viz::ToClosestSkColorType(color_params_.GetSharedImageFormat()),
++          kPremul_SkAlphaType,
++          color_params_.GetGfxColorSpace().ToSkColorSpace());
++      if (!uxr_canvas_inputs_ ||
++          !uxr_canvas_inputs_->HasSize(Width(), Height())) {
++        uxr_canvas_inputs_ = std::make_shared<UxrCanvasInputPixels>(backing);
++      } else if (uxr_canvas_inputs_.use_count() > 1) {
++        uxr_canvas_inputs_ =
++            std::make_shared<UxrCanvasInputPixels>(*uxr_canvas_inputs_);
 +      }
++      uxr_canvas_inputs_->Write(SkPixmap(info, pixels, source.rowBytes()),
++                                dest_x, dest_y);
 +    }
 +  }
 +}
@@ -2564,7 +2568,7 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
  }
  
  String BaseRenderingContext2D::letterSpacing() const {
-@@ -1589,8 +1876,16 @@
+@@ -1589,8 +1880,16 @@
        font, direction, state.GetTextBaseline(), state.GetTextAlign(), text,
        host->GetPlainTextPainter());
  
@@ -2582,7 +2586,7 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
      if (HostAsOffscreenCanvas()) {
        if (auto* window = DynamicTo<LocalDOMWindow>(GetTopExecutionContext())) {
          if (window->GetFrame() && window->GetFrame()->GetDocument())
-@@ -1600,6 +1895,10 @@
+@@ -1600,6 +1899,10 @@
        text_metrics->Shuffle(canvas->GetDocument().GetNoiseFactorX());
      }
    }
@@ -2742,7 +2746,7 @@ new file mode 100644
 diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
 --- a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
 +++ b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
-@@ -32,21 +32,263 @@
+@@ -32,21 +32,347 @@
  
  #include "third_party/blink/renderer/platform/graphics/image_data_buffer.h"
  
@@ -2751,6 +2755,7 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
 +#include <unordered_map>
 +
  #include "base/compiler_specific.h"
++#include "base/check_op.h"
  #include "base/logging.h"
  #include "base/memory/ptr_util.h"
 +#include "base/strings/string_number_conversions.h"
@@ -2770,6 +2775,45 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
  namespace blink {
  
 -ImageDataBuffer::ImageDataBuffer(scoped_refptr<StaticBitmapImage> image) {
++namespace {
++uint64_t UxrInputColumnBits(int first, int count) {
++  CHECK_GE(first, 0);
++  CHECK_LE(first, 64);
++  CHECK_GE(count, 0);
++  CHECK_LE(count, 64 - first);
++  if (!count)
++    return 0;
++  return count == 64 ? ~uint64_t{0} : ((uint64_t{1} << count) - 1) << first;
++}
++
++void UxrSetInputMaskRange(std::vector<uint8_t>& mask,
++                          size_t first,
++                          size_t count,
++                          size_t pixels) {
++  CHECK_LE(first, pixels);
++  CHECK_LE(count, pixels - first);
++  if (!count)
++    return;
++  if (mask.empty())
++    mask.resize((pixels + 7) / 8);
++  CHECK_EQ(mask.size(), (pixels + 7) / 8);
++  const size_t shift = first % 8;
++  if (shift) {
++    const size_t take = std::min(count, 8 - shift);
++    mask[first / 8] |= ((1u << take) - 1) << shift;
++    first += take;
++    count -= take;
++  }
++  const size_t whole = count / 8;
++  auto bytes = base::span(mask).subspan(first / 8, whole);
++  std::fill(bytes.begin(), bytes.end(), 255);
++  first += whole * 8;
++  count -= whole * 8;
++  if (count)
++    mask[first / 8] |= (1u << count) - 1;
++}
++}  // namespace
++
 +struct UxrCanvasInputPixels::Storage {
 +  static constexpr int kTileSize = 64;
 +  struct Tile {
@@ -2815,8 +2859,11 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
 +        const SkImageInfo info = storage_->backing_info.makeWH(
 +            std::min(size, storage_->backing_info.width() - left),
 +            std::min(size, storage_->backing_info.height() - top));
-+        if (!tile->pixels.tryAllocPixels(info))
++        if (!tile->pixels.tryAllocPixels(info)) {
++          if (!slot)
++            storage_->tiles.erase(key);
 +          return false;
++        }
 +        tile->pixels.eraseColor(SK_ColorTRANSPARENT);
 +        if (slot) {
 +          if (!slot->pixels.readPixels(tile->pixels.pixmap(), 0, 0))
@@ -2827,9 +2874,11 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
 +      }
 +      if (!slot->pixels.writePixels(source, x - left, y - top))
 +        return false;
++      const int begin = std::max(x, left) - left;
++      const int count = std::min(right, left + size) - left - begin;
++      const uint64_t written = UxrInputColumnBits(begin, count);
 +      for (int py = std::max(y, top); py < std::min(bottom, top + size); ++py) {
-+        for (int px = std::max(x, left); px < std::min(right, left + size); ++px)
-+          slot->written[py - top] |= uint64_t{1} << (px - left);
++        slot->written[py - top] |= written;
 +      }
 +    }
 +  }
@@ -2837,7 +2886,9 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
 +}
 +
 +std::vector<uint8_t> UxrCanvasInputPixels::PreserveMask(
-+    const SkPixmap& native_readback, int x, int y) const {
++    const SkPixmap& native_readback,
++    int x,
++    int y) const {
 +  std::vector<uint8_t> mask;
 +  if (!native_readback.addr() || native_readback.width() <= 0 ||
 +      native_readback.height() <= 0 ||
@@ -2847,39 +2898,76 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
 +  }
 +  const int64_t right = int64_t{x} + native_readback.width();
 +  const int64_t bottom = int64_t{y} + native_readback.height();
++  const int64_t visible_left = std::max<int64_t>(0, x);
++  const int64_t visible_top = std::max<int64_t>(0, y);
++  const int64_t visible_right =
++      std::min<int64_t>(storage_->backing_info.width(), right);
++  const int64_t visible_bottom =
++      std::min<int64_t>(storage_->backing_info.height(), bottom);
++  if (visible_left >= visible_right || visible_top >= visible_bottom)
++    return mask;
 +  constexpr int size = Storage::kTileSize;
-+  for (const auto& [key, tile] : storage_->tiles) {
-+    const int left = static_cast<int>(static_cast<uint32_t>(key)) * size;
-+    const int top = static_cast<int>(static_cast<uint32_t>(key >> 32)) * size;
-+    const int64_t l = std::max<int64_t>(x, left);
-+    const int64_t t = std::max<int64_t>(y, top);
-+    const int64_t r = std::min<int64_t>(right, left + tile->pixels.width());
-+    const int64_t b = std::min<int64_t>(bottom, top + tile->pixels.height());
-+    if (l >= r || t >= b)
-+      continue;
-+    SkBitmap expected;
-+    if (!expected.tryAllocPixels(native_readback.info().makeWH(
-+            tile->pixels.width(), tile->pixels.height())) ||
-+        !tile->pixels.readPixels(expected.pixmap(), 0, 0)) {
-+      continue;
-+    }
-+    for (int64_t py = t; py < b; ++py) {
-+      for (int64_t px = l; px < r; ++px) {
-+        const int tx = static_cast<int>(px - left);
-+        const int ty = static_cast<int>(py - top);
-+        if (!(tile->written[ty] & (uint64_t{1} << tx)) ||
-+            *expected.getAddr32(tx, ty) !=
-+                *native_readback.addr32(static_cast<int>(px - x),
-+                                        static_cast<int>(py - y))) {
++  const auto native_bytes = gfx::SkPixmapToSpan(native_readback);
++  const size_t pixels =
++      static_cast<size_t>(native_readback.width()) * native_readback.height();
++  // A cropped read visits only intersecting tiles, not the canvas history.
++  for (int ty = static_cast<int>(visible_top / size);
++       ty <= (visible_bottom - 1) / size; ++ty) {
++    for (int tx = static_cast<int>(visible_left / size);
++         tx <= (visible_right - 1) / size; ++tx) {
++      const uint64_t key = (uint64_t{static_cast<uint32_t>(ty)} << 32) |
++                           static_cast<uint32_t>(tx);
++      auto found = storage_->tiles.find(key);
++      if (found == storage_->tiles.end() || !found->second)
++        continue;
++      const auto& tile = found->second;
++      const int left = tx * size, top = ty * size;
++      const int64_t l = std::max<int64_t>(x, left);
++      const int64_t t = std::max<int64_t>(y, top);
++      const int64_t r = std::min<int64_t>(right, left + tile->pixels.width());
++      const int64_t b = std::min<int64_t>(bottom, top + tile->pixels.height());
++      if (l >= r || t >= b)
++        continue;
++      SkBitmap expected;
++      const int columns = static_cast<int>(r - l);
++      if (!expected.tryAllocPixels(native_readback.info().makeWH(
++              columns, static_cast<int>(b - t))) ||
++          !tile->pixels.readPixels(expected.pixmap(),
++                                   static_cast<int>(l - left),
++                                   static_cast<int>(t - top))) {
++        continue;
++      }
++      const auto expected_bytes = gfx::SkPixmapToSpan(expected.pixmap());
++      const uint64_t row_bits =
++          UxrInputColumnBits(static_cast<int>(l - left), columns);
++      for (int64_t py = t; py < b; ++py) {
++        const size_t first =
++            static_cast<size_t>(py - y) * native_readback.width() + (l - x);
++        const auto native_row = native_bytes.subspan(
++            static_cast<size_t>(py - y) * native_readback.rowBytes() +
++                static_cast<size_t>(l - x) * 4,
++            columns * 4);
++        const auto expected_row = expected_bytes.subspan(
++            static_cast<size_t>(py - t) * expected.rowBytes(), columns * 4);
++        if ((tile->written[static_cast<int>(py - top)] & row_bits) ==
++                row_bits &&
++            std::equal(expected_row.begin(), expected_row.end(),
++                       native_row.begin())) {
++          UxrSetInputMaskRange(mask, first, columns, pixels);
 +          continue;
 +        }
-+        if (mask.empty()) {
-+          mask.resize((static_cast<size_t>(native_readback.width()) *
-+                           native_readback.height() + 7) / 8);
++        for (int64_t px = l; px < r; ++px) {
++          const int local_x = static_cast<int>(px - left);
++          const int local_y = static_cast<int>(py - top);
++          if (!(tile->written[local_y] & (uint64_t{1} << local_x)) ||
++              *expected.getAddr32(static_cast<int>(px - l),
++                                  static_cast<int>(py - t)) !=
++                  *native_readback.addr32(static_cast<int>(px - x),
++                                          static_cast<int>(py - y))) {
++            continue;
++          }
++          UxrSetInputMaskRange(mask, first + (px - l), 1, pixels);
 +        }
-+        const size_t index = static_cast<size_t>(py - y) *
-+                                 native_readback.width() + (px - x);
-+        mask[index / 8] |= 1u << (index % 8);
 +      }
 +    }
 +  }
@@ -3007,7 +3095,7 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
    if (!image)
      return;
    PaintImage paint_image = image->PaintImageForCurrentFrame();
-@@ -83,6 +325,8 @@
+@@ -83,6 +409,8 @@
        return;
  
      sk_sp<SkData> data = SkData::MakeUninitialized(size);
@@ -3016,7 +3104,7 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
      pixmap_ = {info, data->writable_data(), info.minRowBytes()};
      if (!paint_image.readPixels(info, pixmap_.writable_addr(), row_bytes, 0,
                                  0)) {
-@@ -98,13 +342,26 @@
+@@ -98,13 +426,26 @@
        return;
      MSAN_CHECK_MEM_IS_INITIALIZED(pixmap_.addr(), pixmap_.computeByteSize());
    }
@@ -3044,7 +3132,7 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
    // Any color space or alpha conversion should have been performed by the
    // caller higher up in the stack (e.g. in CanvasAsyncBlobCreator).
    if (ImageEncoderUtils::GetColorInfoForEncoder(pixmap_.info().colorInfo(),
-@@ -116,18 +373,20 @@
+@@ -116,18 +457,20 @@
  }
  
  std::unique_ptr<ImageDataBuffer> ImageDataBuffer::Create(
