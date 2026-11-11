@@ -2746,7 +2746,7 @@ new file mode 100644
 diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
 --- a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
 +++ b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
-@@ -32,21 +32,347 @@
+@@ -32,21 +32,348 @@
  
  #include "third_party/blink/renderer/platform/graphics/image_data_buffer.h"
  
@@ -2930,6 +2930,7 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
 +        continue;
 +      SkBitmap expected;
 +      const int columns = static_cast<int>(r - l);
++      const size_t row_bytes = static_cast<size_t>(columns) * 4;
 +      if (!expected.tryAllocPixels(native_readback.info().makeWH(
 +              columns, static_cast<int>(b - t))) ||
 +          !tile->pixels.readPixels(expected.pixmap(),
@@ -2946,9 +2947,9 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
 +        const auto native_row = native_bytes.subspan(
 +            static_cast<size_t>(py - y) * native_readback.rowBytes() +
 +                static_cast<size_t>(l - x) * 4,
-+            columns * 4);
++            row_bytes);
 +        const auto expected_row = expected_bytes.subspan(
-+            static_cast<size_t>(py - t) * expected.rowBytes(), columns * 4);
++            static_cast<size_t>(py - t) * expected.rowBytes(), row_bytes);
 +        if ((tile->written[static_cast<int>(py - top)] & row_bits) ==
 +                row_bits &&
 +            std::equal(expected_row.begin(), expected_row.end(),
@@ -3095,7 +3096,7 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
    if (!image)
      return;
    PaintImage paint_image = image->PaintImageForCurrentFrame();
-@@ -83,6 +409,8 @@
+@@ -83,6 +410,8 @@
        return;
  
      sk_sp<SkData> data = SkData::MakeUninitialized(size);
@@ -3104,7 +3105,7 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
      pixmap_ = {info, data->writable_data(), info.minRowBytes()};
      if (!paint_image.readPixels(info, pixmap_.writable_addr(), row_bytes, 0,
                                  0)) {
-@@ -98,13 +426,26 @@
+@@ -98,13 +427,26 @@
        return;
      MSAN_CHECK_MEM_IS_INITIALIZED(pixmap_.addr(), pixmap_.computeByteSize());
    }
@@ -3132,7 +3133,7 @@ diff --git a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc b
    // Any color space or alpha conversion should have been performed by the
    // caller higher up in the stack (e.g. in CanvasAsyncBlobCreator).
    if (ImageEncoderUtils::GetColorInfoForEncoder(pixmap_.info().colorInfo(),
-@@ -116,18 +457,20 @@
+@@ -116,18 +458,20 @@
  }
  
  std::unique_ptr<ImageDataBuffer> ImageDataBuffer::Create(

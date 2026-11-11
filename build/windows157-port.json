@@ -4,7 +4,7 @@
   "target_version": "157.0.8103.38",
   "source_version": "156.0.8078.79",
   "previous_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
-  "product_stack_sha256": "c96e6ae9bc01c9541a0c5d70d3b229845a4b3c287633d0f12b22356a109cf3d7",
+  "product_stack_sha256": "b74027b9d6b0481f81d35b3e44d26653a09d18722c997f8e908471a50d5fd0bc",
   "upstream_identity": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",
@@ -266,8 +266,8 @@
       {
         "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.cc",
         "before_sha256": "d3b87b4d7ec4c2f533a14daee0325a474f3b119e7fb7d2ba9e48c8bf894780c4",
-        "after_sha256": "52508f96c418f937770f8ec377e461e60dad7d6ff50d13763db06fa27c1fcb07",
-        "replacement_path": "build/checkpoint-sources/52508f96c418f937770f8ec377e461e60dad7d6ff50d13763db06fa27c1fcb07.cc"
+        "after_sha256": "9082eb91ce3bb99379cfa03d3f7c0a85d1a3674e6304ad2ba1eb99bd6cdb5195",
+        "replacement_path": "build/checkpoint-sources/9082eb91ce3bb99379cfa03d3f7c0a85d1a3674e6304ad2ba1eb99bd6cdb5195.cc"
       },
       {
         "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.h",
