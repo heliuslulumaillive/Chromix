@@ -76,6 +76,27 @@ async function rtcPair(spec = {}) {
     peers: reports,
     addErrors
   };
+  const progress = [];
+  globalThis.__rtcProbeProgress = progress;
+  const stage = async (name, promise) => {
+    const entry = {name, startedMs: now()};
+    progress.push(entry);
+    let timeout;
+    try {
+      const value = await Promise.race([
+        promise, new Promise((_, reject) => {
+          timeout = setTimeout(() => reject(Error(name + ' deadline')), 10000);
+        })
+      ]);
+      entry.completedMs = now();
+      return value;
+    } catch (error) {
+      entry.error = String(error);
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
   let remote, context, receiverContext, analyser, timer, canvasStream, remoteAudio, tone,
       gainControl;
   const video = document.createElement('video');
@@ -124,7 +145,6 @@ async function rtcPair(spec = {}) {
       context = new AudioContext({sampleRate: 48000, sinkId: {type: 'none'}});
       if (context.sinkId?.type !== 'none')
         throw Error('Silent audio sink unavailable');
-      await context.resume();
       const osc = context.createOscillator(), gain = context.createGain(),
             destination = context.createMediaStreamDestination();
       tone = osc;
@@ -135,6 +155,8 @@ async function rtcPair(spec = {}) {
       gain.connect(destination);
       gain.connect(context.destination);
       osc.start();
+      // Establish the silent source graph before waiting for its render clock.
+      await stage('source AudioContext resume', context.resume());
       for (const t of destination.stream.getTracks())
         peers[0].addTrack(t, destination.stream);
       peers[1].ontrack = e => {
@@ -187,7 +209,7 @@ async function rtcPair(spec = {}) {
       result.connected = true;
       result.connectionMs = now();
     };
-    await negotiate(false);
+    await stage('initial SDP negotiation', negotiate(false));
     if (spec.promoteRelay) {
       await rtcDelay(300);
       result.beforePolicyUpgrade = {
@@ -196,7 +218,7 @@ async function rtcPair(spec = {}) {
       };
       for (const p of peers)
         p.setConfiguration({...p.getConfiguration(), iceTransportPolicy: 'all'});
-      await negotiate(true);
+      await stage('relay/all SDP negotiation', negotiate(true));
       result.afterPolicyUpgrade = peers.map(p => p.getConfiguration().iceTransportPolicy);
     }
     const waitUntil = performance.now() + (spec.timeoutMs ?? 6500);
@@ -239,7 +261,7 @@ async function rtcPair(spec = {}) {
       }
       if (spec.restart) {
         result.ufragBefore = peers[0].localDescription.sdp.match(/a=ice-ufrag:(.+)/)?.[1];
-        await negotiate(true);
+        await stage('ICE restart SDP negotiation', negotiate(true));
         result.ufragAfter = peers[0].localDescription.sdp.match(/a=ice-ufrag:(.+)/)?.[1];
         channel.send('restart-probe');
         const until = performance.now() + 4000;
@@ -302,7 +324,7 @@ async function rtcPair(spec = {}) {
         peakDb: spectrum[peak]
       };
     }
-    result.stats = await Promise.all(peers.map(rtcStats));
+    result.stats = await stage('native getStats', Promise.all(peers.map(rtcStats)));
     result.sdp = peers.map(p => ({
                              local: p.localDescription?.sdp,
                              remote: p.remoteDescription?.sdp,
@@ -329,6 +351,7 @@ async function rtcPair(spec = {}) {
         null;
     result.elapsedMs = now();
     result.states = peers.map(p => p.connectionState);
+    result.progress = progress;
     return result;
   } finally {
     if (spec.hold) {
@@ -350,8 +373,10 @@ async function rtcPair(spec = {}) {
         p.close();
       clearInterval(timer);
       canvasStream?.getTracks().forEach(t => t.stop());
-      await context?.close();
-      await receiverContext?.close();
+      if (context)
+        await stage('source AudioContext close', context.close());
+      if (receiverContext)
+        await stage('receiver AudioContext close', receiverContext.close());
       if (remoteAudio) {
         remoteAudio.pause();
         remoteAudio.srcObject = null;

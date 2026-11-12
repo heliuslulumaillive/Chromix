@@ -432,7 +432,7 @@ diff --git a/third_party/blink/renderer/modules/peerconnection/rtc_stats_report.
 diff --git a/third_party/blink/renderer/platform/p2p/port_allocator.cc b/third_party/blink/renderer/platform/p2p/port_allocator.cc
 --- a/third_party/blink/renderer/platform/p2p/port_allocator.cc
 +++ b/third_party/blink/renderer/platform/p2p/port_allocator.cc
-@@ -6,29 +6,582 @@
+@@ -6,29 +6,578 @@
  
  #include <stdint.h>
  
@@ -494,34 +494,22 @@ diff --git a/third_party/blink/renderer/platform/p2p/port_allocator.cc b/third_p
 +  return name == "local" || name.ends_with(".local");
 +}
 +
-+// A resolver for peer ICE names never invokes the system or browser resolver.
-+// A TURN resolver uses the existing IPC implementation, except for .local
-+// names.
++// Never pre-resolve WebRTC names through the browser or system resolver.
++// TURN/TCP and TLS already have a native resolution-failure path that passes
++// the unresolved hostname to the proxy-capable TCP socket factory.
 +class DocumentDnsResolver final : public webrtc::AsyncDnsResolverInterface,
 +                                  public webrtc::AsyncDnsResolverResult {
 + public:
-+  explicit DocumentDnsResolver(
-+      std::unique_ptr<webrtc::AsyncDnsResolverInterface> native = nullptr)
-+      : native_(std::move(native)) {}
-+
 +  void Start(const webrtc::SocketAddress& address,
 +             absl::AnyInvocable<void()> callback) override {
 +    Start(address, AF_UNSPEC, std::move(callback));
 +  }
 +
-+  void Start(const webrtc::SocketAddress& address,
-+             int family,
++  void Start(const webrtc::SocketAddress&,
++             int,
 +             absl::AnyInvocable<void()> callback) override {
 +    CHECK(!started_);
 +    started_ = true;
-+    if (native_ && !IsMdnsName(address)) {
-+      native_started_ = true;
-+      if (family == AF_UNSPEC)
-+        native_->Start(address, std::move(callback));
-+      else
-+        native_->Start(address, family, std::move(callback));
-+      return;
-+    }
 +    // Preserve asynchronous resolver semantics, including cancellation on
 +    // delete.
 +    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
@@ -535,7 +523,7 @@ diff --git a/third_party/blink/renderer/platform/p2p/port_allocator.cc b/third_p
 +  }
 +
 +  const webrtc::AsyncDnsResolverResult& result() const override {
-+    return native_started_ ? native_->result() : *this;
++    return *this;
 +  }
 +  bool GetResolvedAddress(int, webrtc::SocketAddress*) const override {
 +    return false;
@@ -543,9 +531,7 @@ diff --git a/third_party/blink/renderer/platform/p2p/port_allocator.cc b/third_p
 +  int GetError() const override { return EHOSTUNREACH; }
 +
 + private:
-+  std::unique_ptr<webrtc::AsyncDnsResolverInterface> native_;
 +  bool started_ = false;
-+  bool native_started_ = false;
 +  base::WeakPtrFactory<DocumentDnsResolver> weak_factory_{this};
 +};
 +
@@ -687,8 +673,7 @@ diff --git a/third_party/blink/renderer/platform/p2p/port_allocator.cc b/third_p
 +  }
 +  std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAsyncDnsResolver()
 +      override {
-+    return std::make_unique<DocumentDnsResolver>(
-+        context_->IsAlive() ? native_->CreateAsyncDnsResolver() : nullptr);
++    return std::make_unique<DocumentDnsResolver>();
 +  }
 +
 + private:
@@ -904,10 +889,21 @@ diff --git a/third_party/blink/renderer/platform/p2p/port_allocator.cc b/third_p
 +
 +  bool ClaimNativeTcpDestination(const webrtc::SocketAddress& address) {
 +    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
++    const uint16_t port = address.port();
++    if (!port)
++      return false;
++    if (address.IsUnresolvedIP()) {
++      // Proxy-side resolution can select either address family, including a
++      // localhost alias. Do not let a name escape an existing virtual port's
++      // ownership; reserve both families when native TCP claimed it first.
++      if (ipv4_used_.test(port) || ipv6_used_.test(port))
++        return false;
++      ipv4_native_.set(port);
++      ipv6_native_.set(port);
++      return true;
++    }
 +    if (!IsDocumentAddress(address))
 +      return true;
-+    if (address.port() <= 0 || address.port() > 65535)
-+      return false;
 +    const auto& used = address.family() == AF_INET ? ipv4_used_ : ipv6_used_;
 +    if (used.test(address.port()))
 +      return false;
@@ -1017,7 +1013,7 @@ diff --git a/third_party/blink/renderer/platform/p2p/port_allocator.cc b/third_p
        config_(config) {
    DCHECK(network_manager_);
    DCHECK(socket_factory);
-@@ -44,11 +597,33 @@
+@@ -44,11 +593,33 @@
               webrtc::PORTALLOCATOR_DISABLE_STUN |
               webrtc::PORTALLOCATOR_DISABLE_UDP_RELAY;
    }

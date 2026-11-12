@@ -63,6 +63,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const origin = 'http://127.0.0.1:' + server.address().port;
+report.fixtureOrigin = origin;
 const canary = await stunCanary(), rejectProxy = await controlledSocks();
 const proxy = option('proxy') === 'controlled' ? rejectProxy.url :
                                                  (option('proxy') ?? 'socks5://127.0.0.1:40060');
@@ -97,12 +98,23 @@ const turnStats = () => new Promise(resolve => {
   turnChild.stdin.write('stats\n')
 });
 const turnHost = '203.0.113.17';
-const turnTargets = new Map([[turnHost + ':' + turn.port, {host: '127.0.0.1', port: turn.port}]]);
+const turnName = crypto.randomUUID() + '.invalid';
+const namespaceName = crypto.randomUUID() + '.invalid';
+report.turnDnsProbeName = turnName;
+report.namespaceDnsProbeName = namespaceName;
+report.dnsProbeNames = [turnName, namespaceName];
+const turnTargets = new Map([
+  [turnHost + ':' + turn.port, {host: '127.0.0.1', port: turn.port}],
+  [turnName + ':' + turn.port, {host: '127.0.0.1', port: turn.port}]
+]);
 const turnProxy = await controlledSocks(turnTargets);
 const turnServers = [{
   urls: `turn:${turnHost}:${turn.port}?transport=tcp`,
   username: 'owned',
   credential: 'owned-fixture-only'
+}];
+const turnHostnameServers = [{
+  ...turnServers[0], urls: `turn:${turnName}:${turn.port}?transport=tcp`
 }];
 const openRuns = [];
 let namespaceCanary = null;
@@ -129,7 +141,13 @@ async function start(id, {route = proxy, feature = true, native = false, display
     '--fingerprint-audio-mode=native',
     '--webrtc-ip-handling-policy=' + (native ? 'default' : 'disable_non_proxied_udp'),
     ...(displayIP ? ['--fingerprint-webrtc-ip=' + displayIP] : []),
-    ...(route ? ['--proxy-server=' + route] : ['--no-proxy-server']),
+    ...(route ? [
+      '--proxy-server=' + route,
+      '--dns-prefetch-disable',
+      // Match the production managed route, with one explicit exception for
+      // this controller's HTTP fixture. RTC destinations receive no bypass.
+      '--proxy-bypass-list=<-loopback>;127.0.0.1:' + server.address().port
+    ] : ['--no-proxy-server']),
     ...(!feature ? ['--disable-features=ShardXWebRtcDocumentLoopback'] : []),
     '--log-net-log=' + path.join(folder, 'netlog.json'),
     '--net-log-capture-mode=Default',
@@ -410,6 +428,16 @@ try {
   await runCase(
       fault, 'proxy-failure', 'rtcPair', {bytes: 65536, iceServers, observeMs: 500},
       o => transfer('proxy-failure', o, 65536));
+  await runCase(
+      fault, 'turn-hostname-proxy-failure', 'rtcPair',
+      {relayOnly: true, iceServers: turnHostnameServers, bytes: 1024, timeoutMs: 3000, observeMs: 300},
+      (o, row) => {
+        closed('turn-hostname-proxy-failure', o);
+        row.rejectedProxyHostnameRequests = rejectProxy.events.filter(
+            e => e.command === 1 && !e.accepted && e.host === turnName &&
+                e.port === turn.port).length;
+        check('turn-hostname-proxy-failure/proxy-observed', row.rejectedProxyHostnameRequests > 0);
+      });
   await fault.close();
   openRuns.splice(openRuns.indexOf(fault), 1);
   const display = await start('display-ip', {displayIP: '203.0.113.200'});
@@ -460,6 +488,8 @@ try {
         row.tcpEndpoint = {host: '127.0.0.1', port: namespaceCanary.port};
         row.selectedPeerCandidates = observed.peers.flatMap(p => p.candidates);
         turnTargets.set('127.0.0.1:' + namespaceCanary.port, row.tcpEndpoint);
+        turnTargets.set(namespaceName + ':' + namespaceCanary.port, row.tcpEndpoint);
+        row.tcpHostname = namespaceName;
         const spec = {
           relayOnly: true,
           iceServers: [{
@@ -471,6 +501,12 @@ try {
         };
         row.whileBound =
             await evaluate(relay.cdp, p.sessionId, 'rtcGather(' + JSON.stringify(spec) + ')');
+        const namedSpec = {
+          ...spec,
+          iceServers: [{...spec.iceServers[0], urls: `turn:${namespaceName}:${namespaceCanary.port}?transport=tcp`}]
+        };
+        row.whileBoundHostname =
+            await evaluate(relay.cdp, p.sessionId, 'rtcGather(' + JSON.stringify(namedSpec) + ')');
         row.tcpConnectionsWhileBound = namespaceCanary.events.length;
         await evaluate(
             relay.cdp, p.sessionId,
@@ -478,11 +514,25 @@ try {
         await delay(300);
         row.afterClosed =
             await evaluate(relay.cdp, p.sessionId, 'rtcGather(' + JSON.stringify(spec) + ')');
+        row.afterClosedHostname =
+            await evaluate(relay.cdp, p.sessionId, 'rtcGather(' + JSON.stringify(namedSpec) + ')');
         row.tcpConnectionsAfterClosed = namespaceCanary.events.length;
         check(
             'internal-tcp-namespace/no-OS-fallback',
             row.tcpConnectionsWhileBound === 0 && row.tcpConnectionsAfterClosed === 0);
       });
+  const hostnameRow = await runCase(
+      relay, 'turn-hostname', 'rtcPair',
+      {relayOnly: true, iceServers: turnHostnameServers, bytes: 262144, observeMs: 300},
+      (o, row) => {
+        transfer('turn-hostname', o, 262144);
+        row.proxyHostnameRequests = turnProxy.events.filter(
+            e => e.command === 1 && e.accepted && e.host === turnName &&
+                e.port === turn.port).length;
+        check('turn-hostname/proxy-resolves-name', row.proxyHostnameRequests >= 2);
+      });
+  check('turn-hostname/server-data',
+        hostnameRow.turnDelta.readBytes > 500000 && hostnameRow.turnDelta.authRequests >= 2);
   const turnRow = await runCase(
       relay, 'turn-relay', 'rtcPair',
       {relayOnly: true, iceServers: turnServers, bytes: 262144, observeMs: 300},
@@ -522,7 +572,11 @@ try {
       },
       (o, row) => {
         row.tcpConnections = namespaceCanary?.events.length ?? 0;
+        row.tcpProxyRequests = turnProxy.events.filter(
+            e => e.command === 1 && e.accepted && e.host === '127.0.0.1' &&
+                e.port === namespaceCanary?.port).length;
         check('native-tcp-canary/reachable', row.tcpConnections > 0);
+        check('native-tcp-canary/through-proxy', row.tcpProxyRequests > 0);
       });
   await off.close();
   openRuns.splice(openRuns.indexOf(off), 1);
@@ -561,12 +615,21 @@ try {
       const queries = log.events.filter(e => /DNS|RESOLVER/.test(names.get(e.type) ?? '') && [
         report.mdnsProbeName, report.stunMdnsProbeName
       ].filter(Boolean).some(n => JSON.stringify(e.params ?? {}).includes(n)));
+      const hostnameDns = n => log.events.filter(
+          e => /^DNS_TRANSACTION(?:_|$)/.test(names.get(e.type) ?? '') &&
+              JSON.stringify(e.params ?? {}).includes(n)).length;
+      const turnHostnameDnsTransactions = hostnameDns(turnName);
+      const namespaceHostnameDnsTransactions = hostnameDns(namespaceName);
       report.networkEvidence.push({
         run: r.id,
         netlogSHA256: hash(await fs.readFile(logPath)),
-        peerMdnsQueries: queries.length
+        peerMdnsQueries: queries.length,
+        turnHostnameDnsTransactions,
+        namespaceHostnameDnsTransactions
       });
       check(r.id + '/peer-mdns-not-resolved', queries.length === 0);
+      check(r.id + '/no-TURN-hostname-DNS', turnHostnameDnsTransactions === 0);
+      check(r.id + '/no-namespace-hostname-DNS', namespaceHostnameDnsTransactions === 0);
     } catch (error) {
       check(r.id + '/netlog-readable', false, String(error));
     }

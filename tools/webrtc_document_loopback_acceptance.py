@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+from urllib.parse import urlsplit
 
 HARNESS = ('webrtc_document_loopback_runtime.mjs', 'webrtc_document_loopback_probe.js',
            'webrtc_runtime_controller.mjs', 'webrtc_network_fixtures.mjs')
@@ -11,6 +12,7 @@ CASES = frozenset(('internal-data', 'pooled-data', 'internal-media', 'with-stun'
     'unknown-targets', 'unknown-mdns', 'same-origin-iframe', 'separate-tab',
     'separate-profile', 'navigation', 'proxy-failure', 'display-ip-internal', 'turn-relay',
     'turn-all-cross-doc', 'internal-tcp-namespace', 'native-tcp-canary', 'wrong-turn', 'feature-off', 'native-canary'))
+CASES = CASES | frozenset(('turn-hostname', 'turn-hostname-proxy-failure'))
 RUNS = frozenset(('enabled', 'other-profile', 'failed-proxy', 'display-ip', 'turn-proxy',
                   'feature-off', 'native-control'))
 
@@ -74,6 +76,11 @@ def validate(data, *, exe_sha256, dll_sha256, harness):
     require(set(cases)==CASES and len(data['cases'])==len(CASES), 'Runtime case coverage is incomplete')
     runs={r['id']:r for r in data.get('runs',[])}
     require(set(runs)==RUNS and len(data['runs'])==len(RUNS), 'Runtime browser coverage is incomplete')
+    fixture=urlsplit(data.get('fixtureOrigin',''))
+    require(fixture.scheme=='http' and fixture.hostname=='127.0.0.1' and fixture.port
+            and not fixture.username and not fixture.password and not fixture.query
+            and not fixture.fragment and not fixture.path, 'Owned HTTP fixture identity missing')
+    fixture_bypass='--proxy-bypass-list=<-loopback>;127.0.0.1:'+str(fixture.port)
     for name,r in runs.items():
         require(r.get('version',{}).get('product')=='Chrome/157.0.8103.38', 'Wrong runtime browser version')
         cleanup=r.get('cleanup',{})
@@ -94,15 +101,18 @@ def validate(data, *, exe_sha256, dll_sha256, harness):
         if name!='native-control':
             require(sum(a.startswith('--proxy-server=socks5://') for a in r['args'])==1,
                     'A protected run has no SOCKS proxy')
+            require(r['args'].count('--dns-prefetch-disable')==1
+                    and [a for a in r['args'] if a.startswith('--proxy-bypass-list=')]==[fixture_bypass],
+                    'Managed proxy/DNS restrictions differ; only the owned HTTP fixture may bypass')
     for name,c in cases.items():
         require(c.get('status')=='observed' and isinstance(c.get('observed'),dict)
                 and not c['observed'].get('probeError'), 'An observed result is missing: '+name)
         require(isinstance(c.get('canary'),list), 'Canary accounting missing')
         if name!='native-canary':require(not c['canary'], 'A protected run reached a real UDP canary')
     for name,size in [('internal-data',1048576),('pooled-data',65536),('relay-to-all',65536),('internal-media',262144),('with-stun',65536),
-                      ('proxy-failure',65536),('display-ip-internal',65536),('internal-tcp-namespace',1024),('turn-relay',262144),('turn-all-cross-doc',262144)]:
+                      ('proxy-failure',65536),('display-ip-internal',65536),('internal-tcp-namespace',1024),('turn-relay',262144),('turn-all-cross-doc',262144),('turn-hostname',262144)]:
         transfer(cases[name]['observed'],size)
-    for name in ('relay-no-server','same-origin-iframe','feature-off'):
+    for name in ('relay-no-server','same-origin-iframe','feature-off','turn-hostname-proxy-failure'):
         unconnected(cases[name]['observed'])
     transition=cases['relay-to-all']['observed']
     require(transition.get('beforePolicyUpgrade')=={'candidateCounts':[0,0],'policies':['relay','relay']}
@@ -145,7 +155,7 @@ def validate(data, *, exe_sha256, dll_sha256, harness):
         else:
             require(0.005<rms<0.1 and type(s.get('peakHz')) in (int,float)
                     and abs(s['peakHz']-hz)<=36, 'PCM content frequency or amplitude mismatch')
-    for name in ('turn-relay','turn-all-cross-doc'):
+    for name in ('turn-relay','turn-all-cross-doc','turn-hostname'):
         c=cases[name];relay_selected(c['observed'])
         require(c.get('turnDelta',{}).get('readBytes',0)>500000
                 and c['turnDelta'].get('authRequests',0)>=2, 'TURN server did not relay the payload')
@@ -153,9 +163,20 @@ def validate(data, *, exe_sha256, dll_sha256, harness):
     require(wrong.get('turnDelta',{}).get('authRequests',0)>=1
             and not any(c.get('type')=='relay' for c in wrong['observed'].get('candidates',[])),
             'Invalid TURN authentication was not rejected')
+    require(cases['turn-hostname'].get('proxyHostnameRequests',0)>=2
+            and cases['turn-hostname-proxy-failure'].get('rejectedProxyHostnameRequests',0)>=1,
+            'TURN hostname proxy success/failure was not exercised')
+    probe_names=[data.get('turnDnsProbeName'),data.get('namespaceDnsProbeName')]
+    require(all(isinstance(n,str) and re.fullmatch(r'[a-f0-9-]{36}\.invalid',n) for n in probe_names)
+            and len(set(probe_names))==2 and data.get('dnsProbeNames')==probe_names,
+            'Unique TURN DNS probe names missing')
     require(any(e.get('bytes',0)>=20 for e in cases['native-canary']['canary']), 'Canary positive control failed')
     require(data.get('localAddressExposure')==[], 'Real host address observed')
     namespace=cases['internal-tcp-namespace'];endpoint=namespace.get('tcpEndpoint',{})
+    require(namespace.get('tcpHostname')==data['namespaceDnsProbeName']
+            and all(isinstance(namespace.get(k),dict) and 'candidates' in namespace[k]
+                    for k in ('whileBoundHostname','afterClosedHostname')),
+            'Unresolved names were not tested against the virtual TCP namespace')
     require(endpoint.get('host')=='127.0.0.1' and type(endpoint.get('port')) is int
             and 0<endpoint['port']<=65535
             and any(c.get('address')=='127.0.0.1' and c.get('candidate','').split()[5]==str(endpoint['port'])
@@ -163,11 +184,15 @@ def validate(data, *, exe_sha256, dll_sha256, harness):
             and namespace.get('tcpConnectionsWhileBound')==0 and namespace.get('tcpConnectionsAfterClosed')==0,
             'A virtual UDP endpoint was promoted to a real TCP destination')
     require(cases['native-tcp-canary'].get('run')=='feature-off'
-            and cases['native-tcp-canary'].get('tcpConnections',0)>0, 'TCP namespace positive control failed')
+            and cases['native-tcp-canary'].get('tcpConnections',0)>0
+            and cases['native-tcp-canary'].get('tcpProxyRequests',0)>0,
+            'TCP namespace positive control did not use the managed proxy')
     network=data.get('networkEvidence',[])
     require({v.get('run') for v in network}==RUNS-{'native-control'}
             and len(network)==len(RUNS)-1
-            and all(v.get('peerMdnsQueries')==0 and re.fullmatch('[a-f0-9]{64}',v.get('netlogSHA256','')) for v in network),
+            and all(v.get('peerMdnsQueries')==0 and v.get('turnHostnameDnsTransactions')==0
+                    and v.get('namespaceHostnameDnsTransactions')==0
+                    and re.fullmatch('[a-f0-9]{64}',v.get('netlogSHA256','')) for v in network),
             'Peer mDNS resolution evidence is missing or not blocked')
     return {'status':'passed','cases':len(cases),'checks':len(checks),
             'pcm_content_verified':True,'document_scope_verified':True}

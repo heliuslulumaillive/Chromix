@@ -44,6 +44,10 @@ The document WebRTC candidate keeps the native non-proxied-UDP restriction and
 uses a per-ExecutionContext memory transport for internal peers. The hosted
 verification plan requires `webrtc-document-runtime.json`: data and PCM content,
 video, candidate pooling, relay/all transitions, document/profile isolation,
-navigation revocation, TURN/TCP and reachable UDP-canary controls. Local packet
+navigation revocation, literal/hostname TURN/TCP, failed-proxy and reachable
+UDP-canary controls. WebRTC names are not pre-resolved locally; TURN/TCP uses
+the native proxy-capable hostname fallback, with unresolved names excluded from
+the virtual port namespace. The fixture retains managed DNS/proxy flags and
+allows only its own HTTP port to bypass the proxy. Local packet
 acceptance with the configured proxy remains separate from this bounded CI
 fixture. No DLL admission or installation is implied by a source change.

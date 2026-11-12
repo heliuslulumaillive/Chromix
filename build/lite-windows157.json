@@ -167,7 +167,7 @@
     },
     {
       "path": "patches/lite-windows157/08-webrtc.patch",
-      "sha256": "04cb5a1abcb88660a0003e22f5410b5c97a2cc9325636841869986d5260bc4d6",
+      "sha256": "7a6cf82d3f836185c8bd2ff1171970e2a4d279064ec54abc53000e64c99d6d0d",
       "files": [
         "chrome/browser/media/webrtc/media_capture_devices_dispatcher.cc",
         "chrome/browser/media/webrtc/media_stream_device_permission_context.cc",
@@ -4125,7 +4125,7 @@
     {
       "path": "third_party/blink/renderer/platform/p2p/port_allocator.cc",
       "before_sha256": "dfb41b5c2b7b513993e891728d7ecf3c7fdaaee103d6c02e1f10ec153eb19eb9",
-      "after_sha256": "2d596a549b6401dc624db32e58e565ac94fc824f35be729ca9b3d282f8f4b360"
+      "after_sha256": "5495e18ef6fe7219a240b3392db099fcc9499dba6db524df92818431db914434"
     },
     {
       "path": "third_party/blink/renderer/platform/p2p/port_allocator.h",
@@ -4736,7 +4736,7 @@
     "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
     "cross_version_byte_equivalence_claimed": false
   },
-  "stack_sha256": "1d2815fb39ba739d59a1895919414dce0b13405c328a03fc8d18cc09425f57ec",
+  "stack_sha256": "15b9da3f9b3de598b9e04db16d5e58028023c95ba21e5cd6478200ae48991e77",
   "upstream_port": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",

@@ -4,13 +4,16 @@ from tools import webrtc_document_loopback_acceptance as acceptance
 
 H='a'*64
 INPUTS={name:H for name in acceptance.HARNESS}
+TURN_NAME='11111111-1111-4111-8111-111111111111.invalid'
+NAMESPACE_NAME='22222222-2222-4222-8222-222222222222.invalid'
 
 def evidence():
     runs=[]
     for i,name in enumerate(sorted(acceptance.RUNS),100):
         native=name=='native-control';off=name in ('feature-off','native-control')
         args=['--webrtc-ip-handling-policy='+('default' if native else 'disable_non_proxied_udp')]
-        args+=['--no-proxy-server'] if native else ['--proxy-server=socks5://127.0.0.1:40060']
+        args+=['--no-proxy-server'] if native else ['--proxy-server=socks5://127.0.0.1:40060',
+            '--dns-prefetch-disable','--proxy-bypass-list=<-loopback>;127.0.0.1:37654']
         if off:args+=['--disable-features=ShardXWebRtcDocumentLoopback']
         if name=='display-ip':args+=['--fingerprint-webrtc-ip=203.0.113.200']
         runs.append({'id':name,'native':native,'feature':not off,'args':args,'rootPID':i,
@@ -21,7 +24,7 @@ def evidence():
     cases={name:{'id':name,'run':'enabled','status':'observed','canary':[],
                 'observed':{'connected':False,'ackBytes':0}} for name in acceptance.CASES}
     for name,size in [('internal-data',1048576),('pooled-data',65536),('relay-to-all',65536),('internal-media',262144),('with-stun',65536),
-                      ('proxy-failure',65536),('display-ip-internal',65536),('internal-tcp-namespace',1024),('turn-relay',262144),('turn-all-cross-doc',262144),('navigation',65536)]:
+                      ('proxy-failure',65536),('display-ip-internal',65536),('internal-tcp-namespace',1024),('turn-relay',262144),('turn-all-cross-doc',262144),('turn-hostname',262144),('navigation',65536)]:
         cases[name]['observed']={'connected':True,'ackBytes':size,'binaryErrors':0,'addErrors':[]}
     cases['navigation']['afterNavigation']=copy.deepcopy(cases['navigation']['observed'])
     cases['pooled-data']['spec']={'poolSize':1}
@@ -38,7 +41,7 @@ def evidence():
         restartConnected=True,ufragBefore='old',ufragAfter='new',states=['connected','connected'],
         pcmStages=[{'name':name,'rms':0 if hz is None else .035,'peakHz':0 if hz is None else hz,'stableWindows':3,'settleMs':200}
                    for name,hz in [('tone440',440),('tone880',880),('silence',None),('restore440',440)]])
-    for name in ('turn-relay','turn-all-cross-doc'):
+    for name in ('turn-relay','turn-all-cross-doc','turn-hostname'):
         stats=[{'id':'transport','type':'transport','selectedCandidatePairId':'pair'},
           {'id':'pair','type':'candidate-pair','state':'succeeded','localCandidateId':'local','remoteCandidateId':'remote'},
           {'id':'local','type':'local-candidate','candidateType':'relay','relayProtocol':'tcp'},
@@ -49,13 +52,18 @@ def evidence():
     cases['native-canary']['canary']=[{'bytes':32}]
     cases['internal-tcp-namespace'].update(tcpEndpoint={'host':'127.0.0.1','port':49152},
         selectedPeerCandidates=[{'address':'127.0.0.1','candidate':'candidate:1 1 udp 1 127.0.0.1 49152 typ host'}],
-        tcpConnectionsWhileBound=0,tcpConnectionsAfterClosed=0)
-    cases['native-tcp-canary'].update(run='feature-off',tcpConnections=1)
+        tcpConnectionsWhileBound=0,tcpConnectionsAfterClosed=0,tcpHostname=NAMESPACE_NAME,
+        whileBoundHostname={'candidates':[]},afterClosedHostname={'candidates':[]})
+    cases['native-tcp-canary'].update(run='feature-off',tcpConnections=1,tcpProxyRequests=1)
+    cases['turn-hostname']['proxyHostnameRequests']=2
+    cases['turn-hostname-proxy-failure']['rejectedProxyHostnameRequests']=1
     return {'schemaVersion':1,'kind':'document-webrtc-loopback-runtime','status':'passed',
       'exeSHA256':H,'dllSHA256':H,'exeUnchanged':True,'dllUnchanged':True,'harness':INPUTS,
-      'turnHelperSHA256':H,'noJavaScriptOverrides':True,'realMediaCaptured':False,
+      'turnHelperSHA256':H,'noJavaScriptOverrides':True,'realMediaCaptured':False,'fixtureOrigin':'http://127.0.0.1:37654',
+      'turnDnsProbeName':TURN_NAME,'namespaceDnsProbeName':NAMESPACE_NAME,'dnsProbeNames':[TURN_NAME,NAMESPACE_NAME],
       'checks':[{'id':'observed','pass':True}],'cases':list(cases.values()),'runs':runs,
-      'localAddressExposure':[],'networkEvidence':[{'run':r,'peerMdnsQueries':0,'netlogSHA256':H}
+      'localAddressExposure':[],'networkEvidence':[{'run':r,'peerMdnsQueries':0,'netlogSHA256':H,
+          'turnHostnameDnsTransactions':0,'namespaceHostnameDnsTransactions':0}
                                                  for r in acceptance.RUNS-{'native-control'}]}
 
 def case(data,name):return next(c for c in data['cases'] if c['id']==name)
@@ -76,9 +84,13 @@ class DocumentAcceptanceTests(unittest.TestCase):
           'bad_cleanup':lambda d:d['runs'][0]['cleanup'].update(forced=True),
           'empty_process_proof':lambda d:d['runs'][0]['cleanup'].update(owned_tree_before_close=[]),
           'unrestricted_proxy':lambda d:d['runs'][0]['args'].append('--webrtc-ip-handling-policy=default'),
+          'missing_DNS_guard':lambda d:d['runs'][0]['args'].remove('--dns-prefetch-disable'),
+          'bypass_all_loopback':lambda d:d['runs'][0]['args'].append('--proxy-bypass-list=<local>'),
+          'missing_HTTP_fixture_identity':lambda d:d.pop('fixtureOrigin'),
           'no_positive_canary':lambda d:case(d,'native-canary').update(canary=[]),
           'UDP_leak':lambda d:case(d,'unknown-targets').update(canary=[{'bytes':32}]),
           'TCP_namespace_escape':lambda d:case(d,'internal-tcp-namespace').update(tcpConnectionsAfterClosed=1),
+          'TCP_positive_control_bypassed_proxy':lambda d:case(d,'native-tcp-canary').update(tcpProxyRequests=0),
           'candidate_getter_disagrees_with_SDP':lambda d:case(d,'display-ip-internal')['observed']['peers'][0]['candidates'][0].update(address='[::1]'),
           'public_IP_instead_of_internal':lambda d:case(d,'display-ip-internal')['observed']['peers'][0]['candidates'][0].update(address='203.0.113.200',candidate='candidate:1 1 udp 1 203.0.113.200 49152 typ host'),
           'other_IPv6_host':lambda d:case(d,'display-ip-internal')['observed']['peers'][1]['candidates'][0].update(address='[2001:db8::1]',candidate='candidate:1 1 udp 1 2001:db8::1 49152 typ host'),
@@ -98,6 +110,11 @@ class DocumentAcceptanceTests(unittest.TestCase):
           'TURN_did_not_transport':lambda d:case(d,'turn-relay')['turnDelta'].update(readBytes=0),
           'TURN_used_host_path':lambda d:case(d,'turn-relay')['observed']['stats'][0][2].update(candidateType='host'),
           'DNS_leak':lambda d:d['networkEvidence'][0].update(peerMdnsQueries=1),
+          'TURN_DNS_leak':lambda d:d['networkEvidence'][0].update(turnHostnameDnsTransactions=1),
+          'namespace_DNS_leak':lambda d:d['networkEvidence'][0].update(namespaceHostnameDnsTransactions=1),
+          'TURN_name_not_forwarded':lambda d:case(d,'turn-hostname').update(proxyHostnameRequests=0),
+          'failed_proxy_not_exercised':lambda d:case(d,'turn-hostname-proxy-failure').update(rejectedProxyHostnameRequests=0),
+          'unresolved_namespace_not_exercised':lambda d:case(d,'internal-tcp-namespace').pop('whileBoundHostname'),
           'missing_DNS_evidence':lambda d:d.update(networkEvidence=[]),
         }
         for name,mutate in mutations.items():
