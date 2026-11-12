@@ -34,6 +34,14 @@ def unconnected(value):
     require(value.get('connected') is False and value.get('ackBytes') == 0,
             'A restricted document or policy connected unexpectedly')
 
+def internal_host_candidate(candidate):
+    """Match the native URI getter and SDP forms without allowing another IP."""
+    tokens=candidate.get('candidate','').split()
+    return (candidate.get('type')=='host' and candidate.get('protocol')=='udp'
+            and len(tokens)>=8 and tokens[2]=='udp' and tokens[6:8]==['typ','host']
+            and ((tokens[4]=='127.0.0.1' and candidate.get('address')=='127.0.0.1')
+                 or (tokens[4]=='::1' and candidate.get('address') in ('::1','[::1]'))))
+
 def relay_selected(value):
     for rows in value.get('stats', []):
         by_id={row.get('id'):row for row in rows}
@@ -101,7 +109,7 @@ def validate(data, *, exe_sha256, dll_sha256, harness):
             and transition.get('afterPolicyUpgrade')==['all','all'], 'Relay/all transition did not preserve policy')
     require(cases['pooled-data'].get('spec',{}).get('poolSize')==1, 'Pooled allocator was not exercised')
     require('--fingerprint-webrtc-ip=203.0.113.200' in runs['display-ip']['args'], 'IP presentation override was not exercised')
-    require(all(p.get('candidates') and all(c.get('type')=='host' and c.get('address') in ('127.0.0.1','::1')
+    require(all(p.get('candidates') and all(internal_host_candidate(c)
                 for c in p['candidates']) for p in cases['display-ip-internal']['observed'].get('peers',[]))
             and len(cases['display-ip-internal']['observed'].get('peers',[]))==2,
             'Internal endpoints were masked as public/fabricated candidates')

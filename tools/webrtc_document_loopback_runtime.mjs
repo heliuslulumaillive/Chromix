@@ -254,6 +254,17 @@ function closed(id, observed) {
   check(id + '/not-connected', observed.connected === false && observed.ackBytes === 0);
 }
 
+function internalHostCandidate(candidate) {
+  const tokens = (candidate.candidate ?? '').trim().split(/\s+/);
+  // Chromium's address getter uses HostAsURIString(): IPv6 has brackets,
+  // while the native SDP candidate token and getStats address do not.
+  return candidate.type === 'host' && candidate.protocol === 'udp' &&
+      tokens.length >= 8 && tokens[2] === 'udp' && tokens[6] === 'typ' &&
+      tokens[7] === 'host' &&
+      ((tokens[4] === '127.0.0.1' && candidate.address === '127.0.0.1') ||
+       (tokens[4] === '::1' && ['::1', '[::1]'].includes(candidate.address)));
+}
+
 async function cross(b1, b2, id, config = {}) {
   const row = {id, run: b1.id, otherRun: b2.id, started: Date.now(), status: 'running'};
   report.cases.push(row);
@@ -406,9 +417,8 @@ try {
     transfer('display-ip-internal', o, 65536);
     check(
         'display-ip-internal/local-addresses',
-        o.peers.every(p => p.candidates.length > 0 && p.candidates.every(c => c.type === 'host' && [
-          '127.0.0.1', '::1'
-        ].includes(c.address))));
+        o.peers.length === 2 && o.peers.every(
+            p => p.candidates.length > 0 && p.candidates.every(internalHostCandidate)));
   });
   await display.close();
   openRuns.splice(openRuns.indexOf(display), 1);

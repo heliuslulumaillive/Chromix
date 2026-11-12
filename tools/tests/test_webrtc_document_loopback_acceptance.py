@@ -25,7 +25,9 @@ def evidence():
         cases[name]['observed']={'connected':True,'ackBytes':size,'binaryErrors':0,'addErrors':[]}
     cases['navigation']['afterNavigation']=copy.deepcopy(cases['navigation']['observed'])
     cases['pooled-data']['spec']={'poolSize':1}
-    cases['display-ip-internal']['observed']['peers']=[{'candidates':[{'type':'host','address':address}]} for address in ('127.0.0.1','::1')]
+    cases['display-ip-internal']['observed']['peers']=[{'candidates':[{'type':'host','protocol':'udp',
+        'address':address,'candidate':'candidate:1 1 udp 1 '+token+' 49152 typ host'}]}
+        for token,address in (('127.0.0.1','127.0.0.1'),('::1','[::1]'))]
     cases['relay-to-all']['observed'].update(beforePolicyUpgrade={'candidateCounts':[0,0],'policies':['relay','relay']},afterPolicyUpgrade=['all','all'])
     cases['same-origin-iframe']['spec']={'crossDocument':True}
     for name in ('separate-tab','separate-profile'):
@@ -62,6 +64,11 @@ class DocumentAcceptanceTests(unittest.TestCase):
     def validate(self,data):return acceptance.validate(data,exe_sha256=H,dll_sha256=H,harness=INPUTS)
     def test_complete_observations_are_accepted(self):
         self.assertTrue(self.validate(evidence())['pcm_content_verified'])
+    def test_native_ipv6_getter_and_sdp_notation_are_both_supported(self):
+        value=evidence()
+        self.validate(value)
+        case(value,'display-ip-internal')['observed']['peers'][1]['candidates'][0]['address']='::1'
+        self.validate(value)
     def test_incomplete_or_contradictory_proofs_are_rejected(self):
         mutations={
           'different_dll':lambda d:d.update(dllSHA256='b'*64),
@@ -72,6 +79,11 @@ class DocumentAcceptanceTests(unittest.TestCase):
           'no_positive_canary':lambda d:case(d,'native-canary').update(canary=[]),
           'UDP_leak':lambda d:case(d,'unknown-targets').update(canary=[{'bytes':32}]),
           'TCP_namespace_escape':lambda d:case(d,'internal-tcp-namespace').update(tcpConnectionsAfterClosed=1),
+          'candidate_getter_disagrees_with_SDP':lambda d:case(d,'display-ip-internal')['observed']['peers'][0]['candidates'][0].update(address='[::1]'),
+          'public_IP_instead_of_internal':lambda d:case(d,'display-ip-internal')['observed']['peers'][0]['candidates'][0].update(address='203.0.113.200',candidate='candidate:1 1 udp 1 203.0.113.200 49152 typ host'),
+          'other_IPv6_host':lambda d:case(d,'display-ip-internal')['observed']['peers'][1]['candidates'][0].update(address='[2001:db8::1]',candidate='candidate:1 1 udp 1 2001:db8::1 49152 typ host'),
+          'IPv6_getter_contains_port':lambda d:case(d,'display-ip-internal')['observed']['peers'][1]['candidates'][0].update(address='[::1]:49152'),
+          'fabricated_srflx_type':lambda d:case(d,'display-ip-internal')['observed']['peers'][1]['candidates'][0].update(type='srflx',candidate='candidate:1 1 udp 1 ::1 49152 typ srflx'),
           'bad_candidate_fixture':lambda d:case(d,'unknown-targets')['observed']['attempts'][0].update(accepted=False),
           'cross_document_delivery':lambda d:case(d,'separate-tab')['observed']['b'].update(received=['payload']),
           'cross_profile_wrong_boundary':lambda d:case(d,'separate-profile').update(otherRun='enabled'),

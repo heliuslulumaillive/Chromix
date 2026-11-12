@@ -514,6 +514,26 @@
         }
       ],
       "scope": "Exact same-version update from accepted run43004186914/stage1. Change only five WebRTC context/allocator/presentation sources; preserve all WebGPU, Canvas, audio, native proxy and DNS source bytes. Add strict compiled-browser scope, packet canary and PCM acceptance."
+    },
+    {
+      "id": "lite157-webrtc-native-ipv6-acceptance-v2",
+      "chromium_version": "157.0.8103.38",
+      "core_commit": "de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c",
+      "windows_commit": "f85bc55429c37b1c748b676b18fe79b38eee3207",
+      "arch": "x64",
+      "source_commit": "0a02ddd42a012de169021ee067d273da86a91009",
+      "source_run": "43126056540",
+      "source_stage": 1,
+      "source_recipe_sha256": "48b885d8779859c4453e0b686314f7178eff385d1f82f4af85d100cc10632ca4",
+      "target_recipe_sha256": "0bf2b86d37ce02430304b6d9cb902d4f532ed8c17cf0873b6ad653e613947c94",
+      "source_preparation_sha256": "48b885d8779859c4453e0b686314f7178eff385d1f82f4af85d100cc10632ca4",
+      "target_preparation_sha256": "0bf2b86d37ce02430304b6d9cb902d4f532ed8c17cf0873b6ad653e613947c94",
+      "source_aggregate_sha256": "1d2815fb39ba739d59a1895919414dce0b13405c328a03fc8d18cc09425f57ec",
+      "target_aggregate_sha256": "1d2815fb39ba739d59a1895919414dce0b13405c328a03fc8d18cc09425f57ec",
+      "source_patch_kind": "lite-windows157-product",
+      "target_patch_kind": "lite-windows157-product",
+      "product_source_updates": [],
+      "scope": "Verifier-only correction for native Chromium IPv6 URI getter notation [::1], with additional SDP/getter type, protocol and address agreement. No C++ or product source changes. Preserve the exact compiled DLL and object cache; rerun every mandatory acceptance gate. This rule does not admit an incomplete checkpoint or waive the failed run."
     }
   ]
 }
