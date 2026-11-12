@@ -40,6 +40,10 @@ on:
       - 'tools/write_google_services_build_record.py'
       - 'tools/verify_native_*.py'
       - 'tools/native-session/**'
+      - 'tools/webrtc_*'
+      - 'tools/verify_webrtc_document_loopback_runtime.py'
+      - 'tools/build_webrtc_turn_fixture.py'
+      - 'tools/webrtc-loopback-turn/**'
       - 'tools/native_compiled_evidence.py'
       - 'tools/lite_retirement.py'
       - 'tools/build_lite_retirement_patch.py'
@@ -48,6 +52,7 @@ on:
       - 'tools/tests/test_lite_*.py'
       - 'tools/tests/test_security_*.py'
       - 'tools/tests/test_native_*.py'
+      - 'tools/tests/test_webrtc_document_loopback_acceptance.py'
       - 'tools/tests/test_windows157_midl.py'
       - 'tools/tests/fixtures/windows157-domain-regex.list'
   workflow_call:
