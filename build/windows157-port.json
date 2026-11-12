@@ -4,7 +4,7 @@
   "target_version": "157.0.8103.38",
   "source_version": "156.0.8078.79",
   "previous_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
-  "product_stack_sha256": "b74027b9d6b0481f81d35b3e44d26653a09d18722c997f8e908471a50d5fd0bc",
+  "product_stack_sha256": "1d2815fb39ba739d59a1895919414dce0b13405c328a03fc8d18cc09425f57ec",
   "upstream_identity": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",
@@ -279,5 +279,41 @@
     "compiled": false,
     "runtime_accepted": false,
     "scope": "Preserve direct Canvas pixel inputs and native AudioBuffer edits; retain existing seeds and rendering algorithms."
+  },
+  "document_webrtc_loopback": {
+    "base_commit": "7a159416e4f35ba50e1fc5850baf5f0e483baef8",
+    "source_updates": [
+      {
+        "path": "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.cc",
+        "before_sha256": "6a193b43668b86217089f94a8febd0b00b40fea155706c3b0652a6b54092abea",
+        "after_sha256": "ec989e7dcfb4748f3455d2170a27335343791527ea70e04d480f683806ad564a",
+        "replacement_path": "build/checkpoint-sources/ec989e7dcfb4748f3455d2170a27335343791527ea70e04d480f683806ad564a.cc"
+      },
+      {
+        "path": "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h",
+        "before_sha256": "d28a1cfd8b5fe3c5b18905c846b0be286d6ee596e6f85f0e13c8eab6d51120e3",
+        "after_sha256": "4d1ebbf4c3252ee53f5f7ffc37e3ff965d5526acfd91d7b01d2c3d23fc62a172",
+        "replacement_path": "build/checkpoint-sources/4d1ebbf4c3252ee53f5f7ffc37e3ff965d5526acfd91d7b01d2c3d23fc62a172.h"
+      },
+      {
+        "path": "third_party/blink/renderer/platform/p2p/port_allocator.cc",
+        "before_sha256": "dfb41b5c2b7b513993e891728d7ecf3c7fdaaee103d6c02e1f10ec153eb19eb9",
+        "after_sha256": "2d596a549b6401dc624db32e58e565ac94fc824f35be729ca9b3d282f8f4b360",
+        "replacement_path": "build/checkpoint-sources/2d596a549b6401dc624db32e58e565ac94fc824f35be729ca9b3d282f8f4b360.cc"
+      },
+      {
+        "path": "third_party/blink/renderer/platform/p2p/port_allocator.h",
+        "before_sha256": "e4e8bd4d4c543d9e49583bd437420255747d276360dbf41d2fd622aaf3ec2caf",
+        "after_sha256": "cc30be6cd6f88d752bcf41ac243cde5c000737c8b1149c97d152f11d9656bbc6",
+        "replacement_path": "build/checkpoint-sources/cc30be6cd6f88d752bcf41ac243cde5c000737c8b1149c97d152f11d9656bbc6.h"
+      },
+      {
+        "path": "third_party/blink/renderer/platform/peerconnection/fingerprint_ip.h",
+        "before_sha256": "26ac8fe8d0e0ef95a3068eb2666100c74c11a888783894a94f5c8cde213de697",
+        "after_sha256": "c1acc0f7e2696930fd056252e52dae8547e09ba20bf2c5bbe3dea7b6c712b006",
+        "replacement_path": "build/checkpoint-sources/c1acc0f7e2696930fd056252e52dae8547e09ba20bf2c5bbe3dea7b6c712b006.h"
+      }
+    ],
+    "scope": "Same ExecutionContext memory transport under the existing non-proxied UDP restriction; no OS UDP or mDNS in the new path, native TURN/TCP retained. WebGPU unchanged."
   }
 }

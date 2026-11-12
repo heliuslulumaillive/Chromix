@@ -86,6 +86,12 @@ jobs:
       - name: Verify input preservation and existing rendering goldens
         shell: pwsh
         run: python -B -X utf8 -m unittest tools.tests.test_canvas_input_mask tools.tests.test_canvas_audio_candidate
+      - name: Compile the pinned loopback-only TURN acceptance helper
+        shell: pwsh
+        run: python -B -X utf8 tools/build_webrtc_turn_fixture.py --output C:/security-evidence/webrtc-turn-fixture.exe
+      - name: Verify document transport acceptance rejects incomplete evidence
+        shell: pwsh
+        run: python -B -X utf8 -m unittest tools.tests.test_webrtc_document_loopback_acceptance
       - name: Verify the compact product recipe and upgrade rules
         shell: pwsh
         run: python -B -X utf8 -m unittest tools.tests.test_lite_product tools.tests.test_lite_product_migration tools.tests.test_lite_patch_lint tools.tests.test_lite_retirement.RecipeTests tools.tests.test_restoration_rules tools.tests.test_kernel_upgrade_plan tools.tests.test_lite_build_entrypoints tools.tests.test_windows_sdk tools.tests.test_windows_metagen_bindings tools.tests.test_windows157_midl
@@ -145,6 +151,7 @@ jobs:
             C:/c/dist/*.json
             C:/c/dist/native-session-runtime.events.jsonl
             C:/c/dist/native-session-runtime.debug.log
+            C:/c/dist/webrtc-document-runtime.debug.log
           if-no-files-found: error
           retention-days: 30
           compression-level: 0

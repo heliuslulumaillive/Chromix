@@ -559,6 +559,9 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'native-cookie-runtime.json'))}
       @{label='native-session-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_native_session_runtime.py'),
         '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'native-session-runtime.json'))}
+      @{label='webrtc-document-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_webrtc_document_loopback_runtime.py'),
+        '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),
+        '--report',(Join-Path $evidence 'webrtc-document-runtime.json'),'--turn-helper',(Join-Path $evidence 'webrtc-turn-fixture.exe'))}
       @{label='browser-smoke';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_windows_bundle.py'),'--bundle',$bundle,'--arch','x64','--native','--version',$version,'--report',(Join-Path $evidence 'candidate-smoke.json'))}
       @{label='security-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_security_runtime.py'),
         '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'security-runtime.json'))}
@@ -584,6 +587,7 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
           'native-browser-unittests.json','native-browser-launcher.json','native-browser-runtime.json',
           'native-cookie-unittests.json','native-cookie-launcher.json','native-cookie-runtime.json',
           'native-session-runtime.json','native-session-runtime.events.jsonl','native-session-runtime.build.log',
+          'webrtc-document-runtime.json',
           'verification-results.json',
           'candidate-smoke.json','google-services-runtime.json','security-runtime.json','fingerprint-modes-validation.json',
           'modes-native.json','modes-runtime.json','fingerprint-modes-capabilities.json')) {
@@ -592,6 +596,10 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       $sessionDiagnostic = Join-Path $evidence 'native-session-runtime.debug.log'
       if (Test-Path -LiteralPath $sessionDiagnostic -PathType Leaf) {
         Copy-Item -LiteralPath $sessionDiagnostic -Destination 'C:\c\dist\native-session-runtime.debug.log'
+      }
+      $webrtcDiagnostic = Join-Path $evidence 'webrtc-document-runtime.debug.log'
+      if (Test-Path -LiteralPath $webrtcDiagnostic -PathType Leaf) {
+        Copy-Item -LiteralPath $webrtcDiagnostic -Destination 'C:\c\dist\webrtc-document-runtime.debug.log'
       }
       Copy-Item -LiteralPath (Join-Path $work 'google-services-source.json') -Destination 'C:\c\dist\google-services-source.json'
       $state.finished = $true; $state.status = 'candidate-created'

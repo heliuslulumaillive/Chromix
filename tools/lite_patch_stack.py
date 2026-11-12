@@ -117,6 +117,12 @@ def input_hashes(repo):
              'build/fingerprint-modes-capabilities.json', 'build/gpu-binding-capabilities.json',
              'patches/lite-win156/retirement-manifest.json'}
     names.update(row['path'] for row in data['patches'])
+    names.update('tools/' + name for name in (
+        'webrtc_document_loopback_runtime.mjs', 'webrtc_document_loopback_probe.js',
+        'webrtc_runtime_controller.mjs', 'webrtc_network_fixtures.mjs',
+        'webrtc_document_loopback_acceptance.py', 'verify_webrtc_document_loopback_runtime.py',
+        'build_webrtc_turn_fixture.py', 'webrtc-loopback-turn/main.go',
+        'webrtc-loopback-turn/go.mod', 'webrtc-loopback-turn/go.sum'))
     names.update(row['repository_path'] for row in data['runtime']['restore_pruned_resources'].values())
     names.update('tools/tests/fixtures/pixel-semantics-v1/' + name
                  for name in ('cases.tsv', 'pixels.bin', 'provenance.json'))

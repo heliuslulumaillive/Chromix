@@ -167,16 +167,19 @@
     },
     {
       "path": "patches/lite-windows157/08-webrtc.patch",
-      "sha256": "887f828a58ec76a6dc83b7e171965acad7affb8eae67577c7600b4ecc81898f8",
+      "sha256": "04cb5a1abcb88660a0003e22f5410b5c97a2cc9325636841869986d5260bc4d6",
       "files": [
         "chrome/browser/media/webrtc/media_capture_devices_dispatcher.cc",
         "chrome/browser/media/webrtc/media_stream_device_permission_context.cc",
         "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.cc",
+        "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h",
         "third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.cc",
         "third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.h",
         "third_party/blink/renderer/modules/peerconnection/rtc_session_description_request_impl.cc",
         "third_party/blink/renderer/modules/peerconnection/rtc_session_description_request_promise_impl.cc",
         "third_party/blink/renderer/modules/peerconnection/rtc_stats_report.cc",
+        "third_party/blink/renderer/platform/p2p/port_allocator.cc",
+        "third_party/blink/renderer/platform/p2p/port_allocator.h",
         "third_party/blink/renderer/platform/peerconnection/fingerprint_ip.h",
         "third_party/blink/renderer/platform/peerconnection/rtc_ice_candidate_platform.cc",
         "third_party/blink/renderer/platform/peerconnection/video_codec_factory.cc",
@@ -3817,7 +3820,12 @@
     {
       "path": "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.cc",
       "before_sha256": "d2f6bf2c59c94bd026bda1a5f682c1c37a6fd935eba34af92c9631c98470a23b",
-      "after_sha256": "6a193b43668b86217089f94a8febd0b00b40fea155706c3b0652a6b54092abea"
+      "after_sha256": "ec989e7dcfb4748f3455d2170a27335343791527ea70e04d480f683806ad564a"
+    },
+    {
+      "path": "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h",
+      "before_sha256": "d28a1cfd8b5fe3c5b18905c846b0be286d6ee596e6f85f0e13c8eab6d51120e3",
+      "after_sha256": "4d1ebbf4c3252ee53f5f7ffc37e3ff965d5526acfd91d7b01d2c3d23fc62a172"
     },
     {
       "path": "third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.cc",
@@ -4115,9 +4123,19 @@
       "after_sha256": "3e3e0f7f7b61c762e8661377d04810114a9aca9358a49d52b7474a308eb713db"
     },
     {
+      "path": "third_party/blink/renderer/platform/p2p/port_allocator.cc",
+      "before_sha256": "dfb41b5c2b7b513993e891728d7ecf3c7fdaaee103d6c02e1f10ec153eb19eb9",
+      "after_sha256": "2d596a549b6401dc624db32e58e565ac94fc824f35be729ca9b3d282f8f4b360"
+    },
+    {
+      "path": "third_party/blink/renderer/platform/p2p/port_allocator.h",
+      "before_sha256": "e4e8bd4d4c543d9e49583bd437420255747d276360dbf41d2fd622aaf3ec2caf",
+      "after_sha256": "cc30be6cd6f88d752bcf41ac243cde5c000737c8b1149c97d152f11d9656bbc6"
+    },
+    {
       "path": "third_party/blink/renderer/platform/peerconnection/fingerprint_ip.h",
       "before_sha256": null,
-      "after_sha256": "26ac8fe8d0e0ef95a3068eb2666100c74c11a888783894a94f5c8cde213de697"
+      "after_sha256": "c1acc0f7e2696930fd056252e52dae8547e09ba20bf2c5bbe3dea7b6c712b006"
     },
     {
       "path": "third_party/blink/renderer/platform/peerconnection/rtc_ice_candidate_platform.cc",
@@ -4718,7 +4736,7 @@
     "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
     "cross_version_byte_equivalence_claimed": false
   },
-  "stack_sha256": "b74027b9d6b0481f81d35b3e44d26653a09d18722c997f8e908471a50d5fd0bc",
+  "stack_sha256": "1d2815fb39ba739d59a1895919414dce0b13405c328a03fc8d18cc09425f57ec",
   "upstream_port": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",

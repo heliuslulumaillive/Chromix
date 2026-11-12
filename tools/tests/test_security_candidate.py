@@ -24,6 +24,7 @@ from tools.tests.test_fingerprint_build_pipeline import write_fingerprint_eviden
 from tools.tests.test_native_integration_candidate import write_native_integration_evidence
 from tools import native_compiled_evidence as compiled
 from tools import lite_patch_stack
+from tools import verify_webrtc_document_loopback_runtime as document_loopback
 
 
 def product_receipt():
@@ -84,6 +85,10 @@ class SecurityCandidateTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
+        # This suite uses fake binaries and tests artifact wiring. The feature's
+        # raw-observation validator has its own adversarial evidence tests.
+        feature_validator=mock.patch.object(document_loopback,'validate_existing',return_value={'status':'passed'})
+        feature_validator.start();self.addCleanup(feature_validator.stop)
         self.root = Path(self.temp.name)
         self.bundle = self.root / 'bundle'
         self.bundle.mkdir()
@@ -291,7 +296,7 @@ class SecurityCandidateTests(unittest.TestCase):
         phase=stage.split("    'Verify' {",1)[1].split("    'Archive' {",1)[0]
         labels=re.findall(r"label='([^']+)'",phase)
         self.assertEqual(set(labels),candidate.NATIVE_VERIFICATION_LABELS)
-        self.assertEqual(len(labels),15)
+        self.assertEqual(len(labels),16)
         self.assertLess(labels.index('security-runtime'),labels.index('accept-security-runtime'))
         self.assertIn("label='accept-security-runtime';depends=@('security-runtime')",phase)
         self.assertLess(stage.index('Invoke-VerificationPlan $checks'),stage.index("Invoke-Owned 'archive'"))

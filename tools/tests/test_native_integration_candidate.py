@@ -13,6 +13,7 @@ with mock.patch.object(sys, 'path', [str(ROOT / 'tools'), *sys.path]):
 from tools import verify_native_browser_tests as browser_tests
 from tools import native_compiled_evidence as compiled
 from tools import verify_native_session_runtime as session
+from tools import verify_webrtc_document_loopback_runtime as document_loopback
 from tools.tests.test_native_browser_runtime import good_report as good_browser_report
 from tools.tests.test_native_cookie_runtime import good_report as good_cookie_report
 from tools.tests.test_native_session_runtime import good_execution
@@ -86,6 +87,9 @@ def write_native_integration_evidence(root, bundle, source):
         (bundle / filename).write_bytes((ROOT / 'build' / filename).read_bytes())
     write_json(root / 'verification-results.json', {'schema_version': 1, 'status': 'passed',
         'checks': [{'label': name, 'status': 'passed'} for name in sorted(candidate.NATIVE_VERIFICATION_LABELS)]})
+    # The feature validator is exercised independently with adversarial content
+    # fixtures; this module tests mandatory artifact wiring around fake binaries.
+    write_json(root / 'webrtc-document-runtime.json', {'synthetic_wiring_fixture': True})
     build_path, build = prepare_fixture_build_record(root, bundle)
     for kind in ('passkey', 'browser', 'cookie'):
         write_compiled_fixture(root, kind, compiled.REQUIRED_TESTS[kind], compiled.TEST_FILTERS[kind], build_path, build)
@@ -125,6 +129,8 @@ class NativeEvidenceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
+        feature_validator=mock.patch.object(document_loopback,'validate_existing',return_value={'status':'passed'})
+        feature_validator.start();self.addCleanup(feature_validator.stop)
         self.root = Path(self.temp.name)
         self.bundle = self.root / 'bundle'; self.bundle.mkdir()
         (self.bundle / 'chrome.exe').write_bytes(b'Synthetic protocol fixture. Never execute.')
@@ -134,14 +140,14 @@ class NativeEvidenceTests(unittest.TestCase):
             (self.bundle / name).write_bytes((ROOT / 'build' / name).read_bytes())
         self.source = {key: 'a' * 64 for key in ('record_sha256', 'recipe_sha256', 'source_receipt_sha256', 'gn_sha256')}
 
-    def test_exact_fifteen_checks_and_every_negative_variant(self):
+    def test_exact_sixteen_checks_and_every_negative_variant(self):
         path = self.root / 'verification-results.json'
         valid = {'schema_version': 1, 'status': 'passed', 'checks': [
             {'label': name, 'status': 'passed'} for name in sorted(candidate.NATIVE_VERIFICATION_LABELS)]}
         write_json(path, valid)
-        self.assertEqual(len(candidate.validate_verification_results(path)['labels']), 15)
+        self.assertEqual(len(candidate.validate_verification_results(path)['labels']), 16)
         bad = [[], valid['checks'][:1], valid['checks'][:-1], valid['checks'] + [valid['checks'][0]],
-               [valid['checks'][0]] * 15]
+               [valid['checks'][0]] * 16]
         for rows in bad:
             write_json(path, {**valid, 'checks': rows})
             with self.assertRaises(ValueError): candidate.validate_verification_results(path)
@@ -178,7 +184,8 @@ class NativeEvidenceTests(unittest.TestCase):
         for name in ('native-browser-unittests.json', 'native-browser-launcher.json',
                      'native-browser-runtime.json', 'verification-results.json',
                      'native-cookie-unittests.json', 'native-cookie-launcher.json', 'native-cookie-runtime.json',
-                     'native-session-runtime.json', 'native-session-runtime.events.jsonl'):
+                     'native-session-runtime.json', 'native-session-runtime.events.jsonl',
+                     'webrtc-document-runtime.json'):
             path = self.root / name; original = path.read_bytes(); path.unlink()
             with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'Mandatory'):
                 verify()

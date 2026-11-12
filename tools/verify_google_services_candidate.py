@@ -98,7 +98,7 @@ REQUIRED_CHECKS = {
 NATIVE_VERIFICATION_LABELS = frozenset({
     'native-passkey', 'native-browser-tests', 'accept-native-browser-tests',
     'native-browser-runtime', 'native-cookie-tests', 'accept-native-cookie-tests', 'native-cookie-runtime',
-    'native-session-runtime',
+    'native-session-runtime', 'webrtc-document-runtime',
     'browser-smoke', 'security-runtime', 'accept-security-runtime',
     'google-runtime', 'fingerprint-runtime', 'accept-native-passkey', 'accept-fingerprint',
 })
@@ -1008,14 +1008,17 @@ def validate_native_integration(artifact_dir, bundle, payload, expected_source):
         from . import native_compiled_evidence as compiled
         from . import verify_security_runtime as security
         from . import verify_native_session_runtime as session
+        from . import verify_webrtc_document_loopback_runtime as document_loopback
     except ImportError:
         import native_compiled_evidence as compiled
         import verify_security_runtime as security
         import verify_native_session_runtime as session
+        import verify_webrtc_document_loopback_runtime as document_loopback
     names = ('verification-results.json', 'native-passkey-unittests.json', 'native-passkey-launcher.json',
              'native-browser-unittests.json', 'native-browser-launcher.json', 'native-browser-runtime.json',
              'native-cookie-unittests.json', 'native-cookie-launcher.json', 'native-cookie-runtime.json',
-             'native-session-runtime.json', 'native-session-runtime.events.jsonl')
+             'native-session-runtime.json', 'native-session-runtime.events.jsonl',
+             'webrtc-document-runtime.json')
     for name in names:
         if not security.plain(artifact_dir / name).is_file():
             raise ValueError('Mandatory native integration evidence is missing: ' + name)
@@ -1034,6 +1037,11 @@ def validate_native_integration(artifact_dir, bundle, payload, expected_source):
     result['session_runtime'] = session.validate_existing(
         artifact_dir / 'native-session-runtime.json', artifact_dir / 'native-session-runtime.events.jsonl',
         bundle, payload, expected_source)
+    result['webrtc_document_runtime'] = document_loopback.validate_existing(
+        artifact_dir / 'webrtc-document-runtime.json', bundle, artifact_dir / 'build-inputs.json')
+    webrtc_diagnostic = artifact_dir / 'webrtc-document-runtime.debug.log'
+    if webrtc_diagnostic.is_file():
+        before[webrtc_diagnostic.name] = sha256(webrtc_diagnostic)
     diagnostic = result['session_runtime'].get('diagnostic')
     if diagnostic:
         before[diagnostic['name']] = diagnostic['sha256']

@@ -39,3 +39,11 @@ source/build receipts and an unchanged archive inventory. DLL admission and
 installation follow acceptance. The sign-in changes recover explicit failures
 and apply the requested native history/tab-sync default after account and policy
 checks; Google authorization remains a service-side requirement.
+
+The document WebRTC candidate keeps the native non-proxied-UDP restriction and
+uses a per-ExecutionContext memory transport for internal peers. The hosted
+verification plan requires `webrtc-document-runtime.json`: data and PCM content,
+video, candidate pooling, relay/all transitions, document/profile isolation,
+navigation revocation, TURN/TCP and reachable UDP-canary controls. Local packet
+acceptance with the configured proxy remains separate from this bounded CI
+fixture. No DLL admission or installation is implied by a source change.
