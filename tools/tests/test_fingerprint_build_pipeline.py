@@ -171,7 +171,7 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
     native = {'schema_version': 1, 'status': 'passed', **payload, 'processes': processes, 'groups': groups}
     cases = ['native_off_control', 'all_native', 'legacy_seeded', 'canvas_shardx',
              'webgl_cloak', 'shard_surfaces', 'memory_custom', 'hardware_cloak', 'gpu_custom',
-             'webgl_shardx', 'fonts_shard42', 'fonts_shard43', 'fonts_native10026', 'fonts_allowlists', 'fonts_empty',
+             'webgl_shardx', 'fonts_shard40', 'fonts_shard41', 'fonts_shard42', 'fonts_shard43', 'fonts_native10026', 'fonts_allowlists', 'fonts_empty',
              'cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive', 'audio_native_macos',
              'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono', 'audio_default_stereo',
              'audio_default_32', 'gpu_masked_custom',
@@ -215,7 +215,7 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
         'webgl_resource_limits': ('gpu_custom', 'webgl_texture_context_limit'),
         'webgpu_capabilities': ('gpu_custom', 'webgpu_compute_readback'),
         'hardware_gpu_identity': ('hardware_cloak', 'webgl_hardware_identity_positive'),
-        'shard_fonts': ('fonts_shard42', 'windowLocal:Comic Sans MS:blocked'),
+        'shard_fonts': ('fonts_shard40', 'windowLocal:Agency FB:blocked'),
         'native_fonts': ('fonts_native10026', 'windowLocal_native_parity'),
         'font_allowlists': ('fonts_allowlists', 'windowLocal:Consolas:blocked'),
         'cloak_voices': ('cloak_voices', 'native_voice_intersection_and_metadata'),
@@ -953,10 +953,10 @@ class WorkflowIsolationTest(unittest.TestCase):
         self.assertEqual(route['uses'], './.github/workflows/build-fingerprint-modes-win155.yml')
         self.assertIn("inputs.build_variant == 'fingerprint-modes-win155'", route['if'])
         self.assertEqual(route['with']['allow_bootstrap_donor'], '${{ inputs.allow_bootstrap_donor }}')
-        # Shared validation and the explicit 156 route are not historical 155 jobs.
+        # Shared validation and the explicit 157 route are not historical 155 jobs.
         for name in ('verify-candidate', 'build-1', 'build-2', 'build-3', 'build-4', 'require-candidate'):
             self.assertIn("inputs.build_variant != 'fingerprint-modes-win155'", old['jobs'][name]['if'])
-        self.assertIn("inputs.build_variant == 'fingerprint-modes-win156'", old['jobs']['security-win156']['if'])
+        self.assertIn("inputs.build_variant == 'fingerprint-modes-win157'", old['jobs']['security-win157']['if'])
 
     def test_worker_retains_native_tests_and_delivery_guard_with_new_artifacts(self):
         worker = self.workflow('fingerprint-modes-win155-worker.yml')

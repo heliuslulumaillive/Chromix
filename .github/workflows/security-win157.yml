@@ -53,6 +53,11 @@ on:
       - 'tools/tests/test_security_*.py'
       - 'tools/tests/test_native_*.py'
       - 'tools/tests/test_webrtc_document_loopback_acceptance.py'
+      - 'tools/tests/test_windows_font_cohorts.py'
+      - 'tools/tests/test_windows_font_acceptance.mjs'
+      - 'tools/fingerprint_font_acceptance.mjs'
+      - 'tools/verify_fingerprint_modes_runtime.mjs'
+      - 'tools/tests/fixtures/windows-font-cohorts-v1.json'
       - 'tools/tests/test_windows157_midl.py'
       - 'tools/tests/fixtures/windows157-domain-regex.list'
   workflow_call:

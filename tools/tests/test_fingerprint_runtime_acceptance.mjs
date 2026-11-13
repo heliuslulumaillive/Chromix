@@ -118,9 +118,9 @@ test("browser entrypoints serialize without importing Node helpers", () => {
 });
 test("the bounded matrix has distinct scenes and uses basic probes for independent additions", () => {
   const matrix = scenarios();
-  assert.equal(matrix.length, 32);
+  assert.equal(matrix.length, 34);
   assert.equal(new Set(matrix.map(s => s.id)).size, matrix.length);
-  assert.equal(BASIC_SCENARIOS.size, 21);
+  assert.equal(BASIC_SCENARIOS.size, 23);
   assert.equal(POSITIVE_GROUPS.length, 26);
   assert.ok(matrix.filter(s => BASIC_SCENARIOS.has(s.id)).every(s => s.flags.includes("--fingerprint-canvas-mode=native") || s.flags.includes("--fingerprint=off")));
   assert.equal(BASIC_SCENARIOS.has("canvas_shardx"), false);

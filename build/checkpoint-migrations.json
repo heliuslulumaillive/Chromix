@@ -561,6 +561,45 @@
         }
       ],
       "scope": "Only update the document transport allocator from the complete compiled run43126056540/s1. Suppress WebRTC hostname pre-resolution and use native TURN/TCP proxy hostname fallback; keep unresolved TCP names disjoint from virtual ports. Preserve every other native source. Add domain TURN success/failure, alias-port isolation, managed proxy/DNS flags and actual PCM acceptance; no gate is waived."
+    },
+    {
+      "id": "lite157-windows-font-installation-cohorts-v1",
+      "chromium_version": "157.0.8103.38",
+      "core_commit": "de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c",
+      "windows_commit": "f85bc55429c37b1c748b676b18fe79b38eee3207",
+      "arch": "x64",
+      "source_commit": "233d4904c59bd74ddf6531b3253bf729fa410fc5",
+      "source_run": "43149750998",
+      "source_stage": 1,
+      "source_recipe_sha256": "4a45d92dbe394872c05b3229f2e9ce0501ad35c9c38412aac0aba9957f8887e8",
+      "target_recipe_sha256": "32429f95566a37f625747d0b816752f641ce001cbd84158e649cf3fd11f06f32",
+      "source_preparation_sha256": "4a45d92dbe394872c05b3229f2e9ce0501ad35c9c38412aac0aba9957f8887e8",
+      "target_preparation_sha256": "32429f95566a37f625747d0b816752f641ce001cbd84158e649cf3fd11f06f32",
+      "source_aggregate_sha256": "15b9da3f9b3de598b9e04db16d5e58028023c95ba21e5cd6478200ae48991e77",
+      "target_aggregate_sha256": "264116be1878cfa9d284ec43c2e471d4fc1a37c2fd90e3ee156e21dfeea1e259",
+      "source_patch_kind": "lite-windows157-product",
+      "target_patch_kind": "lite-windows157-product",
+      "product_source_updates": [
+        {
+          "path": "base/uxr_surface_golden_tests.cc",
+          "before_sha256": "82e0e4b0e70063df457b853fa6c524fbbd428e5ac05d63e8490d440de2bfa651",
+          "after_sha256": "ec2dce5fedd88952bcf15a593bdef68f113c6ea7a4ec2a3545157babf63552ad",
+          "replacement_path": "build/checkpoint-sources/ec2dce5fedd88952bcf15a593bdef68f113c6ea7a4ec2a3545157babf63552ad.cc"
+        },
+        {
+          "path": "base/uxr_surface_reference_data.h",
+          "before_sha256": "11d853f0c0d2ae13be3d2c7f53af3594c497b2c019e78b969c28a12c397b629b",
+          "after_sha256": "1308b72ff79dc76ec1f0a30186cd0aed89c0a64b0ad96b690f74210a15107667",
+          "replacement_path": "build/checkpoint-sources/1308b72ff79dc76ec1f0a30186cd0aed89c0a64b0ad96b690f74210a15107667.h"
+        },
+        {
+          "path": "third_party/blink/renderer/platform/fonts/font_cache.cc",
+          "before_sha256": "868cb2fae41075cbc995cf58f5f7399e96a8945ac833d976974673b0fdd13b8d",
+          "after_sha256": "c990f09b773d7e0bd3e1c2edf5078ee59291fa8477999301bde74934bbae86c8",
+          "replacement_path": "build/checkpoint-sources/c990f09b773d7e0bd3e1c2edf5078ee59291fa8477999301bde74934bbae86c8.cc"
+        }
+      ],
+      "scope": "Exact three-source font update from accepted run43149750998/s1: retain the documented Windows base fonts and use four seed-stable optional language/application installation cohorts. Preserve non-Windows historical algorithms, native resolution, all Canvas/WebGL/audio/WebRTC code and unrelated objects. Expand compiled and raw-browser font evidence to reject core deletion, no-op masking, CSS/Worker/local-enumeration divergence and missing cohorts. No DLL admission or runtime acceptance inherited."
     }
   ]
 }

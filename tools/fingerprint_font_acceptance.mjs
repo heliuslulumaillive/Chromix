@@ -2,7 +2,9 @@
 // raw CDP. Query results retain only the selected, ordinary test font families.
 export async function fontAcceptanceProbe(input = {}) {
   const families = ["Arial", "Consolas", "Times New Roman", "Comic Sans MS",
-    "Gabriola", "Ink Free", "Bahnschrift", "DefinitelyAbsentFontXYZ"];
+    "Gabriola", "Ink Free", "Bahnschrift", "Segoe UI Light", "Meiryo",
+    "Batang", "SimHei", "Microsoft Uighur", "Agency FB", "Lucida Bright",
+    "DefinitelyAbsentFontXYZ"];
   const errorValue = error => ({
     name: error?.name || "Error", message: String(error?.message || error),
   });
@@ -215,6 +217,32 @@ export const FONT_ACCEPTANCE_ORACLE = Object.freeze({
   ],
 });
 
+// Independent Windows installation-cohort contract. Historical observations
+// above remain unchanged; this new policy deliberately retains every OS font.
+// The four explicit rows are not computed from the candidate C++ predicate.
+export const WINDOWS_FONT_COHORT_ORACLE = Object.freeze({
+  schema_version: 2,
+  selected_families: ["Arial", "Consolas", "Times New Roman", "Comic Sans MS",
+    "Gabriola", "Ink Free", "Bahnschrift", "Segoe UI Light", "Meiryo",
+    "Batang", "SimHei", "Microsoft Uighur", "Agency FB", "Lucida Bright"],
+  shard: {
+    fonts_shard40: {Arial:true,Consolas:true,"Times New Roman":true,"Comic Sans MS":true,
+      Gabriola:true,"Ink Free":true,Bahnschrift:true,"Segoe UI Light":true,
+      Meiryo:false,Batang:false,SimHei:false,"Microsoft Uighur":false,"Agency FB":false,"Lucida Bright":false},
+    fonts_shard41: {Arial:true,Consolas:true,"Times New Roman":true,"Comic Sans MS":true,
+      Gabriola:true,"Ink Free":true,Bahnschrift:true,"Segoe UI Light":true,
+      Meiryo:true,Batang:true,SimHei:true,"Microsoft Uighur":true,"Agency FB":false,"Lucida Bright":false},
+    fonts_shard42: {Arial:true,Consolas:true,"Times New Roman":true,"Comic Sans MS":true,
+      Gabriola:true,"Ink Free":true,Bahnschrift:true,"Segoe UI Light":true,
+      Meiryo:false,Batang:false,SimHei:false,"Microsoft Uighur":false,"Agency FB":true,"Lucida Bright":true},
+    fonts_shard43: {Arial:true,Consolas:true,"Times New Roman":true,"Comic Sans MS":true,
+      Gabriola:true,"Ink Free":true,Bahnschrift:true,"Segoe UI Light":true,
+      Meiryo:true,Batang:true,SimHei:true,"Microsoft Uighur":true,"Agency FB":true,"Lucida Bright":true},
+  },
+  sources: [{url:"https://learn.microsoft.com/en-us/typography/fonts/windows_11_font_list",
+    catalog:"tools/tests/fixtures/windows-font-cohorts-v1.json"}],
+});
+
 export function validateFontAcceptance(recordsById, oracle = FONT_ACCEPTANCE_ORACLE) {
   // A caller can append provenance without replacing fixed expectations.
   const expectedOracle = {
@@ -229,7 +257,7 @@ export function validateFontAcceptance(recordsById, oracle = FONT_ACCEPTANCE_ORA
   const normalize = name => String(name || "").toLowerCase();
   const selected = expectedOracle.selected_families;
   const scenarios = [
-    ["fonts_shard42", "shard_fonts"], ["fonts_shard43", "shard_fonts"],
+    ...Object.keys(expectedOracle.shard).map(id => [id, "shard_fonts"]),
     ["fonts_cloak10026", "cloak_fonts"],
     ["fonts_allowlists", "font_allowlists"], ["fonts_empty", "font_allowlists"],
   ];
@@ -370,11 +398,24 @@ export function validateFontAcceptance(recordsById, oracle = FONT_ACCEPTANCE_ORA
       if (assigned !== group) continue;
       for (const channel of ["windowLocal", "workerLocal", "query", "css"]) {
         const value = coverage.get(`${scenario}:${channel}`);
-        if (!value?.blocked || (scenario !== "fonts_empty" && !value.retained))
+        const cohortContract = expectedOracle.schema_version === 2 && group === "shard_fonts";
+        // A complete installed-font cohort is intentionally permitted to keep
+        // everything. Every individual eligible result above is still checked;
+        // actual blocking and retention are mandatory across the four cohorts.
+        if (!cohortContract && (!value?.blocked || (scenario !== "fonts_empty" && !value.retained)))
           gaps.push(`${scenario}:${channel}:needs_actual_blocked_and_retained_inputs`);
       }
       if (!coverage.get(`${scenario}:downloaded`)?.retained)
         gaps.push(`${scenario}:downloaded_fixture_unavailable`);
+    }
+    if (expectedOracle.schema_version === 2 && group === "shard_fonts") {
+      for (const channel of ["windowLocal", "workerLocal", "query", "css"]) {
+        const totals = scenarios.filter(([, assigned]) => assigned === group)
+          .map(([id]) => coverage.get(`${id}:${channel}`))
+          .reduce((sum, v) => ({retained:sum.retained+(v?.retained??0), blocked:sum.blocked+(v?.blocked??0)}), {retained:0,blocked:0});
+        if (!totals.retained || !totals.blocked)
+          gaps.push(`fonts_shard40:${channel}:needs_actual_cohort_blocking_and_retention`);
+      }
     }
     for (const gap of gaps) {
       const [scenario, ...detail] = gap.split(":");

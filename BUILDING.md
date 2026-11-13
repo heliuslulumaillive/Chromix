@@ -51,3 +51,13 @@ the virtual port namespace. The fixture retains managed DNS/proxy flags and
 allows only its own HTTP port to bypass the proxy. Local packet
 acceptance with the configured proxy remains separate from this bounded CI
 fixture. No DLL admission or installation is implied by a source change.
+
+The Windows font-cohort candidate retains the documented Windows base fonts and
+selects four stable installed-font cohorts from the existing seed: optional
+language packs and application fonts are each kept or hidden as a class. It
+never invents absent fonts or changes inventory with the proxy country. The
+registered transition from run `43149750998` changes only the shared policy,
+its compiled regression, and the Windows font-cache call site. The expanded
+browser acceptance requires core retention, actual optional-font masking across
+the cohorts, consistent Window/Worker/CSS/enumeration results, and unchanged
+downloaded fonts. Source tests do not imply a rebuilt or admitted DLL.

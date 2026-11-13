@@ -9,7 +9,7 @@ import zlib from "node:zlib";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { audioAcceptanceProbe, validateAudioAcceptance } from "./fingerprint_audio_acceptance.mjs";
-import { fontAcceptanceProbe, validateFontAcceptance, FONT_ACCEPTANCE_ORACLE } from "./fingerprint_font_acceptance.mjs";
+import { fontAcceptanceProbe, validateFontAcceptance, WINDOWS_FONT_COHORT_ORACLE } from "./fingerprint_font_acceptance.mjs";
 import { referenceAcceptanceProbe, validateReferenceAcceptance } from "./fingerprint_reference_acceptance.mjs";
 import { renderbufferAcceptanceProbe, validateRenderbufferAcceptance } from "./fingerprint_renderbuffer_acceptance.mjs";
 import { pixelSemanticProbe, validatePixelSemantics, validateHeadlessScreens, pngDimensions, PIXEL_SCENARIOS, HEADLESS_SCENARIOS } from "./pixel_semantic_acceptance.mjs";
@@ -528,6 +528,8 @@ export function scenarios() {
       ["--uxr-webgl-max-texture-size=64", "--uxr-webgl-max-cube-map-texture-size=64", "--uxr-webgl-max-renderbuffer-size=64",
         "--uxr-webgl-max-3d-texture-size=16", "--uxr-webgl-max-array-texture-layers=4", "--uxr-webgpu-features=timestamp-query"]),
     make("webgl_shardx", { webgl: "shardx" }, ["--fingerprint-webgl-mode-seed=314159"]),
+    make("fonts_shard40", { fonts: "shardx" }, ["--fingerprint-fonts-mode-seed=40"]),
+    make("fonts_shard41", { fonts: "shardx" }, ["--fingerprint-fonts-mode-seed=41"]),
     make("fonts_shard42", { fonts: "shardx" }, ["--fingerprint-fonts-mode-seed=42"]),
     make("fonts_shard43", { fonts: "shardx" }, ["--fingerprint-fonts-mode-seed=43"]),
     make("fonts_native10026", { fonts: "native" }, ["--fingerprint-fonts-mode-seed=10026", "--fingerprint-platform=windows"]),
@@ -562,7 +564,7 @@ export const POSITIVE_GROUPS = [
   "cloak_voices", "cloak_offset", "cloak_text", "native_audio", "audio_defaults", "audio_channels", "headless_screen",
 ];
 export const BASIC_SCENARIOS = new Set([
-  "fonts_shard42", "fonts_shard43", "fonts_native10026", "fonts_allowlists", "fonts_empty",
+  "fonts_shard40", "fonts_shard41", "fonts_shard42", "fonts_shard43", "fonts_native10026", "fonts_allowlists", "fonts_empty",
   "cloak_voices", "cloak_voices_no_local", "cloak_offset", "cloak_text_positive",
   "audio_native_macos", "audio_defaults_44100", "audio_defaults_32000",
   "audio_default_mono", "audio_default_stereo", "audio_default_32",
@@ -776,7 +778,7 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
       gpu_custom: ["renderbuffer"],
       canvas_shardx: ["pixel_semantics"], webgl_shardx: ["pixel_semantics"],
       ...Object.fromEntries(HEADLESS_SCENARIOS.map(id=>[id,["headless_screen"]])),
-      ...Object.fromEntries(["fonts_shard42", "fonts_shard43", "fonts_native10026", "fonts_allowlists", "fonts_empty"].map(id => [id, ["fonts"]])),
+      ...Object.fromEntries(["fonts_shard40", "fonts_shard41", "fonts_shard42", "fonts_shard43", "fonts_native10026", "fonts_allowlists", "fonts_empty"].map(id => [id, ["fonts"]])),
       ...Object.fromEntries(["cloak_voices", "cloak_voices_no_local", "cloak_offset", "cloak_text_positive"].map(id => [id, ["reference"]])),
       ...Object.fromEntries(["audio_native_macos", "audio_defaults_44100", "audio_defaults_32000", "audio_default_mono", "audio_default_stereo", "audio_default_32"].map(id => [id, ["audio"]])),
     };
@@ -792,7 +794,7 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
       checks.push(...result.checks.filter(row=>row.acceptance_group!=="cloak_audio"));
       notTested.push(...result.not_tested.filter(row=>row.acceptance_group!=="cloak_audio"));
     }
-    const fontResult = validateFontAcceptance(byId, FONT_ACCEPTANCE_ORACLE);
+    const fontResult = validateFontAcceptance(byId, WINDOWS_FONT_COHORT_ORACLE);
     // Retire the removed Cloak-font oracle, replacing it with native parity
     // evidence rather than treating a missing obsolete scenario as a pass.
     checks.push(...fontResult.checks.filter(row=>row.acceptance_group!=="cloak_fonts"));

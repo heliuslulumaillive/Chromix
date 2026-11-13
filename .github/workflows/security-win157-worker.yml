@@ -85,10 +85,13 @@ jobs:
         run: python -B -X utf8 tools/check_patches.py
       - name: Verify input preservation and existing rendering goldens
         shell: pwsh
-        run: python -B -X utf8 -m unittest tools.tests.test_canvas_input_mask tools.tests.test_canvas_audio_candidate
+        run: python -B -X utf8 -m unittest tools.tests.test_canvas_input_mask tools.tests.test_canvas_audio_candidate tools.tests.test_windows_font_cohorts
       - name: Compile the pinned loopback-only TURN acceptance helper
         shell: pwsh
         run: python -B -X utf8 tools/build_webrtc_turn_fixture.py --output C:/security-evidence/webrtc-turn-fixture.exe
+      - name: Verify Windows font cohort evidence cannot accept no-op or partial masking
+        shell: pwsh
+        run: node --test tools/tests/test_windows_font_acceptance.mjs tools/tests/test_fingerprint_runtime_acceptance.mjs
       - name: Verify document transport acceptance rejects incomplete evidence
         shell: pwsh
         run: python -B -X utf8 -m unittest tools.tests.test_webrtc_document_loopback_acceptance

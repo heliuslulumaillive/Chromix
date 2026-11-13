@@ -253,7 +253,7 @@
     },
     {
       "path": "patches/lite-windows157/13-fonts.patch",
-      "sha256": "8deb774a5dad8a7db7e1304b35b2b5e20a93c96530a6a490c892dee7a4e96562",
+      "sha256": "6b7dd5d394f26910d22acc1665e7583f15db38386402948b952a090f0a6a3274",
       "files": [
         "base/uxr_font_allowlist.h",
         "base/uxr_font_allowlist_tests.cc",
@@ -460,7 +460,7 @@
     },
     {
       "path": "patches/lite-windows157/19-shared-policy.patch",
-      "sha256": "0289a4824c0b8e616328bb871effc01f403f47904c0e73c8615c360333616f43",
+      "sha256": "6e929c34521864610bc32d61f4a5bb4715417e781b6454f9aa5655c8b362d43c",
       "files": [
         "base/uxr_cloak_hardware.cc",
         "base/uxr_cloak_hardware.h",
@@ -955,7 +955,7 @@
     {
       "path": "base/uxr_surface_golden_tests.cc",
       "before_sha256": null,
-      "after_sha256": "82e0e4b0e70063df457b853fa6c524fbbd428e5ac05d63e8490d440de2bfa651"
+      "after_sha256": "ec2dce5fedd88952bcf15a593bdef68f113c6ea7a4ec2a3545157babf63552ad"
     },
     {
       "path": "base/uxr_surface_math.h",
@@ -975,7 +975,7 @@
     {
       "path": "base/uxr_surface_reference_data.h",
       "before_sha256": null,
-      "after_sha256": "11d853f0c0d2ae13be3d2c7f53af3594c497b2c019e78b969c28a12c397b629b"
+      "after_sha256": "1308b72ff79dc76ec1f0a30186cd0aed89c0a64b0ad96b690f74210a15107667"
     },
     {
       "path": "base/uxr_voice_compat.h",
@@ -4060,7 +4060,7 @@
     {
       "path": "third_party/blink/renderer/platform/fonts/font_cache.cc",
       "before_sha256": "4db6ea7af92147888c4ec9b797e431793a37c6623b53c607d39f4f4779a13b46",
-      "after_sha256": "868cb2fae41075cbc995cf58f5f7399e96a8945ac833d976974673b0fdd13b8d"
+      "after_sha256": "c990f09b773d7e0bd3e1c2edf5078ee59291fa8477999301bde74934bbae86c8"
     },
     {
       "path": "third_party/blink/renderer/platform/fonts/font_cache.h",
@@ -4736,7 +4736,7 @@
     "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
     "cross_version_byte_equivalence_claimed": false
   },
-  "stack_sha256": "15b9da3f9b3de598b9e04db16d5e58028023c95ba21e5cd6478200ae48991e77",
+  "stack_sha256": "264116be1878cfa9d284ec43c2e471d4fc1a37c2fd90e3ee156e21dfeea1e259",
   "upstream_port": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",
