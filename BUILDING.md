@@ -61,3 +61,15 @@ its compiled regression, and the Windows font-cache call site. The expanded
 browser acceptance requires core retention, actual optional-font masking across
 the cohorts, consistent Window/Worker/CSS/enumeration results, and unchanged
 downloaded fonts. Source tests do not imply a rebuilt or admitted DLL.
+
+Candidate `da5de28`, built by Actions `43459314622`, produced DLL SHA-256
+`3bdd3a063f6359b8594feefec9161a49ac1b38d5364ea266788150cba683ebec`.
+On 2026-11-14 its 34 local runtime scenes passed 2,966 checks, including 200
+positive font checks; the desktop manual path passed 431 and the packaged
+bridge passed 1,251. Four font cohorts remained observable and all returned
+`rare=false` in the public demo, with one still in `p99.5-p99.9`. The same old
+font vector changed from `true/not_seen` on Nov 13 to `false/p95-p99` on Nov 14;
+these results do not establish permanent or production-model rarity behavior.
+The desktop source admits only this exact DLL and the previously verified r69
+identity. The isolated accepted package has not replaced the formal install.
+Local evidence: `G:/Shardxlite/tests/font-cohorts-20261113/report.html`.
