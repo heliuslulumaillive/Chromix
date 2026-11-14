@@ -60,8 +60,9 @@ test('package oracle covers all twelve installations and protects language fonts
     const row=oracle.shard['fonts_pack'+(120+index)];assert.ok(row);
     for(const name of ['Yu Gothic UI','Yu Gothic UI Bold','Segoe UI Variable Text','Meiryo','Batang','SimHei','Microsoft Uighur'])assert.equal(row[name],true);
     for(const name of ['Agency FB','Lucida Bright','MS Outlook','MT Extra'])assert.equal(row[name],row.Century);
-    assert.equal(row['Noto Sans SC'],row['Noto Sans SC Black']);
-    assert.equal(row['Noto Serif SC'],row['Noto Serif SC Bold']);
+    for(const stock of ['Nirmala Text','Noto Sans SC','Noto Sans SC Black','Noto Serif SC','Noto Serif SC Bold'])assert.equal(row[stock],true);
+    assert.equal(row['Noto Sans JP'],row['Noto Sans JP Black']);
+    assert.equal(row['Noto Serif JP'],row['Noto Serif JP Bold']);
     assert.equal(row['Liberation Sans'],row['Liberation Serif']);
   }
   assert.equal(new Set(Array.from({length:12},(_,i)=>JSON.stringify(oracle.shard['fonts_pack'+(120+i)]))).size,12);

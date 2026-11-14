@@ -55,6 +55,25 @@ class ProductSourceMigrationTests(unittest.TestCase):
         return {path.relative_to(self.src).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns)
                 for path in self.src.rglob('*') if path.is_file()}
 
+    def test_reviewed_created_header_requires_absence_and_exact_pinned_bytes(self):
+        content=b'reviewed new private resource helper\n'
+        name='base/reviewed-private-fonts.h';replacement='build/checkpoint-sources/'+digest(content)+'.h'
+        file=self.repo/replacement;file.parent.mkdir(parents=True,exist_ok=True);file.write_bytes(content)
+        self.product['source_files'].append({'path':name,'before_sha256':None,'after_sha256':digest(content)})
+        self.updates.append({'path':name,'before_sha256':None,'after_sha256':digest(content),'replacement_path':replacement})
+        conflict=self.src/name;conflict.parent.mkdir(parents=True);conflict.write_bytes(b'unreviewed existing header')
+        before=self.snapshot()
+        with self.assertRaises(ValueError):migration.apply_source_updates(self.repo,self.src,self.rule)
+        self.assertEqual(before,self.snapshot());conflict.unlink()
+        migration.apply_source_updates(self.repo,self.src,self.rule)
+        self.assertEqual(conflict.read_bytes(),content)
+
+    def test_missing_before_digest_cannot_create_an_existing_source(self):
+        self.updates[0]['before_sha256']=None
+        before=self.snapshot()
+        with self.assertRaises(ValueError):migration.apply_source_updates(self.repo,self.src,self.rule)
+        self.assertEqual(before,self.snapshot())
+
     def test_only_reviewed_sources_change_and_compiled_state_is_preserved(self):
         before = self.snapshot()
         migration.verify_donor_sources(self.repo, self.src, self.rule)

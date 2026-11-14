@@ -51,6 +51,7 @@ MASK_FIRST_COUNTS = {
     'mask_first_mutation_rejections': 8,
 }
 FINGERPRINT_RUNTIME_SCENARIOS = {
+    *(f'fonts_pack{120+i}' for i in range(12)),
     'native_off_control', 'all_native', 'legacy_seeded', 'canvas_shardx',
     'webgl_cloak', 'shard_surfaces', 'memory_custom', 'hardware_cloak', 'gpu_custom',
     'webgl_shardx', 'fonts_shard40', 'fonts_shard41', 'fonts_shard42', 'fonts_shard43', 'fonts_native10026', 'fonts_allowlists', 'fonts_empty',
@@ -67,7 +68,7 @@ FINGERPRINT_POSITIVE_SCENARIOS = {
     'shard_media': {'shard_surfaces'}, 'memory_custom': {'memory_custom'}, 'hardware_profile': {'hardware_cloak'},
     'webgl_resource_limits': {'all_native', 'gpu_custom'}, 'webgpu_capabilities': {'gpu_custom', 'hardware_cloak'},
     'hardware_gpu_identity': {'hardware_cloak'}, 'masked_webgl': {'gpu_masked_custom'},
-    'shard_fonts': {'fonts_shard40', 'fonts_shard41', 'fonts_shard42', 'fonts_shard43'}, 'native_fonts': {'fonts_native10026'},
+    'shard_fonts': {'fonts_shard40', 'fonts_shard41', 'fonts_shard42', 'fonts_shard43', *(f'fonts_pack{120+i}' for i in range(12))}, 'native_fonts': {'fonts_native10026'},
     'font_allowlists': {'fonts_allowlists', 'fonts_empty'},
     'cloak_voices': {'cloak_voices', 'cloak_voices_no_local'}, 'cloak_offset': {'cloak_offset'},
     'cloak_text': {'cloak_text_positive'}, 'native_audio': {'audio_native_macos'},
@@ -83,6 +84,7 @@ FINGERPRINT_EXTRA_SCOPES = {
     'canvas_shardx': ('pixel_semantics',), 'webgl_shardx': ('pixel_semantics',),
     **{name: ('headless_screen',) for name in FINGERPRINT_POSITIVE_SCENARIOS['headless_screen']},
     **{name: ('fonts',) for name in ('fonts_shard40', 'fonts_shard41', 'fonts_shard42', 'fonts_shard43', 'fonts_native10026', 'fonts_allowlists', 'fonts_empty')},
+    **{f'fonts_pack{120+i}': ('fonts',) for i in range(12)},
     **{name: ('reference',) for name in ('cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive')},
     **{name: ('audio',) for name in ('audio_native_macos', 'audio_defaults_44100', 'audio_defaults_32000',
                                    'audio_default_mono', 'audio_default_stereo', 'audio_default_32')},
@@ -761,6 +763,9 @@ def validate_mode_runtime(report, payload):
     required.update((scenario, name + '_matches_js')
                     for scenario in ('hardware_cloak', 'memory_custom')
                     for name in ('device-memory', 'sec-ch-device-memory'))
+    required.update(('all_native','private_font_resource_'+channel+'_'+family)
+                    for channel in ('windowLocal','workerLocal','query','css')
+                    for family in ('Noto Sans JP','Noto Serif JP','Liberation Sans','Liberation Serif','Liberation Mono'))
     shard_probe = next(s for s in scenarios if s['id'] == 'webgl_shardx')['probe'].get('webgl', {})
     for kind in ('webgl', 'webgl2'):
         names = {('webgl_shardx', kind + '_v2_' + name) for name in (

@@ -25,6 +25,7 @@ def reviewed_updates(repo, rule):
     if target['stack_sha256'] != rule.get('target_aggregate_sha256'):
         raise ValueError('Product source updates target another stack')
     expected = {row['path']: row['after_sha256'] for row in target['source_files']}
+    declarations = {row['path']: row for row in target['source_files']}
     seen = set()
     for update in updates:
         if not isinstance(update, dict) or set(update) != {'path', 'before_sha256', 'after_sha256', 'replacement_path'}:
@@ -32,7 +33,10 @@ def reviewed_updates(repo, rule):
         name = update['path']
         owned(repo, name)
         before, after = update['before_sha256'], update['after_sha256']
-        if (name in seen or not isinstance(before, str) or not HEX.fullmatch(before)
+        created = (before is None and name in declarations and
+                   'before_sha256' in declarations[name] and
+                   declarations[name]['before_sha256'] is None)
+        if (name in seen or not (created or isinstance(before, str) and HEX.fullmatch(before))
                 or not isinstance(after, str) or not HEX.fullmatch(after) or before == after
                 or expected.get(name) != after):
             raise ValueError('Product source update differs from its reviewed target')

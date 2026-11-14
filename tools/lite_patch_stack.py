@@ -56,6 +56,12 @@ def load(repo: Path):
             raise ValueError('Product topics must own distinct, complete file sections')
         targets.update(actual)
     directory = owned(repo, 'patches/lite-windows157')
+    if 'base/uxr_private_font_packages_win.h' in targets:
+        resources = runtime.get('private_font_packages', {})
+        if (not isinstance(resources,dict) or resources.get('version') != 1 or resources.get('manifest') != 'build/private-font-packages.json'
+                or resources.get('install_to_windows') is not False
+                or resources.get('manifest_sha256') != digest(owned(repo, resources['manifest']).read_bytes())):
+            raise ValueError('Private font resources differ from the pinned product contract')
     actual = {p.relative_to(repo).as_posix() for p in directory.glob('*.patch')}
     if not paths or actual != paths:
         raise ValueError('Unexpected or incomplete product patch inventory')
@@ -102,6 +108,7 @@ def input_hashes(repo):
     names = {MANIFEST, 'CHROMIUM_WINDOWS_VERSION', 'UNGOOGLED_WINDOWS_VERSION',
              'build/ungoogled-revisions.psd1', 'build/args.windows.gn', 'build/args.security.gn', 'build/windows157-port.json',
              'build/windows/prepare-ungoogled.ps1', 'tools/patch_selection.py',
+             'build/windows/package-win.ps1',
              'tools/lite_patch_stack.py', 'tools/prepare_lite_product.py', 'tools/lite_product_migration.py',
              'tools/prepare_restored_build.py', 'tools/repair_windows_midl.py',
              'tools/verify_native_browser_tests.py',
@@ -111,6 +118,9 @@ def input_hashes(repo):
              'tools/tests/fixtures/windows-font-cohorts-v1.json',
              'tools/tests/fixtures/windows-font-packages-v2.json',
              'tools/generate_windows_font_packages.py',
+             'build/private-font-packages.json', 'tools/private_font_packages_win.h.in',
+             'tools/generate_private_font_packages.py', 'tools/stage_private_font_packages.py',
+             'tools/tests/test_private_font_packages.py',
              'tools/verify_fingerprint_modes_runtime.mjs',
              'tools/fingerprint_font_acceptance.mjs',
              'tools/verify_google_services_candidate.py',

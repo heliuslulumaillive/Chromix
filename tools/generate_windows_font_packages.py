@@ -9,7 +9,7 @@ def render(data):
  lines=[MARKER,'// All published Windows fonts, including optional FOD packs, are retained.',
  '// Source URLs and native family/full/PostScript aliases are in the frozen catalog.',
  '// Only known application packages vary. Unknown installed fonts stay native.',
- array('kWindowsSystemFontNamesV2',data['core_names']),array('kWindowsOfficeFontNamesV2',data['office_names']),
+ array('kWindowsSystemFontNamesV2',data['core_names']),array('kWindowsSystemVariablePrefixesV2',data['system_variable_prefixes']),array('kWindowsOfficeFontNamesV2',data['office_names']),
  'inline constexpr uint32_t kWindowsFontPackageProfilesV2[] = { '+', '.join(str(p['mask'])+'u' for p in data['profiles'])+' };',r'''
 inline int WindowsFontCompareV2(std::string_view a, std::string_view b) {
   const auto lower = [](unsigned char c) { return c >= 'A' && c <= 'Z' ? c + ('a'-'A') : c; };
@@ -39,6 +39,8 @@ inline uint32_t WindowsFontPackageProfileV2(uint32_t seed) {
 }
 inline uint32_t WindowsFontPackageBitV2(std::string_view name) {
   if (WindowsFontListedV2(name,kWindowsSystemFontNamesV2)) return 0;
+  for (const auto prefix:kWindowsSystemVariablePrefixesV2)
+    if (name.size()>=prefix.size() && AsciiEqual(name.substr(0,prefix.size()),prefix)) return 0;
   for (const auto core:kProtectedFontNames) if (AsciiEqual(name,core)) return 0;
   for (const auto prefix:{"Noto Sans SC","Noto Sans TC","Noto Sans HK","Noto Sans JP","Noto Sans KR",
       "Noto Sans CJK SC","Noto Sans CJK TC","Noto Sans CJK HK","Noto Sans CJK JP","Noto Sans CJK KR",

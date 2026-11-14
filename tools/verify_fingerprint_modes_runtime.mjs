@@ -799,6 +799,16 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
       notTested.push(...result.not_tested.filter(row=>row.acceptance_group!=="cloak_audio"));
     }
     const fontResult = validateFontAcceptance(byId, WINDOWS_FONT_PACKAGE_ORACLE);
+    for(const name of ['Noto Sans JP','Noto Serif JP','Liberation Sans','Liberation Serif','Liberation Mono']) {
+      const fonts=byId.all_native?.extra?.fonts;
+      for(const channel of ['windowLocal','workerLocal'])check('all_native','private_font_resource_'+channel+'_'+name,
+        fonts?.[channel]?.entries?.some(row=>row.family===name&&row.loaded===true&&row.status==='loaded'));
+      check('all_native','private_font_resource_query_'+name,
+        fonts?.localFonts?.records?.some(row=>row.family.toLowerCase()===name.toLowerCase()));
+      const node=fonts?.cssNodes?.find(row=>row.family===name);
+      check('all_native','private_font_resource_css_'+name,
+        node&&fonts?.cssPlatformFonts?.[node.nodeId]?.fonts?.some(row=>row.familyName.toLowerCase()===name.toLowerCase()&&row.glyphCount>0));
+    }
     // Retire the removed Cloak-font oracle, replacing it with native parity
     // evidence rather than treating a missing obsolete scenario as a pass.
     checks.push(...fontResult.checks.filter(row=>row.acceptance_group!=="cloak_fonts"));
@@ -1048,6 +1058,10 @@ async function main() {
       const folder = path.join(runRoot, scenario.id); await fsp.mkdir(folder);
       const profile = path.join(folder, "profile"); await fsp.mkdir(profile);
       const scenarioFlags = [...scenario.flags];
+      const privateFontRoot=path.join(path.dirname(browser),'private-fonts');
+      if(!fs.existsSync(path.join(privateFontRoot,'private-font-packages.json')))
+        throw new Error('The new font-package candidate requires its pinned private resources');
+      scenarioFlags.push('--uxr-fonts-resources-dir='+privateFontRoot);
       let voiceLocale;
       if (["cloak_voices", "cloak_voices_no_local"].includes(scenario.id)) {
         const nativeVoices = report.scenarios.find(r => r.id === "all_native")?.extra?.reference?.voices?.values || [];

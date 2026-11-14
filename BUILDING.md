@@ -83,3 +83,14 @@ describe installation choices, never proxy-country inventories. Missing packages
 can make profiles identical on a particular host. Source/compiled host tests are
 separate from the pending hosted DLL build and subsequent local/Rare acceptance;
 no formal kernel binding or DLL admission is changed by this branch.
+
+The updated candidate treats the audited OS-owned Noto SC variable fonts and
+Nirmala TTC as system fonts. Additional Noto JP and Liberation files are pinned
+by `build/private-font-packages.json`, carry their SIL licenses, and are loaded
+only into an opt-in DirectWrite collection with
+`--uxr-fonts-resources-dir=<bundle>/private-fonts`. No Windows font registration
+is performed. The native host test confirms real regular/bold faces, unchanged
+global system collection counts and rejection of altered resources. Browser
+acceptance additionally requires the private families in Window, Worker,
+Font Access and actual CSS glyph selection; missing assets cannot be skipped
+into acceptance. The current DLL build and Rare sampling remain separate steps.

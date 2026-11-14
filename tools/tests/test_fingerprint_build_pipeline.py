@@ -175,7 +175,8 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
              'cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive', 'audio_native_macos',
              'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono', 'audio_default_stereo',
              'audio_default_32', 'gpu_masked_custom',
-             'headless_custom_dpr2','headless_custom_fractional','headless_explicit_info','headless_force_scale','headless_native_ignored','headless_off_ignored']
+             'headless_custom_dpr2','headless_custom_fractional','headless_explicit_info','headless_force_scale','headless_native_ignored','headless_off_ignored',
+             *(f'fonts_pack{120+i}' for i in range(12))]
     common = ['probe_completed', 'normal_owned_browser_shutdown', 'secure_loopback', 'no_internal_probe_errors',
               'window_worker_cpu_memory', 'probe_scope']
     full = ['audio_alias_copy_preserves_unwritten_tail', 'analyser_preserves_unwritten_tails', 'synthetic_media_tracks']
@@ -197,6 +198,9 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
                          'offset_50_native_control', 'offset_50_captured_oracle'],
     }
     checks.extend({'scenario': case, 'name': name, 'passed': True} for case, names in specific.items() for name in names)
+    checks.extend({'scenario':'all_native','name':'private_font_resource_'+channel+'_'+family,'passed':True}
+                  for channel in ('windowLocal','workerLocal','query','css')
+                  for family in ('Noto Sans JP','Noto Serif JP','Liberation Sans','Liberation Serif','Liberation Mono'))
     for scenario, scopes in candidate.FINGERPRINT_EXTRA_SCOPES.items():
         checks.extend({'scenario': scenario, 'name': scope + '_acceptance_probe_present', 'passed': True} for scope in scopes)
     positive_checks = {
@@ -215,7 +219,7 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
         'webgl_resource_limits': ('gpu_custom', 'webgl_texture_context_limit'),
         'webgpu_capabilities': ('gpu_custom', 'webgpu_compute_readback'),
         'hardware_gpu_identity': ('hardware_cloak', 'webgl_hardware_identity_positive'),
-        'shard_fonts': ('fonts_shard40', 'windowLocal:Agency FB:blocked'),
+        'shard_fonts': ('fonts_pack120', 'windowLocal:Agency FB:blocked'),
         'native_fonts': ('fonts_native10026', 'windowLocal_native_parity'),
         'font_allowlists': ('fonts_allowlists', 'windowLocal:Consolas:blocked'),
         'cloak_voices': ('cloak_voices', 'native_voice_intersection_and_metadata'),

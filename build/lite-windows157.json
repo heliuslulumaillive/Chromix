@@ -44,12 +44,18 @@
         "size": 1402
       }
     },
-    "domain_rules_sha256": "f59c4316b4ac32f9dfe4f6440c4cf9ad5dab0ab8827769f5dc2587ca07e91f09"
+    "domain_rules_sha256": "f59c4316b4ac32f9dfe4f6440c4cf9ad5dab0ab8827769f5dc2587ca07e91f09",
+    "private_font_packages": {
+      "version": 1,
+      "manifest": "build/private-font-packages.json",
+      "manifest_sha256": "53263cba1087f0b942da56219d42544b539708a627f5f9eb8ed3491cceb2507d",
+      "install_to_windows": false
+    }
   },
   "patches": [
     {
       "path": "patches/lite-windows157/01-build-integration.patch",
-      "sha256": "52bfbbe2f5d8ebb721ca81e7d8477dbb9b31bb787441a89ebc7cb2223e7cea1e",
+      "sha256": "21fa8bd361f2528186e86c3b1f534e76093f1c2489745e8ce700a4d78036f481",
       "files": [
         "BUILD.gn",
         "base/BUILD.gn",
@@ -253,7 +259,7 @@
     },
     {
       "path": "patches/lite-windows157/13-fonts.patch",
-      "sha256": "97e47732e6d2875ae95f672af3628bd6c39c60c60060fd08da684eef2b52cb54",
+      "sha256": "e9cbb24766c4c8c71ba105bbdc2fabdf425b960c9c722d693ea66e740fb57086",
       "files": [
         "base/uxr_font_allowlist.h",
         "base/uxr_font_allowlist_tests.cc",
@@ -266,7 +272,13 @@
         "third_party/blink/renderer/platform/fonts/simple_font_data.cc",
         "third_party/blink/renderer/platform/fonts/skia/font_cache_skia.cc",
         "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc",
-        "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.h"
+        "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.h",
+        "base/uxr_private_font_packages_win.h",
+        "ui/gfx/win/direct_write.h",
+        "ui/gfx/win/direct_write.cc",
+        "content/browser/renderer_host/dwrite_font_proxy_impl_win.cc",
+        "content/browser/font_access/font_enumeration_data_source_win.cc",
+        "ui/gfx/BUILD.gn"
       ]
     },
     {
@@ -460,7 +472,7 @@
     },
     {
       "path": "patches/lite-windows157/19-shared-policy.patch",
-      "sha256": "f1a8db519aba79abc00eefb7ba156e04f22697bc94477367447b1c21408f0694",
+      "sha256": "3b75ab92ecfeaf13b085aa9cad670ac367293e67fce2d05e867772fe696fbb37",
       "files": [
         "base/uxr_cloak_hardware.cc",
         "base/uxr_cloak_hardware.h",
@@ -850,7 +862,7 @@
     {
       "path": "base/BUILD.gn",
       "before_sha256": "2619e16bd05092597a911f7b0f9e51c3363d7a7267527d79150165fb873aa9aa",
-      "after_sha256": "579cc4f59455d087b86963132584637e9e5728c7ab96f5d54e737d05a2db1759"
+      "after_sha256": "5ef706f9e269c6d6055d84e75b1d9fb288493acdb57e9a592d3ed14e8293a3c5"
     },
     {
       "path": "base/uxr_audio_defaults.h",
@@ -948,6 +960,11 @@
       "after_sha256": "397eeaaa30cc53ecd56d430b219224cc5769262b15d96c193d74b74e7dad0bd9"
     },
     {
+      "path": "base/uxr_private_font_packages_win.h",
+      "before_sha256": null,
+      "after_sha256": "643992375bf52f1bf507f56bec0b7542b8d628333ad0cd1c140186eaf2a1e98d"
+    },
+    {
       "path": "base/uxr_shard_webgl_v2_properties.h",
       "before_sha256": null,
       "after_sha256": "2baad257ead054132662a447593680af5c858c7654f93a352d187d50266c8a0b"
@@ -955,7 +972,7 @@
     {
       "path": "base/uxr_surface_golden_tests.cc",
       "before_sha256": null,
-      "after_sha256": "3822be063911b00608573493a3d70364b0bb267326f09a6e164b99898bcf6f8d"
+      "after_sha256": "2cf7e4571b16f6e0bdc6993a838bd016a2aeb415c1cbbc39ff16690fb9ccd3f2"
     },
     {
       "path": "base/uxr_surface_math.h",
@@ -975,7 +992,7 @@
     {
       "path": "base/uxr_surface_reference_data.h",
       "before_sha256": null,
-      "after_sha256": "76b0c01277be7bc4cd6bce5a3a25d0aaee2acce47138f3d687b2597fee373c70"
+      "after_sha256": "29c84bebbfac787f7ca154c57ce908341bfcd1d9e9acbd878b95a4b911eb82f0"
     },
     {
       "path": "base/uxr_voice_compat.h",
@@ -3193,6 +3210,11 @@
       "after_sha256": "93e162341151221707a49a77ba6f8f221747ff61c69931ebfa178d1cdf459c29"
     },
     {
+      "path": "content/browser/font_access/font_enumeration_data_source_win.cc",
+      "before_sha256": "a67dcd01afdd8d203a2a230731a6ffad29ba0a992b73864eb25b07a1e45c9d52",
+      "after_sha256": "5afebd3efaeeb0149016147bc04e528995dba543d9b175df0f30df18d1eea50f"
+    },
+    {
       "path": "content/browser/gpu/gpu_data_manager_impl_private.cc",
       "before_sha256": "0fe4d6695ef4bb6545a5a5fd637bf210120b4d8e6cc5bcb12ecf5ece91e35bd2",
       "after_sha256": "31b5588be49ebd030216de297df680e59b90bb4a21f1fb593e17bbfc8a3bcdc1"
@@ -3206,6 +3228,11 @@
       "path": "content/browser/renderer_host/cross_process_frame_connector.cc",
       "before_sha256": "3e682649fcc57c570a59a63ff68fbdc1e2917d91a64b5858a7f23580f8a23248",
       "after_sha256": "b20f7f796faea16b1fc6960013b43cb166c2479091d3e01af436e3b22cfd9884"
+    },
+    {
+      "path": "content/browser/renderer_host/dwrite_font_proxy_impl_win.cc",
+      "before_sha256": "629f77c916de27a09da6535fed3a2a163a2a813504c2815372b59d97656b9587",
+      "after_sha256": "5f300992fe7b4483618fdeb38c96c0ee6bf8f1203e64f7e611332e700fd31724"
     },
     {
       "path": "content/browser/renderer_host/media/media_stream_manager.cc",
@@ -4188,6 +4215,21 @@
       "after_sha256": "df582e33401b7060ffb0ae443f72ab1323707f17f0144be0c17fd1d376396141"
     },
     {
+      "path": "ui/gfx/BUILD.gn",
+      "before_sha256": "87ecfc028a6d4026903fa0cfc15a368c73eaf5040296020297ce83ccbe41c9b7",
+      "after_sha256": "114448926a6dd5f8f732f43c290aa902a5a9e16198e76f2734f9e3bf5c3f2867"
+    },
+    {
+      "path": "ui/gfx/win/direct_write.cc",
+      "before_sha256": "8ef8fd82b4ce653e336ad5cc696503ceb0df0a3bbd86f3759732f3ed45918dad",
+      "after_sha256": "6565bb78bb92eb6d0864048d8b54019520bec09f13efdece8de3892d1bfdf040"
+    },
+    {
+      "path": "ui/gfx/win/direct_write.h",
+      "before_sha256": "9bc0c04a8bbac876c98d6cdd0cb720cf804b96e3c54b809804bec77ae18b7f2f",
+      "after_sha256": "6d48877d5a7819f0dc3de15036e7a68acaf33d95d787130255453254fbc5716e"
+    },
+    {
       "path": "v8/src/flags/flag-definitions.h",
       "before_sha256": "66410bfa170e21487c78a4983003c5b9226943dddf8102036a658a8ae456dc44",
       "after_sha256": "66410bfa170e21487c78a4983003c5b9226943dddf8102036a658a8ae456dc44"
@@ -4736,7 +4778,7 @@
     "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
     "cross_version_byte_equivalence_claimed": false
   },
-  "stack_sha256": "f1ec09d2ecf626b7c38fba04953185fd6e1e2117f6128d78868d1932cf570c27",
+  "stack_sha256": "1e8efe64209c5669d26a346ef890c31bc6533a866442537cbebc196d8da951fe",
   "upstream_port": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",

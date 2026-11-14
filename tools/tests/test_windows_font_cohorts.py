@@ -34,13 +34,15 @@ int main() {
   for (const auto name:system) assert(!ShardWindowsFontHiddenV2(name,seed));
   for (const auto name:{"Century","Century Gothic","Agency FB","MS Outlook","MT Extra","Lucida Bright","Haettenschweiler","Lucida Sans","MS Reference Specialty","Monotype Corsiva","Pristina"})
    assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&1u)==0));
-  for (const auto name:{"Noto Sans SC","Noto Sans SC Black","NotoSansSC-ExtraLight","Noto Sans CJK JP Bold"})
+  for (const auto name:{"Noto Sans JP","Noto Sans JP Black","NotoSansJP-ExtraLight","Noto Sans CJK JP Bold"})
    assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&2u)==0));
-  for (const auto name:{"Noto Serif SC","Noto Serif SC Bold","NotoSerifSC-Black","Noto Serif CJK KR Medium"})
+  for (const auto name:{"Noto Serif JP","Noto Serif JP Bold","NotoSerifJP-Black","Noto Serif CJK KR Medium"})
    assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&4u)==0));
   for (const auto name:{"Liberation Sans","Liberation Serif Bold","LiberationMono-Regular"})
    assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&8u)==0));
   assert(!ShardWindowsFontHiddenV2("Unknown Newly Installed Font",seed));
+  for(const auto stock:{"Nirmala Text","Noto Sans SC Black","NotoSansSC-ExtraLight","Noto Serif SC Bold"})
+   assert(!ShardWindowsFontHiddenV2(stock,seed));
  }
  assert(profiles.size()==12);
  for (const auto name:{"Yu Gothic UI","Yu Gothic UI Bold","YuGothicUI-Regular","Segoe UI Variable Display Semib"}) {

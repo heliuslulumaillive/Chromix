@@ -14,7 +14,7 @@ diff --git a/BUILD.gn b/BUILD.gn
 diff --git a/base/BUILD.gn b/base/BUILD.gn
 --- a/base/BUILD.gn
 +++ b/base/BUILD.gn
-@@ -1028,6 +1028,22 @@
+@@ -1028,6 +1028,23 @@
      "types/variant_util.h",
      "unguessable_token.cc",
      "unguessable_token.h",
@@ -33,11 +33,12 @@ diff --git a/base/BUILD.gn b/base/BUILD.gn
 +    "uxr_voice_reference_data.h",
 +    "uxr_gpu_modes.h",
 +    "uxr_font_allowlist.h",
++    "uxr_private_font_packages_win.h",
 +    "uxr_audio_defaults.h",
      "uuid.cc",
      "uuid.h",
      "value_iterators.cc",
-@@ -6700,6 +6716,26 @@
+@@ -6700,6 +6717,26 @@
    deps = [ "//base/tracing:perfetto_diff_tests" ]
  }
  

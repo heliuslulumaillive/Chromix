@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "kind": "process-private-font-resources",
+  "install_to_windows": false,
+  "fonts": [
+    {
+      "file": "LiberationMono-Bold.ttf",
+      "sha256": "bd62a0672d0b9b6710b01df434c80ad54fa5f0835207eb7b17b7a761463067bb",
+      "size": 307996,
+      "archive_url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "member": "liberation-fonts-ttf-2.1.5/LiberationMono-Bold.ttf",
+      "package": "liberation"
+    },
+    {
+      "file": "LiberationMono-BoldItalic.ttf",
+      "sha256": "79451f3c09fe25116098853b7a2ca6e2436220ccc11af022979adbcf195be130",
+      "size": 284068,
+      "archive_url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "member": "liberation-fonts-ttf-2.1.5/LiberationMono-BoldItalic.ttf",
+      "package": "liberation"
+    },
+    {
+      "file": "LiberationMono-Italic.ttf",
+      "sha256": "605c01c711b44480a7508d349dfbf3264e81fa43d69e61cfa7d10b86e764c4d1",
+      "size": 281536,
+      "archive_url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "member": "liberation-fonts-ttf-2.1.5/LiberationMono-Italic.ttf",
+      "package": "liberation"
+    },
+    {
+      "file": "LiberationMono-Regular.ttf",
+      "sha256": "f2b83c763e8afd21709333370bed4774337fae82267937e2b5aea7e2fbd922c1",
+      "size": 319508,
+      "archive_url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "member": "liberation-fonts-ttf-2.1.5/LiberationMono-Regular.ttf",
+      "package": "liberation"
+    },
+    {
+      "file": "LiberationSans-Bold.ttf",
+      "sha256": "788abee4c806d660e8aee46689dd8540cd4bb98da03dcc9d171ce3efd99a9173",
+      "size": 414456,
+      "archive_url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "member": "liberation-fonts-ttf-2.1.5/LiberationSans-Bold.ttf",
+      "package": "liberation"
+    },
+    {
+      "file": "LiberationSans-BoldItalic.ttf",
+      "sha256": "698da70fc191cc5f33ad4d6d3fe830fe4624b898ea2e3169955928b7c491f1ee",
+      "size": 408996,
+      "archive_url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "member": "liberation-fonts-ttf-2.1.5/LiberationSans-BoldItalic.ttf",
+      "package": "liberation"
+    },
+    {
+      "file": "LiberationSans-Italic.ttf",
+      "sha256": "e5bae5c4cde31f22142753855f4f8fb86da6ff39955ed3c0a11248b0d16948b0",
+      "size": 415816,
+      "archive_url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "member": "liberation-fonts-ttf-2.1.5/LiberationSans-Italic.ttf",
+      "package": "liberation"
+    },
+    {
+      "file": "LiberationSans-Regular.ttf",
+      "sha256": "76d04c18ea243f426b7de1f3ad208e927008f961dc5945e5aad352d0dfde8ee8",
+      "size": 410712,
+      "archive_url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "member": "liberation-fonts-ttf-2.1.5/LiberationSans-Regular.ttf",
+      "package": "liberation"
+    },
+    {
+      "file": "LiberationSerif-Bold.ttf",
+      "sha256": "d754ba427cfe0bca54ae052384baa8f842da5bd6550ad4da024ac441e7a7d5ce",
+      "size": 370096,
+      "archive_url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "member": "liberation-fonts-ttf-2.1.5/LiberationSerif-Bold.ttf",
+      "package": "liberation"
+    },
+    {
+      "file": "LiberationSerif-BoldItalic.ttf",
+      "sha256": "f17db8af71e24d2066b587546021d4f0b296be389512b658dec3c09affeb11a7",
+      "size": 376772,
+      "archive_url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "member": "liberation-fonts-ttf-2.1.5/LiberationSerif-BoldItalic.ttf",
+      "package": "liberation"
+    },
+    {
+      "file": "LiberationSerif-Italic.ttf",
+      "sha256": "0e3dea9f8d613e006ccfa62201f33e265d19167bd0907725c3e145368b04fc2e",
+      "size": 375632,
+      "archive_url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "member": "liberation-fonts-ttf-2.1.5/LiberationSerif-Italic.ttf",
+      "package": "liberation"
+    },
+    {
+      "file": "LiberationSerif-Regular.ttf",
+      "sha256": "058ea80864aef09a23f45cbec2bb5400bc3dfbdea01c3f10538a21fcb497fb74",
+      "size": 393576,
+      "archive_url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "member": "liberation-fonts-ttf-2.1.5/LiberationSerif-Regular.ttf",
+      "package": "liberation"
+    },
+    {
+      "file": "NotoSansJP.ttf",
+      "sha256": "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f",
+      "size": 9589900,
+      "url": "https://raw.githubusercontent.com/google/fonts/fa826bb2a3e26df8c1bee99351fc0d039aeed7d2/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf",
+      "package": "noto-sans-jp"
+    },
+    {
+      "file": "NotoSerifJP.ttf",
+      "sha256": "2fd527ba12b6a44ec30d796d633360da0aeba6c5d4af1304ce12bb4dc15a7dfc",
+      "size": 13574352,
+      "url": "https://raw.githubusercontent.com/google/fonts/fa826bb2a3e26df8c1bee99351fc0d039aeed7d2/ofl/notoserifjp/NotoSerifJP%5Bwght%5D.ttf",
+      "package": "noto-serif-jp"
+    }
+  ],
+  "licenses": [
+    {
+      "file": "NotoSansJP-OFL.txt",
+      "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+      "size": 4388,
+      "url": "https://raw.githubusercontent.com/google/fonts/fa826bb2a3e26df8c1bee99351fc0d039aeed7d2/ofl/notosansjp/OFL.txt"
+    },
+    {
+      "file": "NotoSerifJP-OFL.txt",
+      "sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6",
+      "size": 4350,
+      "url": "https://raw.githubusercontent.com/google/fonts/fa826bb2a3e26df8c1bee99351fc0d039aeed7d2/ofl/notoserifjp/OFL.txt"
+    },
+    {
+      "file": "Liberation-LICENSE.txt",
+      "sha256": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b",
+      "size": 4414,
+      "archive_url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "member": "liberation-fonts-ttf-2.1.5/LICENSE"
+    }
+  ],
+  "sources": [
+    "https://github.com/liberationfonts/liberation-fonts/releases/tag/2.1.5",
+    "https://github.com/google/fonts/tree/fa826bb2a3e26df8c1bee99351fc0d039aeed7d2/ofl/notosansjp",
+    "https://github.com/google/fonts/tree/fa826bb2a3e26df8c1bee99351fc0d039aeed7d2/ofl/notoserifjp"
+  ]
+}

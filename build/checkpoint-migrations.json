@@ -611,34 +611,76 @@
       "source_run": "43459314622",
       "source_stage": 1,
       "source_recipe_sha256": "79cb3ddede8c43e6c14b3aa83617a5a2b2b660924d75146a07b5cc868ebfa345",
-      "target_recipe_sha256": "1431dbddd9f2be5bfdae5c448d1eb96bf53f3758331bcb77428e66287b066150",
+      "target_recipe_sha256": "6dc259830ec91cf80e3b2f6a79b649c8d7eb82f940fa713e7200b65e55dc17ec",
       "source_preparation_sha256": "79cb3ddede8c43e6c14b3aa83617a5a2b2b660924d75146a07b5cc868ebfa345",
-      "target_preparation_sha256": "1431dbddd9f2be5bfdae5c448d1eb96bf53f3758331bcb77428e66287b066150",
+      "target_preparation_sha256": "6dc259830ec91cf80e3b2f6a79b649c8d7eb82f940fa713e7200b65e55dc17ec",
       "source_aggregate_sha256": "264116be1878cfa9d284ec43c2e471d4fc1a37c2fd90e3ee156e21dfeea1e259",
-      "target_aggregate_sha256": "f1ec09d2ecf626b7c38fba04953185fd6e1e2117f6128d78868d1932cf570c27",
+      "target_aggregate_sha256": "1e8efe64209c5669d26a346ef890c31bc6533a866442537cbebc196d8da951fe",
       "source_patch_kind": "lite-windows157-product",
       "target_patch_kind": "lite-windows157-product",
       "product_source_updates": [
         {
           "path": "base/uxr_surface_reference_data.h",
           "before_sha256": "1308b72ff79dc76ec1f0a30186cd0aed89c0a64b0ad96b690f74210a15107667",
-          "after_sha256": "76b0c01277be7bc4cd6bce5a3a25d0aaee2acce47138f3d687b2597fee373c70",
-          "replacement_path": "build/checkpoint-sources/76b0c01277be7bc4cd6bce5a3a25d0aaee2acce47138f3d687b2597fee373c70.h"
+          "after_sha256": "29c84bebbfac787f7ca154c57ce908341bfcd1d9e9acbd878b95a4b911eb82f0",
+          "replacement_path": "build/checkpoint-sources/29c84bebbfac787f7ca154c57ce908341bfcd1d9e9acbd878b95a4b911eb82f0.h"
         },
         {
           "path": "base/uxr_surface_golden_tests.cc",
           "before_sha256": "ec2dce5fedd88952bcf15a593bdef68f113c6ea7a4ec2a3545157babf63552ad",
-          "after_sha256": "3822be063911b00608573493a3d70364b0bb267326f09a6e164b99898bcf6f8d",
-          "replacement_path": "build/checkpoint-sources/3822be063911b00608573493a3d70364b0bb267326f09a6e164b99898bcf6f8d.cc"
+          "after_sha256": "2cf7e4571b16f6e0bdc6993a838bd016a2aeb415c1cbbc39ff16690fb9ccd3f2",
+          "replacement_path": "build/checkpoint-sources/2cf7e4571b16f6e0bdc6993a838bd016a2aeb415c1cbbc39ff16690fb9ccd3f2.cc"
         },
         {
           "path": "third_party/blink/renderer/platform/fonts/font_cache.cc",
           "before_sha256": "c990f09b773d7e0bd3e1c2edf5078ee59291fa8477999301bde74934bbae86c8",
           "after_sha256": "cc3c2f0c6f70cee555cd9b9785f42014516e0543dcceca7153628707ff3093fc",
           "replacement_path": "build/checkpoint-sources/cc3c2f0c6f70cee555cd9b9785f42014516e0543dcceca7153628707ff3093fc.cc"
+        },
+        {
+          "path": "base/uxr_private_font_packages_win.h",
+          "before_sha256": null,
+          "after_sha256": "643992375bf52f1bf507f56bec0b7542b8d628333ad0cd1c140186eaf2a1e98d",
+          "replacement_path": "build/checkpoint-sources/643992375bf52f1bf507f56bec0b7542b8d628333ad0cd1c140186eaf2a1e98d.h"
+        },
+        {
+          "path": "base/BUILD.gn",
+          "before_sha256": "579cc4f59455d087b86963132584637e9e5728c7ab96f5d54e737d05a2db1759",
+          "after_sha256": "5ef706f9e269c6d6055d84e75b1d9fb288493acdb57e9a592d3ed14e8293a3c5",
+          "replacement_path": "build/checkpoint-sources/5ef706f9e269c6d6055d84e75b1d9fb288493acdb57e9a592d3ed14e8293a3c5.gn"
+        },
+        {
+          "path": "ui/gfx/win/direct_write.h",
+          "before_sha256": "9bc0c04a8bbac876c98d6cdd0cb720cf804b96e3c54b809804bec77ae18b7f2f",
+          "after_sha256": "6d48877d5a7819f0dc3de15036e7a68acaf33d95d787130255453254fbc5716e",
+          "replacement_path": "build/checkpoint-sources/6d48877d5a7819f0dc3de15036e7a68acaf33d95d787130255453254fbc5716e.h"
+        },
+        {
+          "path": "ui/gfx/win/direct_write.cc",
+          "before_sha256": "8ef8fd82b4ce653e336ad5cc696503ceb0df0a3bbd86f3759732f3ed45918dad",
+          "after_sha256": "6565bb78bb92eb6d0864048d8b54019520bec09f13efdece8de3892d1bfdf040",
+          "replacement_path": "build/checkpoint-sources/6565bb78bb92eb6d0864048d8b54019520bec09f13efdece8de3892d1bfdf040.cc"
+        },
+        {
+          "path": "content/browser/renderer_host/dwrite_font_proxy_impl_win.cc",
+          "before_sha256": "629f77c916de27a09da6535fed3a2a163a2a813504c2815372b59d97656b9587",
+          "after_sha256": "5f300992fe7b4483618fdeb38c96c0ee6bf8f1203e64f7e611332e700fd31724",
+          "replacement_path": "build/checkpoint-sources/5f300992fe7b4483618fdeb38c96c0ee6bf8f1203e64f7e611332e700fd31724.cc"
+        },
+        {
+          "path": "content/browser/font_access/font_enumeration_data_source_win.cc",
+          "before_sha256": "a67dcd01afdd8d203a2a230731a6ffad29ba0a992b73864eb25b07a1e45c9d52",
+          "after_sha256": "5afebd3efaeeb0149016147bc04e528995dba543d9b175df0f30df18d1eea50f",
+          "replacement_path": "build/checkpoint-sources/5afebd3efaeeb0149016147bc04e528995dba543d9b175df0f30df18d1eea50f.cc"
+        },
+        {
+          "path": "ui/gfx/BUILD.gn",
+          "before_sha256": "87ecfc028a6d4026903fa0cfc15a368c73eaf5040296020297ce83ccbe41c9b7",
+          "after_sha256": "114448926a6dd5f8f732f43c290aa902a5a9e16198e76f2734f9e3bf5c3f2867",
+          "replacement_path": "build/checkpoint-sources/114448926a6dd5f8f732f43c290aa902a5a9e16198e76f2734f9e3bf5c3f2867.gn"
         }
       ],
-      "scope": "Exact three-source application-font-package update from the compiled run43459314622/s1. Retain all published Windows core and optional language fonts, full/family/PostScript and GDI aliases; atomically vary Office, Noto Sans CJK, Noto Serif CJK and Liberation installations using twelve bounded profiles. Unknown fonts stay native. Preserve other platforms and all unrelated source/object state. Add compiled full-system/Office/style regressions and twelve required Window/Worker/CSS/query scenarios. No DLL admission or runtime acceptance is inherited."
+      "scope": "Exact ten-source font-package update from run43459314622/s1. Preserve all published and audited OS-owned fonts, including variable families and Nirmala TTC aliases. Add hash-pinned, read-locked application-only DirectWrite collections for Liberation and Noto JP without system registration. Declare the helper in the native base target and use the same private collection for renderer font brokering, Skia and local-font enumeration. Preserve all other source/object state. Require real private-font, full-weight, cross-channel and twelve-profile evidence; no DLL admission or runtime acceptance inherited."
     }
   ]
 }

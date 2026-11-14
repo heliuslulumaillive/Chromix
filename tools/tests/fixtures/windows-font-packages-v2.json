@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "kind": "windows-font-installation-packages",
-  "system_scope": "All published Windows base and optional FOD language fonts; aliases use Windows Unicode name records only.",
+  "system_scope": "All published Windows base and optional FOD language fonts plus fonts protected by Windows on the audited host.",
   "sources": [
     {
       "url": "https://learn.microsoft.com/en-us/typography/fonts/windows_11_font_list",
@@ -49,6 +49,10 @@
     {
       "url": "https://github.com/liberationfonts/liberation-fonts",
       "scope": "Whole Liberation Sans, Serif and Mono collection"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/sfc/nf-sfc-sfcisfileprotected",
+      "scope": "Read-only host system-font ownership cross-check"
     }
   ],
   "core_names": [
@@ -113,12 +117,12 @@
     "Arial Kalın İtalik",
     "Arial Krepko",
     "Arial Krepko poševno",
-    "Arial kursiv",
     "Arial Kursiv",
+    "Arial kursiv",
     "Arial Kursivoitu",
     "Arial Kursywa",
-    "Arial Kurzíva",
     "Arial kurzíva",
+    "Arial Kurzíva",
     "Arial Lihavoitu",
     "Arial Lihavoitu Kursivoi",
     "Arial Lodi etzana",
@@ -276,8 +280,8 @@
     "Comic Sans MS kursiv",
     "Comic Sans MS Kursivoitu",
     "Comic Sans MS Kursywa",
-    "Comic Sans MS Kurzíva",
     "Comic Sans MS kurzíva",
+    "Comic Sans MS Kurzíva",
     "Comic Sans MS Lihavoitu",
     "Comic Sans MS Lihavoitu Kursivo",
     "Comic Sans MS Lihavoitu Kursivoi",
@@ -296,8 +300,8 @@
     "Comic Sans MS Pogrubiony",
     "Comic Sans MS Poševno",
     "Comic Sans MS Tučná kurzíva",
-    "Comic Sans MS tučné",
     "Comic Sans MS Tučné",
+    "Comic Sans MS tučné",
     "Comic Sans MS tučné kurzíva",
     "Comic Sans MS Vet",
     "Comic Sans MS Vet Cursief",
@@ -376,12 +380,12 @@
     "Courier New Kalın İtalik",
     "Courier New Krepko",
     "Courier New Krepko poševno",
-    "Courier New kursiv",
     "Courier New Kursiv",
+    "Courier New kursiv",
     "Courier New Kursivoitu",
     "Courier New Kursywa",
-    "Courier New kurzíva",
     "Courier New Kurzíva",
+    "Courier New kurzíva",
     "Courier New Lihavoitu",
     "Courier New Lihavoitu Kursivoi",
     "Courier New Lodi etzana",
@@ -397,8 +401,8 @@
     "Courier New Pogrubiony",
     "Courier New Poševno",
     "Courier New Tučná kurzíva",
-    "Courier New Tučné",
     "Courier New tučné",
+    "Courier New Tučné",
     "Courier New tučné kurzíva",
     "Courier New Vet",
     "Courier New Vet Cursief",
@@ -452,8 +456,8 @@
     "Ebrima Negrita",
     "Ebrima Negrito",
     "Ebrima Pogrubiony",
-    "Ebrima tučné",
     "Ebrima Tučné",
+    "Ebrima tučné",
     "Ebrima Vet",
     "Ebrima Έντονα",
     "Ebrima Полужирный",
@@ -475,8 +479,8 @@
     "Franklin Gothic Medium Italic",
     "Franklin Gothic Medium Italique",
     "Franklin Gothic Medium Itálico",
-    "Franklin Gothic Medium kursiv",
     "Franklin Gothic Medium Kursiv",
+    "Franklin Gothic Medium kursiv",
     "Franklin Gothic Medium Kursivoi",
     "Franklin Gothic Medium Kursivoitu",
     "Franklin Gothic Medium Kursywa",
@@ -548,12 +552,12 @@
     "Georgia Kalın İtalik",
     "Georgia Krepko",
     "Georgia Krepko poševno",
-    "Georgia Kursiv",
     "Georgia kursiv",
+    "Georgia Kursiv",
     "Georgia Kursivoitu",
     "Georgia Kursywa",
-    "Georgia kurzíva",
     "Georgia Kurzíva",
+    "Georgia kurzíva",
     "Georgia Lihavoitu",
     "Georgia Lihavoitu Kursivoi",
     "Georgia Lodi etzana",
@@ -776,8 +780,8 @@
     "Microsoft JhengHei Negrita",
     "Microsoft JhengHei Negrito",
     "Microsoft JhengHei Pogrubiony",
-    "Microsoft JhengHei Tučné",
     "Microsoft JhengHei tučné",
+    "Microsoft JhengHei Tučné",
     "Microsoft JhengHei UI",
     "Microsoft JhengHei UI Bold",
     "Microsoft JhengHei UI fed",
@@ -797,8 +801,8 @@
     "Microsoft JhengHei UI Negrito",
     "Microsoft JhengHei UI Pogrubion",
     "Microsoft JhengHei UI Pogrubiony",
-    "Microsoft JhengHei UI tučné",
     "Microsoft JhengHei UI Tučné",
+    "Microsoft JhengHei UI tučné",
     "Microsoft JhengHei UI Vet",
     "Microsoft JhengHei UI Έντονα",
     "Microsoft JhengHei UI Полужирный",
@@ -852,12 +856,12 @@
     "Microsoft YaHei Negrita",
     "Microsoft YaHei Negrito",
     "Microsoft YaHei Pogrubiony",
-    "Microsoft YaHei tučné",
     "Microsoft YaHei Tučné",
+    "Microsoft YaHei tučné",
     "Microsoft Yahei UI",
     "Microsoft YaHei UI",
-    "Microsoft Yahei UI Bold",
     "Microsoft YaHei UI Bold",
+    "Microsoft Yahei UI Bold",
     "Microsoft YaHei UI fed",
     "Microsoft YaHei UI Fet",
     "Microsoft YaHei UI Fett",
@@ -946,8 +950,8 @@
     "Myanmar Text Negrita",
     "Myanmar Text Negrito",
     "Myanmar Text Pogrubiony",
-    "Myanmar Text Tučné",
     "Myanmar Text tučné",
+    "Myanmar Text Tučné",
     "Myanmar Text Vet",
     "Myanmar Text Έντονα",
     "Myanmar Text Полужирный",
@@ -977,9 +981,62 @@
     "Neue Haas Grotesk Text Pro Ultr",
     "Neue Haas Grotesk Text Pro UltraThin",
     "Neue Haas Grotesk Text Pro UltraThin Italic",
+    "Nirmala Text",
+    "Nirmala Text Bold",
+    "Nirmala Text fed",
+    "Nirmala Text Fet",
+    "Nirmala Text Fett",
+    "Nirmala Text Félkövér",
+    "Nirmala Text Gras",
+    "Nirmala Text Grassetto",
+    "Nirmala Text Halvfet",
+    "Nirmala Text Kalın",
+    "Nirmala Text Krepko",
+    "Nirmala Text Lihavoitu",
+    "Nirmala Text Lodia",
+    "Nirmala Text Negreta",
+    "Nirmala Text Negrita",
+    "Nirmala Text Negrito",
+    "Nirmala Text Pogrubiony",
+    "Nirmala Text Semilight",
+    "Nirmala Text tučné",
+    "Nirmala Text Tučné",
+    "Nirmala Text Vet",
+    "Nirmala Text Έντονα",
+    "Nirmala Text Полужирный",
     "Nirmala UI",
     "Nirmala UI Bold",
+    "Nirmala UI fed",
+    "Nirmala UI Fet",
+    "Nirmala UI Fett",
+    "Nirmala UI Félkövér",
+    "Nirmala UI Gras",
+    "Nirmala UI Grassetto",
+    "Nirmala UI Halvfet",
+    "Nirmala UI Kalın",
+    "Nirmala UI Krepko",
+    "Nirmala UI Lihavoitu",
+    "Nirmala UI Lodia",
+    "Nirmala UI Negreta",
+    "Nirmala UI Negrita",
+    "Nirmala UI Negrito",
+    "Nirmala UI Pogrubiony",
     "Nirmala UI Semilight",
+    "Nirmala UI tučné",
+    "Nirmala UI Tučné",
+    "Nirmala UI Vet",
+    "Nirmala UI Έντονα",
+    "Nirmala UI Полужирный",
+    "NirmalaText",
+    "NirmalaText-Bold",
+    "NirmalaText-Semilight",
+    "NirmalaUI",
+    "NirmalaUI-Bold",
+    "NirmalaUI-Semilight",
+    "Noto Sans SC",
+    "Noto Serif SC",
+    "NotoSansSC-Thin",
+    "NotoSerifSC-ExtraLight",
     "NSimSun",
     "Nyala",
     "Palatino Linotype",
@@ -1017,8 +1074,8 @@
     "Palatino Linotype kursiv",
     "Palatino Linotype Kursivoitu",
     "Palatino Linotype Kursywa",
-    "Palatino Linotype kurzíva",
     "Palatino Linotype Kurzíva",
+    "Palatino Linotype kurzíva",
     "Palatino Linotype Lihavoitu",
     "Palatino Linotype Lihavoitu Kur",
     "Palatino Linotype Lihavoitu Kursivoi",
@@ -1079,7 +1136,9 @@
     "Rod",
     "Sakkal Majalla",
     "Sakkal Majalla Bold",
+    "Sans Serif Collection",
     "Sanskrit Text",
+    "SansSerifCollection",
     "Segoe Fluent Icons",
     "Segoe MDL2 Assets",
     "Segoe Print",
@@ -1235,6 +1294,7 @@
     "Simplified Arabic Fixed",
     "SimSun",
     "SimSun-ExtB",
+    "SimSun-ExtG",
     "Sitka",
     "Sitka Banner",
     "Sitka Banner Bold",
@@ -1337,8 +1397,8 @@
     "Times New Roman Kursiv",
     "Times New Roman Kursivoitu",
     "Times New Roman kursywa",
-    "Times New Roman kurzíva",
     "Times New Roman Kurzíva",
+    "Times New Roman kurzíva",
     "Times New Roman Lihavoitu",
     "Times New Roman Lihavoitu Kursi",
     "Times New Roman Lihavoitu Kursivoi",
@@ -1405,8 +1465,8 @@
     "Trebuchet MS Kalın İtalik",
     "Trebuchet MS Krepko",
     "Trebuchet MS Krepko poševno",
-    "Trebuchet MS kursiv",
     "Trebuchet MS Kursiv",
+    "Trebuchet MS kursiv",
     "Trebuchet MS Kursivoitu",
     "Trebuchet MS Kursywa",
     "Trebuchet MS Kurzíva",
@@ -1425,8 +1485,8 @@
     "Trebuchet MS Pogrubiony",
     "Trebuchet MS Poševno",
     "Trebuchet MS Tučná kurzíva",
-    "Trebuchet MS Tučné",
     "Trebuchet MS tučné",
+    "Trebuchet MS Tučné",
     "Trebuchet MS tučné kurzíva",
     "Trebuchet MS Vet",
     "Trebuchet MS Vet Cursief",
@@ -1603,6 +1663,25 @@
     "ＭＳ ゴシック",
     "ＭＳ Ｐゴシック"
   ],
+  "system_variable_prefixes": [
+    "Bahnschrift",
+    "Cascadia Code",
+    "Cascadia Mono",
+    "CascadiaCode",
+    "CascadiaCodeRoman",
+    "CascadiaMono",
+    "CascadiaMonoRoman",
+    "Noto Sans SC",
+    "Noto Serif SC",
+    "NotoSansSC",
+    "NotoSerifSC",
+    "Segoe UI Variable",
+    "SegoeUIVariable",
+    "Sitka",
+    "Sitka Text",
+    "SitkaText",
+    "SitkaTextItalic"
+  ],
   "office_names": [
     "Abadi",
     "Abadi Extra",
@@ -1728,12 +1807,12 @@
     "Arial Narrow Kalın İtalik",
     "Arial Narrow Krepko",
     "Arial Narrow Krepko poševno",
-    "Arial Narrow kursiv",
     "Arial Narrow Kursiv",
+    "Arial Narrow kursiv",
     "Arial Narrow Kursivoitu",
     "Arial Narrow Kursywa",
-    "Arial Narrow Kurzíva",
     "Arial Narrow kurzíva",
+    "Arial Narrow Kurzíva",
     "Arial Narrow Lihavoitu",
     "Arial Narrow Lihavoitu Kursivoi",
     "Arial Narrow Lodi etzana",
@@ -1748,8 +1827,8 @@
     "Arial Narrow Pogrubiony",
     "Arial Narrow Poševno",
     "Arial Narrow Tučná kurzíva",
-    "Arial Narrow tučné",
     "Arial Narrow Tučné",
+    "Arial Narrow tučné",
     "Arial Narrow tučné kurzíva",
     "Arial Narrow Vet",
     "Arial Narrow Vet Cursief",
@@ -1832,8 +1911,8 @@
     "Bell MT kursiv",
     "Bell MT Kursivoitu",
     "Bell MT Kursywa",
-    "Bell MT kurzíva",
     "Bell MT Kurzíva",
+    "Bell MT kurzíva",
     "Bell MT Lihavoitu",
     "Bell MT Lodia",
     "Bell MT Negreta",
@@ -1841,8 +1920,8 @@
     "Bell MT Negrito",
     "Bell MT Pogrubiony",
     "Bell MT Poševno",
-    "Bell MT tučné",
     "Bell MT Tučné",
+    "Bell MT tučné",
     "Bell MT Vet",
     "Bell MT İtalik",
     "Bell MT Έντονα",
@@ -1871,8 +1950,8 @@
     "Berlin Sans FB Demi Negrita",
     "Berlin Sans FB Demi Negrito",
     "Berlin Sans FB Demi Pogrubiony",
-    "Berlin Sans FB Demi tučné",
     "Berlin Sans FB Demi Tučné",
+    "Berlin Sans FB Demi tučné",
     "Berlin Sans FB Demi Vet",
     "Berlin Sans FB Demi Έντονα",
     "Berlin Sans FB Demi Полужирный",
@@ -1891,8 +1970,8 @@
     "Berlin Sans FB Negrita",
     "Berlin Sans FB Negrito",
     "Berlin Sans FB Pogrubiony",
-    "Berlin Sans FB Tučné",
     "Berlin Sans FB tučné",
+    "Berlin Sans FB Tučné",
     "Berlin Sans FB Vet",
     "Berlin Sans FB Έντονα",
     "Berlin Sans FB Полужирный",
@@ -1925,12 +2004,12 @@
     "Bodoni MT Black Italic",
     "Bodoni MT Black Italique",
     "Bodoni MT Black Itálico",
-    "Bodoni MT Black kursiv",
     "Bodoni MT Black Kursiv",
+    "Bodoni MT Black kursiv",
     "Bodoni MT Black Kursivoitu",
     "Bodoni MT Black Kursywa",
-    "Bodoni MT Black Kurzíva",
     "Bodoni MT Black kurzíva",
+    "Bodoni MT Black Kurzíva",
     "Bodoni MT Black Poševno",
     "Bodoni MT Black İtalik",
     "Bodoni MT Black Πλάγια",
@@ -2031,8 +2110,8 @@
     "Bodoni MT Kalın İtalik",
     "Bodoni MT Krepko",
     "Bodoni MT Krepko poševno",
-    "Bodoni MT kursiv",
     "Bodoni MT Kursiv",
+    "Bodoni MT kursiv",
     "Bodoni MT Kursivoitu",
     "Bodoni MT Kursywa",
     "Bodoni MT kurzíva",
@@ -2053,8 +2132,8 @@
     "Bodoni MT Poster Compressed",
     "Bodoni MT Poševno",
     "Bodoni MT Tučná kurzíva",
-    "Bodoni MT tučné",
     "Bodoni MT Tučné",
+    "Bodoni MT tučné",
     "Bodoni MT tučné kurzíva",
     "Bodoni MT Vet",
     "Bodoni MT Vet Cursief",
@@ -2176,8 +2255,8 @@
     "Bookman Old Style Kursiv",
     "Bookman Old Style Kursivoitu",
     "Bookman Old Style Kursywa",
-    "Bookman Old Style Kurzíva",
     "Bookman Old Style kurzíva",
+    "Bookman Old Style Kurzíva",
     "Bookman Old Style Lihavoitu",
     "Bookman Old Style Lihavoitu Kur",
     "Bookman Old Style Lihavoitu Kursivoi",
@@ -2241,8 +2320,8 @@
     "Brush Script MT Italic",
     "Brush Script MT Italique",
     "Brush Script MT Itálico",
-    "Brush Script MT kursiv",
     "Brush Script MT Kursiv",
+    "Brush Script MT kursiv",
     "Brush Script MT Kursivoitu",
     "Brush Script MT Kursywa",
     "Brush Script MT Kurzíva",
@@ -2279,8 +2358,8 @@
     "Californian FB Itálico",
     "Californian FB Kalın",
     "Californian FB Krepko",
-    "Californian FB Kursiv",
     "Californian FB kursiv",
+    "Californian FB Kursiv",
     "Californian FB Kursivoitu",
     "Californian FB Kursywa",
     "Californian FB Kurzíva",
@@ -2333,8 +2412,8 @@
     "Calisto MT Kalın İtalik",
     "Calisto MT Krepko",
     "Calisto MT Krepko poševno",
-    "Calisto MT kursiv",
     "Calisto MT Kursiv",
+    "Calisto MT kursiv",
     "Calisto MT Kursivoitu",
     "Calisto MT Kursywa",
     "Calisto MT kurzíva",
@@ -2353,8 +2432,8 @@
     "Calisto MT Pogrubiony",
     "Calisto MT Poševno",
     "Calisto MT Tučná kurzíva",
-    "Calisto MT tučné",
     "Calisto MT Tučné",
+    "Calisto MT tučné",
     "Calisto MT tučné kurzíva",
     "Calisto MT Vet",
     "Calisto MT Vet Cursief",
@@ -2414,8 +2493,8 @@
     "Century Gothic Kalın İtalik",
     "Century Gothic Krepko",
     "Century Gothic Krepko poševno",
-    "Century Gothic kursiv",
     "Century Gothic Kursiv",
+    "Century Gothic kursiv",
     "Century Gothic Kursivoitu",
     "Century Gothic Kursywa",
     "Century Gothic Kurzíva",
@@ -2484,8 +2563,8 @@
     "Century Schoolbook kursiv",
     "Century Schoolbook Kursivoitu",
     "Century Schoolbook Kursywa",
-    "Century Schoolbook Kurzíva",
     "Century Schoolbook kurzíva",
+    "Century Schoolbook Kurzíva",
     "Century Schoolbook Lihavoitu",
     "Century Schoolbook Lihavoitu Ku",
     "Century Schoolbook Lihavoitu Kursivoi",
@@ -2593,15 +2672,10 @@
     "Daytona Italic",
     "Daytona Light",
     "Daytona Light Italic",
-    "Dengxian",
     "DengXian",
     "DengXian Bold",
     "DengXian Light",
     "DengXian Regular",
-    "DengXian-Bold",
-    "Dengxian-Bold",
-    "DengXian-Light",
-    "Dengxian-Light",
     "DilleniaUPC",
     "DilleniaUPC Bold",
     "DilleniaUPC Bold Italic",
@@ -2647,8 +2721,8 @@
     "Elephant kursiv",
     "Elephant Kursivoitu",
     "Elephant Kursywa",
-    "Elephant kurzíva",
     "Elephant Kurzíva",
+    "Elephant kurzíva",
     "Elephant Poševno",
     "Elephant Pro",
     "Elephant Pro Italic",
@@ -2791,12 +2865,12 @@
     "Garamond Itálico",
     "Garamond Kalın",
     "Garamond Krepko",
-    "Garamond Kursiv",
     "Garamond kursiv",
+    "Garamond Kursiv",
     "Garamond Kursivoitu",
     "Garamond Kursywa",
-    "Garamond kurzíva",
     "Garamond Kurzíva",
+    "Garamond kurzíva",
     "Garamond Lihavoitu",
     "Garamond Lodia",
     "Garamond Negreta",
@@ -2878,8 +2952,8 @@
     "Gill Sans MT Kursiv",
     "Gill Sans MT Kursivoitu",
     "Gill Sans MT Kursywa",
-    "Gill Sans MT kurzíva",
     "Gill Sans MT Kurzíva",
+    "Gill Sans MT kurzíva",
     "Gill Sans MT Lihavoitu",
     "Gill Sans MT Lihavoitu Kursivoi",
     "Gill Sans MT Lodi etzana",
@@ -2894,8 +2968,8 @@
     "Gill Sans MT Pogrubiony",
     "Gill Sans MT Poševno",
     "Gill Sans MT Tučná kurzíva",
-    "Gill Sans MT Tučné",
     "Gill Sans MT tučné",
+    "Gill Sans MT Tučné",
     "Gill Sans MT tučné kurzíva",
     "Gill Sans MT Vet",
     "Gill Sans MT Vet Cursief",
@@ -2959,12 +3033,12 @@
     "Goudy Old Style Itálico",
     "Goudy Old Style Kalın",
     "Goudy Old Style Krepko",
-    "Goudy Old Style Kursiv",
     "Goudy Old Style kursiv",
+    "Goudy Old Style Kursiv",
     "Goudy Old Style Kursivoitu",
     "Goudy Old Style Kursywa",
-    "Goudy Old Style kurzíva",
     "Goudy Old Style Kurzíva",
+    "Goudy Old Style kurzíva",
     "Goudy Old Style Lihavoitu",
     "Goudy Old Style Lodia",
     "Goudy Old Style Negreta",
@@ -2972,8 +3046,8 @@
     "Goudy Old Style Negrito",
     "Goudy Old Style Pogrubiony",
     "Goudy Old Style Poševno",
-    "Goudy Old Style tučné",
     "Goudy Old Style Tučné",
+    "Goudy Old Style tučné",
     "Goudy Old Style Vet",
     "Goudy Old Style İtalik",
     "Goudy Old Style Έντονα",
@@ -3033,8 +3107,8 @@
     "High Tower Text kursiv",
     "High Tower Text Kursivoitu",
     "High Tower Text Kursywa",
-    "High Tower Text Kurzíva",
     "High Tower Text kurzíva",
+    "High Tower Text Kurzíva",
     "High Tower Text Poševno",
     "High Tower Text İtalik",
     "High Tower Text Πλάγια",
@@ -3204,8 +3278,8 @@
     "Lucida Sans Italic",
     "Lucida Sans Italique",
     "Lucida Sans Itálico",
-    "Lucida Sans Kursiv",
     "Lucida Sans kursiv",
+    "Lucida Sans Kursiv",
     "Lucida Sans Kursivoitu",
     "Lucida Sans Puolilihavoitu",
     "Lucida Sans Puolilihavoitu Kurs",
@@ -3298,8 +3372,8 @@
     "Magneto Negrita",
     "Magneto Negrito",
     "Magneto Pogrubiony",
-    "Magneto Tučné",
     "Magneto tučné",
+    "Magneto Tučné",
     "Magneto Vet",
     "Magneto Έντονα",
     "Magneto Полужирный",
@@ -3429,56 +3503,10 @@
     "NiagaraSolid-Reg",
     "Nirmala Text",
     "Nirmala Text Bold",
-    "Nirmala Text fed",
-    "Nirmala Text Fet",
-    "Nirmala Text Fett",
-    "Nirmala Text Félkövér",
-    "Nirmala Text Gras",
-    "Nirmala Text Grassetto",
-    "Nirmala Text Halvfet",
-    "Nirmala Text Kalın",
-    "Nirmala Text Krepko",
-    "Nirmala Text Lihavoitu",
-    "Nirmala Text Lodia",
-    "Nirmala Text Negreta",
-    "Nirmala Text Negrita",
-    "Nirmala Text Negrito",
-    "Nirmala Text Pogrubiony",
     "Nirmala Text Semilight",
-    "Nirmala Text Tučné",
-    "Nirmala Text tučné",
-    "Nirmala Text Vet",
-    "Nirmala Text Έντονα",
-    "Nirmala Text Полужирный",
     "Nirmala UI",
     "Nirmala UI Bold",
-    "Nirmala UI fed",
-    "Nirmala UI Fet",
-    "Nirmala UI Fett",
-    "Nirmala UI Félkövér",
-    "Nirmala UI Gras",
-    "Nirmala UI Grassetto",
-    "Nirmala UI Halvfet",
-    "Nirmala UI Kalın",
-    "Nirmala UI Krepko",
-    "Nirmala UI Lihavoitu",
-    "Nirmala UI Lodia",
-    "Nirmala UI Negreta",
-    "Nirmala UI Negrita",
-    "Nirmala UI Negrito",
-    "Nirmala UI Pogrubiony",
     "Nirmala UI Semilight",
-    "Nirmala UI tučné",
-    "Nirmala UI Tučné",
-    "Nirmala UI Vet",
-    "Nirmala UI Έντονα",
-    "Nirmala UI Полужирный",
-    "NirmalaText",
-    "NirmalaText-Bold",
-    "NirmalaText-Semilight",
-    "NirmalaUI",
-    "NirmalaUI-Bold",
-    "NirmalaUI-Semilight",
     "Nordique Inline",
     "Nordique Inline Regular",
     "NSimSun",
@@ -3528,12 +3556,12 @@
     "Perpetua Kalın İtalik",
     "Perpetua Krepko",
     "Perpetua Krepko poševno",
-    "Perpetua Kursiv",
     "Perpetua kursiv",
+    "Perpetua Kursiv",
     "Perpetua Kursivoitu",
     "Perpetua Kursywa",
-    "Perpetua Kurzíva",
     "Perpetua kurzíva",
+    "Perpetua Kurzíva",
     "Perpetua Lihavoitu",
     "Perpetua Lihavoitu Kursivoi",
     "Perpetua Lodi etzana",
@@ -3575,8 +3603,8 @@
     "Perpetua Titling MT Έντονα",
     "Perpetua Titling MT Полужирный",
     "Perpetua Tučná kurzíva",
-    "Perpetua Tučné",
     "Perpetua tučné",
+    "Perpetua Tučné",
     "Perpetua tučné kurzíva",
     "Perpetua Vet",
     "Perpetua Vet Cursief",
@@ -3670,12 +3698,12 @@
     "Rockwell Kalın İtalik",
     "Rockwell Krepko",
     "Rockwell Krepko poševno",
-    "Rockwell Kursiv",
     "Rockwell kursiv",
+    "Rockwell Kursiv",
     "Rockwell Kursivoitu",
     "Rockwell Kursywa",
-    "Rockwell Kurzíva",
     "Rockwell kurzíva",
+    "Rockwell Kurzíva",
     "Rockwell Light",
     "Rockwell Lihavoitu",
     "Rockwell Lihavoitu Kursivoi",
@@ -3965,8 +3993,8 @@
     "Tw Cen MT Condensed Negrita",
     "Tw Cen MT Condensed Negrito",
     "Tw Cen MT Condensed Pogrubiony",
-    "Tw Cen MT Condensed Tučné",
     "Tw Cen MT Condensed tučné",
+    "Tw Cen MT Condensed Tučné",
     "Tw Cen MT Condensed Vet",
     "Tw Cen MT Condensed Έντονα",
     "Tw Cen MT Condensed Полужирный",
@@ -3996,8 +4024,8 @@
     "Tw Cen MT Kalın İtalik",
     "Tw Cen MT Krepko",
     "Tw Cen MT Krepko poševno",
-    "Tw Cen MT Kursiv",
     "Tw Cen MT kursiv",
+    "Tw Cen MT Kursiv",
     "Tw Cen MT Kursivoitu",
     "Tw Cen MT Kursywa",
     "Tw Cen MT Kurzíva",
@@ -4093,12 +4121,12 @@
     "Vivaldi Italic",
     "Vivaldi Italique",
     "Vivaldi Itálico",
-    "Vivaldi kursiv",
     "Vivaldi Kursiv",
+    "Vivaldi kursiv",
     "Vivaldi Kursivoitu",
     "Vivaldi Kursywa",
-    "Vivaldi Kurzíva",
     "Vivaldi kurzíva",
+    "Vivaldi Kurzíva",
     "Vivaldi Poševno",
     "Vivaldi İtalik",
     "Vivaldi Πλάγια",
@@ -4151,7 +4179,6 @@
     "Yu Mincho Demibold",
     "Yu Mincho Light",
     "Yu Mincho Regular",
-    "仿宋",
     "华文中宋",
     "华文仿宋",
     "华文彩云",
@@ -4160,11 +4187,6 @@
     "华文琥珀",
     "华文细黑",
     "华文行楷",
-    "楷体",
-    "等线",
-    "等线 Bold",
-    "等线 Light",
-    "黑体",
     "ＳＴＦａｎｇｓｏｎｇ",
     "ＳＴＨｕｐｏ",
     "ＳＴＫａｉｔｉ",
@@ -4368,8 +4390,8 @@
       "Leelawadee Negrita",
       "Leelawadee Negrito",
       "Leelawadee Pogrubiony",
-      "Leelawadee tučné",
       "Leelawadee Tučné",
+      "Leelawadee tučné",
       "Leelawadee Vet",
       "Leelawadee Έντονα",
       "Leelawadee Полужирный",
@@ -4399,8 +4421,8 @@
       "Microsoft Uighur Negrita",
       "Microsoft Uighur Negrito",
       "Microsoft Uighur Pogrubiony",
-      "Microsoft Uighur tučné",
       "Microsoft Uighur Tučné",
+      "Microsoft Uighur tučné",
       "Microsoft Uighur Vet",
       "Microsoft Uighur Έντονα",
       "Microsoft Uighur Полужирный",
@@ -4502,13 +4524,13 @@
       "Vrinda Bold"
     ],
     "simplified": [
-      "DengXian",
       "Dengxian",
+      "DengXian",
       "DengXian Bold",
       "DengXian Light",
       "DengXian Regular",
-      "Dengxian-Bold",
       "DengXian-Bold",
+      "Dengxian-Bold",
       "Dengxian-Light",
       "DengXian-Light",
       "FangSong",
@@ -4596,6 +4618,7 @@
       "file": "mtextra.ttf",
       "sha256": "e117624aacdf36dadbfdfaa6ce0b67e697c8d0fad927c554042404027f25415e",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "MT Extra",
         "MT-Extra"
@@ -4605,6 +4628,7 @@
       "file": "AGENCYB.TTF",
       "sha256": "4fde694cc486b55266f7561c685fbd9153ea0003f0c0c39fc744b132051d40c5",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Agency FB",
         "Agency FB Bold",
@@ -4623,8 +4647,8 @@
         "Agency FB Negrita",
         "Agency FB Negrito",
         "Agency FB Pogrubiony",
-        "Agency FB Tučné",
         "Agency FB tučné",
+        "Agency FB Tučné",
         "Agency FB Vet",
         "Agency FB Έντονα",
         "Agency FB Полужирный",
@@ -4635,6 +4659,7 @@
       "file": "AGENCYR.TTF",
       "sha256": "d672eb87a3787bdaf8f75df50f9ade864e2d5c9cdec5b07ce6de9d7d39433ea2",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Agency FB",
         "AgencyFB-Reg"
@@ -4644,6 +4669,7 @@
       "file": "ALGER.TTF",
       "sha256": "d0b3b7cd48a047cdb7fa610d060807be44fca80f05ce4bf7557c4800f908e48a",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Algerian"
       ]
@@ -4652,6 +4678,7 @@
       "file": "ANTQUAB.TTF",
       "sha256": "134a9f8ecf618660305d7d34b6905375c1d5d7838ea15cdb2789ba94317f4117",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Book Antiqua",
         "Book Antiqua Bold",
@@ -4670,8 +4697,8 @@
         "Book Antiqua Negrita",
         "Book Antiqua Negrito",
         "Book Antiqua Pogrubiony",
-        "Book Antiqua Tučné",
         "Book Antiqua tučné",
+        "Book Antiqua Tučné",
         "Book Antiqua Vet",
         "Book Antiqua Έντονα",
         "Book Antiqua Полужирный",
@@ -4682,6 +4709,7 @@
       "file": "ANTQUABI.TTF",
       "sha256": "bc546e3e96f8cdd9e6cf02eb5c8ac5551ef20ef4639ff701c338ea281f56fbd0",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Book Antiqua",
         "Book Antiqua Bold Italic",
@@ -4712,6 +4740,7 @@
       "file": "ANTQUAI.TTF",
       "sha256": "6b00590bd7a52a94e9e90e35a28c1d2fa03f83f458d2f2dfbced70a9c1ea0c80",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Book Antiqua",
         "Book Antiqua Corsivo",
@@ -4726,8 +4755,8 @@
         "Book Antiqua kursiv",
         "Book Antiqua Kursivoitu",
         "Book Antiqua Kursywa",
-        "Book Antiqua kurzíva",
         "Book Antiqua Kurzíva",
+        "Book Antiqua kurzíva",
         "Book Antiqua Poševno",
         "Book Antiqua İtalik",
         "Book Antiqua Πλάγια",
@@ -4739,6 +4768,7 @@
       "file": "arial.ttf",
       "sha256": "edfbd22a3d088fc2f5d7c79b8c9c732df6dc878a60f0a80be0f92a3c7a634404",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Arial",
         "ArialMT"
@@ -4748,6 +4778,7 @@
       "file": "arialbd.ttf",
       "sha256": "4d59199834e7439c67ea4949407639961060b21b173833f566eb60ac6fd8f5af",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Arial",
         "Arial Bold",
@@ -4779,6 +4810,7 @@
       "file": "arialbi.ttf",
       "sha256": "d68bdf8ebfe67a72e6db02b104e8062de5e75c358ba9bb7ef5d0e5c70272a1c5",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Arial",
         "Arial Bold Italic",
@@ -4810,6 +4842,7 @@
       "file": "ariali.ttf",
       "sha256": "4487a06c1b8de98deb0cab2c04a876cbc8f31b7e397dc1f2b2021c0746321d7c",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Arial",
         "Arial Corsivo",
@@ -4820,8 +4853,8 @@
         "Arial Italic",
         "Arial Italique",
         "Arial Itálico",
-        "Arial Kursiv",
         "Arial kursiv",
+        "Arial Kursiv",
         "Arial Kursivoitu",
         "Arial Kursywa",
         "Arial Kurzíva",
@@ -4838,6 +4871,7 @@
       "file": "ARIALN.TTF",
       "sha256": "cad552553cf2a75afca01955751aaa115e2a64fd6c6eea42e1fbd236630b7e0a",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Arial",
         "Arial Narrow",
@@ -4848,6 +4882,7 @@
       "file": "ARIALNB.TTF",
       "sha256": "6c4a4b643461def5411e0217b74a625dcf2fb681252ef5da1db0af4eae80aa7e",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Arial",
         "Arial Narrow",
@@ -4879,6 +4914,7 @@
       "file": "ARIALNBI.TTF",
       "sha256": "161b859efd20c69ddebb23012a49f4f2030d56a0c1b9bcfd4df753217ce3e358",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Arial",
         "Arial Narrow",
@@ -4910,6 +4946,7 @@
       "file": "ARIALNI.TTF",
       "sha256": "faf73aa7ce40b77ad19c09507a2263fe3f3ce9fa5642e8a1cd54fb3c9f52d599",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Arial",
         "Arial Narrow",
@@ -4925,8 +4962,8 @@
         "Arial Narrow kursiv",
         "Arial Narrow Kursivoitu",
         "Arial Narrow Kursywa",
-        "Arial Narrow Kurzíva",
         "Arial Narrow kurzíva",
+        "Arial Narrow Kurzíva",
         "Arial Narrow Poševno",
         "Arial Narrow İtalik",
         "Arial Narrow Πλάγια",
@@ -4938,6 +4975,7 @@
       "file": "ariblk.ttf",
       "sha256": "10df702864b1f89cb29ba0d6b97c04228338d16807e13e8d8c74b91aba5e5f23",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Arial",
         "Arial Black",
@@ -4962,6 +5000,7 @@
       "file": "ARLRDBD.TTF",
       "sha256": "d9352e7d73711f006a27f44e71808a74fec109e2342e680e054c4458569f0a94",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Arial Rounded MT",
         "Arial Rounded MT Bold",
@@ -4972,6 +5011,7 @@
       "file": "bahnschrift.ttf",
       "sha256": "eaad201da94cb323401fdb8cc760650803ddf8fd704cb9fa56317e6c69bc6fd6",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Bahnschrift"
       ]
@@ -4980,6 +5020,7 @@
       "file": "BASKVILL.TTF",
       "sha256": "529c972a6d5c1992c76e908255f655f98989b74b146058c90555af6d925a1715",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Baskerville Old Face",
         "BaskOldFace"
@@ -4989,6 +5030,7 @@
       "file": "BAUHS93.TTF",
       "sha256": "8afb4da281e19745d582814bdc66006bd56f43eb2fd0d2f88d854771472420b3",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bauhaus 93",
         "Bauhaus93"
@@ -4998,6 +5040,7 @@
       "file": "BELL.TTF",
       "sha256": "986a5b8bb70238e3c896e3113ef581df26204131f72d59fc12d2deef7ef89e4c",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bell MT",
         "BellMT"
@@ -5007,6 +5050,7 @@
       "file": "BELLB.TTF",
       "sha256": "dcc8d42eebbab6822f736a7b99e1c9d6ee6861b247a19049bb33e5955d991dde",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bell MT",
         "Bell MT Bold",
@@ -5037,6 +5081,7 @@
       "file": "BELLI.TTF",
       "sha256": "17b6e7689e333fea42b19d817427cecf95b86a340bb0af5babba3ab25e6a1b40",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bell MT",
         "Bell MT Corsivo",
@@ -5047,12 +5092,12 @@
         "Bell MT Italic",
         "Bell MT Italique",
         "Bell MT Itálico",
-        "Bell MT Kursiv",
         "Bell MT kursiv",
+        "Bell MT Kursiv",
         "Bell MT Kursivoitu",
         "Bell MT Kursywa",
-        "Bell MT kurzíva",
         "Bell MT Kurzíva",
+        "Bell MT kurzíva",
         "Bell MT Poševno",
         "Bell MT İtalik",
         "Bell MT Πλάγια",
@@ -5064,6 +5109,7 @@
       "file": "BERNHC.TTF",
       "sha256": "8715897a451aa9e37353b6cce5f5f3d853ecbe97de87756838704eff47c8ce86",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bernard MT Condensed",
         "BernardMT-Condensed"
@@ -5073,6 +5119,7 @@
       "file": "BKANT.TTF",
       "sha256": "c019f155a0004760f32079c22c29ef0ddd223d0c2c79e2487122e66d38a53b32",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Book Antiqua",
         "BookAntiqua"
@@ -5082,6 +5129,7 @@
       "file": "BOD_B.TTF",
       "sha256": "051b0031db491fa893feddd485b917b24a9d12f15a1e99e782c2420da0a3ffb5",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bodoni MT",
         "Bodoni MT Bold",
@@ -5100,8 +5148,8 @@
         "Bodoni MT Negrita",
         "Bodoni MT Negrito",
         "Bodoni MT Pogrubiony",
-        "Bodoni MT Tučné",
         "Bodoni MT tučné",
+        "Bodoni MT Tučné",
         "Bodoni MT Vet",
         "Bodoni MT Έντονα",
         "Bodoni MT Полужирный",
@@ -5112,6 +5160,7 @@
       "file": "BOD_BI.TTF",
       "sha256": "9729e2ae73b15871db606a18a48b8674ce2bae35d76a511d3510c4a9db2385ef",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bodoni MT",
         "Bodoni MT Bold Italic",
@@ -5142,6 +5191,7 @@
       "file": "BOD_BLAI.TTF",
       "sha256": "29854f6597ca7b46db601c7a2eb28c13e31ee0541c7a5a499581fdee8da1b1d5",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bodoni MT",
         "Bodoni MT Black",
@@ -5153,12 +5203,12 @@
         "Bodoni MT Black Italic",
         "Bodoni MT Black Italique",
         "Bodoni MT Black Itálico",
-        "Bodoni MT Black kursiv",
         "Bodoni MT Black Kursiv",
+        "Bodoni MT Black kursiv",
         "Bodoni MT Black Kursivoitu",
         "Bodoni MT Black Kursywa",
-        "Bodoni MT Black kurzíva",
         "Bodoni MT Black Kurzíva",
+        "Bodoni MT Black kurzíva",
         "Bodoni MT Black Poševno",
         "Bodoni MT Black İtalik",
         "Bodoni MT Black Πλάγια",
@@ -5170,6 +5220,7 @@
       "file": "BOD_BLAR.TTF",
       "sha256": "63261985fc00d6db2dda4f22da039c70f3c4c90aa0f087fc1b7a8c9856f2b551",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bodoni MT",
         "Bodoni MT Black",
@@ -5180,6 +5231,7 @@
       "file": "BOD_CB.TTF",
       "sha256": "f307de012e77219a25ef59ada33820a3e33f6865c911acdd97440c15058713fd",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bodoni MT",
         "Bodoni MT Condensed",
@@ -5211,6 +5263,7 @@
       "file": "BOD_CBI.TTF",
       "sha256": "24fd78549262987502d83ea0bce5b47a3a0ac85c3941921b241a73fca08dd012",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bodoni MT",
         "Bodoni MT Condensed",
@@ -5249,6 +5302,7 @@
       "file": "BOD_CI.TTF",
       "sha256": "37194e3c2d5b000443d23dc324b1367cbe2be40f28c2a6c693e6051210432ca3",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bodoni MT",
         "Bodoni MT Condensed",
@@ -5264,8 +5318,8 @@
         "Bodoni MT Condensed kursiv",
         "Bodoni MT Condensed Kursivoitu",
         "Bodoni MT Condensed Kursywa",
-        "Bodoni MT Condensed kurzíva",
         "Bodoni MT Condensed Kurzíva",
+        "Bodoni MT Condensed kurzíva",
         "Bodoni MT Condensed Poševno",
         "Bodoni MT Condensed İtalik",
         "Bodoni MT Condensed Πλάγια",
@@ -5277,6 +5331,7 @@
       "file": "BOD_CR.TTF",
       "sha256": "0f1f746f293e547f8189783c49aee22a8b839698f7493b5915cc5b432c65d843",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bodoni MT",
         "Bodoni MT Condensed",
@@ -5287,6 +5342,7 @@
       "file": "BOD_I.TTF",
       "sha256": "960458b4c0851b8b9f1d047fe50f7fa01ddfbecaec692521d262660882e9596a",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bodoni MT",
         "Bodoni MT Corsivo",
@@ -5297,8 +5353,8 @@
         "Bodoni MT Italic",
         "Bodoni MT Italique",
         "Bodoni MT Itálico",
-        "Bodoni MT Kursiv",
         "Bodoni MT kursiv",
+        "Bodoni MT Kursiv",
         "Bodoni MT Kursivoitu",
         "Bodoni MT Kursywa",
         "Bodoni MT Kurzíva",
@@ -5314,6 +5370,7 @@
       "file": "BOD_PSTC.TTF",
       "sha256": "d0efcbb58042808781f33898dc0fbe5342da22d813415a4dcb394872b1d19afa",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bodoni MT",
         "Bodoni MT Poster Compressed",
@@ -5324,6 +5381,7 @@
       "file": "BOD_R.TTF",
       "sha256": "17b06990413ab318b9e9f2c05d3816059f56d7a678f4712849a3318a9e5e7c7a",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bodoni MT",
         "BodoniMT"
@@ -5333,6 +5391,7 @@
       "file": "BOOKOS.TTF",
       "sha256": "8f2df7dbc1f2b790f6e6fdd24dbb6c2a96b6e554ba2031c3ab0fe34d322a1b3e",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bookman Old Style",
         "BookmanOldStyle"
@@ -5342,6 +5401,7 @@
       "file": "BOOKOSB.TTF",
       "sha256": "ec95c7380ab7f92ebc75bba6c56a80646fcb450ef6cccc631852a8b97be75c55",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bookman Old Style",
         "Bookman Old Style Bold",
@@ -5372,6 +5432,7 @@
       "file": "BOOKOSBI.TTF",
       "sha256": "2de5e34daf966be8e165bd5604ac0714a7946ea2a0a08f86ff04e687ed54d8d7",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bookman Old Style",
         "Bookman Old Style Bold Italic",
@@ -5408,6 +5469,7 @@
       "file": "BOOKOSI.TTF",
       "sha256": "ec990c65df2ba6ead654bcb69f7f88bb76910b029f2edf663710cae3fde5f7dd",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bookman Old Style",
         "Bookman Old Style Corsivo",
@@ -5418,8 +5480,8 @@
         "Bookman Old Style Italic",
         "Bookman Old Style Italique",
         "Bookman Old Style Itálico",
-        "Bookman Old Style kursiv",
         "Bookman Old Style Kursiv",
+        "Bookman Old Style kursiv",
         "Bookman Old Style Kursivoitu",
         "Bookman Old Style Kursywa",
         "Bookman Old Style Kurzíva",
@@ -5435,6 +5497,7 @@
       "file": "BRADHITC.TTF",
       "sha256": "1f7ad9e753a88da096121bd831a7df72868ac48b8edefc8c96c7a73303f1575d",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bradley Hand ITC",
         "BradleyHandITC"
@@ -5444,6 +5507,7 @@
       "file": "BRITANIC.TTF",
       "sha256": "1aa27a3e349a8c8daf466e0f89e94b0dc5b9cbe82e0d7a77e04d3dd6e1588e3d",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Britannic",
         "Britannic Bold",
@@ -5454,6 +5518,7 @@
       "file": "BRLNSB.TTF",
       "sha256": "ad7d00c413fe11ec423ff5e2b63da7d403049ab3babf13d0b2ab34a43f4d4a55",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Berlin Sans FB",
         "Berlin Sans FB Bold",
@@ -5472,8 +5537,8 @@
         "Berlin Sans FB Negrita",
         "Berlin Sans FB Negrito",
         "Berlin Sans FB Pogrubiony",
-        "Berlin Sans FB Tučné",
         "Berlin Sans FB tučné",
+        "Berlin Sans FB Tučné",
         "Berlin Sans FB Vet",
         "Berlin Sans FB Έντονα",
         "Berlin Sans FB Полужирный",
@@ -5484,6 +5549,7 @@
       "file": "BRLNSDB.TTF",
       "sha256": "4c50d832f4e1401e226566159735dae932dd224d795ac57772061096117e4147",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Berlin Sans FB Demi",
         "Berlin Sans FB Demi Bold",
@@ -5514,6 +5580,7 @@
       "file": "BRLNSR.TTF",
       "sha256": "0b6044c72e67aaae9c2ae3c8b4bb06d066fdbc02779c68e3883984acbbe24cb8",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Berlin Sans FB",
         "BerlinSansFB-Reg"
@@ -5523,6 +5590,7 @@
       "file": "BROADW.TTF",
       "sha256": "a252b1e5d460f1e0e4781146186393e5b217ab379db237c7bcb8d7c353943edc",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Broadway"
       ]
@@ -5531,6 +5599,7 @@
       "file": "BRUSHSCI.TTF",
       "sha256": "b77d119749b51c7ae5242dd093360d5b1c94117469e578cfdd2de03fdc55eda5",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Brush Script MT",
         "Brush Script MT Corsivo",
@@ -5545,8 +5614,8 @@
         "Brush Script MT kursiv",
         "Brush Script MT Kursivoitu",
         "Brush Script MT Kursywa",
-        "Brush Script MT Kurzíva",
         "Brush Script MT kurzíva",
+        "Brush Script MT Kurzíva",
         "Brush Script MT Poševno",
         "Brush Script MT İtalik",
         "Brush Script MT Πλάγια",
@@ -5558,6 +5627,7 @@
       "file": "BSSYM7.TTF",
       "sha256": "3bd67d5982d259580a6d032f375c3b80e58c4496ffd8858b377dd69123809819",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Bookshelf Symbol 7",
         "BookshelfSymbolSeven"
@@ -5567,6 +5637,7 @@
       "file": "calibri.ttf",
       "sha256": "57e93ff143572bcc092c1f56202d43ddc07bb119aa104c6d7af163470fb551f6",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Calibri"
       ]
@@ -5575,6 +5646,7 @@
       "file": "calibrib.ttf",
       "sha256": "0a8296747536ead27d5f48f67e911cc3b207742b3f704e66995251d12fd422e5",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Calibri",
         "Calibri Bold",
@@ -5585,6 +5657,7 @@
       "file": "calibrii.ttf",
       "sha256": "7f150e9eabe5db3e1b0f9469dca5c96176bc2fbb306dc9d48b7029dc69c52763",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Calibri",
         "Calibri Italic",
@@ -5595,6 +5668,7 @@
       "file": "calibril.ttf",
       "sha256": "2db491080305b349588b9851fb6fe960eee04cd7c1097784a987287d782f0a54",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Calibri",
         "Calibri Light",
@@ -5605,6 +5679,7 @@
       "file": "calibrili.ttf",
       "sha256": "64ca9b15ca79927c3c4c69094bb41f78e5f0d79e9501d9d381a8794b220eead1",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Calibri",
         "Calibri Light",
@@ -5616,6 +5691,7 @@
       "file": "calibriz.ttf",
       "sha256": "760539bfedbe24e7853ca8a621d9cb1f3de52036c116e81aae36b33c4ab60a7c",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Calibri",
         "Calibri Bold Italic",
@@ -5626,6 +5702,7 @@
       "file": "CALIFB.TTF",
       "sha256": "9e23cba751cdd44dd7466e019b38d29360cee1aca62bd4b75dfc5cca93ea4b7a",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Californian FB",
         "Californian FB Bold",
@@ -5656,6 +5733,7 @@
       "file": "CALIFI.TTF",
       "sha256": "56b5168f5b847ce0f3280076d6c0ed026681ce3c5141629f5d8eba92dd1fcccc",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Californian FB",
         "Californian FB Corsivo",
@@ -5670,8 +5748,8 @@
         "Californian FB kursiv",
         "Californian FB Kursivoitu",
         "Californian FB Kursywa",
-        "Californian FB Kurzíva",
         "Californian FB kurzíva",
+        "Californian FB Kurzíva",
         "Californian FB Poševno",
         "Californian FB İtalik",
         "Californian FB Πλάγια",
@@ -5683,6 +5761,7 @@
       "file": "CALIFR.TTF",
       "sha256": "a779c135081030298594ea50fcdf59bcf5cd341008137931e2fd0e68d4ca65d6",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Californian FB",
         "CalifornianFB-Reg"
@@ -5692,6 +5771,7 @@
       "file": "CALIST.TTF",
       "sha256": "f976b470e19fde1971824107182927472cf67a08acc42f8e2f23951312863a8c",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Calisto MT",
         "CalistoMT"
@@ -5701,6 +5781,7 @@
       "file": "CALISTB.TTF",
       "sha256": "1b3949401e310a5967a4c108bb9be49e28e69f73095ad088f783035e8f22d28f",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "CalisMTBol",
         "Calisto MT",
@@ -5731,6 +5812,7 @@
       "file": "CALISTBI.TTF",
       "sha256": "9b9e45f016b013d92c3caf1985db22f85e39c8b1f208636f9ac21f9c135239ce",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Calisto MT",
         "Calisto MT Bold Italic",
@@ -5761,6 +5843,7 @@
       "file": "CALISTI.TTF",
       "sha256": "c7f699a3f94e57187ed36f1acebfe3e0460615ba368d14ed0aab45272844c1d5",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Calisto MT",
         "Calisto MT Corsivo",
@@ -5771,8 +5854,8 @@
         "Calisto MT Italic",
         "Calisto MT Italique",
         "Calisto MT Itálico",
-        "Calisto MT kursiv",
         "Calisto MT Kursiv",
+        "Calisto MT kursiv",
         "Calisto MT Kursivoitu",
         "Calisto MT Kursywa",
         "Calisto MT Kurzíva",
@@ -5788,6 +5871,7 @@
       "file": "cambria.ttc",
       "sha256": "84e70ccc1664482f4a960442c7a166c91a1b2cf98ff88c33cb73f79403f66d7b",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Cambria",
         "Cambria Math",
@@ -5798,6 +5882,7 @@
       "file": "cambriab.ttf",
       "sha256": "6685c657a7e292083e28f19bbf1a1e90509ce3e1130dbc4ed1c62ba3f9140543",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Cambria",
         "Cambria Bold",
@@ -5808,6 +5893,7 @@
       "file": "cambriai.ttf",
       "sha256": "6905f0ac846d1ec4326cd14a46cb7379204940aa293b098ee4c1a69723bbd165",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Cambria",
         "Cambria Italic",
@@ -5818,6 +5904,7 @@
       "file": "cambriaz.ttf",
       "sha256": "fa90f376ad37f308a819b341c8185f788d30a1012829278592eab45a41818d1a",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Cambria",
         "Cambria Bold Italic",
@@ -5828,6 +5915,7 @@
       "file": "Candara.ttf",
       "sha256": "002c1e3378d02ed7dbdb3df1c94d433413a56f3f2f3aa8315a57720ee851dc45",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Candara"
       ]
@@ -5836,6 +5924,7 @@
       "file": "Candarab.ttf",
       "sha256": "ec0dce5170aaaf2cf485d4ba39d86fbba1dd1c76d9140cbf75a6b84b50fb20de",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Candara",
         "Candara Bold",
@@ -5846,6 +5935,7 @@
       "file": "Candarai.ttf",
       "sha256": "c165dbbc35bbf1fefae865c3e6b02404c8d182074fe04e78e221bab7d35ce3f8",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Candara",
         "Candara Italic",
@@ -5856,6 +5946,7 @@
       "file": "Candaral.ttf",
       "sha256": "c35742957794a81b6c73aa43d2f19e3d3d0c45a6dafbc2efcddd04ad6b3aeac8",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Candara",
         "Candara Light",
@@ -5866,6 +5957,7 @@
       "file": "Candarali.ttf",
       "sha256": "ff22b2841bc0aa0664b50c9215e8440f1da4f74bedd27ab33865f63f433b2681",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Candara",
         "Candara Light",
@@ -5877,6 +5969,7 @@
       "file": "Candaraz.ttf",
       "sha256": "a873581d9f0886441bd45c5e425a734e86e063ef583b9cf8081b1aa03b871f1c",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Candara",
         "Candara Bold Italic",
@@ -5887,6 +5980,7 @@
       "file": "CascadiaCode.ttf",
       "sha256": "cfb6a8d474018fe46d53a427e5fbee44b998822d0d3d8772914bd712cfc55ac4",
       "category": "core",
+      "windows_protected": false,
       "names": [
         "Cascadia Code",
         "Cascadia Code Regular",
@@ -5897,6 +5991,7 @@
       "file": "CascadiaMono.ttf",
       "sha256": "0e141cb99609f6f10ad05313fd1807d5cc9e28658dcbb35ab162e52ff67dc718",
       "category": "core",
+      "windows_protected": false,
       "names": [
         "Cascadia Mono",
         "Cascadia Mono Regular",
@@ -5907,6 +6002,7 @@
       "file": "CASTELAR.TTF",
       "sha256": "5d5db8ae79e77adca68e52454088f3a456f363acc9f577cc6dd08b18fa996bda",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Castellar"
       ]
@@ -5915,6 +6011,7 @@
       "file": "CENSCBK.TTF",
       "sha256": "8209f9295b20a9c3d0f7e5163d7ef9946353e653c40f25e7ef9f905856ec246a",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Century Schoolbook",
         "CenturySchoolbook"
@@ -5924,6 +6021,7 @@
       "file": "CENTAUR.TTF",
       "sha256": "1d9fec6f9b2b72203ea56a4c7e3b40499984829ff99ae8ae53340fd8d5f07fcb",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Centaur"
       ]
@@ -5932,6 +6030,7 @@
       "file": "CENTURY.TTF",
       "sha256": "21be61ff5289c2125dbb48e2a739fd4dd98c3e58b37abfc22cc0412dd8376d95",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Century"
       ]
@@ -5940,6 +6039,7 @@
       "file": "CHILLER.TTF",
       "sha256": "64327ea7bccc5583396d6796cbc535d27c0389906a36312e5811d9ec535c6a03",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Chiller",
         "Chiller-Regular"
@@ -5949,6 +6049,7 @@
       "file": "COLONNA.TTF",
       "sha256": "7da22b3012c6071b7756f6d077ada0cbef49d66dccb7667ab74c97b3748675d5",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Colonna MT",
         "ColonnaMT"
@@ -5958,6 +6059,7 @@
       "file": "comic.ttf",
       "sha256": "fc7fbc3fb456a363f1f719b0ec62ae093c78124bb6da046006ae7e217a6b8575",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Comic Sans MS",
         "ComicSansMS"
@@ -5967,6 +6069,7 @@
       "file": "comicbd.ttf",
       "sha256": "128fdcfdfdd358e1624c15dd1f84a4d0689e59afcdefb81f8105efb2253b9c00",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Comic Sans MS",
         "Comic Sans MS Bold",
@@ -5997,6 +6100,7 @@
       "file": "comici.ttf",
       "sha256": "872cdefea79e25ff1a8a814109593c23ed66ba46f5bb843815d49e1ab4e0be3c",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Comic Sans MS",
         "Comic Sans MS Corsivo",
@@ -6007,8 +6111,8 @@
         "Comic Sans MS Italic",
         "Comic Sans MS Italique",
         "Comic Sans MS Itálico",
-        "Comic Sans MS kursiv",
         "Comic Sans MS Kursiv",
+        "Comic Sans MS kursiv",
         "Comic Sans MS Kursivoitu",
         "Comic Sans MS Kursywa",
         "Comic Sans MS kurzíva",
@@ -6025,6 +6129,7 @@
       "file": "comicz.ttf",
       "sha256": "36eb300a76582b7d39f3d34834ce1255f0b9b2830fb2e81485c4b85a5ff7f03b",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Comic Sans MS",
         "Comic Sans MS Bold Italic",
@@ -6058,6 +6163,7 @@
       "file": "consola.ttf",
       "sha256": "cf00b507b3286870cc5064ebd0633c303f70b491a4af25eec2d32df413db0179",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Consolas"
       ]
@@ -6066,6 +6172,7 @@
       "file": "consolab.ttf",
       "sha256": "7e8de70c92a891722bd3fbd623db005caab2bfe267e5dab5be46b95a44e0c7f1",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Consolas",
         "Consolas Bold",
@@ -6076,6 +6183,7 @@
       "file": "consolai.ttf",
       "sha256": "0b5b0484cf69ae973bd39380069f141271a4c9299b8885fa2d13f42aadbefef9",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Consolas",
         "Consolas Italic",
@@ -6086,6 +6194,7 @@
       "file": "consolaz.ttf",
       "sha256": "9bc225ec52aa8f4b88b98bb735b1908bd72c9e31a12139fafcc1bd6c86bed3b4",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Consolas",
         "Consolas Bold Italic",
@@ -6096,6 +6205,7 @@
       "file": "constan.ttf",
       "sha256": "495577bf8ef74deab6ecc2e7acf63cd966184148f9bc2044a1068cd58501577e",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Constantia"
       ]
@@ -6104,6 +6214,7 @@
       "file": "constanb.ttf",
       "sha256": "b6c66a1858370fe575629e19d53c05350738bf5105e18ceac07fe9efc9cd008d",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Constantia",
         "Constantia Bold",
@@ -6114,6 +6225,7 @@
       "file": "constani.ttf",
       "sha256": "2314a03c53506fa79525bc479ea4be9c036d1ebd86a1ffb5837ca5b43ff51f07",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Constantia",
         "Constantia Italic",
@@ -6124,6 +6236,7 @@
       "file": "constanz.ttf",
       "sha256": "9311aadcbd919746f50d222fa0215fb44266d6993221c14a196f0725fdae464f",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Constantia",
         "Constantia Bold Italic",
@@ -6134,6 +6247,7 @@
       "file": "COOPBL.TTF",
       "sha256": "0518e37fd63c8b97d63a6ce678eaca254f0677ab94d420e99860772ecf348636",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Cooper",
         "Cooper Black",
@@ -6144,6 +6258,7 @@
       "file": "COPRGTB.TTF",
       "sha256": "f354b9e48583dd9cb2a60dcd79eaa787722396d768aac0608d2ac0751d35bc3c",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Copperplate Gothic",
         "Copperplate Gothic Bold",
@@ -6154,6 +6269,7 @@
       "file": "COPRGTL.TTF",
       "sha256": "607520e814ebd77845cfb7824d0afd47ffff9ea4f335c8f2db356d3c6396a99d",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Copperplate Gothic",
         "Copperplate Gothic Light",
@@ -6164,6 +6280,7 @@
       "file": "corbel.ttf",
       "sha256": "a183b77b655df66793639af7874828fb50f748dc4af57ae40f758156f7f34634",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Corbel"
       ]
@@ -6172,6 +6289,7 @@
       "file": "corbelb.ttf",
       "sha256": "fa008372f8a94945d0daef9daf0bfb9e3fba3a25fd17f2607d47ac6861bd0303",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Corbel",
         "Corbel Bold",
@@ -6182,6 +6300,7 @@
       "file": "corbeli.ttf",
       "sha256": "9be778c9ed418770f6b5a02064d9c0b47a8fdea1137618f0bec9ac4072430a45",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Corbel",
         "Corbel Italic",
@@ -6192,6 +6311,7 @@
       "file": "corbell.ttf",
       "sha256": "0e36ddf90102e476c6739ca4c8cc18ba8309d880c12558981d2e4d42de78fc00",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Corbel",
         "Corbel Light",
@@ -6203,6 +6323,7 @@
       "file": "corbelli.ttf",
       "sha256": "a031500bccd32b5d6e819699b774fc679c696ed4965b643d51a94eb398475550",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Corbel",
         "Corbel Light",
@@ -6215,6 +6336,7 @@
       "file": "corbelz.ttf",
       "sha256": "588f090ae3a6d31370457312683d14ee3a5bfbdaaa0a070b7c80225b55b23e78",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Corbel",
         "Corbel Bold Italic",
@@ -6225,6 +6347,7 @@
       "file": "cour.ttf",
       "sha256": "e4a66a0259718d0c8f4b6e14319b4803ced45afbddf3abba8b8c3e2006856206",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Courier New",
         "CourierNewPSMT"
@@ -6234,6 +6357,7 @@
       "file": "courbd.ttf",
       "sha256": "11e629cef937cd08f942aa1bd994a71302dbe2819c72c6d4c183a623acbb421a",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Courier New",
         "Courier New Bold",
@@ -6252,8 +6376,8 @@
         "Courier New Negrita",
         "Courier New Negrito",
         "Courier New Pogrubiony",
-        "Courier New Tučné",
         "Courier New tučné",
+        "Courier New Tučné",
         "Courier New Vet",
         "Courier New đậm",
         "Courier New Έντονα",
@@ -6265,6 +6389,7 @@
       "file": "courbi.ttf",
       "sha256": "2d61f452de49b57d9ef14ce8896bc1cd2ed8285c2e9fb2e73e78a4b23f91d308",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Courier New",
         "Courier New Bold Italic",
@@ -6293,9 +6418,24 @@
       ]
     },
     {
+      "file": "coure.fon",
+      "sha256": "e81d15ef094f997d48cb144375866fb2f5d988b0b93b43c38cf58985e27acf45",
+      "category": "core",
+      "windows_protected": true,
+      "names": []
+    },
+    {
+      "file": "courf.fon",
+      "sha256": "cd5169425701d19edc3d0c73f6974d1f77a28777fc079a4c09fdeee07484777d",
+      "category": "core",
+      "windows_protected": true,
+      "names": []
+    },
+    {
       "file": "couri.ttf",
       "sha256": "d82eeeb458f661d867f916d691fc6d3c53f8735fe4d5b04b54a5757321ee03e0",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Courier New",
         "Courier New Corsivo",
@@ -6324,6 +6464,7 @@
       "file": "CURLZ___.TTF",
       "sha256": "caf7d153d2860f395f846db58032173c3f76b57f9368ec08382f728742cf5a5d",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Curlz MT",
         "CurlzMT"
@@ -6332,7 +6473,8 @@
     {
       "file": "Deng.ttf",
       "sha256": "e051009b42b454352a90ae0c9b8adb58bbdbcd168768750b35bc3357510de141",
-      "category": "office",
+      "category": "core",
+      "windows_protected": true,
       "names": [
         "DengXian",
         "Dengxian",
@@ -6343,12 +6485,13 @@
     {
       "file": "Dengb.ttf",
       "sha256": "236df24be867e527bdf810d00eb5c38f18244e776238a9f5ca937363267a9169",
-      "category": "office",
+      "category": "core",
+      "windows_protected": true,
       "names": [
         "DengXian",
         "DengXian Bold",
-        "Dengxian-Bold",
         "DengXian-Bold",
+        "Dengxian-Bold",
         "等线",
         "等线 Bold"
       ]
@@ -6356,7 +6499,8 @@
     {
       "file": "Dengl.ttf",
       "sha256": "3ae7cf364a29b9da69eff7333decb88e577c262c5847df2510e37695e25a8395",
-      "category": "office",
+      "category": "core",
+      "windows_protected": true,
       "names": [
         "DengXian",
         "DengXian Light",
@@ -6370,6 +6514,7 @@
       "file": "DUBAI-BOLD.TTF",
       "sha256": "b4ce691c229dd0ad05d945354dee37ec2f75e031a0c7ada786baec55b88ae230",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Dubai",
         "Dubai Bold",
@@ -6380,6 +6525,7 @@
       "file": "DUBAI-LIGHT.TTF",
       "sha256": "bd55d928275881a6ed2576c6b031d161c52f7e6f07ec396a75f00a00e6f6b51b",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Dubai",
         "Dubai Light",
@@ -6390,6 +6536,7 @@
       "file": "DUBAI-MEDIUM.TTF",
       "sha256": "d460cc9f99a343531a93ae4d6dcac016dd3befe64eaef54fa9b7c4980da951bc",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Dubai",
         "Dubai Medium",
@@ -6400,6 +6547,7 @@
       "file": "DUBAI-REGULAR.TTF",
       "sha256": "7a0be62452c4a73b8f86f3b6c1b0915074c47fa40bb658255b3d0b1cdf6d2f2f",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Dubai",
         "Dubai Regular",
@@ -6410,6 +6558,7 @@
       "file": "ebrima.ttf",
       "sha256": "3c5ce79b86ef4e4dd5c61d9a976c89751fe3ec35ae15dd253f3fb0745f883ef9",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Ebrima"
       ]
@@ -6418,6 +6567,7 @@
       "file": "ebrimabd.ttf",
       "sha256": "08e47df2f8c6d1e94067b4e50680b232ff29c517bc1bff0c092c69f21c7549ca",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Ebrima",
         "Ebrima Bold",
@@ -6436,8 +6586,8 @@
         "Ebrima Negrita",
         "Ebrima Negrito",
         "Ebrima Pogrubiony",
-        "Ebrima tučné",
         "Ebrima Tučné",
+        "Ebrima tučné",
         "Ebrima Vet",
         "Ebrima Έντονα",
         "Ebrima Полужирный",
@@ -6448,6 +6598,7 @@
       "file": "ELEPHNT.TTF",
       "sha256": "327ee1da1a144b1bd7970a8715daf00159ee1d0a9a81aeb33dcbf02631ed56e7",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Elephant",
         "Elephant-Regular"
@@ -6457,6 +6608,7 @@
       "file": "ELEPHNTI.TTF",
       "sha256": "f9ff23ecb4dd03c511e5462d0b3563b733d4a924579d41c1df8fcb68d647d2d9",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Elephant",
         "Elephant Corsivo",
@@ -6467,12 +6619,12 @@
         "Elephant Italic",
         "Elephant Italique",
         "Elephant Itálico",
-        "Elephant kursiv",
         "Elephant Kursiv",
+        "Elephant kursiv",
         "Elephant Kursivoitu",
         "Elephant Kursywa",
-        "Elephant kurzíva",
         "Elephant Kurzíva",
+        "Elephant kurzíva",
         "Elephant Poševno",
         "Elephant İtalik",
         "Elephant Πλάγια",
@@ -6484,6 +6636,7 @@
       "file": "ENGR.TTF",
       "sha256": "944dd47cc65586f54d83ed55d654c82b179111b2651e6e1d575c2f4bda55085c",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Engravers MT",
         "EngraversMT"
@@ -6493,6 +6646,7 @@
       "file": "ERASBD.TTF",
       "sha256": "88d1a747cec854b6efd25a2721f250c5623f61a818a6ea5e219408485fc9a3bb",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Eras Bold ITC",
         "ErasITC-Bold"
@@ -6502,6 +6656,7 @@
       "file": "ERASDEMI.TTF",
       "sha256": "9633185651dbec620c26f03e96e8d604a743c93d85e2b51e2f57c795a86cd642",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Eras Demi ITC",
         "ErasITC-Demi"
@@ -6511,6 +6666,7 @@
       "file": "ERASLGHT.TTF",
       "sha256": "d432c14b62c70f4777f9db5901063b76d8db88b27aca46a5fb5b4a4c552c5c3a",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Eras Light ITC",
         "ErasITC-Light"
@@ -6520,6 +6676,7 @@
       "file": "ERASMD.TTF",
       "sha256": "856137000a507908e4c289410917db83d19da88f6050af71675211ba68e9e0b3",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Eras Medium ITC",
         "ErasITC-Medium"
@@ -6529,6 +6686,7 @@
       "file": "FELIXTI.TTF",
       "sha256": "662ac854d07237d7d6a2e1c0efba28c6166002ae8cbe0df0f58c43f65b21c54d",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Felix Titling",
         "FelixTitlingMT"
@@ -6538,6 +6696,7 @@
       "file": "FORTE.TTF",
       "sha256": "7407f0814d04a4cc45127933df1d6ffab5c90e5e888d33a7279cd82c36426b30",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Forte",
         "ForteMT"
@@ -6547,6 +6706,7 @@
       "file": "FRABK.TTF",
       "sha256": "9ad3d0e5ef31c4a9a98cb0e169e4e625286aa34c712add3e001c0100138730d4",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Franklin Gothic Book",
         "FranklinGothic-Book"
@@ -6556,6 +6716,7 @@
       "file": "FRABKIT.TTF",
       "sha256": "2fc6ff3c5253dca997c68d592e8cfa066b516a782d4b2747acf297c6523f9306",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Franklin Gothic Book",
         "Franklin Gothic Book Corsivo",
@@ -6583,6 +6744,7 @@
       "file": "FRADM.TTF",
       "sha256": "cfd1bb2c9b0e8b624952288acf9bdadaa64e52bc846e4720e2f0653359e5b8c5",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Franklin Gothic Demi",
         "FranklinGothic-Demi"
@@ -6592,6 +6754,7 @@
       "file": "FRADMCN.TTF",
       "sha256": "4ab0f4d87991cbda91a625369e2804c4fb88969cdb1e4bd83b6bf37d07cf9cfd",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Franklin Gothic Demi Cond",
         "FranklinGothic-DemiCond"
@@ -6601,6 +6764,7 @@
       "file": "FRADMIT.TTF",
       "sha256": "478e980ecfb423400516403cf49587f5b2e6a6dfc2c41cffcc51c109adc24ee7",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Franklin Gothic Demi",
         "Franklin Gothic Demi Corsivo",
@@ -6611,8 +6775,8 @@
         "Franklin Gothic Demi Italic",
         "Franklin Gothic Demi Italique",
         "Franklin Gothic Demi Itálico",
-        "Franklin Gothic Demi Kursiv",
         "Franklin Gothic Demi kursiv",
+        "Franklin Gothic Demi Kursiv",
         "Franklin Gothic Demi Kursivoitu",
         "Franklin Gothic Demi Kursywa",
         "Franklin Gothic Demi Kurzíva",
@@ -6628,6 +6792,7 @@
       "file": "FRAHV.TTF",
       "sha256": "d1a3a6e5937c5923d4138c1f622145f577ae2f97c7f2d0e899ecec4d0412b839",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Franklin Gothic",
         "Franklin Gothic Heavy",
@@ -6638,6 +6803,7 @@
       "file": "FRAHVIT.TTF",
       "sha256": "ac70b60f163536b2c0e2e2752262a6f8d1db6af43da73d5caab855d369f1da13",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Franklin Gothic",
         "Franklin Gothic Heavy",
@@ -6667,6 +6833,7 @@
       "file": "framd.ttf",
       "sha256": "bac844bd41f847cf138737026d41c983387a1065535c32e78aa22c48708b52ad",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Franklin Gothic",
         "Franklin Gothic Medium",
@@ -6677,6 +6844,7 @@
       "file": "FRAMDCN.TTF",
       "sha256": "1861e0824e53ca60a04ea1bc7bdb159131448fec711ed079ebccbf645dd345d1",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Franklin Gothic Medium Cond",
         "FranklinGothic-MediumCond"
@@ -6686,6 +6854,7 @@
       "file": "framdit.ttf",
       "sha256": "df59f9ea915957b22a389d68580bf40dc5bd05822cc65b5fdcc188c706a694e7",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Franklin Gothic",
         "Franklin Gothic Medium",
@@ -6715,6 +6884,7 @@
       "file": "FREESCPT.TTF",
       "sha256": "2e131823861483b966f87ca23063ba6f3c0cecf9ac5d785d71ed1710dab477d5",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Freestyle Script",
         "FreestyleScript-Regular"
@@ -6724,6 +6894,7 @@
       "file": "FRSCRIPT.TTF",
       "sha256": "ddeda8f737249e8a2ac17f3e0757525e20631375cbb8b78d99b1462a146cef47",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "French Script MT",
         "FrenchScriptMT"
@@ -6733,6 +6904,7 @@
       "file": "FTLTLT.TTF",
       "sha256": "4feeeac17a284f6f45fc66bd28da141e6bd904f291290c1214d25d06e7c542bd",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Footlight MT",
         "Footlight MT Light",
@@ -6743,6 +6915,7 @@
       "file": "Gabriola.ttf",
       "sha256": "ddd852f9e43a5e81af62a3f6654324ba7553d7d66101ab848abc1bd2d626ac4b",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Gabriola"
       ]
@@ -6751,6 +6924,7 @@
       "file": "gadugi.ttf",
       "sha256": "0ec2bdbfc2ba99d9fb05b6f7c511e7ab8b7c055e2d644570ad777455d6e9796d",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Gadugi"
       ]
@@ -6759,6 +6933,7 @@
       "file": "gadugib.ttf",
       "sha256": "c96226cba7f50e94b534a5f8ade6a54f48a03be7c73360524eda5cbce4de34b6",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Gadugi",
         "Gadugi Bold",
@@ -6777,8 +6952,8 @@
         "Gadugi Negrita",
         "Gadugi Negrito",
         "Gadugi Pogrubiony",
-        "Gadugi Tučné",
         "Gadugi tučné",
+        "Gadugi Tučné",
         "Gadugi Vet",
         "Gadugi Έντονα",
         "Gadugi Полужирный",
@@ -6789,6 +6964,7 @@
       "file": "GARA.TTF",
       "sha256": "6204f2ace1a6c196b95b079f10ded04af8f431ce8eb2cf3945acc89b594c3728",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Garamond"
       ]
@@ -6797,6 +6973,7 @@
       "file": "GARABD.TTF",
       "sha256": "76487d4b739ffea6d64f86d0e6a19a8d0031dc67ba2fa2518bbc1818351543ff",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Garamond",
         "Garamond Bold",
@@ -6815,8 +6992,8 @@
         "Garamond Negrita",
         "Garamond Negrito",
         "Garamond Pogrubiony",
-        "Garamond Tučné",
         "Garamond tučné",
+        "Garamond Tučné",
         "Garamond Vet",
         "Garamond Έντονα",
         "Garamond Полужирный",
@@ -6827,6 +7004,7 @@
       "file": "GARAIT.TTF",
       "sha256": "9cda64dabb9b2aef5a810fe7ed231ca34c4cf42ae5a108c368ab6a21af2c4ccf",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Garamond",
         "Garamond Corsivo",
@@ -6841,8 +7019,8 @@
         "Garamond kursiv",
         "Garamond Kursivoitu",
         "Garamond Kursywa",
-        "Garamond kurzíva",
         "Garamond Kurzíva",
+        "Garamond kurzíva",
         "Garamond Poševno",
         "Garamond İtalik",
         "Garamond Πλάγια",
@@ -6854,6 +7032,7 @@
       "file": "georgia.ttf",
       "sha256": "38dffcaf1fac89492f7c56c600a14daf36ae42f7c21985cd4134ae113124a58f",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Georgia"
       ]
@@ -6862,6 +7041,7 @@
       "file": "georgiab.ttf",
       "sha256": "72a6cd94fab6c179392075d3fb361e269cdddfad41bb7ab385fa22a37e49a900",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Georgia",
         "Georgia Bold",
@@ -6880,8 +7060,8 @@
         "Georgia Negrita",
         "Georgia Negrito",
         "Georgia Pogrubiony",
-        "Georgia tučné",
         "Georgia Tučné",
+        "Georgia tučné",
         "Georgia Vet",
         "Georgia Έντονα",
         "Georgia Полужирный",
@@ -6892,6 +7072,7 @@
       "file": "georgiai.ttf",
       "sha256": "d3e4bad27651d120ac8f2cea42cf4b4f077264fb243f66b3caffcfd35465f49b",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Georgia",
         "Georgia Corsivo",
@@ -6902,12 +7083,12 @@
         "Georgia Italic",
         "Georgia Italique",
         "Georgia Itálico",
-        "Georgia kursiv",
         "Georgia Kursiv",
+        "Georgia kursiv",
         "Georgia Kursivoitu",
         "Georgia Kursywa",
-        "Georgia kurzíva",
         "Georgia Kurzíva",
+        "Georgia kurzíva",
         "Georgia Poševno",
         "Georgia İtalik",
         "Georgia Πλάγια",
@@ -6919,6 +7100,7 @@
       "file": "georgiaz.ttf",
       "sha256": "3f9e512f82eaf6f1b7869b82013fb79f6eaf1a41e75a0e7b96f31f35b1022ae4",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Georgia",
         "Georgia Bold Italic",
@@ -6949,6 +7131,7 @@
       "file": "GIGI.TTF",
       "sha256": "cf70b1cf7b70913c7f2288f037fe376e159d9e35f0619a2b412e88d7f3f5ce3a",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Gigi",
         "Gigi-Regular"
@@ -6958,6 +7141,7 @@
       "file": "GIL_____.TTF",
       "sha256": "f6664b244192ab4cf3a58bb6a653700d1f345d03bb8879888bcea1b6f8f3f97c",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Gill Sans MT",
         "GillSansMT"
@@ -6967,6 +7151,7 @@
       "file": "GILB____.TTF",
       "sha256": "c95e47d509eada17f78d730010a5bbb69f60a940c17df6e4e7354c62262c1ab8",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Gill Sans MT",
         "Gill Sans MT Bold",
@@ -6985,8 +7170,8 @@
         "Gill Sans MT Negrita",
         "Gill Sans MT Negrito",
         "Gill Sans MT Pogrubiony",
-        "Gill Sans MT tučné",
         "Gill Sans MT Tučné",
+        "Gill Sans MT tučné",
         "Gill Sans MT Vet",
         "Gill Sans MT Έντονα",
         "Gill Sans MT Полужирный",
@@ -6997,6 +7182,7 @@
       "file": "GILBI___.TTF",
       "sha256": "e79f9c1768515a1844bd889092ecebf5c40f301e4415ad1238a8e2f09ce8543e",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Gill Sans MT",
         "Gill Sans MT Bold Italic",
@@ -7027,6 +7213,7 @@
       "file": "GILC____.TTF",
       "sha256": "3216f7d3a15d3107a457b93b5537784108c3237b3fb2d16494d8ecee0a22cbd4",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Gill Sans MT Condensed",
         "GillSansMT-Condensed"
@@ -7036,6 +7223,7 @@
       "file": "GILI____.TTF",
       "sha256": "5b81f2b18d3b19baa4cf151cd6eb6c49f8e0e58194fd0a02995cccdec803448e",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Gill Sans MT",
         "Gill Sans MT Corsivo",
@@ -7046,8 +7234,8 @@
         "Gill Sans MT Italic",
         "Gill Sans MT Italique",
         "Gill Sans MT Itálico",
-        "Gill Sans MT kursiv",
         "Gill Sans MT Kursiv",
+        "Gill Sans MT kursiv",
         "Gill Sans MT Kursivoitu",
         "Gill Sans MT Kursywa",
         "Gill Sans MT Kurzíva",
@@ -7063,6 +7251,7 @@
       "file": "GILLUBCD.TTF",
       "sha256": "9c96a89a866bcc0b36d1d80f61ebb6ba9251cf9708e0060ac94546be57dbd881",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Gill Sans Ultra Bold Condensed",
         "GillSans-UltraBoldCondensed"
@@ -7072,6 +7261,7 @@
       "file": "GILSANUB.TTF",
       "sha256": "a74b5e4489bb98a96ff5f727bf33dd922703d0f3069f4ce95aa2c5d7f92d2253",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Gill Sans Ultra",
         "Gill Sans Ultra Bold",
@@ -7082,6 +7272,7 @@
       "file": "GLECB.TTF",
       "sha256": "962ebe317bfba70511c4f04ceb3a7160def7e3ce8cfcb035fddce7ef202ff9b4",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Gloucester MT Extra Condensed",
         "GloucesterMT-ExtraCondensed"
@@ -7091,6 +7282,7 @@
       "file": "GOTHIC.TTF",
       "sha256": "3a9cbb5d75b2a2b0d22dc94571608e4e9dc7b88e825374985880c5722c1c9e5f",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Century Gothic",
         "CenturyGothic"
@@ -7100,6 +7292,7 @@
       "file": "GOTHICB.TTF",
       "sha256": "90cb613b492874a560c0ff18a3402b1d24fb7e846dff11295d5c4644d6c75e83",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Century Gothic",
         "Century Gothic Bold",
@@ -7118,8 +7311,8 @@
         "Century Gothic Negrita",
         "Century Gothic Negrito",
         "Century Gothic Pogrubiony",
-        "Century Gothic Tučné",
         "Century Gothic tučné",
+        "Century Gothic Tučné",
         "Century Gothic Vet",
         "Century Gothic Έντονα",
         "Century Gothic Полужирный",
@@ -7130,6 +7323,7 @@
       "file": "GOTHICBI.TTF",
       "sha256": "2dc5949d57d2e172601fb6f5093c1fbf15a463e29ed47c4c8ff2434baf1c2b19",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Century Gothic",
         "Century Gothic Bold Italic",
@@ -7163,6 +7357,7 @@
       "file": "GOTHICI.TTF",
       "sha256": "6cf57be6f9d0bd60bd5dc6eee7c11e87e5b19df210156495a524b974185b9fb9",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Century Gothic",
         "Century Gothic Corsivo",
@@ -7190,6 +7385,7 @@
       "file": "GOUDOS.TTF",
       "sha256": "380e2cd97160e14042cea52ff785ca92d966e29f873cf2b93e1746f3a582ec74",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Goudy Old Style",
         "GoudyOldStyleT-Regular"
@@ -7199,6 +7395,7 @@
       "file": "GOUDOSB.TTF",
       "sha256": "f3cd0e13e4a0ed77522b1ab29061da6658f449d1d89b56751cdcdeed86da47e2",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Goudy Old Style",
         "Goudy Old Style Bold",
@@ -7229,6 +7426,7 @@
       "file": "GOUDOSI.TTF",
       "sha256": "71d2d85781689de6326a229aeba2d143a5b3e8a4f0fc93b75af197fb63bf05bd",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Goudy Old Style",
         "Goudy Old Style Corsivo",
@@ -7239,8 +7437,8 @@
         "Goudy Old Style Italic",
         "Goudy Old Style Italique",
         "Goudy Old Style Itálico",
-        "Goudy Old Style kursiv",
         "Goudy Old Style Kursiv",
+        "Goudy Old Style kursiv",
         "Goudy Old Style Kursivoitu",
         "Goudy Old Style Kursywa",
         "Goudy Old Style Kurzíva",
@@ -7256,6 +7454,7 @@
       "file": "GOUDYSTO.TTF",
       "sha256": "ab475061e2479350a315bf3f72d65ae9acc37bebef4cf8df979f8f6ced659216",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Goudy Stout",
         "GoudyStout"
@@ -7265,6 +7464,7 @@
       "file": "HARLOWSI.TTF",
       "sha256": "a9488a827468a58c7ba78abc284a949a27f7ef4bcb921674b354d926d1c216c0",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Harlow Solid",
         "Harlow Solid Italic",
@@ -7275,6 +7475,7 @@
       "file": "HARNGTON.TTF",
       "sha256": "f482f5760773767d798c64f470c08c140588e7b07510094497e7a89c3f2f319d",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Harrington"
       ]
@@ -7283,6 +7484,7 @@
       "file": "HATTEN.TTF",
       "sha256": "40e898e471fa4de3ca09a6dfed961d00d6395af20fe6cf1c6b83c795bea04543",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Haettenschweiler"
       ]
@@ -7291,6 +7493,7 @@
       "file": "himalaya.ttf",
       "sha256": "fdec3a7efacd57913d3c14111837908ccbabea5b0b44ec62527eb73acf743afb",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft Himalaya"
       ]
@@ -7299,6 +7502,7 @@
       "file": "HTOWERT.TTF",
       "sha256": "d5ed7dbd872ae77e6e30cada5287dbaa1ba755f962d0672c5ed14bea08f08422",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "High Tower Text",
         "HighTowerText-Reg"
@@ -7308,6 +7512,7 @@
       "file": "HTOWERTI.TTF",
       "sha256": "8f7699a0fd02de79d565fbd5205be070b777b790f028c1fd7e6090e34ed81bda",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "High Tower Text",
         "High Tower Text Corsivo",
@@ -7318,8 +7523,8 @@
         "High Tower Text Italic",
         "High Tower Text Italique",
         "High Tower Text Itálico",
-        "High Tower Text kursiv",
         "High Tower Text Kursiv",
+        "High Tower Text kursiv",
         "High Tower Text Kursivoitu",
         "High Tower Text Kursywa",
         "High Tower Text Kurzíva",
@@ -7335,6 +7540,7 @@
       "file": "impact.ttf",
       "sha256": "d8bbdb72e3f930157824b2e59677d3a912d4512c14a948e6656a2e3fb0c935ad",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Impact"
       ]
@@ -7343,6 +7549,7 @@
       "file": "IMPRISHA.TTF",
       "sha256": "9db1f3315d5c18572381f3880bd2c171fa1f49a1cd6e5f5f8d97cc1317911f06",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Imprint MT Shadow",
         "ImprintMT-Shadow"
@@ -7352,6 +7559,7 @@
       "file": "INFROMAN.TTF",
       "sha256": "ee066d11d2933638a5d00c242a24f2c9b8bd68bd3ddb3b334123f8efcd539f03",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Informal Roman",
         "InformalRoman-Regular"
@@ -7361,6 +7569,7 @@
       "file": "Inkfree.ttf",
       "sha256": "c8ab96bc49ec1dc36936b5973fc143ca222c1a33ab27b87071a3bbc44d34ca9a",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Ink Free",
         "InkFree"
@@ -7370,6 +7579,7 @@
       "file": "ITCBLKAD.TTF",
       "sha256": "2934319d3c6ba08a4477a3dc4f08695d4b926fc81a316f7a278e780ab5c9609d",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Blackadder ITC",
         "BlackadderITC-Regular"
@@ -7379,6 +7589,7 @@
       "file": "ITCEDSCR.TTF",
       "sha256": "60c4f425563b12a6c0223d5c65212fffb42f4b3d84789084aae44c42f3416865",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Edwardian Script ITC",
         "EdwardianScriptITC"
@@ -7388,6 +7599,7 @@
       "file": "ITCKRIST.TTF",
       "sha256": "a298c30e23beb222a016afa24d4d8f389f30ac3b8be6763f9f94199c3b11ff0a",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Kristen ITC",
         "KristenITC-Regular"
@@ -7397,6 +7609,7 @@
       "file": "javatext.ttf",
       "sha256": "df8d94382f73e6d2197b60653c3d55c28ab5cf127a82e65b8af4ed1b52fdc412",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Javanese Text",
         "JavaneseText"
@@ -7406,6 +7619,7 @@
       "file": "JOKERMAN.TTF",
       "sha256": "d0d2d8efdbf07df506c87f9cadcd5052a6e446c99570177b1f98555661c6937c",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Jokerman",
         "Jokerman-Regular"
@@ -7415,6 +7629,7 @@
       "file": "JUICE___.TTF",
       "sha256": "efef0fa6138c648f9b5694f11d3372cf2733ae6126c91dbc7b2327c00546a699",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Juice ITC",
         "JuiceITC-Regular"
@@ -7424,6 +7639,7 @@
       "file": "KUNSTLER.TTF",
       "sha256": "8a9783e50f3bf892d958b7e61990d6ccaee65daaa0ffc246d3e1bd4fb0104b41",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Kunstler Script",
         "KunstlerScript"
@@ -7433,6 +7649,7 @@
       "file": "l_10646.ttf",
       "sha256": "97226e81f19eff8c8fb191745748bab920472c005d3ec4e23d9a50a12c471d92",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Lucida Sans Unicode",
         "LucidaSansUnicode"
@@ -7442,6 +7659,7 @@
       "file": "LATINWD.TTF",
       "sha256": "d64b9e6668069915ae217548b010be1b52be99bc923e88e148a83619b0102868",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "LatinWide",
         "Wide Latin"
@@ -7451,6 +7669,7 @@
       "file": "LBRITE.TTF",
       "sha256": "736eb3bdc990636d283384cf6428b03a6632ae16e81dc72cd28aecd0cdadb017",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Bright",
         "LucidaBright"
@@ -7460,6 +7679,7 @@
       "file": "LBRITED.TTF",
       "sha256": "8012eb0ec90ab1b7a40eec8987927d5764055e332bdb19ab5eeb3c1cf67987c8",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Bright",
         "Lucida Bright Demibold",
@@ -7470,6 +7690,7 @@
       "file": "LBRITEDI.TTF",
       "sha256": "b2d15815ce8f722e22885e67562a66f512f6412399d9400ac01fecd718d54839",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Bright",
         "Lucida Bright Demibold",
@@ -7481,6 +7702,7 @@
       "file": "LBRITEI.TTF",
       "sha256": "d347d9ae8a42c63ed7dc15bba992d00ee9e606e0ac499a8022757c275855f612",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Bright",
         "Lucida Bright Italic",
@@ -7491,6 +7713,7 @@
       "file": "LCALLIG.TTF",
       "sha256": "5c7e6c59e09c38c4e280504741bcfc051c95a9c931b3c92c03b7f2733f580622",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Calligraphy",
         "Lucida Calligraphy Italic",
@@ -7501,6 +7724,7 @@
       "file": "LeelaUIb.ttf",
       "sha256": "15f58cff987dce2ca1e7740ca6001b8e4e2589ea80898fdedca26d2726979f7e",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Leelawadee UI",
         "Leelawadee UI Bold",
@@ -7531,6 +7755,7 @@
       "file": "LEELAWAD.TTF",
       "sha256": "11e1960d6aca5d6de0fcbeda530dbb3dea8837d810596c54235b07a9fbe43f9e",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Leelawadee"
       ]
@@ -7539,6 +7764,7 @@
       "file": "LEELAWDB.TTF",
       "sha256": "436bb96f8bbb151e7634fcea07794044a8565b013e505245322dafa13e6c3efd",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Leelawadee",
         "Leelawadee Bold",
@@ -7557,8 +7783,8 @@
         "Leelawadee Negrita",
         "Leelawadee Negrito",
         "Leelawadee Pogrubiony",
-        "Leelawadee tučné",
         "Leelawadee Tučné",
+        "Leelawadee tučné",
         "Leelawadee Vet",
         "Leelawadee Έντονα",
         "Leelawadee Полужирный",
@@ -7569,6 +7795,7 @@
       "file": "LeelawUI.ttf",
       "sha256": "ca9a670f12d0e47c20441012a22f78ab17c1b126818e0e887ef7db6ecf5e76b4",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Leelawadee UI",
         "LeelawadeeUI"
@@ -7578,6 +7805,7 @@
       "file": "LeelUIsl.ttf",
       "sha256": "f7a9d979c27baad75ebcd41ea45113919576c2e56af9ffd483dd9d0ef9272a25",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Leelawadee UI",
         "Leelawadee UI Semilight",
@@ -7585,8 +7813,8 @@
         "Leelawadee UI Semilight Navadno",
         "Leelawadee UI Semilight Normaal",
         "Leelawadee UI Semilight Normaali",
-        "Leelawadee UI Semilight Normal",
         "Leelawadee UI Semilight normal",
+        "Leelawadee UI Semilight Normal",
         "Leelawadee UI Semilight Normale",
         "Leelawadee UI Semilight Normaln",
         "Leelawadee UI Semilight Normalny",
@@ -7606,6 +7834,7 @@
       "file": "LFAX.TTF",
       "sha256": "25b23e0e8ba977da78fd0f6c13b76e561756010a73cb5a8187dd817496e25fec",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Fax",
         "Lucida Fax Regular",
@@ -7616,6 +7845,7 @@
       "file": "LFAXD.TTF",
       "sha256": "1a8dd16d0d1456923c5d3824943771e63eb67e6b8660e5c1c479674fbbba163d",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Fax",
         "Lucida Fax Demi-gras",
@@ -7635,6 +7865,7 @@
       "file": "LFAXDI.TTF",
       "sha256": "fd16af41073406530c7633bbf6976c1aecac1f4bc9d1882135cf58ec9b31dd07",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Fax",
         "Lucida Fax Demi-gras Italique",
@@ -7657,6 +7888,7 @@
       "file": "LFAXI.TTF",
       "sha256": "27899b1624a2c13245cbfd28666090e3fe9ca17ecba4cd6e19a615892f6c6db5",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Fax",
         "Lucida Fax Corsivo",
@@ -7665,8 +7897,8 @@
         "Lucida Fax Italic",
         "Lucida Fax Italique",
         "Lucida Fax Itálico",
-        "Lucida Fax kursiv",
         "Lucida Fax Kursiv",
+        "Lucida Fax kursiv",
         "Lucida Fax Kursivoitu",
         "LucidaFax-Italic"
       ]
@@ -7675,6 +7907,7 @@
       "file": "LHANDW.TTF",
       "sha256": "c5ab997a1c3e49cb0d34fa5a3f2c39934d39f2657dca224fcb3b480768676501",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Handwriting",
         "Lucida Handwriting Corsivo",
@@ -7683,8 +7916,8 @@
         "Lucida Handwriting Italic",
         "Lucida Handwriting Italique",
         "Lucida Handwriting Itálico",
-        "Lucida Handwriting Kursiv",
         "Lucida Handwriting kursiv",
+        "Lucida Handwriting Kursiv",
         "Lucida Handwriting Kursivoitu",
         "LucidaHandwriting-Italic"
       ]
@@ -7693,6 +7926,7 @@
       "file": "LSANS.TTF",
       "sha256": "eb3f949ba0f1368698e69396259e667d9fb913ebfde3c742d493aae5dd57141e",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Sans",
         "Lucida Sans Regular",
@@ -7703,6 +7937,7 @@
       "file": "LSANSD.TTF",
       "sha256": "76160ce9cd774532131cf4902b810a2d02c94f225da238ff8c04e25875eb66c5",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Sans",
         "Lucida Sans Demi-gras",
@@ -7722,6 +7957,7 @@
       "file": "LSANSDI.TTF",
       "sha256": "eb2d865bdadbdd19dacd2aa6f1a0d4e93263b3dac13de536106286e809abc238",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Sans",
         "Lucida Sans Demi-gras Italique",
@@ -7744,6 +7980,7 @@
       "file": "LSANSI.TTF",
       "sha256": "ca117345d190cda8ad6c7a41af1d6d43c475d0fdc99c97b8d325986309597f7a",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Sans",
         "Lucida Sans Corsivo",
@@ -7752,8 +7989,8 @@
         "Lucida Sans Italic",
         "Lucida Sans Italique",
         "Lucida Sans Itálico",
-        "Lucida Sans kursiv",
         "Lucida Sans Kursiv",
+        "Lucida Sans kursiv",
         "Lucida Sans Kursivoitu",
         "LucidaSans-Italic"
       ]
@@ -7762,6 +7999,7 @@
       "file": "LTYPE.TTF",
       "sha256": "b700d1bc51a11c77ca7b119b0677a9cd4dc1e61fe43a7130bc2044cd7dc9b116",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Sans Typewriter",
         "Lucida Sans Typewriter Regular",
@@ -7772,6 +8010,7 @@
       "file": "LTYPEB.TTF",
       "sha256": "993b8ad78909d2b9d67ea0001112cac238fb65c6b31f6729fdb0b86c24e2b8ab",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Sans Typewriter",
         "Lucida Sans Typewriter Bold",
@@ -7794,6 +8033,7 @@
       "file": "LTYPEBO.TTF",
       "sha256": "187f363e9c2e328409938b4413027fe8f0c55423913ba66ea66d3f0d7fd5c74e",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Sans Typewriter",
         "Lucida Sans Typewriter Bold Obl",
@@ -7825,6 +8065,7 @@
       "file": "LTYPEO.TTF",
       "sha256": "980e0ce5a0f4c407e90c72a16da2a259b7fc2a0ea48d1faf048028b2735fa941",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Lucida Sans Typewriter",
         "Lucida Sans Typewriter Inclinad",
@@ -7844,6 +8085,7 @@
       "file": "lucon.ttf",
       "sha256": "2ca2cfde263fa420e8d39420f075ee9ac80bc0794272c53ac4571a88f8a075a6",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Lucida Console",
         "LucidaConsole"
@@ -7853,6 +8095,7 @@
       "file": "MAGNETOB.TTF",
       "sha256": "455964b4a07af53205ed705e0f40778ff203f2c9e7c72a8bf2c4d7a3a834e895",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Magneto",
         "Magneto Bold",
@@ -7883,6 +8126,7 @@
       "file": "MAIAN.TTF",
       "sha256": "8cd40ac425585ee56a4a98f19a1f646828cec1e9565b4a0bfab1d4ce9d7a81c3",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Maiandra GD",
         "MaiandraGD-Regular"
@@ -7892,6 +8136,7 @@
       "file": "malgun.ttf",
       "sha256": "7a183cf1c6c56b9609fcc16eda8b5229fbc11758a21e669ec00343239b02192f",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Malgun Gothic",
         "MalgunGothic",
@@ -7902,6 +8147,7 @@
       "file": "malgunbd.ttf",
       "sha256": "e8cbc0b2afcc14fb45dfb6086d5102c0b23a96e7b6e708f3122acde1b86c9082",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Malgun Gothic",
         "Malgun Gothic Bold",
@@ -7914,6 +8160,7 @@
       "file": "malgunsl.ttf",
       "sha256": "c0ca810a242c4482594182db40f0f9d35a3d51bb2eeac750e6e867b2110eb00e",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Malgun Gothic",
         "Malgun Gothic Semilight",
@@ -7926,6 +8173,7 @@
       "file": "marlett.ttf",
       "sha256": "b7397adf2dcc24ca790348a3c26deb2122b45e5728fd25fc588de4cf5a75b469",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Marlett"
       ]
@@ -7934,6 +8182,7 @@
       "file": "MATURASC.TTF",
       "sha256": "e334bf287bdf4211fe5958c4926c8ad4ddd3f44f5fdcb2d9dcfa1394186d8132",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Matura MT Script Capitals",
         "MaturaMTScriptCapitals"
@@ -7943,6 +8192,7 @@
       "file": "micross.ttf",
       "sha256": "89b42a12ea0379133fb2f4a1d1bd53058fb61e2343c1d509452d5761acc85b7a",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft Sans Serif",
         "MicrosoftSansSerif"
@@ -7952,6 +8202,7 @@
       "file": "mingliub.ttc",
       "sha256": "8f8afdb3ec7047118f6dc51b29d395e697ee6770d0afd0cd407457e2ad6e93cb",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Ming-Lt-HKSCS-ExtB",
         "Ming-Lt-MSCS-ExtB",
@@ -7969,6 +8220,7 @@
       "file": "MISTRAL.TTF",
       "sha256": "a03a3a71113d44d7bfb98e9720264f72a05ba112e191fb78eb08d11a3f41e500",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Mistral"
       ]
@@ -7977,6 +8229,7 @@
       "file": "mmrtext.ttf",
       "sha256": "f9b362b1e0e09880cdf71852e3cc6dd6f7babb3fb6c12019f39af2135c6233cc",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Myanmar Text",
         "MyanmarText"
@@ -7986,6 +8239,7 @@
       "file": "mmrtextb.ttf",
       "sha256": "a96d49aa45e2800f49734578e5f5c1eaeb142e60a1fe1a4cc4d885170be5dcfe",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Myanmar Text",
         "Myanmar Text Bold",
@@ -8016,15 +8270,24 @@
       "file": "MOD20.TTF",
       "sha256": "cd7c7867a456ceae560d825cbec1d95b3de8cb62b00ce513db6afc293f243218",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Modern No. 20",
         "Modern-Regular"
       ]
     },
     {
+      "file": "modern.fon",
+      "sha256": "b532bc33388b2aa350f1a497485fb63385adfc9d25094725e4c00bb0bf77628c",
+      "category": "core",
+      "windows_protected": true,
+      "names": []
+    },
+    {
       "file": "monbaiti.ttf",
       "sha256": "bf15e713f2ae14f85201ad31752054b0d88adb64634d9a1f5a7bc032f981ff89",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Mongolian Baiti",
         "MongolianBaiti"
@@ -8034,6 +8297,7 @@
       "file": "msgothic.ttc",
       "sha256": "4bde3e6392b96910fb59094c6c1a4dbfae18fee78d0bf13dc30616837c4f95db",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "MS Gothic",
         "MS PGothic",
@@ -8049,6 +8313,7 @@
       "file": "msjh.ttc",
       "sha256": "1fd5fc7046e0eea753988ee06d1a5a731df68475614e2174fbba9b4800f392ac",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft JhengHei",
         "Microsoft JhengHei UI",
@@ -8061,6 +8326,7 @@
       "file": "msjhbd.ttc",
       "sha256": "7d55cd4801102131d991630cea74534dcf73a9fabf4a33e54fe05dfb4f5aa790",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft JhengHei",
         "Microsoft JhengHei Bold",
@@ -8117,6 +8383,7 @@
       "file": "msjhl.ttc",
       "sha256": "15f1162a68b5859f246d89ea62aed711b1994817c72e78e3df5d205c89c5c6e8",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft JhengHei",
         "Microsoft JhengHei Light",
@@ -8132,6 +8399,7 @@
       "file": "MSUIGHUB.TTF",
       "sha256": "8ab5de475b91361575858e67ce5a55f22a60fc9dc54d4025dfe3504d805cbd22",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Microsoft Uighur",
         "Microsoft Uighur Bold",
@@ -8150,8 +8418,8 @@
         "Microsoft Uighur Negrita",
         "Microsoft Uighur Negrito",
         "Microsoft Uighur Pogrubiony",
-        "Microsoft Uighur Tučné",
         "Microsoft Uighur tučné",
+        "Microsoft Uighur Tučné",
         "Microsoft Uighur Vet",
         "Microsoft Uighur Έντονα",
         "Microsoft Uighur Полужирный",
@@ -8162,6 +8430,7 @@
       "file": "MSUIGHUR.TTF",
       "sha256": "1da9b5ace583a0a52e85280264d84917630ff6d600caea9a1b99cbd7e8b7c07f",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Microsoft Uighur",
         "MicrosoftUighur"
@@ -8171,6 +8440,7 @@
       "file": "msyh.ttc",
       "sha256": "d79c55e68b1131eea0cc1c47be4f572d964f28c682e143db2ad09c1e4cb07a3f",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft YaHei",
         "Microsoft YaHei UI",
@@ -8186,6 +8456,7 @@
       "file": "msyhbd.ttc",
       "sha256": "4508821b3dffe01f0ef5e5326a3e60df705a44633858811f67b6982dce3f6ee6",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft YaHei",
         "Microsoft YaHei Bold",
@@ -8204,12 +8475,12 @@
         "Microsoft YaHei Negrita",
         "Microsoft YaHei Negrito",
         "Microsoft YaHei Pogrubiony",
-        "Microsoft YaHei tučné",
         "Microsoft YaHei Tučné",
-        "Microsoft Yahei UI",
+        "Microsoft YaHei tučné",
         "Microsoft YaHei UI",
-        "Microsoft YaHei UI Bold",
+        "Microsoft Yahei UI",
         "Microsoft Yahei UI Bold",
+        "Microsoft YaHei UI Bold",
         "Microsoft YaHei UI fed",
         "Microsoft YaHei UI Fet",
         "Microsoft YaHei UI Fett",
@@ -8225,8 +8496,8 @@
         "Microsoft YaHei UI Negrita",
         "Microsoft YaHei UI Negrito",
         "Microsoft YaHei UI Pogrubiony",
-        "Microsoft YaHei UI tučné",
         "Microsoft YaHei UI Tučné",
+        "Microsoft YaHei UI tučné",
         "Microsoft YaHei UI Vet",
         "Microsoft YaHei UI Έντονα",
         "Microsoft YaHei UI Полужирный",
@@ -8243,6 +8514,7 @@
       "file": "msyhl.ttc",
       "sha256": "7e9bdf90bb5d3fe1b5975fc8ae31944b8fa674122261f92c28d4ec0b9c482fa1",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft YaHei",
         "Microsoft YaHei Light",
@@ -8258,6 +8530,7 @@
       "file": "msyi.ttf",
       "sha256": "80aef1c25135b945e9de7d09e6445c386405eb2e0ea7032d4cd00a2fe3eef0ae",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft Yi Baiti",
         "Microsoft-Yi-Baiti"
@@ -8267,6 +8540,7 @@
       "file": "MTCORSVA.TTF",
       "sha256": "a6f6dacb871be365ad93fe1aab09332f768cd2aa35fdfca8e0053a38f5a2662b",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Monotype Corsiva",
         "MonotypeCorsiva"
@@ -8276,6 +8550,7 @@
       "file": "mvboli.ttf",
       "sha256": "5dfd7a4c708caeefae42cdb9540946de042beeb8c069dfde0dbc14c2fa0705ae",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "MV Boli",
         "MVBoli"
@@ -8285,6 +8560,7 @@
       "file": "NIAGENG.TTF",
       "sha256": "ece195c4b0d53ce4ebaed656341708180abfebdddadf219fb014a31e70410bde",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Niagara Engraved",
         "NiagaraEngraved-Reg"
@@ -8294,6 +8570,7 @@
       "file": "NIAGSOL.TTF",
       "sha256": "ee5f2638432efa7ea6273625ae2fe5dfa3d393ad0b51f8f5fb0f3d3c5ae65f6f",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Niagara Solid",
         "NiagaraSolid-Reg"
@@ -8302,7 +8579,8 @@
     {
       "file": "Nirmala.ttc",
       "sha256": "ad02cdfc06e144ac45f318e8e5a64cbe04c7479d4beb91d25f5a319a466b1767",
-      "category": "office",
+      "category": "core",
+      "windows_protected": true,
       "names": [
         "Nirmala Text",
         "Nirmala Text Bold",
@@ -8322,8 +8600,8 @@
         "Nirmala Text Negrito",
         "Nirmala Text Pogrubiony",
         "Nirmala Text Semilight",
-        "Nirmala Text Tučné",
         "Nirmala Text tučné",
+        "Nirmala Text Tučné",
         "Nirmala Text Vet",
         "Nirmala Text Έντονα",
         "Nirmala Text Полужирный",
@@ -8345,8 +8623,8 @@
         "Nirmala UI Negrito",
         "Nirmala UI Pogrubiony",
         "Nirmala UI Semilight",
-        "Nirmala UI Tučné",
         "Nirmala UI tučné",
+        "Nirmala UI Tučné",
         "Nirmala UI Vet",
         "Nirmala UI Έντονα",
         "Nirmala UI Полужирный",
@@ -8359,9 +8637,30 @@
       ]
     },
     {
+      "file": "NotoSansSC-VF.ttf",
+      "sha256": "763146584cf0710223441356b4395e279021b0806c196614377a7a0174ae074a",
+      "category": "core",
+      "windows_protected": true,
+      "names": [
+        "Noto Sans SC",
+        "NotoSansSC-Thin"
+      ]
+    },
+    {
+      "file": "NotoSerifSC-VF.ttf",
+      "sha256": "a4aed9985a5916fbf6690456f8732a9fccd517938e353165d4142b4f11a39280",
+      "category": "core",
+      "windows_protected": true,
+      "names": [
+        "Noto Serif SC",
+        "NotoSerifSC-ExtraLight"
+      ]
+    },
+    {
       "file": "ntailu.ttf",
       "sha256": "de0b632015447f28c2db41c8e07c745cedb05ead5dbc2e73f19da14d2e5f2151",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft New Tai Lue",
         "MicrosoftNewTaiLue"
@@ -8371,6 +8670,7 @@
       "file": "ntailub.ttf",
       "sha256": "cfc2acbf9ae0205a0a258e564bdbf5466a4e49a95281a1d2e72690f149ec837b",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft New Tai Lue",
         "Microsoft New Tai Lue Bold",
@@ -8381,6 +8681,7 @@
       "file": "OCRAEXT.TTF",
       "sha256": "2b058a75ff9336c703e48b618ef759906dc9e37712e27698f74aa3ec0b949346",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "OCR A Extended",
         "OCRAExtended"
@@ -8390,6 +8691,7 @@
       "file": "OLDENGL.TTF",
       "sha256": "1d9d8d06aec3de7b9abbcdac2381f457d9d606b54f05e9b0e0187bf8565a1104",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Old English Text MT",
         "OldEnglishTextMT"
@@ -8399,6 +8701,7 @@
       "file": "ONYX.TTF",
       "sha256": "baba81b90b5102d1e1807aed3a4f38ed8f3d0e45c2b12b27152d8101c4de21fb",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Onyx"
       ]
@@ -8407,6 +8710,7 @@
       "file": "OUTLOOK.TTF",
       "sha256": "1cc072157711f80296f3d013cec95093fc1be4e35a97406c46e76b14a97f41e1",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "MS Outlook",
         "MSOutlook"
@@ -8416,6 +8720,7 @@
       "file": "pala.ttf",
       "sha256": "e47d594e2e2bc31b28f87b6f66483d32f925843ceb002f919c7a403aca48813d",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Palatino Linotype",
         "PalatinoLinotype-Roman"
@@ -8425,6 +8730,7 @@
       "file": "palab.ttf",
       "sha256": "8e14668bbae03f78ed668dbe3261218881960dcd9fb80ad6c1d1dfb4226a57c3",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Palatino Linotype",
         "Palatino Linotype Bold",
@@ -8456,6 +8762,7 @@
       "file": "palabi.ttf",
       "sha256": "d0e722b91ffd5391cc2e7d6e976f274d5aee9fe0b8d0fedfffe093763e695cde",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Palatino Linotype",
         "Palatino Linotype Bold Italic",
@@ -8493,6 +8800,7 @@
       "file": "palai.ttf",
       "sha256": "99f0af2d1941707fecda23da38bafbed5144a73a3720d773c05b9d4c445920ed",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Palatino Linotype",
         "Palatino Linotype Corsivo",
@@ -8503,12 +8811,12 @@
         "Palatino Linotype Italic",
         "Palatino Linotype Italique",
         "Palatino Linotype Itálico",
-        "Palatino Linotype Kursiv",
         "Palatino Linotype kursiv",
+        "Palatino Linotype Kursiv",
         "Palatino Linotype Kursivoitu",
         "Palatino Linotype Kursywa",
-        "Palatino Linotype Kurzíva",
         "Palatino Linotype kurzíva",
+        "Palatino Linotype Kurzíva",
         "Palatino Linotype nghiêng",
         "Palatino Linotype Poševno",
         "Palatino Linotype İtalik",
@@ -8521,6 +8829,7 @@
       "file": "PALSCRI.TTF",
       "sha256": "13093d9642d540cb5efad5cad52ad703e11c0e1f5308bc23ff2cfd7737e7516c",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Palace Script MT",
         "PalaceScriptMT"
@@ -8530,6 +8839,7 @@
       "file": "PAPYRUS.TTF",
       "sha256": "895fdea742cdccd53e8ce847a7d2d9c3ddbd7ebdbe0444e88246f0f9e4e2526d",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Papyrus",
         "Papyrus-Regular"
@@ -8539,6 +8849,7 @@
       "file": "PARCHM.TTF",
       "sha256": "5b4a73788f013c252eb5877a7974e5836eeffc1189dd7319a219080fcc908f80",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Parchment",
         "Parchment-Regular"
@@ -8548,6 +8859,7 @@
       "file": "PER_____.TTF",
       "sha256": "f8202c3426b5c54b192969351f15ea35288de44e811e9514d923898214b94184",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Perpetua"
       ]
@@ -8556,6 +8868,7 @@
       "file": "PERB____.TTF",
       "sha256": "8eb139cdeff99c8297c95bf857d94def798116d02fdcf72cefb88d43fe7a33d4",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Perpetua",
         "Perpetua Bold",
@@ -8574,8 +8887,8 @@
         "Perpetua Negrita",
         "Perpetua Negrito",
         "Perpetua Pogrubiony",
-        "Perpetua Tučné",
         "Perpetua tučné",
+        "Perpetua Tučné",
         "Perpetua Vet",
         "Perpetua Έντονα",
         "Perpetua Полужирный",
@@ -8586,6 +8899,7 @@
       "file": "PERBI___.TTF",
       "sha256": "f8346184d59314a919926dcfb60da96421781ab19c2e04c2f76f0f82ace8cee4",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Perpetua",
         "Perpetua Bold Italic",
@@ -8616,6 +8930,7 @@
       "file": "PERI____.TTF",
       "sha256": "2f52ec437a22912ec82c06afdde46c6b1c7593b44025c4627901d353a965b161",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Perpetua",
         "Perpetua Corsivo",
@@ -8643,6 +8958,7 @@
       "file": "PERTIBD.TTF",
       "sha256": "1024c55e896123dad43b1a15f0c86640556b01e9348eb797e6d7c5a889178d6b",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Perpetua Titling MT",
         "Perpetua Titling MT Bold",
@@ -8661,8 +8977,8 @@
         "Perpetua Titling MT Negrita",
         "Perpetua Titling MT Negrito",
         "Perpetua Titling MT Pogrubiony",
-        "Perpetua Titling MT tučné",
         "Perpetua Titling MT Tučné",
+        "Perpetua Titling MT tučné",
         "Perpetua Titling MT Vet",
         "Perpetua Titling MT Έντονα",
         "Perpetua Titling MT Полужирный",
@@ -8673,6 +8989,7 @@
       "file": "PERTILI.TTF",
       "sha256": "5b90d215f586c91cbaceee9e96d8840431e6b4713909dd47ab70084a067d0b10",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Perpetua Titling MT",
         "Perpetua Titling MT Chiarissimo",
@@ -8687,6 +9004,7 @@
       "file": "phagspa.ttf",
       "sha256": "538949482d964e9f353a3a8d860bb3eda93b46b830f3b677e4f53eb2ff3a6e7d",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft PhagsPa",
         "MicrosoftPhagsPa"
@@ -8696,6 +9014,7 @@
       "file": "phagspab.ttf",
       "sha256": "03e4e45bb8ebb6d055a5584166cc26712bf7e746ea29cb6e548341361d31dc85",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft PhagsPa",
         "Microsoft PhagsPa Bold",
@@ -8706,6 +9025,7 @@
       "file": "PLAYBILL.TTF",
       "sha256": "673e9f49ace279c73711dd778037b5d435790be236c9e5892609794b0bb4377f",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Playbill"
       ]
@@ -8714,6 +9034,7 @@
       "file": "POORICH.TTF",
       "sha256": "1a98bbb22c3097e418a263ca80b63ac1264e8cbd03d5f0a7143bc598297a387b",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Poor Richard",
         "PoorRichard-Regular"
@@ -8723,6 +9044,7 @@
       "file": "PRISTINA.TTF",
       "sha256": "4bd22f9cfa8255c17ef5734964bdcea39f0614c1975f9d495576a0110f5bf177",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Pristina",
         "Pristina-Regular"
@@ -8732,6 +9054,7 @@
       "file": "RAGE.TTF",
       "sha256": "4e06cfa893f7e1e656709ac2cc240cf17cc82da9fb8df1afbf689940e47c0cfd",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Rage",
         "Rage Italic",
@@ -8742,6 +9065,7 @@
       "file": "RAVIE.TTF",
       "sha256": "7019d811b304287be2223f1667e0989f862951cbba660bde13a86bb103d97b80",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Ravie"
       ]
@@ -8750,6 +9074,7 @@
       "file": "REFSAN.TTF",
       "sha256": "26d345f357d8213475eff6459ccf2dbc9d707e2f8c0445540f3bb183f717c0f0",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "MS Reference Sans Serif",
         "MSReferenceSansSerif"
@@ -8759,6 +9084,7 @@
       "file": "REFSPCL.TTF",
       "sha256": "0f9cd250887e38b99ff7111769d249daee8634c2c875f49c3599017bd2586aab",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "MS Reference Specialty",
         "MSReferenceSpecialty"
@@ -8768,6 +9094,7 @@
       "file": "ROCC____.TTF",
       "sha256": "967465e783b62ce5fdfb10183753ddfa0ba6396036340fd3cc67f85187d57689",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Rockwell Condensed",
         "Rockwell-Condensed"
@@ -8777,6 +9104,7 @@
       "file": "ROCCB___.TTF",
       "sha256": "bda7c484b491bb10914d668300c6560621de1b091784010f2d4d239020b6e5be",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Rockwell Condensed",
         "Rockwell Condensed Bold",
@@ -8795,8 +9123,8 @@
         "Rockwell Condensed Negrita",
         "Rockwell Condensed Negrito",
         "Rockwell Condensed Pogrubiony",
-        "Rockwell Condensed Tučné",
         "Rockwell Condensed tučné",
+        "Rockwell Condensed Tučné",
         "Rockwell Condensed Vet",
         "Rockwell Condensed Έντονα",
         "Rockwell Condensed Полужирный",
@@ -8807,6 +9135,7 @@
       "file": "ROCK.TTF",
       "sha256": "0c61e5ce8296a55761cdb9d350d4c990be4cda8890cc70f2abdedfc357f96d00",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Rockwell"
       ]
@@ -8815,6 +9144,7 @@
       "file": "ROCKB.TTF",
       "sha256": "fc9fd442d2dcd719c88d42121d69f5dd9dda02cc1c8afa025d261ec28795468f",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Rockwell",
         "Rockwell Bold",
@@ -8845,6 +9175,7 @@
       "file": "ROCKBI.TTF",
       "sha256": "c8a0f6976209cc198bc47ee287fd872fd86690f4d2893057e7ee92dd1235fb5f",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Rockwell",
         "Rockwell Bold Italic",
@@ -8875,6 +9206,7 @@
       "file": "ROCKEB.TTF",
       "sha256": "6c52077681d5d1831b9e8f6621deb82de960418d24fe39d8cdc88778fbb19e30",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Rockwell Extra",
         "Rockwell Extra Bold",
@@ -8885,6 +9217,7 @@
       "file": "ROCKI.TTF",
       "sha256": "70af64a5bc061505e7a1cb1cd691811768a7cc84e53d48fcb526deb53f8c7a57",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Rockwell",
         "Rockwell Corsivo",
@@ -8895,12 +9228,12 @@
         "Rockwell Italic",
         "Rockwell Italique",
         "Rockwell Itálico",
-        "Rockwell Kursiv",
         "Rockwell kursiv",
+        "Rockwell Kursiv",
         "Rockwell Kursivoitu",
         "Rockwell Kursywa",
-        "Rockwell kurzíva",
         "Rockwell Kurzíva",
+        "Rockwell kurzíva",
         "Rockwell Poševno",
         "Rockwell İtalik",
         "Rockwell Πλάγια",
@@ -8909,9 +9242,27 @@
       ]
     },
     {
+      "file": "roman.fon",
+      "sha256": "25733f3e5dddebea00c32382d6e40438282ea740f23955010cb38c4b1e312297",
+      "category": "core",
+      "windows_protected": true,
+      "names": []
+    },
+    {
+      "file": "SansSerifCollection.ttf",
+      "sha256": "eb78c210d380fce7d3822b3a5ccfa808f1eb0390de6237f5460970679f393ce0",
+      "category": "core",
+      "windows_protected": true,
+      "names": [
+        "Sans Serif Collection",
+        "SansSerifCollection"
+      ]
+    },
+    {
       "file": "SCHLBKB.TTF",
       "sha256": "a13c13a72c0aafc2be6baf52fd28b1745af6f0fd5fbd365499c7298f4ee416a1",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Century Schoolbook",
         "Century Schoolbook Bold",
@@ -8930,8 +9281,8 @@
         "Century Schoolbook Negrita",
         "Century Schoolbook Negrito",
         "Century Schoolbook Pogrubiony",
-        "Century Schoolbook Tučné",
         "Century Schoolbook tučné",
+        "Century Schoolbook Tučné",
         "Century Schoolbook Vet",
         "Century Schoolbook Έντονα",
         "Century Schoolbook Полужирный",
@@ -8942,6 +9293,7 @@
       "file": "SCHLBKBI.TTF",
       "sha256": "8decca6df27be6bb2bd15801dd9cde62502bf4fb20efd835038861455ffe763b",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Century Schoolbook",
         "Century Schoolbook Bold Italic",
@@ -8979,6 +9331,7 @@
       "file": "SCHLBKI.TTF",
       "sha256": "73ff30499a0c673440e6df6e134e0731e586112ab99a0553f7c4dbb28f84366a",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Century Schoolbook",
         "Century Schoolbook Corsivo",
@@ -8993,8 +9346,8 @@
         "Century Schoolbook Kursiv",
         "Century Schoolbook Kursivoitu",
         "Century Schoolbook Kursywa",
-        "Century Schoolbook Kurzíva",
         "Century Schoolbook kurzíva",
+        "Century Schoolbook Kurzíva",
         "Century Schoolbook Poševno",
         "Century Schoolbook İtalik",
         "Century Schoolbook Πλάγια",
@@ -9003,9 +9356,17 @@
       ]
     },
     {
+      "file": "script.fon",
+      "sha256": "eacbfca9a5ef05a108ef5337c773d82a43398bb8ea177e5ebeef62934dd75811",
+      "category": "core",
+      "windows_protected": true,
+      "names": []
+    },
+    {
       "file": "SCRIPTBL.TTF",
       "sha256": "ebd9ca7dc28fee37c942b4084f377711ba571da5fd7154125abf8f81c9628ce6",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Script MT",
         "Script MT Bold",
@@ -9016,6 +9377,7 @@
       "file": "segmdl2.ttf",
       "sha256": "a2efc8b8e51fbd031a7142a1ade8866fa904c0c349511abc579ee53f8a926f31",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe MDL2 Assets",
         "SegoeMDL2Assets"
@@ -9025,6 +9387,7 @@
       "file": "SegoeIcons.ttf",
       "sha256": "031ada497ddcc9bf3f2536efba2f4bd53f12a0dead44460a4a934b06a952dd2b",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe Fluent Icons",
         "SegoeFluentIcons"
@@ -9034,6 +9397,7 @@
       "file": "segoepr.ttf",
       "sha256": "91046862e08fbade0bdd648e81c4efbe6a963947f8b6e32b64a28fe39073c468",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe Print",
         "SegoePrint"
@@ -9043,6 +9407,7 @@
       "file": "segoeprb.ttf",
       "sha256": "3cced0162ddb9e5f1e63ee1b36fd6e581c090318dce1a0af01b77f5ea9952c80",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe Print",
         "Segoe Print Bold",
@@ -9053,6 +9418,7 @@
       "file": "segoesc.ttf",
       "sha256": "b24aa49a4bcb99a0ffc60cad77f00941e4b121153d8b0a519c03719d9be6004e",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe Script",
         "SegoeScript"
@@ -9062,6 +9428,7 @@
       "file": "segoescb.ttf",
       "sha256": "6cd482205e1390b32a2b6327e1e5039424e346172c187074eac12006bc51935e",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe Script",
         "Segoe Script Bold",
@@ -9092,6 +9459,7 @@
       "file": "segoeui.ttf",
       "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI",
         "SegoeUI"
@@ -9101,6 +9469,7 @@
       "file": "segoeuib.ttf",
       "sha256": "b169e636719880976a97e94e3b1cb3dbe5f4a38eabc037bf9f2a9165154c3ad2",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI",
         "Segoe UI Bold",
@@ -9131,6 +9500,7 @@
       "file": "segoeuii.ttf",
       "sha256": "f9feaeee8b20751c15700b4fb03571b335f52e91edece7fb7aa1ceaa6eeb0db7",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI",
         "Segoe UI Corsivo",
@@ -9157,6 +9527,7 @@
       "file": "segoeuil.ttf",
       "sha256": "0dbddf9e20b2dc0facd568c877aa1155b3597c09a7ca41d00ca580af25d1cc51",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI",
         "Segoe UI Light",
@@ -9167,6 +9538,7 @@
       "file": "segoeuisl.ttf",
       "sha256": "288a8e3fcd0f6090881dcc469b557f55e0a85864abe1cc24330bb4f08105f69b",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI",
         "Segoe UI Semilight",
@@ -9177,6 +9549,7 @@
       "file": "segoeuiz.ttf",
       "sha256": "f2ecff1a943929f07a7b872c948b1de57fe688ac7d0bab6fc9f624c95a97dbfe",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI",
         "Segoe UI Bold Italic",
@@ -9208,6 +9581,7 @@
       "file": "seguibl.ttf",
       "sha256": "bdf29c9b7484c631f19d6ef436a63d15f8a1a82bc856f1a0f6906c41a097d2b1",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI",
         "Segoe UI Black",
@@ -9218,6 +9592,7 @@
       "file": "seguibli.ttf",
       "sha256": "6efcb158b0093bdeb6c308a93e10c2240e6510b99b756d9583cb59b7e219aaf9",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI",
         "Segoe UI Black",
@@ -9229,6 +9604,7 @@
       "file": "seguiemj.ttf",
       "sha256": "451df9bb5546055af625ff86aa72695df43e8e170b4c6c1316fe44e9c7a22f7c",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI Emoji",
         "SegoeUIEmoji"
@@ -9238,6 +9614,7 @@
       "file": "seguihis.ttf",
       "sha256": "a162ceeaf701b55d11c542daf1c39c52bfaf686496505bff2eb75ca24814c136",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI Historic",
         "SegoeUIHistoric"
@@ -9247,6 +9624,7 @@
       "file": "seguili.ttf",
       "sha256": "07bbf002d8dccb6bf7db8e31207076bf357fe92b1e5f82a20d2c941d59ebeb96",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI",
         "Segoe UI Light",
@@ -9258,6 +9636,7 @@
       "file": "seguisb.ttf",
       "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI",
         "Segoe UI Semibold",
@@ -9268,6 +9647,7 @@
       "file": "seguisbi.ttf",
       "sha256": "16847ed882097cd1c0d45c63b6d75c3021f2133c64db03796f57dac198d0b2ad",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI",
         "Segoe UI Semibold",
@@ -9279,6 +9659,7 @@
       "file": "seguisli.ttf",
       "sha256": "032eb41f836c3d6fd765dc4c287ea87f7f0c392a454ffc58d7e5fbe29d1fee86",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI",
         "Segoe UI Semilight",
@@ -9290,6 +9671,7 @@
       "file": "seguisym.ttf",
       "sha256": "a4a35dcc62cd30e1a6c97b695ecef83e59d2b149e3af834f6a49f11851d56b37",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI Symbol",
         "SegoeUISymbol"
@@ -9299,15 +9681,31 @@
       "file": "SegUIVar.ttf",
       "sha256": "27ca1ab4bd5ad3b0404ee6a9a03b143408dbd7e5a4c9e4b2054639c03fc0f682",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Segoe UI Variable",
         "SegoeUIVariable"
       ]
     },
     {
+      "file": "serife.fon",
+      "sha256": "19bfe5865332ca1f1392bf77950f79dbb7d9e5600f79bc546397567310364fe2",
+      "category": "core",
+      "windows_protected": true,
+      "names": []
+    },
+    {
+      "file": "seriff.fon",
+      "sha256": "03a22afa8a2eb02d21c601fa575ddcc9e0496a2658c1dc73b8029566dc432e00",
+      "category": "core",
+      "windows_protected": true,
+      "names": []
+    },
+    {
       "file": "SHOWG.TTF",
       "sha256": "80cd2486979c2c18f9dd59277c0fd800959afa1ce23820dcf7bce31f208647af",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Showcard Gothic",
         "ShowcardGothic-Reg"
@@ -9316,7 +9714,8 @@
     {
       "file": "simfang.ttf",
       "sha256": "fb8fd25dd5ffb09951f54d2038b7a44405659dcf7db059f502a34d62e4d689ee",
-      "category": "office",
+      "category": "core",
+      "windows_protected": true,
       "names": [
         "FangSong",
         "仿宋"
@@ -9325,7 +9724,8 @@
     {
       "file": "simhei.ttf",
       "sha256": "9b1959db3b3abeb7efdaec26edf7dfe871a6039de8d614af7248575207be629e",
-      "category": "office",
+      "category": "core",
+      "windows_protected": true,
       "names": [
         "SimHei",
         "黑体"
@@ -9334,7 +9734,8 @@
     {
       "file": "simkai.ttf",
       "sha256": "95b3e69321f4e55f6ecf36b29d1e31a0c1205acfde0117df6472a17494c3cbd2",
-      "category": "office",
+      "category": "core",
+      "windows_protected": true,
       "names": [
         "KaiTi",
         "楷体"
@@ -9344,6 +9745,7 @@
       "file": "simsun.ttc",
       "sha256": "1526ac24375f51f6eb73bc2d3f8072dbe4a80a3a65217677c9d9a84f67dab2ab",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "NSimSun",
         "SimSun",
@@ -9355,6 +9757,7 @@
       "file": "simsunb.ttf",
       "sha256": "2a476ca00b5fbbbc12a4c5335634722b11a495ed87429284325701f1e36b596a",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "SimSun-ExtB"
       ]
@@ -9362,7 +9765,8 @@
     {
       "file": "SimsunExtG.ttf",
       "sha256": "9cadcd0ab3d549446b51001d9896773d87ad012d93d842532f321eca514bffd8",
-      "category": "office",
+      "category": "core",
+      "windows_protected": true,
       "names": [
         "SimSun-ExtG"
       ]
@@ -9371,6 +9775,7 @@
       "file": "SitkaVF-Italic.ttf",
       "sha256": "74d4b98aabe85e16cb2fa6583c93f9f17642234d030a38462c36d1bcdde65928",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Sitka",
         "Sitka Text",
@@ -9382,6 +9787,7 @@
       "file": "SitkaVF.ttf",
       "sha256": "9f71aabf76ccc757d25e18801d6a37e45cacc8b74c8b42a19e9f36ca99eef594",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Sitka",
         "Sitka Text",
@@ -9389,18 +9795,48 @@
       ]
     },
     {
+      "file": "smalle.fon",
+      "sha256": "de416395301da32c96bf34625483ea6ecdcdaaeb9ff72cdca00b5af4d7092da9",
+      "category": "core",
+      "windows_protected": true,
+      "names": []
+    },
+    {
+      "file": "smallf.fon",
+      "sha256": "371c8f75993177f8ffbba9e6ba0b910ec5c88ee2f8edba23b3e08a20f861dcb3",
+      "category": "core",
+      "windows_protected": true,
+      "names": []
+    },
+    {
       "file": "SNAP____.TTF",
       "sha256": "b9e8a921cc54334132052f880fc1b8b236cb6f41b1cfa4618ea399014e6cea4d",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Snap ITC",
         "SnapITC-Regular"
       ]
     },
     {
+      "file": "sserife.fon",
+      "sha256": "28877eee4ccda2a33e0fac39da7f3effdea061e4fd9cc019f00d82405b9f9682",
+      "category": "core",
+      "windows_protected": true,
+      "names": []
+    },
+    {
+      "file": "sseriff.fon",
+      "sha256": "3c71cc8c20932ff14d89b4489bc83f2fb015d134db0e537e859a80af34d7b242",
+      "category": "core",
+      "windows_protected": true,
+      "names": []
+    },
+    {
       "file": "STCAIYUN.TTF",
       "sha256": "13b3f397619a1bd2a3dc56b09007114645a3103a171949e36c0f4603c7c44136",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Caiyun",
         "STCaiyun",
@@ -9411,6 +9847,7 @@
       "file": "STENCIL.TTF",
       "sha256": "5d53b38fa8ff33d15676cdcd78b261681bfda861c449b4f7ddfd7574a5c11e18",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Stencil"
       ]
@@ -9419,6 +9856,7 @@
       "file": "STFANGSO.TTF",
       "sha256": "e6326459e8e60e436c7d60e34d273bda3ba4eea2d2a5b309ff8f1b73200f2e38",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "STFangsong",
         "华文仿宋",
@@ -9429,6 +9867,7 @@
       "file": "STHUPO.TTF",
       "sha256": "7426907130588efde1b8c5037f1e245c2a23ee30f9a2d60f863c4264d5a06890",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "STHupo",
         "华文琥珀",
@@ -9439,6 +9878,7 @@
       "file": "STKAITI.TTF",
       "sha256": "a29c99c161fc43ce6aba2d7c152065359c2cb3019be4ae6248171178cb7d04d5",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "STKaiti",
         "华文楷体",
@@ -9449,6 +9889,7 @@
       "file": "STXIHEI.TTF",
       "sha256": "f4ccbf1caf92f38ee8f8d63edf7cf78856fdf964982d719632ef3f6960ab9fea",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "STXihei",
         "华文细黑",
@@ -9459,6 +9900,7 @@
       "file": "STXINGKA.TTF",
       "sha256": "7f901dfb0526d542740264fb5ba8dfe483293ad060270d273593e2f04a69d080",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "STXingkai",
         "华文行楷",
@@ -9469,6 +9911,7 @@
       "file": "STXINWEI.TTF",
       "sha256": "7f2fb3442bec38afecc78e1548a9d154cc225d4cfd9cbc0f8c469311ab43e36a",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "STXinwei",
         "华文新魏",
@@ -9479,6 +9922,7 @@
       "file": "STZHONGS.TTF",
       "sha256": "e822a3f2859a6cc982f04c6ad1eabc18371ce26d6874b710188a30c35dced0f1",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "STZhongsong",
         "华文中宋",
@@ -9489,6 +9933,7 @@
       "file": "sylfaen.ttf",
       "sha256": "ac278d932d59558a76817e98051b1dae53867aa81ad83e5198b1b4c4b8066a08",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Sylfaen"
       ]
@@ -9497,6 +9942,7 @@
       "file": "symbol.ttf",
       "sha256": "bbf1192965e5266fbf23370416337d2861fc1e8bd349def93f2994ba67382fc3",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Symbol",
         "SymbolMT"
@@ -9506,6 +9952,7 @@
       "file": "tahoma.ttf",
       "sha256": "9af03d4ad44a3b413d92f7de48b94aa7cc8a1471a75d498406eae837f62ee1d1",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Tahoma"
       ]
@@ -9514,6 +9961,7 @@
       "file": "tahomabd.ttf",
       "sha256": "b16ed1a15e0cabea8d41d9f8899c253cd61ac466af5e3980d02bd0cf311c2267",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Tahoma",
         "Tahoma Bold",
@@ -9545,6 +9993,7 @@
       "file": "taile.ttf",
       "sha256": "f5151d081f6afea4c26464e0cd5e695f57a99209cfeea2f483c3108684660eb6",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft Tai Le",
         "MicrosoftTaiLe"
@@ -9554,6 +10003,7 @@
       "file": "taileb.ttf",
       "sha256": "1878842d8dbdf8489794af0bace95a956db270dfa506ddcaabf94fa827b769ac",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Microsoft Tai Le",
         "Microsoft Tai Le Bold",
@@ -9564,6 +10014,7 @@
       "file": "TCB_____.TTF",
       "sha256": "64df8ce11b656bdda3e35275b83dec7c40fc8a0a73d8a921918fb99b538f62d0",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Tw Cen MT",
         "Tw Cen MT Bold",
@@ -9594,6 +10045,7 @@
       "file": "TCBI____.TTF",
       "sha256": "4fee7243ffb931f65713de0537a145f6aa1e7302c8398fea68c4864d41e7fd98",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Tw Cen MT",
         "Tw Cen MT Bold Italic",
@@ -9624,6 +10076,7 @@
       "file": "TCCB____.TTF",
       "sha256": "b068cd471c07907a772b6f39a415d33d6328d32d1ea0032be9a717cb4b80b254",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Tw Cen MT Condensed",
         "Tw Cen MT Condensed Bold",
@@ -9654,6 +10107,7 @@
       "file": "TCCEB.TTF",
       "sha256": "9e8a6af516706030b8536b2ea6535664cd9bea916fb15304556d8139a6945ff9",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Tw Cen MT Condensed Extra",
         "Tw Cen MT Condensed Extra Bold",
@@ -9664,6 +10118,7 @@
       "file": "TCCM____.TTF",
       "sha256": "73655bc3a86553ea1d76df8c8eed0e8d0daebc797aba885cde99833ffe9545dd",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Tw Cen MT Condensed",
         "TwCenMT-Condensed"
@@ -9673,6 +10128,7 @@
       "file": "TCM_____.TTF",
       "sha256": "10df71cef84ae0d7031d7ffa072b185343365be0e59bec4ac231e7c77811584b",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Tw Cen MT",
         "TwCenMT-Regular"
@@ -9682,6 +10138,7 @@
       "file": "TCMI____.TTF",
       "sha256": "3ffa539609563836dc5546f473f6e7a3b7e4c9f7ba5876522925a980ab87fd7f",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Tw Cen MT",
         "Tw Cen MT Corsivo",
@@ -9696,8 +10153,8 @@
         "Tw Cen MT kursiv",
         "Tw Cen MT Kursivoitu",
         "Tw Cen MT Kursywa",
-        "Tw Cen MT kurzíva",
         "Tw Cen MT Kurzíva",
+        "Tw Cen MT kurzíva",
         "Tw Cen MT Poševno",
         "Tw Cen MT İtalik",
         "Tw Cen MT Πλάγια",
@@ -9709,6 +10166,7 @@
       "file": "TEMPSITC.TTF",
       "sha256": "1b20b818be881cf16e711daf7e3c44be66a93b581bcd7b580a4423f18595fb35",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Tempus Sans ITC",
         "TempusSansITC"
@@ -9718,6 +10176,7 @@
       "file": "times.ttf",
       "sha256": "0bf1b21b27b370039b60eca23d532c3fe3fb308750d8f13816db70a6cb666804",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Times New Roman",
         "TimesNewRomanPSMT"
@@ -9727,6 +10186,7 @@
       "file": "timesbd.ttf",
       "sha256": "cb8f85dedb0ab01792baad20da28d26773485ac9c21e112bb5c511a8b2001eee",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Times New Roman",
         "Times New Roman Bold",
@@ -9758,6 +10218,7 @@
       "file": "timesbi.ttf",
       "sha256": "5d78b5c66ac8e9c3fc94bd4ead792e1127f5f3faa29f768ff9b599339afe95bf",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Times New Roman",
         "Times New Roman Bold Italic",
@@ -9792,12 +10253,13 @@
       "file": "timesi.ttf",
       "sha256": "11e6aae7436a5f2442eada66493d1767c78dde02acedc0afa6e7d0afeb0f3a14",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Times New Roman",
         "Times New Roman Corsivo",
         "Times New Roman Cursief",
-        "Times New Roman cursiva",
         "Times New Roman Cursiva",
+        "Times New Roman cursiva",
         "Times New Roman Dőlt",
         "Times New Roman Etzana",
         "Times New Roman Italic",
@@ -9807,8 +10269,8 @@
         "Times New Roman kursiv",
         "Times New Roman Kursivoitu",
         "Times New Roman kursywa",
-        "Times New Roman kurzíva",
         "Times New Roman Kurzíva",
+        "Times New Roman kurzíva",
         "Times New Roman nghiêng",
         "Times New Roman Poševno",
         "Times New Roman İtalik",
@@ -9821,6 +10283,7 @@
       "file": "trebuc.ttf",
       "sha256": "fe3e8bdd64c1c9f3b9cf5189d06510c80d72cec28e03d04bffc560f77eec58d1",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Trebuchet MS",
         "TrebuchetMS"
@@ -9830,6 +10293,7 @@
       "file": "trebucbd.ttf",
       "sha256": "dfcc306777a594d2815368547dd897e2ac82aff8073e55d9e682569939e49b81",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Trebuchet MS",
         "Trebuchet MS Bold",
@@ -9848,8 +10312,8 @@
         "Trebuchet MS Negrita",
         "Trebuchet MS Negrito",
         "Trebuchet MS Pogrubiony",
-        "Trebuchet MS Tučné",
         "Trebuchet MS tučné",
+        "Trebuchet MS Tučné",
         "Trebuchet MS Vet",
         "Trebuchet MS Έντονα",
         "Trebuchet MS Полужирный",
@@ -9860,6 +10324,7 @@
       "file": "trebucbi.ttf",
       "sha256": "87942234ab0cc4400088648bef8d1f7afc4c44e676c7ed6b32ca31462c18307d",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Trebuchet MS",
         "Trebuchet MS Bold Italic",
@@ -9890,6 +10355,7 @@
       "file": "trebucit.ttf",
       "sha256": "9c9dc0cd0fd6b1a06e8f406d04bb15a88aaf20328d3e166c12d6bc7994b781d2",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Trebuchet MS",
         "Trebuchet MS Corsivo",
@@ -9904,8 +10370,8 @@
         "Trebuchet MS Kursiv",
         "Trebuchet MS Kursivoitu",
         "Trebuchet MS Kursywa",
-        "Trebuchet MS Kurzíva",
         "Trebuchet MS kurzíva",
+        "Trebuchet MS Kurzíva",
         "Trebuchet MS Poševno",
         "Trebuchet MS İtalik",
         "Trebuchet MS Πλάγια",
@@ -9917,6 +10383,7 @@
       "file": "verdana.ttf",
       "sha256": "6a8481fe107ee547893c018b13dba291c2020bec3de5da6525d9ac09f6bc2105",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Verdana"
       ]
@@ -9925,6 +10392,7 @@
       "file": "verdanab.ttf",
       "sha256": "f3245f5f38f61bd1ceefb0f1338a5b88a21e6220832c2f43a38bbc7e1547c36f",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Verdana",
         "Verdana Bold",
@@ -9943,8 +10411,8 @@
         "Verdana Negrita",
         "Verdana Negrito",
         "Verdana Pogrubiony",
-        "Verdana Tučné",
         "Verdana tučné",
+        "Verdana Tučné",
         "Verdana Vet",
         "Verdana Έντονα",
         "Verdana Полужирный",
@@ -9955,6 +10423,7 @@
       "file": "verdanai.ttf",
       "sha256": "14f2ebcdaa1b77e5993a8533662e4bd3ebfe2c5771b6daafd8ccb39b2ad588b9",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Verdana",
         "Verdana Corsivo",
@@ -9969,8 +10438,8 @@
         "Verdana Kursiv",
         "Verdana Kursivoitu",
         "Verdana Kursywa",
-        "Verdana kurzíva",
         "Verdana Kurzíva",
+        "Verdana kurzíva",
         "Verdana Poševno",
         "Verdana İtalik",
         "Verdana Πλάγια",
@@ -9982,6 +10451,7 @@
       "file": "verdanaz.ttf",
       "sha256": "d71f81c83ec63eaa32d36d5df7be1d9e71d3ea9150f47cebda2924923cbbf18a",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Verdana",
         "Verdana Bold Italic",
@@ -10012,6 +10482,7 @@
       "file": "VINERITC.TTF",
       "sha256": "2bbb4cafa0c5767155971e7bc578483478351a36e55d035450e50b468422a962",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Viner Hand ITC",
         "VinerHandITC"
@@ -10021,6 +10492,7 @@
       "file": "VIVALDII.TTF",
       "sha256": "13cc1cc1ed4b8192f1840291863551afa3d950f01110a8fc3127dca744740a1b",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Vivaldi",
         "Vivaldi Corsivo",
@@ -10035,8 +10507,8 @@
         "Vivaldi kursiv",
         "Vivaldi Kursivoitu",
         "Vivaldi Kursywa",
-        "Vivaldi kurzíva",
         "Vivaldi Kurzíva",
+        "Vivaldi kurzíva",
         "Vivaldi Poševno",
         "Vivaldi İtalik",
         "Vivaldi Πλάγια",
@@ -10048,6 +10520,7 @@
       "file": "VLADIMIR.TTF",
       "sha256": "ede635464683ba465c949d7dd6894f9dff49a76229618cb0b73e0c85b93e4169",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Vladimir Script",
         "VladimirScript"
@@ -10057,6 +10530,7 @@
       "file": "webdings.ttf",
       "sha256": "67461fabd8329d0d8ad62689cac642b34fac81c754ff9077ad211160ec62282d",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Webdings"
       ]
@@ -10065,6 +10539,7 @@
       "file": "wingding.ttf",
       "sha256": "9bcd6064e3b52fa30a347edd6e82506e2ec8b1602930b423c629a82c10468a5b",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Wingdings",
         "Wingdings-Regular"
@@ -10074,6 +10549,7 @@
       "file": "WINGDNG2.TTF",
       "sha256": "fa671b6fddedd57f158ab90b6aa6a7c33db6f41ab620db72b7ad1e57c38bda5f",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Wingdings 2",
         "Wingdings2"
@@ -10083,6 +10559,7 @@
       "file": "WINGDNG3.TTF",
       "sha256": "ac9ee085920a3d8b076d5e0c61dc9df42c4bac28d1fc968344f9ceddb3972f69",
       "category": "office",
+      "windows_protected": false,
       "names": [
         "Wingdings 3",
         "Wingdings3"
@@ -10092,6 +10569,7 @@
       "file": "YuGothB.ttc",
       "sha256": "d923a57f781f06198167da4f58287be7ac64a954a47aff4295e078a42b4b68b2",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Yu Gothic",
         "Yu Gothic Bold",
@@ -10109,6 +10587,7 @@
       "file": "YuGothL.ttc",
       "sha256": "0acf409fc61e1560ea0384f8c72bf87c6fa7282077420657979680ee21dad2a4",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Yu Gothic",
         "Yu Gothic Light",
@@ -10124,6 +10603,7 @@
       "file": "YuGothM.ttc",
       "sha256": "cb2021bbfe40b21ec564848b8d702125661594e1b4f1eb2e77fd8a98b485cf19",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Yu Gothic",
         "Yu Gothic Medium",
@@ -10139,6 +10619,7 @@
       "file": "YuGothR.ttc",
       "sha256": "cd24b5617c1e26572b0a7fe7e558f7121ca42c36f7b50e8d9216ac222a1c0a93",
       "category": "core",
+      "windows_protected": true,
       "names": [
         "Yu Gothic",
         "Yu Gothic Regular",
