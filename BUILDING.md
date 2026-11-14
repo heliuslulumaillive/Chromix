@@ -54,6 +54,18 @@ of UTF-8 output above the original bound. This is a report-format repair, not
 a C++ change, a new DLL admission or a retrospective CI success claim; the
 original hosted result and diagnostic artifact remain unchanged.
 
+Replay `43643931998` / `42bc115` subsequently completed successfully and delivered
+the accepted CI runtime. All 686 declared runtime files, including the DLL,
+executable, ICU, paks and contracts, are byte-identical to the measured runtime;
+the existing host observations therefore remain bound to the delivered bytes.
+The six headed-automation Rare controls (two common screen/DPR configurations,
+native and explicit font seeds, plus a repeated baseline) all returned
+`false / <p95`. Font-only comparisons kept the same exit IP, complete visible
+inventory and SDK raw device attributes. These are six observations of the same
+complete host font inventory, not six validated random installations. JP/KR/US
+default pools remain empty; the formal r69 kernel, saved bindings and DLL
+admission identities remain unchanged.
+
 The actual DLL also passed 120 host-side aggregate comparisons over six
 captures (native / seeds 9918 and 14666, each reopened), covering complete
 visible records and font bytes, system aliases, Window/Worker/iframe, CSS and
