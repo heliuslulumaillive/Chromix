@@ -15,8 +15,16 @@ $nativePath = Join-Path $destination 'modes-native.json'
 $runtimePath = Join-Path $destination 'modes-runtime.json'
 $capabilitiesPath = Join-Path $destination 'fingerprint-modes-capabilities.json'
 $utf8 = [Text.UTF8Encoding]::new($false)
-function Write-Json([string]$Path, $Value) {
-  [IO.File]::WriteAllText($Path, ($Value | ConvertTo-Json -Depth 50) + "`n", $utf8)
+function Write-Json([string]$Path, $Value, [switch]$Compact) {
+  $json = if ($Compact) { $Value | ConvertTo-Json -Depth 50 -Compress } else { $Value | ConvertTo-Json -Depth 50 }
+  # Keep every field and the existing consumer's 512 KiB bound. Large formatted
+  # unavailable-condition lists must not turn a passing runtime into a receipt
+  # rejection merely because indentation inflated the summary.
+  $text = $json + "`n"
+  if ($Compact -and $utf8.GetByteCount($text) -gt 512KB) {
+    throw 'Fingerprint summary exceeds the unchanged 512 KiB metadata budget'
+  }
+  [IO.File]::WriteAllText($Path, $text, $utf8)
 }
 function File-Hash([string]$Path) {
   return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -284,5 +292,5 @@ try {
   }
   $hostProcess.Dispose()
   $main['completed_at'] = [DateTimeOffset]::UtcNow.ToString('o')
-  Write-Json $reportPath $main
+  Write-Json $reportPath $main -Compact
 }

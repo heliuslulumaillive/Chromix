@@ -41,6 +41,28 @@ receipts. Web receipts must match the profile, full inventory and configuration;
 a result for another configuration cannot authorize admission. Tests use
 synthetic receipts only and never populate the shipped registry.
 
+Actions `43630999220` compiled source `8bcffed` into DLL
+`79bda4bc78722481f4be2e14dd2b09ffa8f95954ced20313a1dc5bc4a241b4b5`.
+All 48 runtime scenes / 1,704 executed checks passed. The final receipt reader
+rejected the 682,365-byte formatted summary at its unchanged 512 KiB limit.
+The summary writer now emits compact JSON and rejects oversized UTF-8 output
+before writing; no fields, unavailable conditions or acceptance checks are
+removed. The same actual DLL and unchanged native/runtime/capability receipts
+passed strict local receipt validation after lossless summary compaction
+(516,849 bytes). Two regression tests cover full-data roundtrip and rejection
+of UTF-8 output above the original bound. This is a report-format repair, not
+a C++ change, a new DLL admission or a retrospective CI success claim; the
+original hosted result and diagnostic artifact remain unchanged.
+
+The actual DLL also passed 120 host-side aggregate comparisons over six
+captures (native / seeds 9918 and 14666, each reopened), covering complete
+visible records and font bytes, system aliases, Window/Worker/iframe, CSS and
+rendered output against the independently captured r69 native baseline.
+This Chinese-host result is not JP/KR/US configuration admission. Verified
+Microsoft 26H2 media snapshots are separate experimental source evidence,
+not post-OOBE installations. Full local evidence and subsequent Rare controls:
+`G:/Shardxlite/tests/font-installation-profiles-20261114/report.html`.
+
 The current Windows x64 product targets Chromium **157.0.8103.38**, ungoogled core
 `de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c`, and Windows packaging
 `f85bc55429c37b1c748b676b18fe79b38eee3207`. The 26 reviewed topics and exact source

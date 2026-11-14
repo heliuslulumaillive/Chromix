@@ -1027,5 +1027,56 @@ foreach ($file in $files) {
             self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
 
 
+class BoundedFingerprintSummaryTests(unittest.TestCase):
+    def run_writer(self, work, value):
+        powershell = shutil.which('pwsh')
+        if not powershell:
+            self.skipTest('PowerShell 7 is required to exercise the actual writer')
+        fixture, output = work / 'input.json', work / 'output.json'
+        fixture.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding='utf-8')
+        script = work / 'write.ps1'
+        script.write_text('''param([string]$Source, [string]$Fixture, [string]$Destination)
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [Management.Automation.Language.Parser]::ParseFile($Source, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw 'Receipt writer source does not parse' }
+$function = $ast.Find({param($node)
+  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Write-Json'
+}, $true)
+if (-not $function) { throw 'Actual summary writer is missing' }
+Invoke-Expression $function.Extent.Text
+$utf8 = [Text.UTF8Encoding]::new($false)
+$value = Get-Content -LiteralPath $Fixture -Raw | ConvertFrom-Json -AsHashtable
+Write-Json $Destination $value -Compact
+''', encoding='utf-8')
+        process = subprocess.run([powershell, '-NoProfile', '-NonInteractive', '-File', str(script),
+                                  '-Source', str(ROOT / 'build/windows/verify-fingerprint-modes.ps1'),
+                                  '-Fixture', str(fixture), '-Destination', str(output)],
+                                 capture_output=True, text=True, encoding='utf-8', timeout=30)
+        return fixture, output, process
+
+    def test_formatted_evidence_over_budget_roundtrips_without_losing_conditions(self):
+        row = {'scenario': 'fonts_pack120', 'name': 'not_available', 'reason': 'Native font unavailable'}
+        value = {'status': 'passed', 'not_tested': [row.copy() for _ in range(4800)]}
+        with tempfile.TemporaryDirectory(prefix='bounded-font-summary-') as directory:
+            fixture, output, process = self.run_writer(Path(directory), value)
+            self.assertGreater(fixture.stat().st_size, 512 * 1024)
+            with self.assertRaisesRegex(ValueError, 'metadata is too large'):
+                candidate.read_object(fixture)
+            self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+            self.assertLessEqual(output.stat().st_size, 512 * 1024)
+            self.assertEqual(candidate.read_object(output), value)
+            self.assertEqual(len(candidate.read_object(output)['not_tested']), 4800)
+
+    def test_utf8_over_budget_remains_rejected_before_any_summary_is_written(self):
+        # A character-count bound would incorrectly accept this UTF-8 payload.
+        value = {'data': '\u975e' * 180000}
+        with tempfile.TemporaryDirectory(prefix='bounded-font-summary-') as directory:
+            _, output, process = self.run_writer(Path(directory), value)
+            self.assertNotEqual(process.returncode, 0)
+            self.assertIn('unchanged 512 KiB', process.stderr)
+            self.assertFalse(output.exists())
+
+
 if __name__ == '__main__':
     unittest.main()
