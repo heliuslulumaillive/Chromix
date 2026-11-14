@@ -460,7 +460,7 @@
     },
     {
       "path": "patches/lite-windows157/19-shared-policy.patch",
-      "sha256": "6af6976c81d09804b01a223fe65779b2eeaf98948a810f07f31a3681abdc54ff",
+      "sha256": "0697e962ca3b3708d1136e2ea9cf633b51ebcc626c1e2f81ac88bc27c0728b78",
       "files": [
         "base/uxr_cloak_hardware.cc",
         "base/uxr_cloak_hardware.h",
@@ -955,7 +955,7 @@
     {
       "path": "base/uxr_surface_golden_tests.cc",
       "before_sha256": null,
-      "after_sha256": "1296a6b772ffd2ad61399b1b1dea63332ef44f9317c5ebec671b612ccffc26f7"
+      "after_sha256": "3822be063911b00608573493a3d70364b0bb267326f09a6e164b99898bcf6f8d"
     },
     {
       "path": "base/uxr_surface_math.h",
@@ -975,7 +975,7 @@
     {
       "path": "base/uxr_surface_reference_data.h",
       "before_sha256": null,
-      "after_sha256": "01dc89ff125fe122593ca039d12a8aa70cbc53247280e8fc9dd3d436c62bf62a"
+      "after_sha256": "0fbabc994713ae02152faccd106d48892c082eb7a1fdabf50b331b3d33e5c6b9"
     },
     {
       "path": "base/uxr_voice_compat.h",
@@ -4736,7 +4736,7 @@
     "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
     "cross_version_byte_equivalence_claimed": false
   },
-  "stack_sha256": "e5c3d65846d7f62db94ad76a1861e543f383da60e0a10473f93dc54f548eabf2",
+  "stack_sha256": "2cfa78a76b28b6cc53196ae353ff2970a4fe536a7df67c2846b71e6e5dea373c",
   "upstream_port": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",

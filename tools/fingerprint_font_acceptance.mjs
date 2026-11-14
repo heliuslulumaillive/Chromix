@@ -6,6 +6,7 @@ export async function fontAcceptanceProbe(input = {}) {
     "Batang", "SimHei", "Microsoft Uighur", "Agency FB", "Lucida Bright",
     "Yu Gothic UI", "Yu Gothic UI Bold", "Segoe UI Variable Text", "Century",
     "MS Outlook", "MT Extra", "Noto Sans SC", "Noto Sans SC Black",
+    "Century Gothic", "Haettenschweiler", "Lucida Sans", "MS Reference Specialty", "Monotype Corsiva", "Pristina",
     "Noto Serif SC", "Noto Serif SC Bold", "Liberation Sans", "Liberation Serif", "Liberation Mono",
     "DefinitelyAbsentFontXYZ"];
   const errorValue = error => ({
@@ -253,7 +254,8 @@ const packageRows = ["----","O---","OS--","O-R-","OSR-","O--L",
 const packageCore = ["Arial","Consolas","Times New Roman","Comic Sans MS",
   "Gabriola","Ink Free","Bahnschrift","Segoe UI Light","Yu Gothic UI",
   "Yu Gothic UI Bold","Segoe UI Variable Text","Meiryo","Batang","SimHei","Microsoft Uighur"];
-const packageOffice = ["Agency FB","Lucida Bright","Century","MS Outlook","MT Extra"];
+const packageOffice = ["Agency FB","Lucida Bright","Century","Century Gothic","Haettenschweiler",
+  "Lucida Sans","MS Outlook","MS Reference Specialty","MT Extra","Monotype Corsiva","Pristina"];
 const packageState = row => Object.fromEntries([
   ...packageCore.map(name=>[name,true]), ...packageOffice.map(name=>[name,row.includes("O")]),
   ...["Noto Sans SC","Noto Sans SC Black"].map(name=>[name,row.includes("S")]),

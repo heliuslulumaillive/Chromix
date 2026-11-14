@@ -32,7 +32,7 @@ int main() {
  for (uint32_t p=0;p<12;++p) {
   const uint32_t seed=120+p;profiles.insert(WindowsFontPackageProfileV2(seed));
   for (const auto name:system) assert(!ShardWindowsFontHiddenV2(name,seed));
-  for (const auto name:{"Century","Century Gothic","Agency FB","MS Outlook","MT Extra","Lucida Bright"})
+  for (const auto name:{"Century","Century Gothic","Agency FB","MS Outlook","MT Extra","Lucida Bright","Haettenschweiler","Lucida Sans","MS Reference Specialty","Monotype Corsiva","Pristina"})
    assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&1u)==0));
   for (const auto name:{"Noto Sans SC","Noto Sans SC Black","NotoSansSC-ExtraLight","Noto Sans CJK JP Bold"})
    assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&2u)==0));

@@ -84,7 +84,7 @@ test('twelve package scenes require real cross-channel installation evidence',()
   assert.equal(validateFontAcceptance(missing,WINDOWS_FONT_PACKAGE_ORACLE).positive_acceptance.shard_fonts.status,'failed');
 });
 test('Office fragments, deleted OS aliases and no-op packages fail acceptance',()=>{
-  for(const name of ['Century','Yu Gothic UI']){
+  for(const name of ['Century','Haettenschweiler','Yu Gothic UI']){
     const r=packageRecords();r.fonts_pack121.extra.fonts.windowLocal.entries.find(e=>e.family===name).loaded=false;
     assert.equal(validateFontAcceptance(r,WINDOWS_FONT_PACKAGE_ORACLE).positive_acceptance.shard_fonts.status,'failed');
   }
