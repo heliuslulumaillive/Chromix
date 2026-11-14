@@ -73,3 +73,13 @@ these results do not establish permanent or production-model rarity behavior.
 The desktop source admits only this exact DLL and the previously verified r69
 identity. The isolated accepted package has not replaced the formal install.
 Local evidence: `G:/Shardxlite/tests/font-cohorts-20261113/report.html`.
+
+The isolated application-package candidate on
+`codex/font-pack-cohorts-win157-20261114` preserves the complete published Windows
+base/FOD inventory and known family, full-name, PostScript and truncated GDI
+aliases. It varies Office, Noto Sans CJK, Noto Serif CJK and Liberation as whole
+installed packages; unknown fonts remain native. Twelve seed-stable profiles
+describe installation choices, never proxy-country inventories. Missing packages
+can make profiles identical on a particular host. Source/compiled host tests are
+separate from the pending hosted DLL build and subsequent local/Rare acceptance;
+no formal kernel binding or DLL admission is changed by this branch.

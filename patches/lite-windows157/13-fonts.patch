@@ -269,7 +269,7 @@ diff --git a/third_party/blink/renderer/platform/fonts/font_cache.cc b/third_par
 +  if (surface.mode == base::UxrSurfaceMode::kShardX &&
 +      !modes.noise_disabled && !modes.raw) {
 +#if BUILDFLAG(IS_WIN)
-+    return !base::uxr_surface_v1::ShardWindowsFontHiddenV1(
++    return !base::uxr_surface_v1::ShardWindowsFontHiddenV2(
 +        family.Utf8(), static_cast<uint32_t>(surface.seed));
 +#else
 +    return !base::uxr_surface_v1::ShardFontHidden(

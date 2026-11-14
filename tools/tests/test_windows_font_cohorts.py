@@ -17,6 +17,44 @@ class WindowsFontCohortTests(unittest.TestCase):
 
     build_and_run = host.CanvasInputMaskTests.build_and_run
 
+    def test_package_policy_preserves_complete_system_and_atomic_apps(self):
+        catalog = json.loads((ROOT / 'tools/tests/fixtures/windows-font-packages-v2.json').read_text(encoding='utf-8'))
+        core = ',\n'.join(json.dumps(s, ensure_ascii=False) for s in catalog['core_names'])
+        source = r'''
+#include "base/uxr_surface_reference_data.h"
+#include <cassert>
+#include <set>
+using namespace base::uxr_surface_v1;
+int main() {
+ const std::string_view system[] = { SYSTEM_NAMES };
+ const uint32_t masks[] = {0,1,3,5,7,9,11,13,15,2,4,6};
+ std::set<uint32_t> profiles;
+ for (uint32_t p=0;p<12;++p) {
+  const uint32_t seed=120+p;profiles.insert(WindowsFontPackageProfileV2(seed));
+  for (const auto name:system) assert(!ShardWindowsFontHiddenV2(name,seed));
+  for (const auto name:{"Century","Century Gothic","Agency FB","MS Outlook","MT Extra","Lucida Bright"})
+   assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&1u)==0));
+  for (const auto name:{"Noto Sans SC","Noto Sans SC Black","NotoSansSC-ExtraLight","Noto Sans CJK JP Bold"})
+   assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&2u)==0));
+  for (const auto name:{"Noto Serif SC","Noto Serif SC Bold","NotoSerifSC-Black","Noto Serif CJK KR Medium"})
+   assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&4u)==0));
+  for (const auto name:{"Liberation Sans","Liberation Serif Bold","LiberationMono-Regular"})
+   assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&8u)==0));
+  assert(!ShardWindowsFontHiddenV2("Unknown Newly Installed Font",seed));
+ }
+ assert(profiles.size()==12);
+ for (const auto name:{"Yu Gothic UI","Yu Gothic UI Bold","YuGothicUI-Regular","Segoe UI Variable Display Semib"}) {
+  assert(WindowsFontListedV2(name,kWindowsSystemFontNamesV2));
+  for (uint32_t seed:{1u,9918u,14666u,0xffffffffu}) assert(!ShardWindowsFontHiddenV2(name,seed));
+ }
+ for (const auto name:{"Meiryo","Batang","SimHei","Microsoft Uighur","Leelawadee"})
+  for (uint32_t seed=1;seed<=128;++seed) assert(!ShardWindowsFontHiddenV2(name,seed));
+ assert(!ShardWindowsFontHiddenV2("Century",0));
+ assert(!ShardWindowsFontHiddenV2("",14666));
+}
+'''.replace('SYSTEM_NAMES', core)
+        self.build_and_run('windows-font-package-policy', source)
+
     def test_documented_base_fonts_and_bounded_atomic_cohorts(self):
         catalog = json.loads((ROOT / 'tools/tests/fixtures/windows-font-cohorts-v1.json').read_text(encoding='utf-8'))
         core = ',\n'.join(json.dumps(s, ensure_ascii=False) for s in catalog['groups'][0]['names'])
@@ -66,7 +104,7 @@ int main() {
 
     def test_windows_path_uses_cohorts_without_changing_other_platforms(self):
         patch = (ROOT / 'patches/lite-windows157/13-fonts.patch').read_text(encoding='utf-8')
-        self.assertIn('+#if BUILDFLAG(IS_WIN)\n+    return !base::uxr_surface_v1::ShardWindowsFontHiddenV1(', patch)
+        self.assertIn('+#if BUILDFLAG(IS_WIN)\n+    return !base::uxr_surface_v1::ShardWindowsFontHiddenV2(', patch)
         self.assertIn('+#else\n+    return !base::uxr_surface_v1::ShardFontHidden(', patch)
         # The native and noise-disabled branches remain outside the policy.
         self.assertIn('!modes.noise_disabled && !modes.raw', patch)

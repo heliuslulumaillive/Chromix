@@ -600,6 +600,45 @@
         }
       ],
       "scope": "Exact three-source font update from accepted run43149750998/s1: retain the documented Windows base fonts and use four seed-stable optional language/application installation cohorts. Preserve non-Windows historical algorithms, native resolution, all Canvas/WebGL/audio/WebRTC code and unrelated objects. Expand compiled and raw-browser font evidence to reject core deletion, no-op masking, CSS/Worker/local-enumeration divergence and missing cohorts. No DLL admission or runtime acceptance inherited."
+    },
+    {
+      "id": "lite157-windows-font-application-packages-v2",
+      "chromium_version": "157.0.8103.38",
+      "core_commit": "de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c",
+      "windows_commit": "f85bc55429c37b1c748b676b18fe79b38eee3207",
+      "arch": "x64",
+      "source_commit": "da5de2875f636a6620568e5470ad31ca63406059",
+      "source_run": "43459314622",
+      "source_stage": 1,
+      "source_recipe_sha256": "79cb3ddede8c43e6c14b3aa83617a5a2b2b660924d75146a07b5cc868ebfa345",
+      "target_recipe_sha256": "fab9d6091c4cf47c0b3b68f562e1b6a71f2ff23c1ee7760bf5f3f58785a8c75c",
+      "source_preparation_sha256": "79cb3ddede8c43e6c14b3aa83617a5a2b2b660924d75146a07b5cc868ebfa345",
+      "target_preparation_sha256": "fab9d6091c4cf47c0b3b68f562e1b6a71f2ff23c1ee7760bf5f3f58785a8c75c",
+      "source_aggregate_sha256": "264116be1878cfa9d284ec43c2e471d4fc1a37c2fd90e3ee156e21dfeea1e259",
+      "target_aggregate_sha256": "e5c3d65846d7f62db94ad76a1861e543f383da60e0a10473f93dc54f548eabf2",
+      "source_patch_kind": "lite-windows157-product",
+      "target_patch_kind": "lite-windows157-product",
+      "product_source_updates": [
+        {
+          "path": "base/uxr_surface_reference_data.h",
+          "before_sha256": "1308b72ff79dc76ec1f0a30186cd0aed89c0a64b0ad96b690f74210a15107667",
+          "after_sha256": "01dc89ff125fe122593ca039d12a8aa70cbc53247280e8fc9dd3d436c62bf62a",
+          "replacement_path": "build/checkpoint-sources/01dc89ff125fe122593ca039d12a8aa70cbc53247280e8fc9dd3d436c62bf62a.h"
+        },
+        {
+          "path": "base/uxr_surface_golden_tests.cc",
+          "before_sha256": "ec2dce5fedd88952bcf15a593bdef68f113c6ea7a4ec2a3545157babf63552ad",
+          "after_sha256": "1296a6b772ffd2ad61399b1b1dea63332ef44f9317c5ebec671b612ccffc26f7",
+          "replacement_path": "build/checkpoint-sources/1296a6b772ffd2ad61399b1b1dea63332ef44f9317c5ebec671b612ccffc26f7.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/platform/fonts/font_cache.cc",
+          "before_sha256": "c990f09b773d7e0bd3e1c2edf5078ee59291fa8477999301bde74934bbae86c8",
+          "after_sha256": "cc3c2f0c6f70cee555cd9b9785f42014516e0543dcceca7153628707ff3093fc",
+          "replacement_path": "build/checkpoint-sources/cc3c2f0c6f70cee555cd9b9785f42014516e0543dcceca7153628707ff3093fc.cc"
+        }
+      ],
+      "scope": "Exact three-source application-font-package update from the compiled run43459314622/s1. Retain all published Windows core and optional language fonts, full/family/PostScript and GDI aliases; atomically vary Office, Noto Sans CJK, Noto Serif CJK and Liberation installations using twelve bounded profiles. Unknown fonts stay native. Preserve other platforms and all unrelated source/object state. Add compiled full-system/Office/style regressions and twelve required Window/Worker/CSS/query scenarios. No DLL admission or runtime acceptance is inherited."
     }
   ]
 }

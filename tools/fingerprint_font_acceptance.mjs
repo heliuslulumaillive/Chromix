@@ -4,6 +4,9 @@ export async function fontAcceptanceProbe(input = {}) {
   const families = ["Arial", "Consolas", "Times New Roman", "Comic Sans MS",
     "Gabriola", "Ink Free", "Bahnschrift", "Segoe UI Light", "Meiryo",
     "Batang", "SimHei", "Microsoft Uighur", "Agency FB", "Lucida Bright",
+    "Yu Gothic UI", "Yu Gothic UI Bold", "Segoe UI Variable Text", "Century",
+    "MS Outlook", "MT Extra", "Noto Sans SC", "Noto Sans SC Black",
+    "Noto Serif SC", "Noto Serif SC Bold", "Liberation Sans", "Liberation Serif", "Liberation Mono",
     "DefinitelyAbsentFontXYZ"];
   const errorValue = error => ({
     name: error?.name || "Error", message: String(error?.message || error),
@@ -243,6 +246,32 @@ export const WINDOWS_FONT_COHORT_ORACLE = Object.freeze({
     catalog:"tools/tests/fixtures/windows-font-cohorts-v1.json"}],
 });
 
+// Frozen application-installation matrix, independent of the C++ predicate.
+// O=Office, S=Noto Sans CJK, R=Noto Serif CJK, L=Liberation collection.
+const packageRows = ["----","O---","OS--","O-R-","OSR-","O--L",
+  "OS-L","O-RL","OSRL","-S--","--R-","-SR-"];
+const packageCore = ["Arial","Consolas","Times New Roman","Comic Sans MS",
+  "Gabriola","Ink Free","Bahnschrift","Segoe UI Light","Yu Gothic UI",
+  "Yu Gothic UI Bold","Segoe UI Variable Text","Meiryo","Batang","SimHei","Microsoft Uighur"];
+const packageOffice = ["Agency FB","Lucida Bright","Century","MS Outlook","MT Extra"];
+const packageState = row => Object.fromEntries([
+  ...packageCore.map(name=>[name,true]), ...packageOffice.map(name=>[name,row.includes("O")]),
+  ...["Noto Sans SC","Noto Sans SC Black"].map(name=>[name,row.includes("S")]),
+  ...["Noto Serif SC","Noto Serif SC Bold"].map(name=>[name,row.includes("R")]),
+  ...["Liberation Sans","Liberation Serif","Liberation Mono"].map(name=>[name,row.includes("L")]),
+]);
+export const WINDOWS_FONT_PACKAGE_ORACLE = Object.freeze({
+  schema_version: 3,
+  selected_families: Object.keys(packageState(packageRows[8])),
+  shard: {
+    ...Object.fromEntries(packageRows.map((row,index)=>["fonts_pack"+(120+index),packageState(row)])),
+    fonts_shard40: packageState("OSR-"), fonts_shard41: packageState("O--L"),
+    fonts_shard42: packageState("OS-L"), fonts_shard43: packageState("O-RL"),
+  },
+  sources: [{catalog:"tools/tests/fixtures/windows-font-packages-v2.json",
+    url:"https://support.microsoft.com/en-us/office/fonts/cloud-fonts-in-office"}],
+});
+
 export function validateFontAcceptance(recordsById, oracle = FONT_ACCEPTANCE_ORACLE) {
   // A caller can append provenance without replacing fixed expectations.
   const expectedOracle = {
@@ -398,7 +427,7 @@ export function validateFontAcceptance(recordsById, oracle = FONT_ACCEPTANCE_ORA
       if (assigned !== group) continue;
       for (const channel of ["windowLocal", "workerLocal", "query", "css"]) {
         const value = coverage.get(`${scenario}:${channel}`);
-        const cohortContract = expectedOracle.schema_version === 2 && group === "shard_fonts";
+        const cohortContract = expectedOracle.schema_version >= 2 && group === "shard_fonts";
         // A complete installed-font cohort is intentionally permitted to keep
         // everything. Every individual eligible result above is still checked;
         // actual blocking and retention are mandatory across the four cohorts.
@@ -408,7 +437,7 @@ export function validateFontAcceptance(recordsById, oracle = FONT_ACCEPTANCE_ORA
       if (!coverage.get(`${scenario}:downloaded`)?.retained)
         gaps.push(`${scenario}:downloaded_fixture_unavailable`);
     }
-    if (expectedOracle.schema_version === 2 && group === "shard_fonts") {
+    if (expectedOracle.schema_version >= 2 && group === "shard_fonts") {
       for (const channel of ["windowLocal", "workerLocal", "query", "css"]) {
         const totals = scenarios.filter(([, assigned]) => assigned === group)
           .map(([id]) => coverage.get(`${id}:${channel}`))
