@@ -611,19 +611,19 @@
       "source_run": "43459314622",
       "source_stage": 1,
       "source_recipe_sha256": "79cb3ddede8c43e6c14b3aa83617a5a2b2b660924d75146a07b5cc868ebfa345",
-      "target_recipe_sha256": "6c78fd52f6d36cba3b73f72d8e8f68e0496cf6e95dd49b61627ea5e81000840a",
+      "target_recipe_sha256": "1431dbddd9f2be5bfdae5c448d1eb96bf53f3758331bcb77428e66287b066150",
       "source_preparation_sha256": "79cb3ddede8c43e6c14b3aa83617a5a2b2b660924d75146a07b5cc868ebfa345",
-      "target_preparation_sha256": "6c78fd52f6d36cba3b73f72d8e8f68e0496cf6e95dd49b61627ea5e81000840a",
+      "target_preparation_sha256": "1431dbddd9f2be5bfdae5c448d1eb96bf53f3758331bcb77428e66287b066150",
       "source_aggregate_sha256": "264116be1878cfa9d284ec43c2e471d4fc1a37c2fd90e3ee156e21dfeea1e259",
-      "target_aggregate_sha256": "2cfa78a76b28b6cc53196ae353ff2970a4fe536a7df67c2846b71e6e5dea373c",
+      "target_aggregate_sha256": "f1ec09d2ecf626b7c38fba04953185fd6e1e2117f6128d78868d1932cf570c27",
       "source_patch_kind": "lite-windows157-product",
       "target_patch_kind": "lite-windows157-product",
       "product_source_updates": [
         {
           "path": "base/uxr_surface_reference_data.h",
           "before_sha256": "1308b72ff79dc76ec1f0a30186cd0aed89c0a64b0ad96b690f74210a15107667",
-          "after_sha256": "0fbabc994713ae02152faccd106d48892c082eb7a1fdabf50b331b3d33e5c6b9",
-          "replacement_path": "build/checkpoint-sources/0fbabc994713ae02152faccd106d48892c082eb7a1fdabf50b331b3d33e5c6b9.h"
+          "after_sha256": "76b0c01277be7bc4cd6bce5a3a25d0aaee2acce47138f3d687b2597fee373c70",
+          "replacement_path": "build/checkpoint-sources/76b0c01277be7bc4cd6bce5a3a25d0aaee2acce47138f3d687b2597fee373c70.h"
         },
         {
           "path": "base/uxr_surface_golden_tests.cc",
