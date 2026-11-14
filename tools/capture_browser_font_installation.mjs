@@ -1,0 +1,33 @@
+// Full native font observation on an owned local page, twice across restart.
+// This is installation evidence, never an automatic country assignment.
+import {mkdir,readFile,writeFile} from 'node:fs/promises';import {createServer} from 'node:http';import {createHash,randomUUID} from 'node:crypto';import {pathToFileURL} from 'node:url';import path from 'node:path';
+const args={};for(let i=2;i<process.argv.length;i+=2)args[process.argv[i].slice(2)]=process.argv[i+1];
+if(!args.browser||!args.output||!args.installation||!/^[a-f0-9]{64}$/.test(args.sha??''))throw Error('Explicit browser SHA, installation facts and new output required');
+const root=path.dirname(args.browser),hash=b=>createHash('sha256').update(b).digest('hex');if(hash(await readFile(root+'/chrome.dll'))!==args.sha)throw Error('Actual DLL differs');
+const output=path.resolve(args.output);await mkdir(output,{recursive:false});const factsBytes=await readFile(args.installation);const facts=JSON.parse(factsBytes);
+if(facts.kind!=='live-host-installation-facts')throw Error('Actual installation context required');
+const bundle='G:/Shardxlite/tests/font-safe-defaults-20261114/staging-bundle-v2';const {chromium}=await import(pathToFileURL(bundle+'/resources/playwright/node_modules/playwright-core/index.mjs'));
+const {prepareOptions,protectAutomationDefaults}=await import(pathToFileURL(bundle+'/resources/playwright/bridge.mjs'));
+const server=createServer((req,res)=>{res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><title>Owned complete font inventory</title><main>Native font installation evidence only</main>');});await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
+const profileId=randomUUID(),userDataDir=output+'/browser-profile';const result={schema_version:3,kind:'actual-browser-installation-observation',countryEntry:null,defaultEligible:false,collectionMethod:'automation-headless; owned local origin; no OS input',dllSHA256:args.sha,installationFactsSHA256:hash(factsBytes),runs:[]};
+try{for(let pass=0;pass<2;pass++){
+ const request={type:'launch',product:'chromix-lite',nativeBrowser:true,profileId,binaryPath:args.browser,userDataDir,cdpPort:49000+pass,startUrl:origin,browserSettings:{historyRetentionDays:null,restorePreviousSession:false},fingerprint:{strategies:{fonts:{mode:'native'}},cpuMode:'native',memoryMode:'native',screenMode:'native'},options:{launchMode:'automation',fingerprintMode:'fixed',fingerprintOverrides:true,fingerprintSeed:'3329572536739077236',pixelNoise:'native',headless:true,viewport:null,chromiumSandbox:true,args:[]}};
+ const options=prepareOptions(request);await protectAutomationDefaults(options);const {userDataDir:dir,...launch}=options;launch.executablePath=args.browser;const context=await chromium.launchPersistentContext(dir,launch);
+ try{
+  const page=context.pages()[0]??await context.newPage();await page.goto(origin);const session=await context.newCDPSession(page);await session.send('Browser.grantPermissions',{origin,permissions:['localFonts']});
+  const capture=await session.send('Runtime.evaluate',{expression:'(async()=>{const fonts=await queryLocalFonts();return fonts.map(f=>({family:f.family,fullName:f.fullName,postscriptName:f.postscriptName,style:f.style})).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));})()',awaitPromise:true,returnByValue:true,userGesture:true});
+  if(capture.exceptionDetails)throw Error(JSON.stringify(capture.exceptionDetails));const fonts=capture.result.value;if(!Array.isArray(fonts)||!fonts.length)throw Error('No actual Font Access inventory');
+  const row={pass,fonts,visibleNamesSHA256:hash(JSON.stringify(fonts)),candidateCountryEligible:false};
+  const loaded=await page.evaluate(async names=>{const frame=document.createElement('iframe');document.body.append(frame);async function load(Ctor,names){return Promise.all(names.map(async name=>{try{await new Ctor('Snapshot'+Math.random().toString(36).slice(2),'local('+JSON.stringify(name)+')').load();return {name,loaded:true};}catch(e){return {name,loaded:false,error:e.name};}}));}const source=URL.createObjectURL(new Blob(['const load='+load.toString()+';onmessage=async e=>postMessage(await load(FontFace,e.data));'],{type:'application/javascript'}));const worker=new Worker(source);let timer;const workerRows=await Promise.race([new Promise((resolve,reject)=>{worker.onmessage=e=>resolve(e.data);worker.onerror=e=>reject(Error(e.message));worker.postMessage(names);}),new Promise((_,reject)=>timer=setTimeout(()=>reject(Error('Worker capture timeout')),30000))]).finally(()=>{clearTimeout(timer);worker.terminate();URL.revokeObjectURL(source);});return {window:await load(FontFace,names),iframe:await load(frame.contentWindow.FontFace,names),worker:workerRows};},[...new Set(fonts.flatMap(f=>[f.family,f.fullName,f.postscriptName]))]);row.localNames=loaded;
+  row.css=[];await session.send('DOM.enable');await session.send('CSS.enable');
+  const cssNames=['Yu Gothic UI','Malgun Gothic','Noto Sans SC','Noto Serif SC','Noto Sans JP','Noto Serif JP','Noto Sans KR','Noto Serif KR'];
+  for(let i=0;i<cssNames.length;i++)for(const weight of [400,700]){
+   const name=cssNames[i],id='native-font-'+i+'-'+weight;await page.evaluate(({name,id,weight})=>{const span=document.createElement('span');span.id=id;span.style.font=weight+' 32px '+JSON.stringify(name)+', monospace';span.textContent='Aa 日本語 한글 中文';document.body.append(span);},{name,id,weight});
+   const doc=await session.send('DOM.getDocument');const node=await session.send('DOM.querySelector',{nodeId:doc.root.nodeId,selector:'#'+id});row.css.push({requested:name,weight,...await session.send('CSS.getPlatformFontsForNode',{nodeId:node.nodeId})});
+  }
+  await session.detach();result.runs.push(row);await writeFile(output+'/browser-observation.json',JSON.stringify(result,null,2));
+ }finally{await context.close();}
+}}
+finally{await new Promise(r=>server.close(r));}
+result.reopenedVisibleInventoryStable=result.runs.length===2&&result.runs[0].visibleNamesSHA256===result.runs[1].visibleNamesSHA256;result.status=result.reopenedVisibleInventoryStable?'observed-stable-not-country-admitted':'observed-incomplete';
+result.scope='Actual native inventory for this recorded host/DLL only; not a verified JP/KR/US configuration or new candidate DLL acceptance';await writeFile(output+'/browser-observation.json',JSON.stringify(result,null,2));console.log(JSON.stringify({status:result.status,fonts:result.runs[0]?.fonts.length,restartStable:result.reopenedVisibleInventoryStable,countryAssigned:false,defaultEligible:false}));

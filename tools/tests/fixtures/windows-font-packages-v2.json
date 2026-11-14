@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "kind": "windows-font-installation-packages",
+  "kind": "experimental-package-visibility-matrix",
   "system_scope": "All published Windows base and optional FOD language fonts plus fonts protected by Windows on the audited host.",
   "sources": [
     {
@@ -4553,7 +4553,7 @@
   "profiles": [
     {
       "id": 0,
-      "name": "system-only",
+      "name": "windows-system-plus-unattributed-with-app-mask-experiment",
       "mask": 0
     },
     {
@@ -10636,6 +10636,35 @@
   "notes": [
     "Names and hashes only; no font data redistributed.",
     "Office mask excludes OS-overlapping names: OS preservation always wins.",
-    "Profiles describe installation choices, not country/IP templates or measured population frequencies."
+    "Profiles describe installation choices, not country/IP templates or measured population frequencies.",
+    "This engineering matrix is not a country installation profile and must never populate a default pool."
+  ],
+  "default_eligible": false,
+  "installed_profile_evidence": false,
+  "experimental_liberation_aliases": [
+    "Liberation Mono",
+    "Liberation Mono Bold",
+    "Liberation Mono Bold Italic",
+    "Liberation Mono Italic",
+    "Liberation Sans",
+    "Liberation Sans Bold",
+    "Liberation Sans Bold Italic",
+    "Liberation Sans Italic",
+    "Liberation Serif",
+    "Liberation Serif Bold",
+    "Liberation Serif Bold Italic",
+    "Liberation Serif Italic",
+    "LiberationMono",
+    "LiberationMono-Bold",
+    "LiberationMono-BoldItalic",
+    "LiberationMono-Italic",
+    "LiberationSans",
+    "LiberationSans-Bold",
+    "LiberationSans-BoldItalic",
+    "LiberationSans-Italic",
+    "LiberationSerif",
+    "LiberationSerif-Bold",
+    "LiberationSerif-BoldItalic",
+    "LiberationSerif-Italic"
   ]
 }

@@ -120,14 +120,8 @@ if (Test-Path -LiteralPath $serviceMetadata -PathType Leaf) {
   }
 }
 
-if ((Test-Path -LiteralPath $serviceMetadata) -and
-    $serviceVariant.build_variant -ceq 'fingerprint-modes-win157' -and
-    (Test-Path -LiteralPath (Join-Path $Repo 'build/private-font-packages.json'))) {
-  & python -B -X utf8 (Join-Path $Repo 'tools/stage_private_font_packages.py') `
-    --manifest (Join-Path $Repo 'build/private-font-packages.json') `
-    --output (Join-Path $Bundle 'private-fonts') --cache 'C:/security-private-font-downloads'
-  if ($LASTEXITCODE -ne 0) { throw 'Pinned process-private font staging failed' }
-}
+# Additional font assets are explicit engine fixtures, not an evidenced Windows
+# country installation. They are not staged into the default candidate bundle.
 
 $required = @(
   "chrome.exe", "chrome.dll", "chrome_elf.dll",

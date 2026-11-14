@@ -97,6 +97,13 @@ export async function fontAcceptanceProbe(input = {}) {
   }
 
   const windowPromise = collectLocalFonts(families);
+  let ownedFrame;
+  let iframePromise;
+  try {
+    ownedFrame=document.createElement('iframe');document.body.append(ownedFrame);
+    const collect=ownedFrame.contentWindow.Function('return ('+collectLocalFonts.toString()+')')();
+    iframePromise=bounded(collect(families),8000,'font iframe');
+  } catch(error) { iframePromise=Promise.resolve({supported:false,error:errorValue(error),entries:[]}); }
   let worker, workerURL;
   let workerPromise;
   if (typeof Worker !== "function" || typeof Blob !== "function") {
@@ -179,10 +186,11 @@ export async function fontAcceptanceProbe(input = {}) {
     } catch (error) { result.ownedFont.error = errorValue(error); }
   }
   try {
-    [result.windowLocal, result.workerLocal, result.localFonts] =
-      await Promise.all([windowPromise, workerPromise, localFontsPromise]);
+    [result.windowLocal, result.workerLocal, result.iframeLocal, result.localFonts] =
+      await Promise.all([windowPromise, workerPromise, iframePromise, localFontsPromise]);
   } finally {
     worker?.terminate();
+    ownedFrame?.remove();
     if (workerURL) URL.revokeObjectURL(workerURL);
   }
   // CSS nodes remain alive for the controller's CSS.getPlatformFontsForNode.
@@ -260,8 +268,8 @@ const packageOffice = ["Agency FB","Lucida Bright","Century","Century Gothic","H
   "Lucida Sans","MS Outlook","MS Reference Specialty","MT Extra","Monotype Corsiva","Pristina"];
 const packageState = row => Object.fromEntries([
   ...packageCore.map(name=>[name,true]), ...packageOffice.map(name=>[name,row.includes("O")]),
-  ...["Noto Sans JP","Noto Sans JP Black"].map(name=>[name,row.includes("S")]),
-  ...["Noto Serif JP","Noto Serif JP Bold"].map(name=>[name,row.includes("R")]),
+  ...["Noto Sans JP","Noto Sans JP Black"].map(name=>[name,true]),
+  ...["Noto Serif JP","Noto Serif JP Bold"].map(name=>[name,true]),
   ...["Liberation Sans","Liberation Serif","Liberation Mono"].map(name=>[name,row.includes("L")]),
 ]);
 export const WINDOWS_FONT_PACKAGE_ORACLE = Object.freeze({
@@ -275,6 +283,15 @@ export const WINDOWS_FONT_PACKAGE_ORACLE = Object.freeze({
   sources: [{catalog:"tools/tests/fixtures/windows-font-packages-v2.json",
     url:"https://support.microsoft.com/en-us/office/fonts/cloud-fonts-in-office"}],
 });
+
+// Alias equivalence must be backed by native full-name/PostScript metadata and
+// actual glyph-table identity. Never accept an arbitrary name prefix.
+export function nativeFontGlyphMatches(family,glyph,metadata){
+  if(!(glyph?.glyphCount>0)||glyph.isCustomFont!==false)return false;
+  if(glyph.familyName?.toLowerCase()===family.toLowerCase())return true;
+  return /^[a-f0-9]{64}$/.test(glyph.fontTableHash??'')&&glyph.fontTableHashAlgorithm==='chromix-font-tables-v1-sha256'&&
+    metadata?.some(row=>row.family?.toLowerCase()===family.toLowerCase()&&row.postscriptName===glyph.postScriptName&&row.fullName===glyph.familyName)===true;
+}
 
 export function validateFontAcceptance(recordsById, oracle = FONT_ACCEPTANCE_ORACLE) {
   // A caller can append provenance without replacing fixed expectations.

@@ -118,9 +118,9 @@ test("browser entrypoints serialize without importing Node helpers", () => {
 });
 test("the bounded matrix has distinct scenes and uses basic probes for independent additions", () => {
   const matrix = scenarios();
-  assert.equal(matrix.length, 46);
+  assert.equal(matrix.length, 48);
   assert.equal(new Set(matrix.map(s => s.id)).size, matrix.length);
-  assert.equal(BASIC_SCENARIOS.size, 35);
+  assert.equal(BASIC_SCENARIOS.size, 37);
   for (let index=0;index<12;index++) {
     const id="fonts_pack"+(120+index);
     assert.ok(BASIC_SCENARIOS.has(id));
@@ -173,7 +173,7 @@ test("repaired Shard WebGL requires positive sparse noise, stable coordinates an
 test("native retirement replacements require real matching observations",async()=>{
   const {validateNativeSurfaceResults,retirementCases,scenarios}=await import('../verify_fingerprint_modes_runtime.mjs');
   const local={supported:true,entries:[{family:'Arial',loaded:true,status:'loaded'},{family:'DefinitelyAbsentFontXYZ',loaded:false,error:{name:'NetworkError'}}]};
-  const fonts={version:1,windowLocal:structuredClone(local),workerLocal:structuredClone(local),localFonts:{supported:true,records:[{family:'Arial',postscriptName:'ArialMT',fullName:'Arial',style:'Regular'}]},cssNodes:[{nodeId:'font1',family:'Arial',width:12,downloaded:false}],cssPlatformFonts:{font1:{fonts:[{familyName:'Arial',glyphCount:3}]}},ownedFont:{loaded:true,width:16,cssWidth:16}};
+  const fonts={version:1,windowLocal:structuredClone(local),workerLocal:structuredClone(local),iframeLocal:structuredClone(local),localFonts:{supported:true,records:[{family:'Arial',postscriptName:'ArialMT',fullName:'Arial',style:'Regular'}]},cssNodes:[{nodeId:'font1',family:'Arial',width:12,downloaded:false}],cssPlatformFonts:{font1:{fonts:[{familyName:'Arial',glyphCount:3}]}},ownedFont:{loaded:true,width:16,cssWidth:16}};
   const audio={version:1,referenceCases:[['match_5000',5000],['match_1000',1000],['match_44100',44100]].map(([id,length])=>({id,spec:{id,length},sampleRate:44100,numberOfChannels:1,length,byteLength:length*4,sha256:'a'.repeat(64),copySha256:'a'.repeat(64),state:'closed'}))};
   const fixture=()=>({all_native:{extra:{fonts:structuredClone(fonts),audio:structuredClone(audio)}},fonts_native10026:{extra:{fonts:structuredClone(fonts)}},audio_native_macos:{extra:{audio:structuredClone(audio)}}});
   const valid=validateNativeSurfaceResults(fixture());assert.equal(valid.not_tested.length,0);assert.ok(valid.checks.length>=10&&valid.checks.every(row=>row.passed));

@@ -681,6 +681,45 @@
         }
       ],
       "scope": "Exact ten-source font-package update from run43459314622/s1. Preserve all published and audited OS-owned fonts, including variable families and Nirmala TTC aliases. Add hash-pinned, read-locked application-only DirectWrite collections for Liberation and Noto JP without system registration. Declare the helper in the native base target and use the same private collection for renderer font brokering, Skia and local-font enumeration. Preserve all other source/object state. Require real private-font, full-weight, cross-channel and twelve-profile evidence; no DLL admission or runtime acceptance inherited."
+    },
+    {
+      "id": "lite157-complete-font-installations-v3",
+      "chromium_version": "157.0.8103.38",
+      "core_commit": "de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c",
+      "windows_commit": "f85bc55429c37b1c748b676b18fe79b38eee3207",
+      "arch": "x64",
+      "source_commit": "8590e169c6692d87cb3ef2ebbff605ab5ac31a80",
+      "source_run": "43617925188",
+      "source_stage": 1,
+      "source_recipe_sha256": "6dc259830ec91cf80e3b2f6a79b649c8d7eb82f940fa713e7200b65e55dc17ec",
+      "target_recipe_sha256": "06b18db2518e4d8403e837ae9921be96a825b94802738849c240c2253a6bd0a7",
+      "source_preparation_sha256": "6dc259830ec91cf80e3b2f6a79b649c8d7eb82f940fa713e7200b65e55dc17ec",
+      "target_preparation_sha256": "06b18db2518e4d8403e837ae9921be96a825b94802738849c240c2253a6bd0a7",
+      "source_aggregate_sha256": "1e8efe64209c5669d26a346ef890c31bc6533a866442537cbebc196d8da951fe",
+      "target_aggregate_sha256": "4ce84a706957948ad72791cfa26f036830b03eafe52443e5944ae201e1b7ea67",
+      "source_patch_kind": "lite-windows157-product",
+      "target_patch_kind": "lite-windows157-product",
+      "product_source_updates": [
+        {
+          "path": "base/uxr_surface_reference_data.h",
+          "before_sha256": "29c84bebbfac787f7ca154c57ce908341bfcd1d9e9acbd878b95a4b911eb82f0",
+          "after_sha256": "45f020bd3b9934b12bc999b9138a74a71c0cf936dad8e57b2f9f1133e2dc9db9",
+          "replacement_path": "build/checkpoint-sources/45f020bd3b9934b12bc999b9138a74a71c0cf936dad8e57b2f9f1133e2dc9db9.h"
+        },
+        {
+          "path": "base/uxr_surface_golden_tests.cc",
+          "before_sha256": "2cf7e4571b16f6e0bdc6993a838bd016a2aeb415c1cbbc39ff16690fb9ccd3f2",
+          "after_sha256": "0379ce3d979ebf3eb72322ab42fb63f1674aafced768a9d45798c94e6c48a909",
+          "replacement_path": "build/checkpoint-sources/0379ce3d979ebf3eb72322ab42fb63f1674aafced768a9d45798c94e6c48a909.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/platform/fonts/font_cache.cc",
+          "before_sha256": "cc3c2f0c6f70cee555cd9b9785f42014516e0543dcceca7153628707ff3093fc",
+          "after_sha256": "57afc6cfc8b813887df43f94ae92e7cb0da8891c719aa1eda59d7a62504b4164",
+          "replacement_path": "build/checkpoint-sources/57afc6cfc8b813887df43f94ae92e7cb0da8891c719aa1eda59d7a62504b4164.cc"
+        }
+      ],
+      "scope": "Exact three-source safety correction from the compiled engineering candidate. Preserve actual Noto CJK families in all regions and all their available styles/aliases. Default Windows ShardX font visibility is native-complete; old seeded Office/Liberation experiments require a separate explicit experimental switch and cannot populate country defaults. Country selection and immutable full-installation admission live in the launcher. Private resources are optional engine fixtures, not installation evidence. No DLL admission, formal binding or country profile acceptance is inherited."
     }
   ]
 }

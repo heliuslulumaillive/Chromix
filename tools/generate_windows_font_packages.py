@@ -9,7 +9,7 @@ def render(data):
  lines=[MARKER,'// All published Windows fonts, including optional FOD packs, are retained.',
  '// Source URLs and native family/full/PostScript aliases are in the frozen catalog.',
  '// Only known application packages vary. Unknown installed fonts stay native.',
- array('kWindowsSystemFontNamesV2',data['core_names']),array('kWindowsSystemVariablePrefixesV2',data['system_variable_prefixes']),array('kWindowsOfficeFontNamesV2',data['office_names']),
+ array('kWindowsSystemFontNamesV2',data['core_names']),array('kWindowsSystemVariablePrefixesV2',data['system_variable_prefixes']),array('kWindowsOfficeFontNamesV2',data['office_names']),array('kWindowsExperimentalLiberationAliasesV3',data['experimental_liberation_aliases']),
  'inline constexpr uint32_t kWindowsFontPackageProfilesV2[] = { '+', '.join(str(p['mask'])+'u' for p in data['profiles'])+' };',r'''
 inline int WindowsFontCompareV2(std::string_view a, std::string_view b) {
   const auto lower = [](unsigned char c) { return c >= 'A' && c <= 'Z' ? c + ('a'-'A') : c; };
@@ -46,15 +46,13 @@ inline uint32_t WindowsFontPackageBitV2(std::string_view name) {
       "Noto Sans CJK SC","Noto Sans CJK TC","Noto Sans CJK HK","Noto Sans CJK JP","Noto Sans CJK KR",
       "NotoSansSC","NotoSansTC","NotoSansHK","NotoSansJP","NotoSansKR",
       "NotoSansCJKsc","NotoSansCJKtc","NotoSansCJKhk","NotoSansCJKjp","NotoSansCJKkr"})
-    if (WindowsFontFamilyPrefixV2(name,prefix)) return 2u;
+    if (WindowsFontFamilyPrefixV2(name,prefix)) return 0u;
   for (const auto prefix:{"Noto Serif SC","Noto Serif TC","Noto Serif HK","Noto Serif JP","Noto Serif KR",
       "Noto Serif CJK SC","Noto Serif CJK TC","Noto Serif CJK HK","Noto Serif CJK JP","Noto Serif CJK KR",
       "NotoSerifSC","NotoSerifTC","NotoSerifHK","NotoSerifJP","NotoSerifKR",
       "NotoSerifCJKsc","NotoSerifCJKtc","NotoSerifCJKhk","NotoSerifCJKjp","NotoSerifCJKkr"})
-    if (WindowsFontFamilyPrefixV2(name,prefix)) return 4u;
-  for (const auto prefix:{"Liberation Sans","Liberation Serif","Liberation Mono",
-                         "LiberationSans","LiberationSerif","LiberationMono"})
-    if (WindowsFontFamilyPrefixV2(name,prefix)) return 8u;
+    if (WindowsFontFamilyPrefixV2(name,prefix)) return 0u;
+  if (WindowsFontListedV2(name,kWindowsExperimentalLiberationAliasesV3)) return 8u;
   if (WindowsFontListedV2(name,kWindowsOfficeFontNamesV2)) return 1u;
   return 0;  // No provenance, no removal: unknown/system-update fonts stay native.
 }

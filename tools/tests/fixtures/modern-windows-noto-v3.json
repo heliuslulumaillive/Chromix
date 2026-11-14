@@ -1,0 +1,11 @@
+{
+  "schema_version": 3,
+  "kind": "potential-system-font-protection-facts-not-installation-inventory",
+  "provided_by_update": {
+    "windows11": {"kb": "KB5055528", "builds": ["22621.5189", "22631.5189"], "file_manifest_sha256": "cb5eb291aa1fd2e69bf334b94000f5c980ad86150b1eefa351fb5fde2ff05ce0"},
+    "windows10": {"kb": "KB5053643", "build": "19045.5674", "channel": "Release Preview"}
+  },
+  "file_names": ["NotoSansHK-VF.ttf", "NotoSansJP-VF.ttf", "NotoSansKR-VF.ttf", "NotoSansSC-VF.ttf", "NotoSansTC-VF.ttf", "NotoSerifHK-VF.ttf", "NotoSerifJP-VF.ttf", "NotoSerifKR-VF.ttf", "NotoSerifSC-VF.ttf", "NotoSerifTC-VF.ttf"],
+  "rule": "Protect actual present CJK families and aliases conservatively. Update provision is not proof that any particular language component or family is installed. Do not add fonts or select a country configuration from this table.",
+  "sources": ["https://support.microsoft.com/en-us/servicing/os/windows-11/2025/04/april-8-2025-kb5055528-os-builds-22621-5189-and-22631-5189", "https://download.microsoft.com/download/8921b510-2e77-43ec-b0f7-23870772936c/5055528.csv", "https://blogs.windows.com/windows-insider/2025/03/13/releasing-windows-10-build-19045-5674-to-the-release-preview-channel/"]
+}

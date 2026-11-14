@@ -91,7 +91,7 @@ jobs:
         run: python -B -X utf8 tools/build_webrtc_turn_fixture.py --output C:/security-evidence/webrtc-turn-fixture.exe
       - name: Verify Windows font cohort evidence cannot accept no-op or partial masking
         shell: pwsh
-        run: node --test tools/tests/test_windows_font_acceptance.mjs tools/tests/test_fingerprint_runtime_acceptance.mjs
+        run: node --test tools/tests/test_windows_font_acceptance.mjs tools/tests/test_fingerprint_runtime_acceptance.mjs tools/tests/test_font_installation_profiles.mjs
       - name: Stage pinned private font resources without installing system fonts
         shell: pwsh
         run: python -B -X utf8 tools/stage_private_font_packages.py --manifest build/private-font-packages.json --output C:/security-private-font-assets --cache C:/security-private-font-downloads

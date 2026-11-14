@@ -1,0 +1,28 @@
+{
+  "schema_version": 3,
+  "kind": "complete-windows-font-installations",
+  "countries": ["JP", "KR", "US"],
+  "profiles": [],
+  "experimental_targets": [
+    {"country": "JP", "language_focus": "ja-JP", "status": "awaiting-installation-capture", "default_eligible": false},
+    {"country": "KR", "language_focus": "ko-KR", "status": "awaiting-installation-capture", "default_eligible": false},
+    {"country": "US", "language_focus": "en-US", "status": "awaiting-installation-capture", "default_eligible": false}
+  ],
+  "policy": {
+    "country_is_selector_not_font_evidence": true,
+    "default_requires_complete_installation_and_actual_dll_evidence": true,
+    "independent_font_random_removal": false,
+    "profile_fixed_after_creation": true,
+    "proxy_change_reselects_fonts": false,
+    "identical_visible_sets_are_allowed_and_deduplicated": true,
+    "unknown_fonts_remain_explicitly_unattributed": true,
+    "engineering_package_combinations_are_default_ineligible": true
+  },
+  "references": [
+    "https://support.microsoft.com/en-us/servicing/os/windows-11/2025/04/april-8-2025-kb5055528-os-builds-22621-5189-and-22631-5189",
+    "https://blogs.windows.com/windows-insider/2025/03/13/releasing-windows-10-build-19045-5674-to-the-release-preview-channel/",
+    "https://learn.microsoft.com/en-us/windows/apps/design/globalizing/loc-international-fonts",
+    "https://learn.microsoft.com/en-us/windows/deployment/windows-missing-fonts",
+    "https://support.microsoft.com/en-us/office/fonts/cloud-fonts-in-office"
+  ]
+}

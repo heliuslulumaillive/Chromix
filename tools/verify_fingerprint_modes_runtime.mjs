@@ -9,7 +9,7 @@ import zlib from "node:zlib";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { audioAcceptanceProbe, validateAudioAcceptance } from "./fingerprint_audio_acceptance.mjs";
-import { fontAcceptanceProbe, validateFontAcceptance, WINDOWS_FONT_PACKAGE_ORACLE } from "./fingerprint_font_acceptance.mjs";
+import { fontAcceptanceProbe, validateFontAcceptance, nativeFontGlyphMatches, WINDOWS_FONT_PACKAGE_ORACLE } from "./fingerprint_font_acceptance.mjs";
 import { referenceAcceptanceProbe, validateReferenceAcceptance } from "./fingerprint_reference_acceptance.mjs";
 import { renderbufferAcceptanceProbe, validateRenderbufferAcceptance } from "./fingerprint_renderbuffer_acceptance.mjs";
 import { pixelSemanticProbe, validatePixelSemantics, validateHeadlessScreens, pngDimensions, PIXEL_SCENARIOS, HEADLESS_SCENARIOS } from "./pixel_semantic_acceptance.mjs";
@@ -535,6 +535,8 @@ export function scenarios() {
     ...Array.from({length:12},(_,index)=>make("fonts_pack"+(120+index),
       {fonts:"shardx"},["--fingerprint-fonts-mode-seed="+(120+index)])),
     make("fonts_native10026", { fonts: "native" }, ["--fingerprint-fonts-mode-seed=10026", "--fingerprint-platform=windows"]),
+    make("fonts_default9918", { fonts: "shardx" }, ["--fingerprint-fonts-mode-seed=9918"]),
+    make("fonts_default14666", { fonts: "shardx" }, ["--fingerprint-fonts-mode-seed=14666"]),
     make("fonts_allowlists", {}, ["--fingerprint-fonts-allowlist=Arial,Consolas", "--fingerprint-fonts-local-allowlist=Arial"]),
     make("fonts_empty", {}, ["--fingerprint-fonts-allowlist="]),
     make("cloak_voices", { voices: "cloak" }, ["--fingerprint-platform=windows", "--fingerprint-locale=en-US", "--fingerprint-sapi-voices=true"]),
@@ -566,6 +568,7 @@ export const POSITIVE_GROUPS = [
   "cloak_voices", "cloak_offset", "cloak_text", "native_audio", "audio_defaults", "audio_channels", "headless_screen",
 ];
 export const BASIC_SCENARIOS = new Set([
+  "fonts_default9918", "fonts_default14666",
   ...Array.from({length:12},(_,index)=>"fonts_pack"+(120+index)),
   "fonts_shard40", "fonts_shard41", "fonts_shard42", "fonts_shard43", "fonts_native10026", "fonts_allowlists", "fonts_empty",
   "cloak_voices", "cloak_voices_no_local", "cloak_offset", "cloak_text_positive",
@@ -590,7 +593,7 @@ export function summarizePositiveAcceptance(checks, notTested) {
   return { positive_acceptance, full_strategy_acceptance, partial: !full_strategy_acceptance };
 }
 
-export function verifyResults(records, baselineOnly = false, oracle = null) {
+export function verifyResults(records, baselineOnly = false, oracle = null, options = {}) {
   const checks = [], notTested = [];
   const check = (scenario, name, passed, detail = null) => checks.push({ scenario, name, passed: passed === true, detail });
   const skip = (scenario, name, reason) => notTested.push({ scenario, name, reason });
@@ -783,6 +786,7 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
       ...Object.fromEntries(HEADLESS_SCENARIOS.map(id=>[id,["headless_screen"]])),
       ...Object.fromEntries(["fonts_shard40", "fonts_shard41", "fonts_shard42", "fonts_shard43", "fonts_native10026", "fonts_allowlists", "fonts_empty"].map(id => [id, ["fonts"]])),
       ...Object.fromEntries(Array.from({length:12},(_,index)=>["fonts_pack"+(120+index),["fonts"]])),
+      fonts_default9918: ["fonts"], fonts_default14666: ["fonts"],
       ...Object.fromEntries(["cloak_voices", "cloak_voices_no_local", "cloak_offset", "cloak_text_positive"].map(id => [id, ["reference"]])),
       ...Object.fromEntries(["audio_native_macos", "audio_defaults_44100", "audio_defaults_32000", "audio_default_mono", "audio_default_stereo", "audio_default_32"].map(id => [id, ["audio"]])),
     };
@@ -799,7 +803,7 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
       notTested.push(...result.not_tested.filter(row=>row.acceptance_group!=="cloak_audio"));
     }
     const fontResult = validateFontAcceptance(byId, WINDOWS_FONT_PACKAGE_ORACLE);
-    for(const name of ['Noto Sans JP','Noto Serif JP','Liberation Sans','Liberation Serif','Liberation Mono']) {
+    if(options.experimentalFontResources)for(const name of ['Noto Sans JP','Noto Serif JP','Liberation Sans','Liberation Serif','Liberation Mono']) {
       const fonts=byId.all_native?.extra?.fonts;
       for(const channel of ['windowLocal','workerLocal'])check('all_native','private_font_resource_'+channel+'_'+name,
         fonts?.[channel]?.entries?.some(row=>row.family===name&&row.loaded===true&&row.status==='loaded'));
@@ -807,7 +811,7 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
         fonts?.localFonts?.records?.some(row=>row.family.toLowerCase()===name.toLowerCase()));
       const node=fonts?.cssNodes?.find(row=>row.family===name);
       check('all_native','private_font_resource_css_'+name,
-        node&&fonts?.cssPlatformFonts?.[node.nodeId]?.fonts?.some(row=>row.familyName.toLowerCase()===name.toLowerCase()&&row.glyphCount>0));
+        node&&fonts?.cssPlatformFonts?.[node.nodeId]?.fonts?.some(row=>nativeFontGlyphMatches(name,row,fonts.localFonts?.records)));
     }
     // Retire the removed Cloak-font oracle, replacing it with native parity
     // evidence rather than treating a missing obsolete scenario as a pass.
@@ -815,6 +819,11 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
     notTested.push(...fontResult.not_tested.filter(row=>row.acceptance_group!=="cloak_fonts"));
     const nativeSurfaces=validateNativeSurfaceResults(byId);
     checks.push(...nativeSurfaces.checks);notTested.push(...nativeSurfaces.not_tested);
+    for(const id of ["fonts_default9918","fonts_default14666"]){
+      const parity=validateNativeSurfaceResults(byId,id);
+      checks.push(...parity.checks.filter(r=>r.acceptance_group==="native_fonts"));
+      notTested.push(...parity.not_tested.filter(r=>r.acceptance_group==="native_fonts"));
+    }
     const pixelResult = validatePixelSemantics(byId, decodePNG);
     checks.push(...pixelResult.checks.filter(c=>!c.name.endsWith("_acceptance_probe_present"))); notTested.push(...pixelResult.not_tested);
     const inputResult=validateInputPreservation(byId,decodePNG);
@@ -899,39 +908,39 @@ export function verifyResults(records, baselineOnly = false, oracle = null) {
 
 // Current native surfaces use the same real probes as the reference run. Missing
 // target data is failure; unavailable baseline font APIs stay explicitly unknown.
-export function validateNativeSurfaceResults(recordsById) {
+export function validateNativeSurfaceResults(recordsById, fontScenario = "fonts_native10026") {
   const checks=[],not_tested=[];
   const check=(scenario,name,passed,group)=>checks.push({scenario,name,passed:passed===true,acceptance_group:group});
   const skip=(scenario,name,reason,group)=>not_tested.push({scenario,name,reason,acceptance_group:group});
-  const base=recordsById.all_native?.extra?.fonts,target=recordsById.fonts_native10026?.extra?.fonts;
-  for(const channel of ["windowLocal","workerLocal"]){
+  const base=recordsById.all_native?.extra?.fonts,target=recordsById[fontScenario]?.extra?.fonts;
+  for(const channel of ["windowLocal","workerLocal","iframeLocal"]){
     const source=base?.[channel];
     const loaded=source?.entries?.filter(row=>row.loaded===true&&row.status==="loaded")??[];
-    if(source?.supported!==true||!loaded.length)skip("fonts_native10026",channel+"_native_parity","Native baseline has no observed loaded local fonts in this scope","native_fonts");
-    else check("fonts_native10026",channel+"_native_parity",target?.[channel]?.supported===true&&loaded.every(row=>target[channel].entries?.some(other=>other.family===row.family&&other.loaded===true&&other.status==="loaded")),"native_fonts");
+    if(source?.supported!==true||!loaded.length)skip(fontScenario,channel+"_native_parity","Native baseline has no observed loaded local fonts in this scope","native_fonts");
+    else check(fontScenario,channel+"_native_parity",target?.[channel]?.supported===true&&loaded.every(row=>target[channel].entries?.some(other=>other.family===row.family&&other.loaded===true&&other.status==="loaded")),"native_fonts");
     const absent=source?.entries?.find(row=>row.family==="DefinitelyAbsentFontXYZ");
     if(absent?.loaded===false&&absent.error?.name==="NetworkError"){
       const other=target?.[channel]?.entries?.find(row=>row.family===absent.family);
-      check("fonts_native10026",channel+"_missing_name_stays_missing",other?.loaded===false&&other.error?.name==="NetworkError","native_fonts");
+      check(fontScenario,channel+"_missing_name_stays_missing",other?.loaded===false&&other.error?.name==="NetworkError","native_fonts");
     }
   }
   const metadata=probe=>probe?.localFonts?.supported===true&&!probe.localFonts.error&&Array.isArray(probe.localFonts.records)?probe.localFonts.records:null;
   const validMetadata=rows=>rows?.length>0&&rows.every(row=>["family","postscriptName","fullName","style"].every(key=>typeof row[key]==="string"&&row[key].length>0));
   const signatures=rows=>JSON.stringify(rows.map(row=>[row.family,row.postscriptName,row.fullName,row.style]).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))));
   const originalMetadata=metadata(base),actualMetadata=metadata(target);
-  if(!validMetadata(originalMetadata))skip("fonts_native10026","query_native_metadata","Native local-font metadata is unavailable","native_fonts");
-  else check("fonts_native10026","query_native_metadata",validMetadata(actualMetadata)&&signatures(actualMetadata)===signatures(originalMetadata),"native_fonts");
+  if(!validMetadata(originalMetadata))skip(fontScenario,"query_native_metadata","Native local-font metadata is unavailable","native_fonts");
+  else check(fontScenario,"query_native_metadata",validMetadata(actualMetadata)&&signatures(actualMetadata)===signatures(originalMetadata),"native_fonts");
   const css=probe=>(probe?.cssNodes??[]).filter(node=>!node.downloaded).map(node=>({node,fonts:probe.cssPlatformFonts?.[node.nodeId]?.fonts})).filter(row=>Array.isArray(row.fonts)&&row.fonts.some(font=>font.glyphCount>0));
   const sourceCSS=css(base),targetCSS=css(target);
-  if(!sourceCSS.length)skip("fonts_native10026","css_native_families","Native CSS/CDP did not observe real font glyphs","native_fonts");
-  else check("fonts_native10026","css_native_families",sourceCSS.every(row=>{
+  if(!sourceCSS.length)skip(fontScenario,"css_native_families","Native CSS/CDP did not observe real font glyphs","native_fonts");
+  else check(fontScenario,"css_native_families",sourceCSS.every(row=>{
     const other=targetCSS.find(candidate=>candidate.node.family===row.node.family);
     const names=fonts=>JSON.stringify(fonts.filter(font=>font.glyphCount>0).map(font=>[font.familyName,font.glyphCount]).sort());
     return !!other&&Number.isFinite(other.node.width)&&other.node.width===row.node.width&&names(other.fonts)===names(row.fonts);
   }),"native_fonts");
   const owned=base?.ownedFont,actualOwned=target?.ownedFont;
-  if(owned?.loaded!==true||owned.error||owned.width!==16)skip("fonts_native10026","downloaded_native_font","Original downloaded-font fixture was not observed natively","native_fonts");
-  else check("fonts_native10026","downloaded_native_font",actualOwned?.loaded===true&&!actualOwned.error&&actualOwned.width===16&&actualOwned.cssWidth===16,"native_fonts");
+  if(owned?.loaded!==true||owned.error||owned.width!==16)skip(fontScenario,"downloaded_native_font","Original downloaded-font fixture was not observed natively","native_fonts");
+  else check(fontScenario,"downloaded_native_font",actualOwned?.loaded===true&&!actualOwned.error&&actualOwned.width===16&&actualOwned.cssWidth===16,"native_fonts");
   const originalAudio=recordsById.all_native?.extra?.audio?.referenceCases,actualAudio=recordsById.audio_native_macos?.extra?.audio?.referenceCases;
   for(const [id,length] of [["match_5000",5000],["match_1000",1000],["match_44100",44100]]){
     const a=originalAudio?.find(row=>row.id===id),b=actualAudio?.find(row=>row.id===id);
@@ -987,7 +996,7 @@ async function main() {
   const args = {};
   for (let i = 2; i < process.argv.length; i++) {
     const key = process.argv[i];
-    if (key === "--baseline-only" || key === "--self-test") args[key.slice(2)] = true;
+    if (key === "--baseline-only" || key === "--self-test" || key === "--experimental-font-resources") args[key.slice(2)] = true;
     else { if (!key.startsWith("--") || !process.argv[i + 1]) throw new Error("Invalid arguments"); args[key.slice(2)] = process.argv[++i]; }
   }
   if (args["self-test"]) {
@@ -1037,6 +1046,7 @@ async function main() {
     capabilities_sha256: await sha256(path.resolve(args.capabilities)), harness_sha256: await sha256(fileURLToPath(import.meta.url)),
     started_at: new Date().toISOString(), node: process.version, transport: "Raw CDP; sensor emulation only, no API replacement or automatic UA/font/media/viewport emulation",
     synthetic_media_only: true, credentials_environment_removed: true, external_pages: false, baseline_only: !!args["baseline-only"], scenarios: [],
+    font_profile_policy: "complete-installations-v3", experimental_font_resources: !!args["experimental-font-resources"],
     oracle_sha256: await sha256(oraclePath),
     collector_modules_sha256: Object.fromEntries(await Promise.all(["fingerprint_audio_acceptance.mjs", "fingerprint_font_acceptance.mjs", "fingerprint_reference_acceptance.mjs", "fingerprint_renderbuffer_acceptance.mjs", "pixel_semantic_acceptance.mjs", "canvas_audio_input_acceptance.mjs"]
       .map(async name => [name, await sha256(path.join(toolRoot, name))]))),
@@ -1058,10 +1068,13 @@ async function main() {
       const folder = path.join(runRoot, scenario.id); await fsp.mkdir(folder);
       const profile = path.join(folder, "profile"); await fsp.mkdir(profile);
       const scenarioFlags = [...scenario.flags];
-      const privateFontRoot=path.join(path.dirname(browser),'private-fonts');
-      if(!fs.existsSync(path.join(privateFontRoot,'private-font-packages.json')))
-        throw new Error('The new font-package candidate requires its pinned private resources');
-      scenarioFlags.push('--uxr-fonts-resources-dir='+privateFontRoot);
+      if(args["experimental-font-resources"]){
+        const privateFontRoot=path.join(path.dirname(browser),'private-fonts');
+        if(!fs.existsSync(path.join(privateFontRoot,'private-font-packages.json')))
+          throw new Error('Explicit private-font engine fixture resources are missing');
+        scenarioFlags.push('--uxr-fonts-resources-dir='+privateFontRoot);
+      }
+      if(/^fonts_(?:pack\d+|shard4\d)$/.test(scenario.id))scenarioFlags.push('--uxr-fonts-experimental-packages=1');
       let voiceLocale;
       if (["cloak_voices", "cloak_voices_no_local"].includes(scenario.id)) {
         const nativeVoices = report.scenarios.find(r => r.id === "all_native")?.extra?.reference?.voices?.values || [];
@@ -1192,7 +1205,7 @@ async function main() {
       console.log(JSON.stringify({ scenario: record.id, completed: !!record.probe && !record.error, normal_exit: record.cleanup.normalExit }));
       if (!record.cleanup.normalExit) break; // Never multiply an unclosed session.
     }
-    const validation = verifyResults(report.scenarios, !!args["baseline-only"], oracle);
+    const validation = verifyResults(report.scenarios, !!args["baseline-only"], oracle, {experimentalFontResources:!!args["experimental-font-resources"]});
     Object.assign(report, validation);
     if (report.scenarios.length !== matrix.length) validation.failed.push({ name: "complete_scenario_matrix", passed: false });
     report.status = validation.failed.length ? "failed" : args["baseline-only"] ? "baseline_only" : "passed";

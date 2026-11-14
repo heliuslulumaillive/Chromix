@@ -1,5 +1,46 @@
 # Windows product builds
 
+The `font-installation-profiles-win157-20261114` branch supersedes the engineered
+package-combination default proposal. JP/KR/US are selection entries, not font
+inventories. `windows-font-installations-v3.json` has no verified defaults until
+complete versioned installation captures, actual-DLL interface evidence,
+save/reopen stability and Rare observations are admitted. Catalogue unions,
+downloaded resource existence and earlier engineering-mask scores are not
+installation evidence. Shared language fonts remain present when installed.
+The former private-font loader remains an opt-in engine experiment; additional
+assets are not loaded or bundled merely to increase configuration count.
+
+Default Windows font visibility is native-complete even if an old saved caller
+requests ShardX font mode. Seeded package masks require the explicit legacy
+`uxr-fonts-experimental-packages=1` switch and remain default-ineligible. Potential
+system Noto CJK HK/JP/KR/SC/TC families and their actual aliases are preserved,
+without asserting their presence on a given installation. Office catalogue
+membership is not used to admit an Office-present/absent country profile.
+
+The v3 selector is a launcher-side candidate module, not a change to the shipped
+desktop manager. `tools/font_profile_selection_cli.mjs --action list --country
+JP --registry <catalogue> --host <normalized-host-facts> --evidence <evidence-root>
+--dll <actual-dll-sha256>` lists compatible admitted installations; `--action
+select --directory <isolated-profile> --seed <stable-u64>` saves one immutable
+choice. KR/US use the same explicit country entry. Empty pools fail closed.
+Selection currently supports complete native-visible installations with exact
+host inventory compatibility; it does not provision another Windows image or
+invent application-present/absent variants. A future non-native configuration
+requires real installation evidence and a separately implemented, validated
+visibility plan before admission.
+
+`capture_windows_font_environment.py --output <new-folder>` captures raw OS,
+update, language, protected-file and actual Office-file facts without installing
+fonts. `capture_browser_font_installation.mjs` records the actual browser-visible
+inventory and interface observations, explicitly marking automated collection.
+These raw observations are not automatically promoted to complete installation
+evidence: unresolved component ownership, missing application state, unsupported
+interfaces and alias-loading failures remain gaps. Country defaults require
+reviewed, pinned installation, native-interface, persistence and matching Rare
+receipts. Web receipts must match the profile, full inventory and configuration;
+a result for another configuration cannot authorize admission. Tests use
+synthetic receipts only and never populate the shipped registry.
+
 The current Windows x64 product targets Chromium **157.0.8103.38**, ungoogled core
 `de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c`, and Windows packaging
 `f85bc55429c37b1c748b676b18fe79b38eee3207`. The 26 reviewed topics and exact source
@@ -74,17 +115,18 @@ The desktop source admits only this exact DLL and the previously verified r69
 identity. The isolated accepted package has not replaced the formal install.
 Local evidence: `G:/Shardxlite/tests/font-cohorts-20261113/report.html`.
 
-The isolated application-package candidate on
+The superseded isolated application-package experiment on
 `codex/font-pack-cohorts-win157-20261114` preserves the complete published Windows
-base/FOD inventory and known family, full-name, PostScript and truncated GDI
-aliases. It varies Office, Noto Sans CJK, Noto Serif CJK and Liberation as whole
-installed packages; unknown fonts remain native. Twelve seed-stable profiles
-describe installation choices, never proxy-country inventories. Missing packages
-can make profiles identical on a particular host. Source/compiled host tests are
+base/FOD name protection and known family, full-name, PostScript and truncated GDI
+aliases. Its twelve seed-stable slots are engineered masks of Office catalogue
+entries, Noto and Liberation, not twelve captured installations. Unknown fonts
+remain visible, so its old `system-only` label did not mean a clean Windows image.
+Missing packages can make slots identical on a particular host. These slots are
+default-ineligible in v3. Source/compiled host tests are
 separate from the pending hosted DLL build and subsequent local/Rare acceptance;
 no formal kernel binding or DLL admission is changed by this branch.
 
-The updated candidate treats the audited OS-owned Noto SC variable fonts and
+That experimental branch treats the audited OS-owned Noto SC variable fonts and
 Nirmala TTC as system fonts. Additional Noto JP and Liberation files are pinned
 by `build/private-font-packages.json`, carry their SIL licenses, and are loaded
 only into an opt-in DirectWrite collection with

@@ -35,13 +35,16 @@ int main() {
   for (const auto name:{"Century","Century Gothic","Agency FB","MS Outlook","MT Extra","Lucida Bright","Haettenschweiler","Lucida Sans","MS Reference Specialty","Monotype Corsiva","Pristina"})
    assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&1u)==0));
   for (const auto name:{"Noto Sans JP","Noto Sans JP Black","NotoSansJP-ExtraLight","Noto Sans CJK JP Bold"})
-   assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&2u)==0));
+   assert(!ShardWindowsFontHiddenV2(name,seed));
   for (const auto name:{"Noto Serif JP","Noto Serif JP Bold","NotoSerifJP-Black","Noto Serif CJK KR Medium"})
-   assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&4u)==0));
-  for (const auto name:{"Liberation Sans","Liberation Serif Bold","LiberationMono-Regular"})
+   assert(!ShardWindowsFontHiddenV2(name,seed));
+  for (const auto name:{"Liberation Sans","Liberation Serif Bold","LiberationMono"})
    assert(ShardWindowsFontHiddenV2(name,seed)==((masks[p]&8u)==0));
   assert(!ShardWindowsFontHiddenV2("Unknown Newly Installed Font",seed));
   for(const auto stock:{"Nirmala Text","Noto Sans SC Black","NotoSansSC-ExtraLight","Noto Serif SC Bold"})
+   assert(!ShardWindowsFontHiddenV2(stock,seed));
+  for(const auto stock:{"Noto Sans HK Bold","Noto Sans JP Black","Noto Sans KR Light","Noto Sans SC Medium","Noto Sans TC Thin",
+      "Noto Serif HK Bold","Noto Serif JP Black","Noto Serif KR Light","Noto Serif SC Medium","Noto Serif TC Thin","NotoSansCJKjp-Bold","NotoSerifCJKkr-Black"})
    assert(!ShardWindowsFontHiddenV2(stock,seed));
  }
  assert(profiles.size()==12);
@@ -106,7 +109,8 @@ int main() {
 
     def test_windows_path_uses_cohorts_without_changing_other_platforms(self):
         patch = (ROOT / 'patches/lite-windows157/13-fonts.patch').read_text(encoding='utf-8')
-        self.assertIn('+#if BUILDFLAG(IS_WIN)\n+    return !base::uxr_surface_v1::ShardWindowsFontHiddenV2(', patch)
+        self.assertIn('config.Get("uxr-fonts-experimental-packages") != "1"', patch)
+        self.assertIn('return !base::uxr_surface_v1::ShardWindowsFontHiddenV2(', patch)
         self.assertIn('+#else\n+    return !base::uxr_surface_v1::ShardFontHidden(', patch)
         # The native and noise-disabled branches remain outside the policy.
         self.assertIn('!modes.noise_disabled && !modes.raw', patch)

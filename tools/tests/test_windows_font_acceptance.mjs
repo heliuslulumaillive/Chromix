@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateFontAcceptance,WINDOWS_FONT_COHORT_ORACLE,WINDOWS_FONT_PACKAGE_ORACLE} from '../fingerprint_font_acceptance.mjs';
+import {validateFontAcceptance,nativeFontGlyphMatches,WINDOWS_FONT_COHORT_ORACLE,WINDOWS_FONT_PACKAGE_ORACLE} from '../fingerprint_font_acceptance.mjs';
 
 // Fixed observations for OS, language-pack and application font families.
 // These fixtures test evidence rejection, not the C++ classification rule.
@@ -54,7 +54,7 @@ test('no native-available optional inputs stays untested',()=>{
   assert.equal(validate(r).positive_acceptance.shard_fonts.status,'not_tested');
 });
 
-test('package oracle covers all twelve installations and protects language fonts',()=>{
+test('legacy experiment slots protect shared system fonts and may repeat outputs',()=>{
   const oracle=WINDOWS_FONT_PACKAGE_ORACLE;
   for(let index=0;index<12;index++){
     const row=oracle.shard['fonts_pack'+(120+index)];assert.ok(row);
@@ -65,7 +65,7 @@ test('package oracle covers all twelve installations and protects language fonts
     assert.equal(row['Noto Serif JP'],row['Noto Serif JP Bold']);
     assert.equal(row['Liberation Sans'],row['Liberation Serif']);
   }
-  assert.equal(new Set(Array.from({length:12},(_,i)=>JSON.stringify(oracle.shard['fonts_pack'+(120+i)]))).size,12);
+  assert.equal(new Set(Array.from({length:12},(_,i)=>JSON.stringify(oracle.shard['fonts_pack'+(120+i)]))).size,3);
 });
 
 function packageProbe(allowed){
@@ -91,4 +91,10 @@ test('Office fragments, deleted OS aliases and no-op packages fail acceptance',(
   }
   const r=packageRecords();for(const key of Object.keys(WINDOWS_FONT_PACKAGE_ORACLE.shard))r[key].extra.fonts=structuredClone(r.all_native.extra.fonts);
   assert.equal(validateFontAcceptance(r,WINDOWS_FONT_PACKAGE_ORACLE).positive_acceptance.shard_fonts.status,'failed');
+});
+test('variable-font CSS aliases require exact native identity, not a prefix',()=>{
+  const record={family:'Noto Sans JP',fullName:'Noto Sans JP Thin',postscriptName:'NotoSansJP'};
+  const glyph={familyName:'Noto Sans JP Thin',postScriptName:'NotoSansJP',glyphCount:13,isCustomFont:false,fontTableHash:'a'.repeat(64),fontTableHashAlgorithm:'chromix-font-tables-v1-sha256'};
+  assert.equal(nativeFontGlyphMatches('Noto Sans JP',glyph,[record]),true);
+  for(const mutation of [{familyName:'Noto Sans JP Fake'},{postScriptName:'ArialMT'},{fontTableHash:null},{isCustomFont:true}])assert.equal(nativeFontGlyphMatches('Noto Sans JP',{...glyph,...mutation},[record]),false);
 });

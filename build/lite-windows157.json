@@ -49,7 +49,8 @@
       "version": 1,
       "manifest": "build/private-font-packages.json",
       "manifest_sha256": "53263cba1087f0b942da56219d42544b539708a627f5f9eb8ed3491cceb2507d",
-      "install_to_windows": false
+      "install_to_windows": false,
+      "experimental_only": true
     }
   },
   "patches": [
@@ -259,7 +260,7 @@
     },
     {
       "path": "patches/lite-windows157/13-fonts.patch",
-      "sha256": "e9cbb24766c4c8c71ba105bbdc2fabdf425b960c9c722d693ea66e740fb57086",
+      "sha256": "483ce5225a854d8da30db24e23c06549b7f52eaed0a50c144d10a27f0f131a7e",
       "files": [
         "base/uxr_font_allowlist.h",
         "base/uxr_font_allowlist_tests.cc",
@@ -472,7 +473,7 @@
     },
     {
       "path": "patches/lite-windows157/19-shared-policy.patch",
-      "sha256": "3b75ab92ecfeaf13b085aa9cad670ac367293e67fce2d05e867772fe696fbb37",
+      "sha256": "161bdc3c212acf26f00ac578e3ff54d014cbc6b0fae790ccf40ac8de54654877",
       "files": [
         "base/uxr_cloak_hardware.cc",
         "base/uxr_cloak_hardware.h",
@@ -972,7 +973,7 @@
     {
       "path": "base/uxr_surface_golden_tests.cc",
       "before_sha256": null,
-      "after_sha256": "2cf7e4571b16f6e0bdc6993a838bd016a2aeb415c1cbbc39ff16690fb9ccd3f2"
+      "after_sha256": "0379ce3d979ebf3eb72322ab42fb63f1674aafced768a9d45798c94e6c48a909"
     },
     {
       "path": "base/uxr_surface_math.h",
@@ -992,7 +993,7 @@
     {
       "path": "base/uxr_surface_reference_data.h",
       "before_sha256": null,
-      "after_sha256": "29c84bebbfac787f7ca154c57ce908341bfcd1d9e9acbd878b95a4b911eb82f0"
+      "after_sha256": "45f020bd3b9934b12bc999b9138a74a71c0cf936dad8e57b2f9f1133e2dc9db9"
     },
     {
       "path": "base/uxr_voice_compat.h",
@@ -4087,7 +4088,7 @@
     {
       "path": "third_party/blink/renderer/platform/fonts/font_cache.cc",
       "before_sha256": "4db6ea7af92147888c4ec9b797e431793a37c6623b53c607d39f4f4779a13b46",
-      "after_sha256": "cc3c2f0c6f70cee555cd9b9785f42014516e0543dcceca7153628707ff3093fc"
+      "after_sha256": "57afc6cfc8b813887df43f94ae92e7cb0da8891c719aa1eda59d7a62504b4164"
     },
     {
       "path": "third_party/blink/renderer/platform/fonts/font_cache.h",
@@ -4778,7 +4779,7 @@
     "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
     "cross_version_byte_equivalence_claimed": false
   },
-  "stack_sha256": "1e8efe64209c5669d26a346ef890c31bc6533a866442537cbebc196d8da951fe",
+  "stack_sha256": "4ce84a706957948ad72791cfa26f036830b03eafe52443e5944ae201e1b7ea67",
   "upstream_port": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",

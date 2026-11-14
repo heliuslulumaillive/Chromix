@@ -6669,10 +6669,10 @@ new file mode 100644
 +    for (const auto app:{"Century","Century Gothic","Agency FB","MS Outlook","MT Extra","Lucida Bright","Haettenschweiler","Lucida Sans","MS Reference Specialty","Monotype Corsiva","Pristina"})
 +      check(ShardWindowsFontHiddenV2(app,seed)==((package_masks[profile]&1u)==0), "Office installation atomic");
 +    for (const auto font:{"Noto Sans JP","Noto Sans JP Black","NotoSansJP-ExtraLight"})
-+      check(ShardWindowsFontHiddenV2(font,seed)==((package_masks[profile]&2u)==0), "Noto Sans installation atomic");
++      check(!ShardWindowsFontHiddenV2(font,seed), "Noto Sans installation atomic");
 +    for (const auto font:{"Noto Serif JP","Noto Serif JP Bold","NotoSerifJP-Black"})
-+      check(ShardWindowsFontHiddenV2(font,seed)==((package_masks[profile]&4u)==0), "Noto Serif installation atomic");
-+    for (const auto font:{"Liberation Sans","Liberation Serif Bold","LiberationMono-Regular"})
++      check(!ShardWindowsFontHiddenV2(font,seed), "Noto Serif installation atomic");
++    for (const auto font:{"Liberation Sans","Liberation Serif Bold","LiberationMono"})
 +      check(ShardWindowsFontHiddenV2(font,seed)==((package_masks[profile]&8u)==0), "Liberation installation atomic");
 +    check(!ShardWindowsFontHiddenV2("Unknown Newly Installed Font",seed), "Unclassified font retained");
 +  }
@@ -16403,7 +16403,7 @@ diff --git a/base/uxr_surface_reference_data.h b/base/uxr_surface_reference_data
 new file mode 100644
 --- /dev/null
 +++ b/base/uxr_surface_reference_data.h
-@@ -0,0 +1,5592 @@
+@@ -0,0 +1,5617 @@
 +// Version 1: numeric/string output metadata only; no opaque payloads.
 +// Source DLL: 336f3af913c2a3cdbc6679ada4550ff04b80e27ade54a6c8d8fbb64c9877ff74
 +// Snapshot SHA256: 546f2f14ddeccbceb91d12fda143ed4445cb6082719ee028f18b40a7af2cd0dd
@@ -21188,6 +21188,33 @@ new file mode 100644
 +  "ＳＴＺｈｏｎｇｓｏｎｇ",
 +};
 +
++inline constexpr std::string_view kWindowsExperimentalLiberationAliasesV3[] = {
++  "Liberation Mono",
++  "Liberation Mono Bold",
++  "Liberation Mono Bold Italic",
++  "Liberation Mono Italic",
++  "Liberation Sans",
++  "Liberation Sans Bold",
++  "Liberation Sans Bold Italic",
++  "Liberation Sans Italic",
++  "Liberation Serif",
++  "Liberation Serif Bold",
++  "Liberation Serif Bold Italic",
++  "Liberation Serif Italic",
++  "LiberationMono",
++  "LiberationMono-Bold",
++  "LiberationMono-BoldItalic",
++  "LiberationMono-Italic",
++  "LiberationSans",
++  "LiberationSans-Bold",
++  "LiberationSans-BoldItalic",
++  "LiberationSans-Italic",
++  "LiberationSerif",
++  "LiberationSerif-Bold",
++  "LiberationSerif-BoldItalic",
++  "LiberationSerif-Italic",
++};
++
 +inline constexpr uint32_t kWindowsFontPackageProfilesV2[] = { 0u, 1u, 3u, 5u, 7u, 9u, 11u, 13u, 15u, 2u, 4u, 6u };
 +
 +inline int WindowsFontCompareV2(std::string_view a, std::string_view b) {
@@ -21225,15 +21252,13 @@ new file mode 100644
 +      "Noto Sans CJK SC","Noto Sans CJK TC","Noto Sans CJK HK","Noto Sans CJK JP","Noto Sans CJK KR",
 +      "NotoSansSC","NotoSansTC","NotoSansHK","NotoSansJP","NotoSansKR",
 +      "NotoSansCJKsc","NotoSansCJKtc","NotoSansCJKhk","NotoSansCJKjp","NotoSansCJKkr"})
-+    if (WindowsFontFamilyPrefixV2(name,prefix)) return 2u;
++    if (WindowsFontFamilyPrefixV2(name,prefix)) return 0u;
 +  for (const auto prefix:{"Noto Serif SC","Noto Serif TC","Noto Serif HK","Noto Serif JP","Noto Serif KR",
 +      "Noto Serif CJK SC","Noto Serif CJK TC","Noto Serif CJK HK","Noto Serif CJK JP","Noto Serif CJK KR",
 +      "NotoSerifSC","NotoSerifTC","NotoSerifHK","NotoSerifJP","NotoSerifKR",
 +      "NotoSerifCJKsc","NotoSerifCJKtc","NotoSerifCJKhk","NotoSerifCJKjp","NotoSerifCJKkr"})
-+    if (WindowsFontFamilyPrefixV2(name,prefix)) return 4u;
-+  for (const auto prefix:{"Liberation Sans","Liberation Serif","Liberation Mono",
-+                         "LiberationSans","LiberationSerif","LiberationMono"})
-+    if (WindowsFontFamilyPrefixV2(name,prefix)) return 8u;
++    if (WindowsFontFamilyPrefixV2(name,prefix)) return 0u;
++  if (WindowsFontListedV2(name,kWindowsExperimentalLiberationAliasesV3)) return 8u;
 +  if (WindowsFontListedV2(name,kWindowsOfficeFontNamesV2)) return 1u;
 +  return 0;  // No provenance, no removal: unknown/system-update fonts stay native.
 +}
