@@ -58,6 +58,9 @@ on:
       - 'tools/fingerprint_font_acceptance.mjs'
       - 'tools/verify_fingerprint_modes_runtime.mjs'
       - 'tools/tests/fixtures/windows-font-cohorts-v1.json'
+      - 'tools/tests/fixtures/windows-font-packages-v2.json'
+      - 'tools/generate_windows_font_packages.py'
+      - 'tools/tests/test_fingerprint_runtime_acceptance.mjs'
       - 'tools/tests/test_windows157_midl.py'
       - 'tools/tests/fixtures/windows157-domain-regex.list'
   workflow_call:
