@@ -114,7 +114,7 @@ diff --git a/content/browser/renderer_host/cross_process_frame_connector.cc b/co
 diff --git a/content/browser/renderer_host/render_widget_host_impl.cc b/content/browser/renderer_host/render_widget_host_impl.cc
 --- a/content/browser/renderer_host/render_widget_host_impl.cc
 +++ b/content/browser/renderer_host/render_widget_host_impl.cc
-@@ -1232,6 +1232,8 @@
+@@ -1200,6 +1200,8 @@
  
      // These properties come from the top-level main frame's renderer. The
      // top-level main frame in the browser doesn't specify a value.
@@ -123,7 +123,7 @@ diff --git a/content/browser/renderer_host/render_widget_host_impl.cc b/content/
      visual_properties.page_scale_factor =
          properties_from_parent_local_root_.page_scale_factor;
      visual_properties.is_pinch_gesture_active =
-@@ -2675,7 +2677,10 @@
+@@ -2643,7 +2645,10 @@
      bool is_pinch_gesture_active,
      const gfx::Size& visible_viewport_size,
      const gfx::Rect& compositor_viewport,
@@ -135,7 +135,7 @@ diff --git a/content/browser/renderer_host/render_widget_host_impl.cc b/content/
    properties_from_parent_local_root_.page_scale_factor = page_scale_factor;
    properties_from_parent_local_root_.compositing_scale_factor =
        compositing_scale_factor;
-@@ -3390,6 +3395,8 @@
+@@ -3355,6 +3360,8 @@
    return zoom_changed || size_changed || parent_local_surface_id_changed ||
           old_visual_properties->screen_infos !=
               new_visual_properties.screen_infos ||
@@ -158,7 +158,7 @@ diff --git a/content/browser/renderer_host/render_widget_host_impl.h b/content/b
  
    // Indicates if the render widget host should track the render widget's size
    // as opposed to visa versa.
-@@ -1509,6 +1511,8 @@
+@@ -1507,6 +1509,8 @@
      MainFramePropagationProperties();
      ~MainFramePropagationProperties();
  

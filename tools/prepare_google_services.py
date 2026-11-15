@@ -30,6 +30,7 @@ SUPPORTED_FINGERPRINT_BUILDS = {
     '155.0.8059.39': 'fingerprint-modes-win155',
     '156.0.8078.79': 'fingerprint-modes-win156',
     '157.0.8103.38': 'fingerprint-modes-win157',
+    '157.0.8103.78': 'fingerprint-modes-win157',
 }
 
 

@@ -10,7 +10,7 @@ import re
 
 FINGERPRINT_VERSIONS = {
     'fingerprint-modes-win155': '155.0.8059.39',
-    'fingerprint-modes-win157': '157.0.8103.38',
+    'fingerprint-modes-win157': '157.0.8103.78',
 }
 
 

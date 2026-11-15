@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 2,
+  "algorithm": "ECDSA-P256-SHA256-P1363",
+  "domain": "ShardXFontCatalog-v2",
+  "keyId": "8ad188ae026da3b59166589de3d89456a826d3ef4c75c877a7aa492041258fbb",
+  "cngPublicBlob": "RUNTMSAAAAB/cPxO0SjbuANFUgrjpgqmzbJT0hyluqth1Bk4R2r3SJwI6r6DHZ4M9dhdr33bVNSKcajKPqCDg1A0XYnn0dn6"
+}

@@ -114,6 +114,12 @@ if (Test-Path -LiteralPath $serviceMetadata -PathType Leaf) {
       Copy-Item -LiteralPath $retirement -Destination (Join-Path $Bundle 'retirement-manifest.json')
     }
     $gpuBinding = Join-Path $Repo 'build/gpu-binding-capabilities.json'
+    $catalogKey = 'build/font-catalog-key.json'
+    if ($serviceVariant.preparation_inputs.PSObject.Properties.Name -contains $catalogKey) {
+      $catalogPath = Join-Path $Repo $catalogKey
+      if ((Get-FileHash -LiteralPath $catalogPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $serviceVariant.preparation_inputs.$catalogKey) { throw 'External font catalog trust anchor changed after source preparation' }
+      Copy-Item -LiteralPath $catalogPath -Destination (Join-Path $Bundle 'font-catalog-key.json')
+    }
     if (Test-Path -LiteralPath $gpuBinding -PathType Leaf) {
       Copy-Item -LiteralPath $gpuBinding -Destination (Join-Path $Bundle 'gpu-binding-capabilities.json')
     }

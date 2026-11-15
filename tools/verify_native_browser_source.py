@@ -175,7 +175,7 @@ def verify(src: Path, repo: Path, *, config=None):
     capabilities = json.loads((repo / CAPABILITIES).read_text(encoding='utf-8'))
     if (capabilities.get('schema_version') != 1 or capabilities.get('contract') != CONTRACT
             or capabilities.get('chromium_version') != config.get('chromium_version')
-            or config.get('chromium_version') not in ('156.0.8078.79', '157.0.8103.38')
+            or config.get('chromium_version') not in ('156.0.8078.79', '157.0.8103.38', '157.0.8103.78')
             or capabilities.get('managed_environment', {}).get('flag') != 'shardx-managed-environment'):
         raise ValueError('Native browser capability identity is invalid')
     checked = verify_shell(src)

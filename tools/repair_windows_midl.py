@@ -150,6 +150,28 @@ WINDOWS157_RECORDS = (
         "after_sha256": WINDOWS157_REPAIRED_SHA256,
     }),
 )
+# The .78 script, Windows overlay and domain-transformed bytes independently
+# match the reviewed .38 forms. Its source/object producer remains exact .78.
+WINDOWS15778_RECORDS = (
+    MappingProxyType({
+        "identity": MappingProxyType({
+            "chromium_version": "157.0.8103.78",
+            "ungoogled_commit": "8c886dffc6ade39d8f7df5d64ace5a8824b455e1",
+            "head_sha": "20e9a348fc616bd73a366fbd5d8881613d6c5cb0",
+            "platform": "windows", "arch": "x64",
+            "repository": "ungoogled-software/ungoogled-chromium-windows",
+            "repository_id": 177210827,
+            "head_branch": "157.0.8103.78-1.1", "event": "push",
+            "workflow_path": ".github/workflows/build-x64.yml",
+            "run_id": 43476895250,
+            "artifact_id": 14150905341, "artifact_name": "build-artifact",
+            "artifact_digest": "sha256:077dd8e38c96c664023e6c7da7a42b1e07102d39ad0b3738228e6e11f2fe725e",
+            "artifact_size_in_bytes": 16130498192,
+        }),
+        "before_sha256": WINDOWS157_ORIGINAL_SHA256,
+        "after_sha256": WINDOWS157_REPAIRED_SHA256,
+    }),
+)
 BEFORE = b"""            open(file_path, 'wb').close()
         shutil.copy(file_path, outdir)
 """
@@ -544,7 +566,7 @@ def _proof(src: Path, identity: dict, *, before_sha256=ORIGINAL_SHA256,
 
 def apply(src: Path, platform: str, arch: str, identity: dict, *,
           records=WINDOWS154_RECORDS, records155=WINDOWS155_RECORDS,
-          records157=WINDOWS157_RECORDS) -> dict:
+          records157=WINDOWS157_RECORDS, records15778=WINDOWS15778_RECORDS) -> dict:
     """Match a strict-restore identity against independent, reviewed donor pins."""
     if platform != "windows":
         return {"status": "not_applicable"}
@@ -566,6 +588,11 @@ def apply(src: Path, platform: str, arch: str, identity: dict, *,
                                    WINDOWS155_ORIGINAL_SHA256, WINDOWS155_REPAIRED_SHA256)
         before_sha256, after_sha256 = record["before_sha256"], record["after_sha256"]
         repair = transform155
+    elif version == "157.0.8103.78":
+        record = _versioned_record(identity, arch, records15778, "157.0.8103.78",
+                                   WINDOWS157_ORIGINAL_SHA256, WINDOWS157_REPAIRED_SHA256)
+        before_sha256, after_sha256 = record["before_sha256"], record["after_sha256"]
+        repair = transform157
     elif version.startswith("157."):
         record = _versioned_record(identity, arch, records157, "157.0.8103.38",
                                    WINDOWS157_ORIGINAL_SHA256, WINDOWS157_REPAIRED_SHA256)
@@ -575,7 +602,7 @@ def apply(src: Path, platform: str, arch: str, identity: dict, *,
         return {"status": "not_applicable", "path": SCRIPT}
     original, info = _read(path)
     allowed_before_sha256 = None
-    if version == "157.0.8103.38":
+    if version in ("157.0.8103.38", "157.0.8103.78"):
         allowed_before_sha256 = frozenset((WINDOWS157_ORIGINAL_SHA256, WINDOWS157_PREPARED_ORIGINAL_SHA256))
         observed = hashlib.sha256(original).hexdigest()
         if observed in allowed_before_sha256:

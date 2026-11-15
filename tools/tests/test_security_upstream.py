@@ -78,17 +78,17 @@ class Windows156UpstreamTests(unittest.TestCase):
 
 class Windows157UpstreamTests(unittest.TestCase):
     def setUp(self):
-        self.pin, self.identity = cache.load_manifest('windows', 'x64', 42046998774)
+        self.pin, self.identity = cache.load_manifest('windows', 'x64', 43476895250)
         self.run, self.artifact = metadata(self.pin)
-        self.now = datetime(2026, 11, 7, 20, tzinfo=timezone.utc)
+        self.now = datetime(2026, 11, 16, 20, tzinfo=timezone.utc)
 
     def test_current_manifest_binds_the_completed157_build_and_exact_artifact(self):
-        self.assertEqual(self.pin['chromium_version'], '157.0.8103.38')
-        self.assertEqual(self.pin['ungoogled_commit'], 'de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c')
-        self.assertEqual(self.pin['head_sha'], 'f85bc55429c37b1c748b676b18fe79b38eee3207')
-        self.assertEqual(self.pin['artifact']['id'], 13560057174)
-        self.assertEqual(self.pin['artifact']['size_in_bytes'], 16243947927)
-        self.assertEqual(self.pin['artifact']['digest'], 'sha256:0dc5c30c4eb0c21e503371e9aa0e28c37c1b478271b4612d82e1fa4dec9bc16d')
+        self.assertEqual(self.pin['chromium_version'], '157.0.8103.78')
+        self.assertEqual(self.pin['ungoogled_commit'], '8c886dffc6ade39d8f7df5d64ace5a8824b455e1')
+        self.assertEqual(self.pin['head_sha'], '20e9a348fc616bd73a366fbd5d8881613d6c5cb0')
+        self.assertEqual(self.pin['artifact']['id'], 14150905341)
+        self.assertEqual(self.pin['artifact']['size_in_bytes'], 16130498192)
+        self.assertEqual(self.pin['artifact']['digest'], 'sha256:077dd8e38c96c664023e6c7da7a42b1e07102d39ad0b3738228e6e11f2fe725e')
         cache.validate_metadata(self.pin, self.run, self.artifact, self.now)
 
     def test_previous156_run_cannot_be_selected_for157(self):

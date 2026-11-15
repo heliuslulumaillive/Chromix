@@ -57,7 +57,7 @@ try {
     $native = $build.native_test_executable
     if (($build.schema_version -isnot [int] -and $build.schema_version -isnot [long]) -or
         $build.schema_version -ne 1 -or $build.build_variant -ne 'fingerprint-modes-win157' -or
-        $build.chromium_version -ne '157.0.8103.38' -or
+        $build.chromium_version -ne '157.0.8103.78' -or
         $build.source_commit -cnotmatch '^[a-f0-9]{40}$' -or
         ($build.run_id -isnot [int] -and $build.run_id -isnot [long]) -or $build.run_id -le 0 -or
         $build.preparation_sha256 -cnotmatch '^[a-f0-9]{64}$' -or

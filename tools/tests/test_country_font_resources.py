@@ -16,13 +16,14 @@ class CountryFontResourcesTest(unittest.TestCase):
 
     def test_actual_selected_groups_are_read_locked_and_preserve_native_fonts(self):
         self.assertEqual((self.root/'base/uxr_private_font_packages_win.h').read_text('utf-8'), render())
+        catalogue=os.environ['CHROMIX_COUNTRY_FONT_CATALOG']
         source = r'''
 #include "base/uxr_private_font_packages_win.h"
 #include <cassert>
 #include <iostream>
 using Microsoft::WRL::ComPtr;
 int wmain(int argc,wchar_t**argv) {
-  assert(argc == 2);
+  assert(argc == 3);
   ComPtr<IDWriteFactory> factory;
   assert(SUCCEEDED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,__uuidof(IDWriteFactory),reinterpret_cast<IUnknown**>(factory.GetAddressOf()))));
   ComPtr<IDWriteFontCollection> system;
@@ -34,7 +35,7 @@ int wmain(int argc,wchar_t**argv) {
   for(const auto test:{/* COUNTRY_CASES */}) {
     const auto group=test.group;
     std::shared_ptr<base::uxr_private_fonts_v1::Resources> files;
-    assert(SUCCEEDED(base::uxr_private_fonts_v1::VerifyCountry(argv[1],group,&files)));
+    assert(SUCCEEDED(base::uxr_private_fonts_v1::VerifyCountry(argv[1],group,argv[2],&files)));
     assert(files && files->fonts.size() == test.fontCount);
     for(const auto& font:files->fonts) {
       HANDLE writable=CreateFileW(font.c_str(),GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_EXISTING,0,nullptr);
@@ -77,8 +78,8 @@ int wmain(int argc,wchar_t**argv) {
     std::cout<<group<<" selected_files="<<files->fonts.size()<<" families="<<selected->GetFontFamilyCount()<<"\n";
   }
   std::shared_ptr<base::uxr_private_fonts_v1::Resources> invalid;
-  assert(FAILED(base::uxr_private_fonts_v1::VerifyCountry(argv[1],"all",&invalid)) && !invalid);
-  assert(FAILED(base::uxr_private_fonts_v1::VerifyCountry(L"relative","ja",&invalid)) && !invalid);
+  assert(FAILED(base::uxr_private_fonts_v1::VerifyCountry(argv[1],"all",argv[2],&invalid)) && !invalid);
+  assert(FAILED(base::uxr_private_fonts_v1::VerifyCountry(L"relative","latin",argv[2],&invalid)) && !invalid);
   ComPtr<IDWriteFontCollection> unchanged;
   assert(SUCCEEDED(factory->GetSystemFontCollection(&unchanged,TRUE)) && unchanged->GetFontFamilyCount()==baseline);
   std::cout<<"native_inventory_unchanged_and_unknown_group_rejected\n";
@@ -94,7 +95,7 @@ int wmain(int argc,wchar_t**argv) {
         unit.write_text(source,encoding='utf-8',newline='\n')
         result=subprocess.run([self.compiler,'-std=c++20','-O2','-I'+str(self.root),str(unit),'-o',str(binary),'-ldwrite','-lbcrypt'],env=self.env,capture_output=True,text=True,timeout=120)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-        result=subprocess.run([str(binary),os.environ['CHROMIX_COUNTRY_FONT_OBJECTS']],capture_output=True,text=True,timeout=60)
+        result=subprocess.run([str(binary),os.environ['CHROMIX_COUNTRY_FONT_OBJECTS'],catalogue],capture_output=True,text=True,timeout=90)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         print(result.stdout)
 

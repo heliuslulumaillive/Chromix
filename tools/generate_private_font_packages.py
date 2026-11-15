@@ -1,5 +1,5 @@
 """Render the exact native font asset table; fonts remain external hash pins."""
-import hashlib,json,re
+import base64,hashlib,json,re
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 def render():
@@ -10,18 +10,12 @@ def render():
    rows.append((item['file'],item['sha256'],item['size'],font))
  rows.append(('private-font-packages.json',hashlib.sha256(manifest.read_bytes()).hexdigest(),manifest.stat().st_size,False))
  entries='inline constexpr Asset kAssets[] = {\n'+''.join('  {L'+json.dumps(name)+','+json.dumps(sha)+','+str(size)+'ULL,'+str(font).lower()+'},\n' for name,sha,size,font in rows)+'};'
- country=json.loads((ROOT/'build/country-font-resources.json').read_text('utf-8'))
- groups=[];choices=[]
- for name,assets in sorted(country['groups'].items()):
-  if not re.fullmatch(r'[a-z-]+',name) or not assets:raise ValueError('Invalid country resource group')
-  symbol='kCountry_'+name.replace('-','_');lines=[]
-  for asset in assets:
-   if not re.fullmatch(r'[a-f0-9]{64}',asset['sha256']) or asset['file']!=asset['sha256']+'.blob' or asset['kind'] not in ('font','license') or not 0<asset['size']<128*1024*1024:raise ValueError('Invalid country resource pin')
-   lines.append('  {L'+json.dumps(asset['file'])+','+json.dumps(asset['sha256'])+','+str(asset['size'])+'ULL,'+str(asset['kind']=='font').lower()+'},\n')
-  groups.append('inline constexpr Asset '+symbol+'[] = {\n'+''.join(lines)+'};\n')
-  choices.append('  if (group == '+json.dumps(name)+') { *count = sizeof('+symbol+')/sizeof('+symbol+'[0]); return '+symbol+'; }\n')
- countries=''.join(groups)+'inline const Asset *CountryAssets(std::string_view group, size_t *count) {\n  if (!count) return nullptr;\n  *count = 0;\n'+''.join(choices)+'  return nullptr;\n}\n'
- return (ROOT/'tools/private_font_packages_win.h.in').read_text('utf-8').replace('// PINNED_ASSETS',entries).replace('// PINNED_COUNTRY_ASSETS',countries)
+ key=json.loads((ROOT/'build/font-catalog-key.json').read_text('utf-8'))
+ public=base64.b64decode(key['cngPublicBlob'],validate=True)
+ if key['schemaVersion']!=2 or key['algorithm']!='ECDSA-P256-SHA256-P1363' or len(public)!=72 or hashlib.sha256(public).hexdigest()!=key['keyId']:raise ValueError('Invalid catalog trust anchor')
+ anchor='inline constexpr unsigned char kCatalogPublicKey[] = {'+','.join(str(b) for b in public)+'};'
+ loader=(ROOT/'tools/signed_font_catalog_win.h.in').read_text('utf-8').replace('// TRUSTED_CATALOG_PUBLIC_KEY',anchor)
+ return (ROOT/'tools/private_font_packages_win.h.in').read_text('utf-8').replace('// PINNED_ASSETS',entries).replace('// SIGNED_CATALOG_LOADER',loader)
 if __name__=='__main__':
  import argparse
  p=argparse.ArgumentParser();p.add_argument('--write',action='store_true');p.add_argument('--check',action='store_true');a=p.parse_args()

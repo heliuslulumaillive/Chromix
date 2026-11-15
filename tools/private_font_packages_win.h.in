@@ -5,15 +5,19 @@
 #define NOMINMAX
 #endif
 #include <array>
+#include <algorithm>
 #include <windows.h>
 
 #include <bcrypt.h>
 #include <cstdint>
 #include <dwrite_3.h>
 #include <memory>
+#include <iterator>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <utility>
 #include <wrl/client.h>
 namespace base::uxr_private_fonts_v1 {
 struct Asset {
@@ -23,7 +27,6 @@ struct Asset {
   bool font;
 };
 // PINNED_ASSETS
-// PINNED_COUNTRY_ASSETS
 struct Resources {
   HANDLE directory = INVALID_HANDLE_VALUE;
   std::vector<HANDLE> handles;
@@ -158,16 +161,7 @@ inline HRESULT Verify(const std::wstring &supplied,
                       std::shared_ptr<Resources> *result) {
   return VerifyAssets(supplied, kAssets, sizeof(kAssets) / sizeof(kAssets[0]), result);
 }
-inline HRESULT VerifyCountry(const std::wstring &supplied,
-                             std::string_view group,
-                             std::shared_ptr<Resources> *result) {
-  if (!result) return E_POINTER;
-  result->reset();
-  size_t count = 0;
-  const Asset *assets = CountryAssets(group, &count);
-  if (!assets || !count) return E_INVALIDARG;
-  return VerifyAssets(supplied, assets, count, result);
-}
+// SIGNED_CATALOG_LOADER
 inline HRESULT CreateCollection(IDWriteFactory *factory,
                                 const std::shared_ptr<Resources> &resources,
                                 IDWriteFontCollection **output) {

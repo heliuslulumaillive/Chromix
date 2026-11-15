@@ -2517,7 +2517,7 @@ diff --git a/components/safe_browsing/core/browser/db/sb_local_database_manager.
 diff --git a/components/safe_browsing/core/browser/db/sb_protocol_manager_util.cc b/components/safe_browsing/core/browser/db/sb_protocol_manager_util.cc
 --- a/components/safe_browsing/core/browser/db/sb_protocol_manager_util.cc
 +++ b/components/safe_browsing/core/browser/db/sb_protocol_manager_util.cc
-@@ -183,6 +183,7 @@
+@@ -191,6 +191,7 @@
  
  std::string GetReportUrl(const SBProtocolConfig& config,
                           const std::string& method,
@@ -2525,7 +2525,7 @@ diff --git a/components/safe_browsing/core/browser/db/sb_protocol_manager_util.c
                           const bool is_enhanced_protection) {
    std::string url = base::StringPrintf(
        "%s/%s?client=%s&appver=%s&pver=4.0", kSbReportsURLPrefix, method.c_str(),
-@@ -191,6 +192,10 @@
+@@ -199,6 +200,10 @@
    if (!api_key.empty()) {
      base::StringAppendF(&url, "&key=%s",
                          base::EscapeQueryParamValue(api_key, true).c_str());
@@ -2536,7 +2536,7 @@ diff --git a/components/safe_browsing/core/browser/db/sb_protocol_manager_util.c
    }
    if (is_enhanced_protection) {
      url.append(base::StringPrintf("&enh=%d", is_enhanced_protection));
-@@ -227,56 +232,82 @@
+@@ -235,56 +240,82 @@
  }
  
  ListIdentifier GetChromeExtMalwareId() {
@@ -2631,7 +2631,7 @@ diff --git a/components/safe_browsing/core/browser/db/sb_protocol_manager_util.c
  }
  
  std::string GetUmaSuffixForStore(const base::FilePath& file_path) {
-@@ -287,6 +318,7 @@
+@@ -295,6 +326,7 @@
  }
  
  PrefixSize GetV5ListPrefixSize(const ListIdentifier& list_identifier) {
@@ -2639,7 +2639,7 @@ diff --git a/components/safe_browsing/core/browser/db/sb_protocol_manager_util.c
    return GetV5PrefixSizeForThreatType(list_identifier.sb_threat_type());
  }
  
-@@ -340,6 +372,7 @@
+@@ -348,6 +380,7 @@
  }
  
  std::string GetV5ListName(const ListIdentifier& list_identifier) {
@@ -2647,7 +2647,7 @@ diff --git a/components/safe_browsing/core/browser/db/sb_protocol_manager_util.c
    switch (list_identifier.sb_threat_type()) {
      case SBThreatType::SB_THREAT_TYPE_EXTENSION:
        return "mcrx-16b";
-@@ -513,6 +546,7 @@
+@@ -521,6 +554,7 @@
        threat_entry_type_(threat_entry_type),
        threat_type_(threat_type),
        uses_v5_api_(false) {
@@ -2655,7 +2655,7 @@ diff --git a/components/safe_browsing/core/browser/db/sb_protocol_manager_util.c
    CHECK(PlatformType_IsValid(platform_type), base::NotFatalUntil::M162);
    CHECK(ThreatEntryType_IsValid(threat_entry_type), base::NotFatalUntil::M162);
    CHECK(ThreatType_IsValid(threat_type), base::NotFatalUntil::M162);
-@@ -525,6 +559,7 @@
+@@ -533,6 +567,7 @@
  
  ListIdentifier::ListIdentifier(SBThreatType sb_threat_type)
      : sb_threat_type_(sb_threat_type), uses_v5_api_(true) {

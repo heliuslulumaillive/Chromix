@@ -91,7 +91,7 @@ jobs:
         run: python -B -X utf8 tools/build_webrtc_turn_fixture.py --output C:/security-evidence/webrtc-turn-fixture.exe
       - name: Verify Windows font cohort evidence cannot accept no-op or partial masking
         shell: pwsh
-        run: node --test tools/tests/test_windows_font_acceptance.mjs tools/tests/test_fingerprint_runtime_acceptance.mjs tools/tests/test_font_installation_profiles.mjs
+        run: node --test tools/tests/test_windows_font_acceptance.mjs tools/tests/test_fingerprint_runtime_acceptance.mjs tools/tests/test_font_installation_profiles.mjs tools/tests/test_font_catalog.mjs
       - name: Verify bounded fingerprint summaries preserve all evidence
         shell: pwsh
         run: python -B -X utf8 -m unittest tools.tests.test_fingerprint_build_pipeline.BoundedFingerprintSummaryTests
@@ -102,7 +102,7 @@ jobs:
         shell: pwsh
         env:
           CHROMIX_PRIVATE_FONT_ASSETS: C:/security-private-font-assets
-        run: python -B -X utf8 -m unittest tools.tests.test_private_font_packages.PrivateFontPackagesTest
+        run: python -B -X utf8 -m unittest tools.tests.test_private_font_packages.PrivateFontPackagesTest tools.tests.test_signed_font_catalog.SignedFontCatalogTest
       - name: Verify document transport acceptance rejects incomplete evidence
         shell: pwsh
         run: python -B -X utf8 -m unittest tools.tests.test_webrtc_document_loopback_acceptance

@@ -3,9 +3,9 @@
   "kind": "lite-windows157-product",
   "arch": "x64",
   "runtime": {
-    "chromium_version": "157.0.8103.38",
-    "core_commit": "de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c",
-    "windows_commit": "f85bc55429c37b1c748b676b18fe79b38eee3207",
+    "chromium_version": "157.0.8103.78",
+    "core_commit": "8c886dffc6ade39d8f7df5d64ace5a8824b455e1",
+    "windows_commit": "20e9a348fc616bd73a366fbd5d8881613d6c5cb0",
     "native_browser": {
       "version": 1,
       "capabilities": "build/native-browser-capabilities.json",
@@ -53,12 +53,13 @@
       "experimental_only": true
     },
     "country_font_resources": {
-      "version": 1,
-      "manifest": "build/country-font-resources.json",
-      "manifest_sha256": "96aa96bbbea1254ebad917a4576f7cdcb067ef842005fd42fd77bb2ae52fa826",
+      "version": 2,
+      "protocol": "signed-external-catalog-v2",
+      "trusted_key": "build/font-catalog-key.json",
+      "trusted_key_sha256": "7bc73113e1dbc160bd4b1a0da1d5d17f18736d8a6d91e986246e3511a83d2908",
       "install_to_windows": false,
-      "loading": "selected-group-only-read-locked-native-complete",
-      "fallback": "US-native-base"
+      "source_gate_required": true,
+      "fallback": "native-complete-no-additional-assets"
     }
   },
   "patches": [
@@ -142,7 +143,7 @@
     },
     {
       "path": "patches/lite-windows157/05-translation.patch",
-      "sha256": "de96f11466b003bd1b23f5085e9aea86aa478350eab37225c011c492db56338b",
+      "sha256": "37ab525275b54909e015c79606818b42515b6286c62e489d311f2e492605ddd2",
       "files": [
         "components/translate/content/browser/content_translate_driver.cc",
         "components/translate/content/renderer/translate_agent.cc",
@@ -268,7 +269,7 @@
     },
     {
       "path": "patches/lite-windows157/13-fonts.patch",
-      "sha256": "0b8a426eb4d4997fd8e7a96c5e4dbfb9ac023c0e07a5630763b3a4408885fbc8",
+      "sha256": "c092b1ead63484aeb31d278bd24c89a71d67977eaaa257041e16c3757cec2857",
       "files": [
         "base/uxr_font_allowlist.h",
         "base/uxr_font_allowlist_tests.cc",
@@ -309,7 +310,7 @@
     },
     {
       "path": "patches/lite-windows157/15-media.patch",
-      "sha256": "0be01eea664368b02b6a2fee6eaa592a728fa3217173dbb93c2c2e895854f47d",
+      "sha256": "60970fb12caba3e8489f2da06cdf15f186924504bfd110bde4faf8bebef2ba9f",
       "files": [
         "content/browser/renderer_host/media/media_stream_manager.cc",
         "third_party/blink/renderer/core/css/media_values.cc",
@@ -324,7 +325,7 @@
     },
     {
       "path": "patches/lite-windows157/16-display.patch",
-      "sha256": "acdd529f3ee821207e4ad825f8cde9288011722962f07cabbd48f9b41d32c29e",
+      "sha256": "cb3d006efe7f4286222be951de10f26d19737b4659bd788493e8913ae97a18fe",
       "files": [
         "base/uxr_headless_screen.h",
         "chrome/browser/feedback/report_unsafe_site/screenshot_taker.cc",
@@ -364,7 +365,7 @@
     },
     {
       "path": "patches/lite-windows157/18-browser-protection.patch",
-      "sha256": "21a0239910c514232765aaa625ae159b894533331b9afdb895a2a98975df43a3",
+      "sha256": "3b4177886362d34800e5e81a45c8a3707bee2524e18f5e8085f05dca7fdc0922",
       "files": [
         "chrome/browser/download/bubble/download_bubble_ui_controller.cc",
         "chrome/browser/download/chrome_download_manager_delegate.cc",
@@ -603,7 +604,7 @@
     },
     {
       "path": "patches/lite-windows157/24-google-services-and-browser.patch",
-      "sha256": "3432b34d935eb5e400fc2183940825e78a02318c8cc6da836e467c88830ec307",
+      "sha256": "c16c9c8956e7d50e83809fd272139d51f6132c7cab2385c11e46a73ea3fe561a",
       "files": [
         "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
         "chrome/browser/chrome_browser_main.cc",
@@ -971,7 +972,7 @@
     {
       "path": "base/uxr_private_font_packages_win.h",
       "before_sha256": null,
-      "after_sha256": "94a69e74131b848edb45389933f8fc0e59e6550aa7724305773fcf1da7aa39b4"
+      "after_sha256": "6f858e890ba4f6aa7bb8a10fb6c061c29c5febbb245455efac872e38b07a0c93"
     },
     {
       "path": "base/uxr_shard_webgl_v2_properties.h",
@@ -1630,8 +1631,8 @@
     },
     {
       "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
-      "before_sha256": "32b1dc0543a1746e58d614f94fb38f7216762bacb8626762842e37f579fbf430",
-      "after_sha256": "bee071786682b77c31aec334d456f3aacd2aa5ad3d16340218ac98943a1e2463"
+      "before_sha256": "c7f688b568e88d1b256e048dc0ea9480c3631cfb629f56540f9ec2ec1f4cbe0e",
+      "after_sha256": "4443bbd8c3eacdbcbed6d199a415813f887450a7701b69256622dca408b600aa"
     },
     {
       "path": "chrome/browser/resources/extensions/item_list.html.ts",
@@ -2215,8 +2216,8 @@
     },
     {
       "path": "chrome/browser/ui/views/toolbar/app_menu.cc",
-      "before_sha256": "030932ca5475a995523f1f733abe9cb7b6043319e5584814241a9b7391fda776",
-      "after_sha256": "108a74f3e44ea3250fcbd7102657665aa1cfee78a29500f5d415c3feeaf6fd11"
+      "before_sha256": "1fb7b0418beab7e92b20ea4662e4553e4a0b87d13ea98b4f8db02e304357b03a",
+      "after_sha256": "580bb4c539eda3b39f3e4943e5edda8ab493e1a41ecfb8ad25cad352e5a2138b"
     },
     {
       "path": "chrome/browser/ui/views/user_education/browser_ntp_promos.cc",
@@ -2365,8 +2366,8 @@
     },
     {
       "path": "chrome/browser/webshare/BUILD.gn",
-      "before_sha256": "000d00826d659f618b26ca6a3e5d85999956fb91a0480ebc25bed21d990825a8",
-      "after_sha256": "ada1e12bca949ff5a1cdc58faf9d0e3a89de402edf5095ba0ea1d103976b37d6"
+      "before_sha256": "2c98346f5eaa297549928cf34b8678635ecfa9be9092a0667376ec1063e3947a",
+      "after_sha256": "1de085855cf8a4e73cc3ff190cccd4c30d031e601c5b3bb4a75764b1d8461d95"
     },
     {
       "path": "chrome/common/extensions/api/privacy.json",
@@ -2415,8 +2416,8 @@
     },
     {
       "path": "components/BUILD.gn",
-      "before_sha256": "70701be8831d6874cd889d57d8f7c1c73e16152f377e8d917b11c380092ca120",
-      "after_sha256": "966995801b3514cdb064884781e919a233975a7be842233c87967a2a83aa43f9"
+      "before_sha256": "fd1584a3121f6ff3edef43ccafcdc4fdc38ae5ff888403bdc86993f26a69e655",
+      "after_sha256": "959ded860d1f79a35e575bdfbabd0b705026b9edc29f8ba782d2090d22e92465"
     },
     {
       "path": "components/affiliations/core/browser/hash_affiliation_fetcher.cc",
@@ -2770,8 +2771,8 @@
     },
     {
       "path": "components/safe_browsing/core/browser/db/sb_protocol_manager_util.cc",
-      "before_sha256": "25e6863d4d829c2c30700d6be57c659bbf4d8291508022bade63f1192419d5dc",
-      "after_sha256": "a4354b9ec708cd49736b49f43aeadd83e9380809f18ce12a86a076805c338a68"
+      "before_sha256": "3d7989131c65c350a0a8dc05a4a49cc4034fef63a478be1428cb0b6f60a160cb",
+      "after_sha256": "f5eeac3e416d5390d5849e46e7c11d9cad39ab69021c03364977e11bdab4c159"
     },
     {
       "path": "components/safe_browsing/core/browser/db/sb_protocol_manager_util.h",
@@ -3115,8 +3116,8 @@
     },
     {
       "path": "components/translate/core/browser/translate_manager.cc",
-      "before_sha256": "5b5c998f12e4de652fcd5f0704846647d4728098be2ad329485b2111d8cd5aa6",
-      "after_sha256": "353c9e5b73c2408a31aa8bb96dff2e03808893092fdcd6963c1c3ba26429264c"
+      "before_sha256": "0a623d8176b075a9b13babe93e8254bd600e132c3fd354e1f05f950a4286369f",
+      "after_sha256": "7c60c63d2fc3656343b38b53f318ac0d4259da90d5c53d4558dca554355c594f"
     },
     {
       "path": "components/translate/core/browser/translate_ranker_impl.cc",
@@ -3245,8 +3246,8 @@
     },
     {
       "path": "content/browser/renderer_host/media/media_stream_manager.cc",
-      "before_sha256": "19a67f4f39465bdfb81bcbe37794fb100a4570c076d240781066a1108929d0f8",
-      "after_sha256": "1123b904f06a35e552149381911feea937a8f34c05a71ecf104aff0932227cf4"
+      "before_sha256": "75a2c39a23e4fbc62cd30f80bdc2c70371713bddc8e7b35ba23cce66004eead1",
+      "after_sha256": "88a8df64f4ddda71b264469919c12c4b75dfe0fceeec770afb4d04019d73b2c2"
     },
     {
       "path": "content/browser/renderer_host/render_process_host_impl.cc",
@@ -3255,13 +3256,13 @@
     },
     {
       "path": "content/browser/renderer_host/render_widget_host_impl.cc",
-      "before_sha256": "6b6bb06e1996dc9a9a0ff937c296f47d553724f1182e56162b64017b84c95b5d",
-      "after_sha256": "e24c2408bd0bffb72f6606f8662c59919cc531159ebfd9dc9367f71693a0b0d8"
+      "before_sha256": "44de2a23cad2fdcf81e4ca68547a4f5cbe8263736f58fe17e82f99a2812f9f81",
+      "after_sha256": "28f4535c4394c53579f4269a767c6f2d976a06a3e070f4d7922a6cea6817e72f"
     },
     {
       "path": "content/browser/renderer_host/render_widget_host_impl.h",
-      "before_sha256": "0dfbb17c9ba53bc544cdf37514429b01d6189f6754df4fc5d51ac8979e627e3f",
-      "after_sha256": "951104ef68c4b6afac672c2cca44af6718a12e71ff0120732970caee087a5345"
+      "before_sha256": "8126a80426f81a23f32674196b47ec1080869930fa3c0ee536a80093fa81a88d",
+      "after_sha256": "7e3e4d110d1a5bb54ae9bb5e0e992f9f7069a9b4c54d020176ec17184e2fe64a"
     },
     {
       "path": "content/browser/speech/tts_win.cc",
@@ -4231,7 +4232,7 @@
     {
       "path": "ui/gfx/win/direct_write.cc",
       "before_sha256": "8ef8fd82b4ce653e336ad5cc696503ceb0df0a3bbd86f3759732f3ed45918dad",
-      "after_sha256": "958e819e7a8742158ce5045c17efcc6f3d106a33c89d4e1f8d42165085ef911b"
+      "after_sha256": "5f8f4040d5132420d988587ab7a661c399ca9818f5231140e19f0e937662dca6"
     },
     {
       "path": "ui/gfx/win/direct_write.h",
@@ -4782,18 +4783,18 @@
   "legacy_equivalence": {
     "source_commit": "0397776a2cd62e56df29e9f9bf31effb63e82ea5",
     "aggregate_sha256": "2ff6f9cae432da837dd1b1e7f7025660fdb8a5202393561fe6456cf0e4c7b36c",
-    "result": "ported-to-reviewed157-source",
-    "baseline_version": "156.0.8078.79",
-    "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
+    "result": "ported-to-reviewed15778-source",
+    "baseline_version": "157.0.8103.38",
+    "baseline_stack_sha256": "e57d291676965e38d3ecb6e3dd85f2fcd735d3426f37726ad8eb00d58aa7d82e",
     "cross_version_byte_equivalence_claimed": false
   },
   "upstream_port": {
-    "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
-    "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",
+    "chromium_commit": "4b3d0dabb8250b6f152d2d85d79e7706e309d087",
+    "v8_commit": "307108153d1e35e6e74528ee55f97b0cd59bf182",
     "webrtc_commit": "95554e4a0c5c343fdc989387d9d0ce18e2a2294b",
     "search_engines_commit": "5dc9f1afd38a8ac2b26b1972eb4fc1bbd5754e8c",
-    "source_manifest_sha256": "58b7c277b69682b708597177d558228a1ed5e810aec3da50db87c5c129fb888e",
+    "source_manifest_sha256": "f0cf82f501b4183b26bdcf7c2c9e4eedf314d7817b8eaa1c60b3b26ce4e76bb7",
     "review": "build/windows157-port.json"
   },
-  "stack_sha256": "e57d291676965e38d3ecb6e3dd85f2fcd735d3426f37726ad8eb00d58aa7d82e"
+  "stack_sha256": "9fb7b6a76faaed4a115df819fec58b9846e8774223c856207928fbb7a5ac371c"
 }

@@ -1,5 +1,38 @@
 # Windows product builds
 
+## 157.0.8103.78 / signed external font catalog v2
+
+This branch starts from successful upstream x64 run `43476895250`, Windows
+commit `20e9a348fc616bd73a366fbd5d8881613d6c5cb0` and core
+`8c886dffc6ade39d8f7df5d64ace5a8824b455e1`. Use the existing hosted `upstream`
+operation, which admits artifact `14150905341` before transfer. Never resume a
+.38 checkpoint into .78. Selected-source review preserved all nine changed
+upstream files; raw/substituted replay and warm preparation passed for 678 files.
+
+Country/font data is now external: edit `build/country-font-resources.json`, then
+run `python -m tools.font_catalog --manifest <json> --store <absolute-font-root>
+--version <release-id> --public-key <absolute-font-catalog-key.json>
+--powershell <absolute-powershell.exe> --activate`. The publisher verifies assets,
+signs an immutable `catalogs/<payload-SHA256>` generation and atomically updates
+`current.json`, retaining `previous.json`. Existing valid signatures and bytes
+are reused. Fonts remain shared SHA256 objects, not per-profile copies.
+
+The private signing key stays non-exportable in the current user's Windows CNG
+store; only its public anchor ships. The kernel verifies ECDSA P-256/SHA256,
+bounded catalogue structure, content-addressed paths, asset sizes/hashes and
+read-only lifetimes, then merges with the original complete native collection.
+Unknown countries/groups, invalid catalogues/signatures, missing/altered assets
+or collection failures retain native fonts. Kernel/runtime integrity failures
+remain launch failures. Each browser keeps one immutable generation until exit.
+
+Country, combination and asset updates do not enter the kernel recipe. Key
+rotation, protocol or loader-capability changes still require a reviewed build.
+Local CNG/DirectWrite and Node checks passed, including a new country/group/font
+loaded by the same compiled helper. Actual rebuilt-DLL browser acceptance and
+precise DLL admission are pending; no formal kernel/profile binding is changed.
+
+## Prior .38 work and evidence
+
 The country-coverage expansion on `codex/country-font-coverage-win157-20261115`
 adds 250 CLDR-derived country/territory entries sharing 25 application supplement
 combinations. All retain the native-complete font view. Pinned open fonts are

@@ -46,7 +46,7 @@ def verify(src: Path, repo: Path, *, config=None) -> list[str]:
     caps = json.loads((repo / CAPABILITIES).read_text(encoding='utf-8'))
     if (caps.get('schema_version') != 1 or caps.get('contract') != 'shardx-native-cookie-v1'
             or caps.get('chromium_version') != config.get('chromium_version')
-            or config.get('chromium_version') not in ('156.0.8078.79', '157.0.8103.38')
+            or config.get('chromium_version') not in ('156.0.8078.79', '157.0.8103.38', '157.0.8103.78')
             or caps.get('limits', {}).get('envelope_bytes') != 16 * 1024 * 1024
             or caps.get('limits', {}).get('cookie_count') != 10000):
         raise ValueError('Native Cookie capability contract is invalid')

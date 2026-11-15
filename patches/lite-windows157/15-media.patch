@@ -1,7 +1,7 @@
 diff --git a/content/browser/renderer_host/media/media_stream_manager.cc b/content/browser/renderer_host/media/media_stream_manager.cc
 --- a/content/browser/renderer_host/media/media_stream_manager.cc
 +++ b/content/browser/renderer_host/media/media_stream_manager.cc
-@@ -2714,6 +2714,23 @@
+@@ -2720,6 +2720,23 @@
    request->SetAudioType(request->stream_controls().audio.stream_type);
    request->SetVideoType(request->stream_controls().video.stream_type);
  

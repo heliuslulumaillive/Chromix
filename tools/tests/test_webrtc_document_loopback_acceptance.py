@@ -17,7 +17,7 @@ def evidence():
         if off:args+=['--disable-features=ShardXWebRtcDocumentLoopback']
         if name=='display-ip':args+=['--fingerprint-webrtc-ip=203.0.113.200']
         runs.append({'id':name,'native':native,'feature':not off,'args':args,'rootPID':i,
-          'version':{'product':'Chrome/157.0.8103.38'},'cleanup':{'normalExit':True,'forced':False,
+          'version':{'product':'Chrome/157.0.8103.78'},'cleanup':{'normalExit':True,'forced':False,
           'closeSent':True,'exitCode':0,'rootPID':i,'known_owned_processes_remaining':[],
           'owned_tree_before_close':[{'pid':i,'created':'2026-11-11T00:00:00Z'}],
           'process_tree_error':None}})

@@ -105,7 +105,7 @@ class Windows157MidlIdentityTest(unittest.TestCase):
         from tools.restore_upstream_cache import identities
         repo = Path(__file__).resolve().parents[2]
         identity, _, _ = identities(repo, 'windows', 'x64')
-        self.assertEqual(identity, IDENTITY)
+        self.assertEqual(identity, dict(repair.WINDOWS15778_RECORDS[0]['identity']))
         self.assertEqual(self.apply(identity)['status'], 'repaired')
 
     def test_inspect_product_domain_restoration_finish_and_warm_reuse(self):

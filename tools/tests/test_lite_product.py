@@ -32,17 +32,32 @@ class ProductTests(unittest.TestCase):
         self.assertNotIn('patches/series', inputs)
         self.assertNotIn('patches/google-services/0001-restore-google-services.patch', inputs)
 
+    def test_country_and_font_data_updates_do_not_change_the_kernel_recipe(self):
+        inputs=stack.input_hashes(ROOT)
+        self.assertNotIn('build/country-font-resources.json',inputs)
+        self.assertIn('build/font-catalog-key.json',inputs)
+        with tempfile.TemporaryDirectory(prefix='external-font-recipe-') as temporary:
+            repo=Path(temporary)
+            for name in inputs:
+                target=repo/name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(ROOT/name,target)
+            before=security_build_record.recipe(repo)
+            file=repo/'build/country-font-resources.json'
+            file.write_text('{"countries":{"US":"new-data-only-group"},"groups":{"new-data-only-group":[]}}')
+            self.assertEqual(security_build_record.recipe(repo),before)
+            file.write_text('{"countries":{"SG":"another-group"},"groups":{}}')
+            self.assertEqual(security_build_record.recipe(repo),before)
+
     def test_source_preserves_retired_absence(self):
         from tools.lite_retirement import REMOVED_FILES
         manifest = stack.load(ROOT)
         final = {row['path']: row['after_sha256'] for row in manifest['source_files']}
         for name in REMOVED_FILES:
             self.assertIsNone(final.get(name))
-        self.assertEqual(manifest['legacy_equivalence']['result'], 'ported-to-reviewed157-source')
-        self.assertEqual(manifest['legacy_equivalence']['baseline_version'], '156.0.8078.79')
+        self.assertEqual(manifest['legacy_equivalence']['result'], 'ported-to-reviewed15778-source')
+        self.assertEqual(manifest['legacy_equivalence']['baseline_version'], '157.0.8103.38')
         self.assertIs(manifest['legacy_equivalence']['cross_version_byte_equivalence_claimed'], False)
-        self.assertEqual(manifest['runtime']['chromium_version'], '157.0.8103.38')
-        self.assertEqual(manifest['upstream_port']['chromium_commit'], 'a733b5afbb3ba618844ff8876b89ad1a774b2f18')
+        self.assertEqual(manifest['runtime']['chromium_version'], '157.0.8103.78')
+        self.assertEqual(manifest['upstream_port']['chromium_commit'], '4b3d0dabb8250b6f152d2d85d79e7706e309d087')
         self.assertEqual([Path(row['path']).name for row in manifest['patches'][-2:]],
                          ['25-signin-failure-recovery.patch', '26-history-sync-default.patch'])
 
@@ -89,7 +104,7 @@ class ProductTests(unittest.TestCase):
 
     def test_unknown_version_cannot_reuse_product_stack(self):
         with mock.patch.object(stack, 'load_pins', return_value={'ChromiumVersion': '157.0.0.1',
-                'UngoogledWindowsVersion': '157.0.8103.38-1.1', 'UngoogledCommit': '0' * 40,
+                'UngoogledWindowsVersion': '157.0.8103.78-1.1', 'UngoogledCommit': '0' * 40,
                 'UngoogledWindowsCommit': '0' * 40}):
             with self.assertRaises(ValueError):
                 stack.load(ROOT)
@@ -128,7 +143,7 @@ class ProductTests(unittest.TestCase):
             src, core = root / 'src', root / 'core'
             (src / 'chrome').mkdir(parents=True)
             core.mkdir()
-            (core / 'chromium_version.txt').write_text('157.0.8103.38\n')
+            (core / 'chromium_version.txt').write_text('157.0.8103.78\n')
             (src / 'chrome/VERSION').write_text('MAJOR=157\nMINOR=0\nBUILD=8078\nPATCH=79\n')
             (root / 'google-services-source.json').write_text(json.dumps({'patch_kind': stack.KIND,
                 'patch_sha256': product['stack_sha256']}))
@@ -146,9 +161,9 @@ class ProductTests(unittest.TestCase):
                 mock.patch.object(prepare_google_services, 'pinned_inverse_rules', return_value=[]):
             work = Path(tmp)
             (work / 'src/chrome').mkdir(parents=True)
-            (work / 'src/chrome/VERSION').write_text('MAJOR=157\nMINOR=0\nBUILD=8103\nPATCH=38\n')
+            (work / 'src/chrome/VERSION').write_text('MAJOR=157\nMINOR=0\nBUILD=8103\nPATCH=78\n')
             saved = {'patch_kind': stack.KIND, 'patch_sha256': product['stack_sha256'],
-                     'chromium_version': '157.0.8103.38', 'variant': 'wrong',
+                     'chromium_version': '157.0.8103.78', 'variant': 'wrong',
                      'build_variant': 'fingerprint-modes-win157', 'preparation_inputs': {},
                      'preparation_sha256': hashlib.sha256(b'{}').hexdigest()}
             (work / 'google-services-source.json').write_text(json.dumps(saved))

@@ -1,319 +1,83 @@
 {
   "schema_version": 1,
-  "status": "source-preparation-verified-before-build",
-  "target_version": "157.0.8103.38",
-  "source_version": "156.0.8078.79",
-  "previous_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
-  "product_stack_sha256": "15b9da3f9b3de598b9e04db16d5e58028023c95ba21e5cd6478200ae48991e77",
+  "status": "selected-source-replay-reviewed-before-build",
+  "source_version": "157.0.8103.38",
+  "target_version": "157.0.8103.78",
   "upstream_identity": {
-    "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
-    "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",
+    "chromium_version": "157.0.8103.78",
+    "core_commit": "8c886dffc6ade39d8f7df5d64ace5a8824b455e1",
+    "windows_commit": "20e9a348fc616bd73a366fbd5d8881613d6c5cb0",
+    "chromium_commit": "4b3d0dabb8250b6f152d2d85d79e7706e309d087",
+    "DEPS_SHA256": "70f36c59069488921a7d83b5ad0dfb3d221211be2be966f28ed84ef6ceeb8daa",
+    "v8_commit": "307108153d1e35e6e74528ee55f97b0cd59bf182",
     "webrtc_commit": "95554e4a0c5c343fdc989387d9d0ce18e2a2294b",
-    "search_engines_commit": "5dc9f1afd38a8ac2b26b1972eb4fc1bbd5754e8c",
-    "source_manifest_sha256": "58b7c277b69682b708597177d558228a1ed5e810aec3da50db87c5c129fb888e",
-    "review": "build/windows157-port.json"
+    "search_engines_commit": "5dc9f1afd38a8ac2b26b1972eb4fc1bbd5754e8c"
   },
-  "source_fetch_receipt_sha256": "9d3d125a6d23647216b20dabe30a2a3f33df7110b4354113f0a2a3f7ccb9838e",
-  "upstream_replay_receipt_sha256": "cb5037665e566440c867ed9e18732d58f50eb4cf427a28001cd189de19f98a5b",
-  "native_files_preserved": 365,
-  "native_files_removed_upstream": [
-    "chrome/browser/enterprise/connectors/reporting/telomere_reporting_context.cc"
-  ],
-  "manual_adaptations": [
+  "source_manifest_sha256": "f0cf82f501b4183b26bdcf7c2c9e4eedf314d7817b8eaa1c60b3b26ce4e76bb7",
+  "upstream_run": 43476895250,
+  "upstream_artifact": 14150905341,
+  "old_product_checked_files": 678,
+  "target_source_inputs": 619,
+  "upstream_changed_files": [
     {
-      "path": "chrome/browser/media/webrtc/media_capture_devices_dispatcher.cc",
-      "blocks": 2,
-      "reason": "Retain the 157 thread check and the existing ShardX validation after it.",
-      "after_sha256": "30c977641d68614326400fc231422d2d648fb2bfb6ccf16685351e6ca69289e7"
+      "path": "chrome/browser/renderer_context_menu/render_view_context_menu.cc",
+      "oldUpstreamSHA256": "32b1dc0543a1746e58d614f94fb38f7216762bacb8626762842e37f579fbf430",
+      "newUpstreamSHA256": "c7f688b568e88d1b256e048dc0ea9480c3631cfb629f56540f9ec2ec1f4cbe0e",
+      "mergedSHA256": "4443bbd8c3eacdbcbed6d199a415813f887450a7701b69256622dca408b600aa"
     },
     {
-      "path": "third_party/blink/renderer/platform/graphics/mailbox_texture_backing.cc",
-      "blocks": 1,
-      "reason": "Retain the 157 thread check and the existing ShardX validation after it.",
-      "after_sha256": "2de0e6c797c66f578e872448afa3a79b57e062c077e9035c203a78a5b818e29f"
+      "path": "chrome/browser/ui/views/toolbar/app_menu.cc",
+      "oldUpstreamSHA256": "030932ca5475a995523f1f733abe9cb7b6043319e5584814241a9b7391fda776",
+      "newUpstreamSHA256": "1fb7b0418beab7e92b20ea4662e4553e4a0b87d13ea98b4f8db02e304357b03a",
+      "mergedSHA256": "580bb4c539eda3b39f3e4943e5edda8ab493e1a41ecfb8ad25cad352e5a2138b"
     },
     {
-      "path": "chrome/browser/shell_integration_win.cc",
-      "blocks": 2,
-      "reason": "Retain 157 taskbar migration and add managed-environment identity; omit removed logging include.",
-      "after_sha256": "3166a77a500d1759ab76092658ff8c611d465f30a806d4694ea968dfd5793d4e"
+      "path": "chrome/browser/webshare/BUILD.gn",
+      "oldUpstreamSHA256": "000d00826d659f618b26ca6a3e5d85999956fb91a0480ebc25bed21d990825a8",
+      "newUpstreamSHA256": "2c98346f5eaa297549928cf34b8678635ecfa9be9092a0667376ec1063e3947a",
+      "mergedSHA256": "1de085855cf8a4e73cc3ff190cccd4c30d031e601c5b3bb4a75764b1d8461d95"
     },
     {
-      "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
-      "blocks": 2,
-      "reason": "Keep the new 157 Skia/format includes and all ShardX pixel helpers.",
-      "after_sha256": "4deed9d2c2014880c1b39d56997f5211886b9283c01ba23755fdb0b8d4136b0c"
+      "path": "components/BUILD.gn",
+      "oldUpstreamSHA256": "70701be8831d6874cd889d57d8f7c1c73e16152f377e8d917b11c380092ca120",
+      "newUpstreamSHA256": "fd1584a3121f6ff3edef43ccafcdc4fdc38ae5ff888403bdc86993f26a69e655",
+      "mergedSHA256": "959ded860d1f79a35e575bdfbabd0b705026b9edc29f8ba782d2090d22e92465"
     },
     {
-      "path": "third_party/blink/renderer/modules/webaudio/offline_audio_context.cc",
-      "blocks": 1,
-      "reason": "Use the corrected 157 completion-event comment; custom change was whitespace only.",
-      "after_sha256": "dc24a8bcd2f809bc2722eeaa5c11901ed6c59bffaf9681d72610b468e9ad81d3"
+      "path": "components/safe_browsing/core/browser/db/sb_protocol_manager_util.cc",
+      "oldUpstreamSHA256": "25e6863d4d829c2c30700d6be57c659bbf4d8291508022bade63f1192419d5dc",
+      "newUpstreamSHA256": "3d7989131c65c350a0a8dc05a4a49cc4034fef63a478be1428cb0b6f60a160cb",
+      "mergedSHA256": "f5eeac3e416d5390d5849e46e7c11d9cad39ab69021c03364977e11bdab4c159"
     },
     {
-      "path": "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.cc",
-      "blocks": 1,
-      "reason": "Validate channel policy before stopping the old destination; retain the 157 race fix.",
-      "after_sha256": "f3b1a62b698d6a3f712f21f2577cb73cba5565bc8cab4b4886c158b6626342e0"
+      "path": "components/translate/core/browser/translate_manager.cc",
+      "oldUpstreamSHA256": "5b5c998f12e4de652fcd5f0704846647d4728098be2ad329485b2111d8cd5aa6",
+      "newUpstreamSHA256": "0a623d8176b075a9b13babe93e8254bd600e132c3fd354e1f05f950a4286369f",
+      "mergedSHA256": "7c60c63d2fc3656343b38b53f318ac0d4259da90d5c53d4558dca554355c594f"
     },
     {
-      "path": "chrome/browser/resources/settings/privacy_page/security/security_page.html",
-      "blocks": 1,
-      "reason": "Carry the existing product dialog behavior into the 157 Lit template syntax.",
-      "after_sha256": "f26dd05e1abfce4367e735e784637d1e6d128d2acb8b5c342cdff2af6ff72d52"
+      "path": "content/browser/renderer_host/media/media_stream_manager.cc",
+      "oldUpstreamSHA256": "19a67f4f39465bdfb81bcbe37794fb100a4570c076d240781066a1108929d0f8",
+      "newUpstreamSHA256": "75a2c39a23e4fbc62cd30f80bdc2c70371713bddc8e7b35ba23cce66004eead1",
+      "mergedSHA256": "88a8df64f4ddda71b264469919c12c4b75dfe0fceeec770afb4d04019d73b2c2"
     },
     {
-      "path": "components/embedder_support/user_agent_utils.cc",
-      "blocks": 2,
-      "reason": "Avoid resurrecting old-location duplicate UA functions; adapt their new native locations below.",
-      "after_sha256": "7e5bc3dbb9ef9c5969b9f757a10131436050965dd938b6948028c0192a98dad8",
-      "moved_functions": [
-        "GetUserAgentInternal",
-        "BuildUserAgentFromProduct"
-      ]
+      "path": "content/browser/renderer_host/render_widget_host_impl.cc",
+      "oldUpstreamSHA256": "6b6bb06e1996dc9a9a0ff937c296f47d553724f1182e56162b64017b84c95b5d",
+      "newUpstreamSHA256": "44de2a23cad2fdcf81e4ca68547a4f5cbe8263736f58fe17e82f99a2812f9f81",
+      "mergedSHA256": "28f4535c4394c53579f4269a767c6f2d976a06a3e070f4d7922a6cea6817e72f"
     },
     {
-      "path": "chrome/browser/BUILD.gn",
-      "blocks": 1,
-      "reason": "Keep 157 tabstrip target and the native cookie bootstrap dependency.",
-      "after_sha256": "404b67c9bd7233c85f8ba042b2fdcf50e4fa6babbb59bfb63dd7b5eb5e3bd355"
-    },
-    {
-      "path": "chrome/browser/extensions/BUILD.gn",
-      "blocks": 1,
-      "reason": "Carry the old selected-source removal while retaining the new standalone-window test support.",
-      "after_sha256": "46208865ea99ee3a9c8b9a6e7047d1a6ee8fe77910a826109557a8e5cb85b5e7"
-    },
-    {
-      "path": "chrome/test/BUILD.gn",
-      "blocks": 4,
-      "reason": "Keep the 157 reorganized dependency lists and add only the required restored test-support labels.",
-      "after_sha256": "261d3aa5d81c55d9897ea6392538f28b27e8c2aafddc61347ecac69162fdba95"
-    },
-    {
-      "path": "third_party/blink/renderer/platform/BUILD.gn",
-      "blocks": 1,
-      "reason": "Retain the new canvas drawable files and add the fingerprint context; preserve Windows Rust compatibility.",
-      "after_sha256": "070779d48e5928f9bed994614e4c9e9684f57d7bbfa1fd97e3e613f076f84cef"
-    },
-    {
-      "path": "components/web_package/signed_web_bundles/signed_web_bundle_utils.cc",
-      "reason": "Retain the exact reviewed portable C++ signature-payload implementation. The native Rust wrapper preimage is identical across 156 and 157.",
-      "after_sha256": "f953d2e86c0c8e0879b3fc8799ad2bb49027d6de5ee41175bb5538bc101d5cf4",
-      "blocks": 0
-    },
-    {
-      "path": "components/web_package/BUILD.gn",
-      "reason": "Compile the portable signature payload exactly once in the consumed C++ library, avoiding duplicate Rust-implementation source membership.",
-      "after_sha256": "d916365407cda3b36450e2b7d041b68bca49bd3418988399d60cb6d29226685f",
-      "blocks": 0
+      "path": "content/browser/renderer_host/render_widget_host_impl.h",
+      "oldUpstreamSHA256": "0dfbb17c9ba53bc544cdf37514429b01d6189f6754df4fc5d51ac8979e627e3f",
+      "newUpstreamSHA256": "8126a80426f81a23f32674196b47ec1080869930fa3c0ee536a80093fa81a88d",
+      "mergedSHA256": "7e3e4d110d1a5bb54ae9bb5e0e992f9f7069a9b4c54d020176ec17184e2fe64a"
     }
   ],
-  "source_files": 669,
-  "product_topics": 26,
-  "existing_pruned_resources_reused": [
-    "components/safe_browsing/content/resources/empty_file_type_policy.pb",
-    "chrome/app/etw_events/MSG00001.bin",
-    "chrome/app/etw_events/chrome_events_winTEMP.BIN"
-  ],
-  "login_topics": [
-    "patches/lite-windows157/25-signin-failure-recovery.patch",
-    "patches/lite-windows157/26-history-sync-default.patch"
-  ],
-  "installed_package_changed": false,
-  "native_restoration_audit": {
-    "files": 365,
-    "all_verified_against_original156": true,
-    "source_commit": "a21ce95c24ce3964416f09ae1862f53f319eb4d0",
-    "receipt_sha256": "64d40abc8fcad3d714038a7f0b3bd36a75e796fe4eb776b97b4e10ed82795596"
-  },
-  "preparation_validation": {
-    "raw": "passed",
-    "domain_substituted": "passed",
-    "source_files": 668,
-    "source_gate_files": 105,
-    "byte_identical": true,
-    "repeat_preparation_preserves_mtime": true,
-    "receipt_sha256": "299d2b3ef00004919c06c37f0904b5098f5426cb51d6db3fa8ddcefdde48dd93"
-  },
-  "compiled_at_source_review": false,
-  "runtime_accepted_at_source_review": false,
-  "compile_repairs": [
-    {
-      "source_run": "42416735586",
-      "stage": 3,
-      "diagnostic": "SetICUDefaultLocale removed by Chromium 157 default-ICU-locale passkey migration",
-      "source_updates": [
-        {
-          "path": "third_party/blink/renderer/core/timezone/timezone_controller.cc",
-          "before_sha256": "40225baef1c45eb180cb9b026af5278bfb27676e47995a162556765faaae4538",
-          "after_sha256": "064f7082c14a4fb42ab728ad71756932e471f12a442a2339551c257459abcd69",
-          "replacement_path": "build/checkpoint-sources/064f7082c14a4fb42ab728ad71756932e471f12a442a2339551c257459abcd69.cc"
-        },
-        {
-          "path": "third_party/blink/renderer/core/inspector/locale_controller.cc",
-          "before_sha256": "78db7722703ba0a9ccf308a2d8fa8f74cec718788ee97c63333ae6ad55c126f1",
-          "after_sha256": "2a8ec0ced0de3e4a62f16391611c193fea5d8489362542445ce7684f7539fd49",
-          "replacement_path": "build/checkpoint-sources/2a8ec0ced0de3e4a62f16391611c193fea5d8489362542445ce7684f7539fd49.cc"
-        }
-      ],
-      "compiled": false,
-      "runtime_accepted": false
-    },
-    {
-      "source_run": "42488966846",
-      "stage": 1,
-      "diagnostic": "Pruned MIDL TLBs require the exact-157 native-generation repair; restore omitted account-tailored security sync metadata",
-      "source_updates": [
-        {
-          "path": "chrome/browser/profiles/shardx_native_browser_unittest.cc",
-          "before_sha256": "413354880763b3fee6b4bd200fdbd8f614c5f830f5f236c8cf1337dcaf79fa02",
-          "after_sha256": "ee680cc978c7a54404c903a8956c82a759ebfce89078a631648c3f50b3e7bc44",
-          "replacement_path": "build/checkpoint-sources/ee680cc978c7a54404c903a8956c82a759ebfce89078a631648c3f50b3e7bc44.cc"
-        },
-        {
-          "path": "chrome/test/BUILD.gn",
-          "before_sha256": "261d3aa5d81c55d9897ea6392538f28b27e8c2aafddc61347ecac69162fdba95",
-          "after_sha256": "03650947ffd838772f6d0afc81ae6394d8c911205f122823ec1af538a691b6c9",
-          "replacement_path": "build/checkpoint-sources/03650947ffd838772f6d0afc81ae6394d8c911205f122823ec1af538a691b6c9.gn"
-        },
-        {
-          "path": "components/sync_preferences/common_syncable_prefs_database.cc",
-          "before_sha256": "846edad23c5de47129971d5775fb895146a0f130fe42b306585d9e5dd0d98b15",
-          "after_sha256": "17dc95f06175255801dc8bdb96b4fa82955b3d22f0567499ec72293b3e0d5e5a",
-          "replacement_path": "build/checkpoint-sources/17dc95f06175255801dc8bdb96b4fa82955b3d22f0567499ec72293b3e0d5e5a.cc"
-        }
-      ],
-      "compiled": false,
-      "runtime_accepted": false,
-      "midl_forms": {
-        "upstream_before_sha256": "0c0062cc6b73e1d0874e2a3304498f48ad1cb552d11d49eea223319051dde831",
-        "prepared_before_sha256": "501ad1740d960ab1f2afeb8278162b05163e3772edb6ea167554f67ef82ca99c",
-        "canonical_after_sha256": "f113aabeee53f6ba0fce6d364d45d294b094b656afc03e24029bf7503fb99b3a",
-        "normalization": "one exact documentation URL; actual admitted preimage recorded; unknown hashes rejected"
-      }
-    }
-  ],
-  "canvas_audio_repair": {
-    "base_commit": "b50fab73e557dcf2a8bcba78dae5a442b6f41ad3",
-    "source_updates": [
-      {
-        "path": "base/uxr_graphics_noise.cc",
-        "before_sha256": "46b903dc5b31e46523ef5dfb539ab7872e6e55f910b43c4e6f31309e4b66c6dd",
-        "after_sha256": "f7aff2c0d8e6857bea1f442295bae0b52106d4b83e3cb7bfeafcca60494cdead",
-        "replacement_path": "build/checkpoint-sources/f7aff2c0d8e6857bea1f442295bae0b52106d4b83e3cb7bfeafcca60494cdead.cc"
-      },
-      {
-        "path": "base/uxr_graphics_noise.h",
-        "before_sha256": "836c32ad538d7e77a1a5fbeed3f8da655cdaa7bfaf55efea6c157778d0ea9768",
-        "after_sha256": "6dc88616f6796d149f274963f61736d5b804d1164f0be237c1e9fc683cfbc881",
-        "replacement_path": "build/checkpoint-sources/6dc88616f6796d149f274963f61736d5b804d1164f0be237c1e9fc683cfbc881.h"
-      },
-      {
-        "path": "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h",
-        "before_sha256": "c3c0bf12f4e12e3d2623018042a227fc8019a2eea94f0728c8dd141b2d261e9b",
-        "after_sha256": "3a7adf490c7c991190a8f54f4fb18f48f54aa5ffc844beda92587bd1b18a1829",
-        "replacement_path": "build/checkpoint-sources/3a7adf490c7c991190a8f54f4fb18f48f54aa5ffc844beda92587bd1b18a1829.h"
-      },
-      {
-        "path": "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc",
-        "before_sha256": "7a07668a5ab14ea06b804ea4d1aad35499796988a2f8080b9088c43d11414fc8",
-        "after_sha256": "df8d129f6599ebcd0fed6c3c1e592b5f9a44391d3af53c71d2ba63f5c156791b",
-        "replacement_path": "build/checkpoint-sources/df8d129f6599ebcd0fed6c3c1e592b5f9a44391d3af53c71d2ba63f5c156791b.cc"
-      },
-      {
-        "path": "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc",
-        "before_sha256": "3e4a48ba1615e2d9939a537c3b51e38b695e54239f697ca4bb7ab572f6622f8a",
-        "after_sha256": "c4507b832b94c0307e0d6f641a954cb75fbf7e270097e549d126fbf8e6347d34",
-        "replacement_path": "build/checkpoint-sources/c4507b832b94c0307e0d6f641a954cb75fbf7e270097e549d126fbf8e6347d34.cc"
-      },
-      {
-        "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
-        "before_sha256": "4deed9d2c2014880c1b39d56997f5211886b9283c01ba23755fdb0b8d4136b0c",
-        "after_sha256": "788d52e632da8a3e01241d342efe7e367046c3d1bb25e05f148b2f502f9cb161",
-        "replacement_path": "build/checkpoint-sources/788d52e632da8a3e01241d342efe7e367046c3d1bb25e05f148b2f502f9cb161.cc"
-      },
-      {
-        "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h",
-        "before_sha256": "fd7e4602f467c7bc5a3be2b788bcc374c4bc2a11a30ae6f3ccbbc3c4301fae8c",
-        "after_sha256": "8883af3b0e0b837769918887fafda507e931a24e1cc2bcf539158ebb71b1feeb",
-        "replacement_path": "build/checkpoint-sources/8883af3b0e0b837769918887fafda507e931a24e1cc2bcf539158ebb71b1feeb.h"
-      },
-      {
-        "path": "third_party/blink/renderer/modules/webaudio/audio_buffer.cc",
-        "before_sha256": "2e544ee04f979e6fb455592dd6a7d3a10db1a1cf138d00f83bd341b6a81ee8e8",
-        "after_sha256": "4a95d222276691ec019491dd0328842cb70d67cd218c3032e7ba60ed0e370cbe",
-        "replacement_path": "build/checkpoint-sources/4a95d222276691ec019491dd0328842cb70d67cd218c3032e7ba60ed0e370cbe.cc"
-      },
-      {
-        "path": "third_party/blink/renderer/modules/webaudio/audio_buffer.h",
-        "before_sha256": "8c170e8ba66a670470d432a5086f3951a39b4c62f7911ae18d6ff1b93827d18c",
-        "after_sha256": "f882e1194d2a7f6461ec98069b2ff96db3fcf5b245dd4ef38ecfaa065483c389",
-        "replacement_path": "build/checkpoint-sources/f882e1194d2a7f6461ec98069b2ff96db3fcf5b245dd4ef38ecfaa065483c389.h"
-      },
-      {
-        "path": "third_party/blink/renderer/modules/webaudio/offline_audio_context.cc",
-        "before_sha256": "dc24a8bcd2f809bc2722eeaa5c11901ed6c59bffaf9681d72610b468e9ad81d3",
-        "after_sha256": "eae08fa2bdc14a91eea9087654203623a893174b3255eda31a0af5515ce6730d",
-        "replacement_path": "build/checkpoint-sources/eae08fa2bdc14a91eea9087654203623a893174b3255eda31a0af5515ce6730d.cc"
-      },
-      {
-        "path": "third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h",
-        "before_sha256": "a59e287108264d0f24682bf09e486203db33347c83c9f203f60fbcc89ac6797a",
-        "after_sha256": "6547b2061dd9dfd617d3d3a39fb18988ecff55729ff5d283ae861b98fdd90943",
-        "replacement_path": "build/checkpoint-sources/6547b2061dd9dfd617d3d3a39fb18988ecff55729ff5d283ae861b98fdd90943.h"
-      },
-      {
-        "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.cc",
-        "before_sha256": "d3b87b4d7ec4c2f533a14daee0325a474f3b119e7fb7d2ba9e48c8bf894780c4",
-        "after_sha256": "9082eb91ce3bb99379cfa03d3f7c0a85d1a3674e6304ad2ba1eb99bd6cdb5195",
-        "replacement_path": "build/checkpoint-sources/9082eb91ce3bb99379cfa03d3f7c0a85d1a3674e6304ad2ba1eb99bd6cdb5195.cc"
-      },
-      {
-        "path": "third_party/blink/renderer/platform/graphics/image_data_buffer.h",
-        "before_sha256": "fc453e41586f71f3030f3b0f80625817f408acea4a82d7fd482466c2605bf190",
-        "after_sha256": "142740af0679f9cd50828fb2ef19341e0525b625ac7ac097ac5a13097707ebab",
-        "replacement_path": "build/checkpoint-sources/142740af0679f9cd50828fb2ef19341e0525b625ac7ac097ac5a13097707ebab.h"
-      }
-    ],
-    "compiled": false,
-    "runtime_accepted": false,
-    "scope": "Preserve direct Canvas pixel inputs and native AudioBuffer edits; retain existing seeds and rendering algorithms."
-  },
-  "document_webrtc_loopback": {
-    "base_commit": "7a159416e4f35ba50e1fc5850baf5f0e483baef8",
-    "source_updates": [
-      {
-        "path": "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.cc",
-        "before_sha256": "6a193b43668b86217089f94a8febd0b00b40fea155706c3b0652a6b54092abea",
-        "after_sha256": "ec989e7dcfb4748f3455d2170a27335343791527ea70e04d480f683806ad564a",
-        "replacement_path": "build/checkpoint-sources/ec989e7dcfb4748f3455d2170a27335343791527ea70e04d480f683806ad564a.cc"
-      },
-      {
-        "path": "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h",
-        "before_sha256": "d28a1cfd8b5fe3c5b18905c846b0be286d6ee596e6f85f0e13c8eab6d51120e3",
-        "after_sha256": "4d1ebbf4c3252ee53f5f7ffc37e3ff965d5526acfd91d7b01d2c3d23fc62a172",
-        "replacement_path": "build/checkpoint-sources/4d1ebbf4c3252ee53f5f7ffc37e3ff965d5526acfd91d7b01d2c3d23fc62a172.h"
-      },
-      {
-        "path": "third_party/blink/renderer/platform/p2p/port_allocator.cc",
-        "before_sha256": "dfb41b5c2b7b513993e891728d7ecf3c7fdaaee103d6c02e1f10ec153eb19eb9",
-        "after_sha256": "5495e18ef6fe7219a240b3392db099fcc9499dba6db524df92818431db914434",
-        "replacement_path": "build/checkpoint-sources/5495e18ef6fe7219a240b3392db099fcc9499dba6db524df92818431db914434.cc"
-      },
-      {
-        "path": "third_party/blink/renderer/platform/p2p/port_allocator.h",
-        "before_sha256": "e4e8bd4d4c543d9e49583bd437420255747d276360dbf41d2fd622aaf3ec2caf",
-        "after_sha256": "cc30be6cd6f88d752bcf41ac243cde5c000737c8b1149c97d152f11d9656bbc6",
-        "replacement_path": "build/checkpoint-sources/cc30be6cd6f88d752bcf41ac243cde5c000737c8b1149c97d152f11d9656bbc6.h"
-      },
-      {
-        "path": "third_party/blink/renderer/platform/peerconnection/fingerprint_ip.h",
-        "before_sha256": "26ac8fe8d0e0ef95a3068eb2666100c74c11a888783894a94f5c8cde213de697",
-        "after_sha256": "c1acc0f7e2696930fd056252e52dae8547e09ba20bf2c5bbe3dea7b6c712b006",
-        "replacement_path": "build/checkpoint-sources/c1acc0f7e2696930fd056252e52dae8547e09ba20bf2c5bbe3dea7b6c712b006.h"
-      }
-    ],
-    "scope": "Same ExecutionContext memory transport under the existing non-proxied UDP restriction; no OS UDP or mDNS in the new path, native TURN/TCP retained. WebGPU unchanged."
-  }
+  "conflicts": [],
+  "font_loader_change": "Signed external catalog: compiled public key and bounded parser only. Preserve native collection, path/hash/size checks and native fallback.",
+  "product_stack_sha256": "9fb7b6a76faaed4a115df819fec58b9846e8774223c856207928fbb7a5ac371c",
+  "compiled": false,
+  "runtime_verified": false,
+  "installed_package_changed": false
 }

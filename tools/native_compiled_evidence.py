@@ -17,7 +17,7 @@ except ImportError:
 
 HEX = re.compile(r'[a-f0-9]{64}')
 COMMIT = re.compile(r'[a-f0-9]{40}')
-VERSION = '157.0.8103.38'
+VERSION = '157.0.8103.78'
 VARIANT = 'fingerprint-modes-win157'
 TEST_EXECUTABLE = 'native_passkey_unittests.exe'
 

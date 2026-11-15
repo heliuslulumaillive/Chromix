@@ -35,7 +35,7 @@ def product_receipt():
             'preparation_inputs': inputs}
 
 FP157 = 'fingerprint-modes-win157'
-V157 = '157.0.8103.38'
+V157 = '157.0.8103.78'
 
 
 def native_report():

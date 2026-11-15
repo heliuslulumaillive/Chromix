@@ -21,7 +21,7 @@ $restore = 'C:\security-restore'
 $upstreamCache = 'C:\security-upstream'
 $statePath = Join-Path $evidence 'stage-state.json'
 $preflight = Join-Path $evidence 'checkpoint-preflight.json'
-$version = '157.0.8103.38'
+$version = '157.0.8103.78'
 $utf8 = [Text.UTF8Encoding]::new($false)
 $seven = (Get-Command 7z.exe -ErrorAction Stop).Source
 $python = (Get-Command python.exe -ErrorAction Stop).Source
@@ -378,8 +378,8 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
     'Acquire' {
       $pins = & "$PSScriptRoot\read-platform-pins.ps1" -Repo $repo
       if ($pins.ChromiumVersion -cne $version -or
-          $pins.UngoogledCommit -cne 'de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c' -or
-          $pins.UngoogledWindowsCommit -cne 'f85bc55429c37b1c748b676b18fe79b38eee3207') { throw 'Security lane target pins differ' }
+          $pins.UngoogledCommit -cne '8c886dffc6ade39d8f7df5d64ace5a8824b455e1' -or
+          $pins.UngoogledWindowsCommit -cne '20e9a348fc616bd73a366fbd5d8881613d6c5cb0') { throw 'Security lane target pins differ' }
       if (Test-Path -LiteralPath $work) { throw 'Acquisition requires a fresh runner work path' }
       if ($Operation -in @('resume','upgrade')) {
         if (-not $SourceRun) { throw 'Checkpoint acquisition requires a numeric donor run' }
@@ -400,7 +400,7 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         Confirm-HostedCompilerPrerequisites
         if ($Operation -eq 'upstream') {
           Invoke-Owned 'exact-upstream-download' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\fetch_upstream_cache.py'),
-            '--platform','windows','--arch','x64','--destination',$upstreamCache,'--run-id','42046998774') -GitHubReadToken
+            '--platform','windows','--arch','x64','--destination',$upstreamCache,'--run-id','43476895250') -GitHubReadToken
           $download = Get-Content -LiteralPath (Join-Path $upstreamCache 'result.json') -Raw | ConvertFrom-Json
           if ($download.status -cne 'hit') { throw 'Exact 157 upstream snapshot unavailable; explicit fresh operation is required, no fallback performed.' }
         }

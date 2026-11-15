@@ -8,10 +8,10 @@ import os
 from pathlib import Path
 import re
 
-VERSION = '157.0.8103.38'
+VERSION = '157.0.8103.78'
 VARIANT = 'security-win157'
-CORE = 'de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c'
-WINDOWS = 'f85bc55429c37b1c748b676b18fe79b38eee3207'
+CORE = '8c886dffc6ade39d8f7df5d64ace5a8824b455e1'
+WINDOWS = '20e9a348fc616bd73a366fbd5d8881613d6c5cb0'
 REQUIRED_FLAGS = {'safe_browsing_mode': '1', 'is_official_build': 'true',
                   'is_debug': 'false', 'is_component_build': 'false',
                   'target_cpu': '"x64"', 'target_os': '"win"'}

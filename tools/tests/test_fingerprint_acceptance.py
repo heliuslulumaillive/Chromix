@@ -45,7 +45,7 @@ def test_windows_provenance_selects_the_authenticated_current_product(monkeypatc
     monkeypatch.setattr(audit.importlib.metadata, 'version', lambda name:'fixture-version')
     result = audit.provenance()
     assert result['patch_inputs']['selection']['profile'] == 'lite'
-    assert result['patch_inputs']['selection']['version'] == '157.0.8103.38'
+    assert result['patch_inputs']['selection']['version'] == '157.0.8103.78'
     assert len(result['patch_inputs']['patches']) == 26
 
 

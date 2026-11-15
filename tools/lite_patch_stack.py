@@ -38,8 +38,8 @@ def load(repo: Path):
                      ('windows_commit', 'UngoogledWindowsCommit')):
         if runtime[key] != pins[pin]:
             raise ValueError('Product manifest/platform pins differ: ' + key)
-    if runtime['chromium_version'] != '157.0.8103.38':
-        raise ValueError('This reviewed product stack is limited to Chromium 157.0.8103.38')
+    if runtime['chromium_version'] != '157.0.8103.78':
+        raise ValueError('This reviewed product stack is limited to Chromium 157.0.8103.78')
     paths, targets = set(), set()
     for entry in data['patches']:
         name = entry['path']
@@ -63,10 +63,11 @@ def load(repo: Path):
                 or resources.get('manifest_sha256') != digest(owned(repo, resources['manifest']).read_bytes())):
             raise ValueError('Private font resources differ from the pinned product contract')
         country = runtime.get('country_font_resources', {})
-        if (country.get('version') != 1 or country.get('manifest') != 'build/country-font-resources.json'
+        if (country.get('version') != 2 or country.get('protocol') != 'signed-external-catalog-v2'
                 or country.get('install_to_windows') is not False
-                or country.get('manifest_sha256') != digest(owned(repo, country['manifest']).read_bytes())):
-            raise ValueError('Country font resources differ from the pinned product contract')
+                or country.get('trusted_key') != 'build/font-catalog-key.json'
+                or country.get('trusted_key_sha256') != digest(owned(repo, country['trusted_key']).read_bytes())):
+            raise ValueError('External font catalog trust anchor differs from the pinned product contract')
     actual = {p.relative_to(repo).as_posix() for p in directory.glob('*.patch')}
     if not paths or actual != paths:
         raise ValueError('Unexpected or incomplete product patch inventory')
@@ -128,7 +129,10 @@ def input_hashes(repo):
              'tools/font_profile_selection_cli.mjs',
              'tools/capture_windows_font_environment.py', 'tools/capture_browser_font_installation.mjs',
              'tools/generate_windows_font_packages.py',
-             'build/private-font-packages.json', 'build/country-font-resources.json',
+             'build/private-font-packages.json', 'build/font-catalog-key.json',
+             'tools/signed_font_catalog_win.h.in',
+             'tools/tests/test_signed_font_catalog.py', 'tools/tests/test_font_catalog.mjs',
+             'tools/font_catalog.mjs',
              'tools/tests/test_country_font_resources.py', 'tools/private_font_packages_win.h.in',
              'tools/generate_private_font_packages.py', 'tools/stage_private_font_packages.py',
              'tools/tests/test_private_font_packages.py',
@@ -147,6 +151,7 @@ def input_hashes(repo):
              'build/fingerprint-modes-capabilities.json', 'build/gpu-binding-capabilities.json',
              'patches/lite-win156/retirement-manifest.json'}
     names.update(row['path'] for row in data['patches'])
+    names.update(p.relative_to(repo).as_posix() for p in owned(repo,'tools/tests/fixtures/signed-font-catalog-v2').iterdir() if p.is_file())
     names.update('tools/' + name for name in (
         'webrtc_document_loopback_runtime.mjs', 'webrtc_document_loopback_probe.js',
         'webrtc_runtime_controller.mjs', 'webrtc_network_fixtures.mjs',

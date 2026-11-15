@@ -95,7 +95,7 @@ class CheckpointTests(unittest.TestCase):
     def test_extracted_source_and_config_checked(self):
         with tempfile.TemporaryDirectory() as tmp:
             work=Path(tmp);(work/'src/out/Default').mkdir(parents=True);(work/'src/chrome').mkdir()
-            (work/'src/chrome/VERSION').write_text('MAJOR=157\nMINOR=0\nBUILD=8103\nPATCH=38\n')
+            (work/'src/chrome/VERSION').write_text('MAJOR=157\nMINOR=0\nBUILD=8103\nPATCH=78\n')
             (work/'src/out/Default/args.gn').write_bytes(b'gn')
             (work/'google-services-source.json').write_bytes(b'{}')
             m=copy.deepcopy(self.manifest)

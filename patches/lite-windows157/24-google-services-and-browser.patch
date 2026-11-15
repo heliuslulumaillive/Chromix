@@ -2547,7 +2547,7 @@ diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/
  #include "components/translate/core/browser/translate_download_manager.h"
  #include "components/translate/core/browser/translate_manager.h"
  #include "components/translate/core/browser/translate_prefs.h"
-@@ -2742,7 +2741,6 @@
+@@ -2731,7 +2730,6 @@
    }
  
    if (CanTranslate(/*menu_logging=*/true)) {

@@ -17,6 +17,8 @@
 *.json    text eol=lf
 *.go      text eol=lf
 tools/private_font_packages_win.h.in text eol=lf
+tools/signed_font_catalog_win.h.in text eol=lf
+tools/tests/fixtures/signed-font-catalog-v2/*.sig binary
 go.mod    text eol=lf
 go.sum    text eol=lf
 *.gn      text eol=lf
