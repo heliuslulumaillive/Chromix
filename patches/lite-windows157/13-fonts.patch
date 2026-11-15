@@ -454,7 +454,7 @@ diff --git a/base/uxr_private_font_packages_win.h b/base/uxr_private_font_packag
 new file mode 100644
 --- /dev/null
 +++ b/base/uxr_private_font_packages_win.h
-@@ -0,0 +1,262 @@
+@@ -0,0 +1,273 @@
 +// Copyright 2026. Read-only, process-private DirectWrite font resources.
 +#ifndef BASE_UXR_PRIVATE_FONT_PACKAGES_WIN_H_
 +#define BASE_UXR_PRIVATE_FONT_PACKAGES_WIN_H_
@@ -687,8 +687,19 @@ new file mode 100644
 +  hr = modern->CreateFontSetBuilder(&builder);
 +  if (FAILED(hr))
 +    return hr;
++  // Preserve the same native view Chromium normally uses. GetSystemFontSet()
++  // also imports compatibility/remote-backed faces absent from that view;
++  // those can hit the local-file broker's invariant during unique-name lookup.
++  Microsoft::WRL::ComPtr<IDWriteFontCollection> native_collection;
++  hr = original->GetSystemFontCollection(&native_collection);
++  if (FAILED(hr))
++    return hr;
++  Microsoft::WRL::ComPtr<IDWriteFontCollection1> native_collection1;
++  hr = native_collection.As(&native_collection1);
++  if (FAILED(hr))
++    return hr;
 +  Microsoft::WRL::ComPtr<IDWriteFontSet> system;
-+  hr = modern->GetSystemFontSet(&system);
++  hr = native_collection1->GetFontSet(&system);
 +  if (FAILED(hr))
 +    return hr;
 +  hr = builder->AddFontSet(system.Get());

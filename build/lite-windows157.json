@@ -268,7 +268,7 @@
     },
     {
       "path": "patches/lite-windows157/13-fonts.patch",
-      "sha256": "f1b304cbaf8881cb709002975d1ff9791c919d78db5860eb0451a47c50b1e2b9",
+      "sha256": "1d528c9ed69180324d46b10a89e6e9dd12fadd10e659c1f7a732f4e638cea510",
       "files": [
         "base/uxr_font_allowlist.h",
         "base/uxr_font_allowlist_tests.cc",
@@ -971,7 +971,7 @@
     {
       "path": "base/uxr_private_font_packages_win.h",
       "before_sha256": null,
-      "after_sha256": "1070a721d3985c997446077c45ae555521d287b836629bf34403c758a395c349"
+      "after_sha256": "e02c2b902623dbde93c0ec97cfc0356789863398e4b4c6d7151e2829f030a22d"
     },
     {
       "path": "base/uxr_shard_webgl_v2_properties.h",
@@ -4787,7 +4787,7 @@
     "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
     "cross_version_byte_equivalence_claimed": false
   },
-  "stack_sha256": "5f31a8eca8c128caf3940fb7e1df1349cc8f3c72491452e564175c35ff1ea700",
+  "stack_sha256": "2ce554867480ae458d26243e8f6c204c00b431c8bc7807ac003230bf4a91498f",
   "upstream_port": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",

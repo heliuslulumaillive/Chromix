@@ -27,6 +27,8 @@ int wmain(int argc,wchar_t**argv) {
   ComPtr<IDWriteFontCollection> system;
   assert(SUCCEEDED(factory->GetSystemFontCollection(&system)));
   const auto baseline=system->GetFontFamilyCount();
+  ComPtr<IDWriteFontCollection1> baseline1;assert(SUCCEEDED(system.As(&baseline1)));
+  ComPtr<IDWriteFontSet> baselineSet;assert(SUCCEEDED(baseline1->GetFontSet(&baselineSet)));
   for(const auto group:{"ja","ko","hant-hk","hant-tw"}) {
     std::shared_ptr<base::uxr_private_fonts_v1::Resources> files;
     assert(SUCCEEDED(base::uxr_private_fonts_v1::VerifyCountry(argv[1],group,&files)));
@@ -37,6 +39,25 @@ int wmain(int argc,wchar_t**argv) {
     }
     ComPtr<IDWriteFontCollection> selected;
     assert(SUCCEEDED(base::uxr_private_fonts_v1::CreateCollection(factory.Get(),files,&selected)));
+    ComPtr<IDWriteFontCollection1> selected1;assert(SUCCEEDED(selected.As(&selected1)));
+    ComPtr<IDWriteFontSet> selectedSet;assert(SUCCEEDED(selected1->GetFontSet(&selectedSet)));
+    for(UINT32 index=0;index<selectedSet->GetFontCount();++index) {
+      ComPtr<IDWriteFontFaceReference> ref;assert(SUCCEEDED(selectedSet->GetFontFaceReference(index,&ref)));
+      UINT32 oldIndex=0;BOOL inNative=FALSE;
+      assert(SUCCEEDED(baselineSet->FindFontFaceReference(ref.Get(),&oldIndex,&inNative)));
+      if(inNative)continue;
+      ComPtr<IDWriteFontFace3> face;assert(SUCCEEDED(ref->CreateFontFace(&face)));
+      UINT32 count=1;ComPtr<IDWriteFontFile> fontFile;assert(SUCCEEDED(face->GetFiles(&count,&fontFile))&&count==1);
+      ComPtr<IDWriteFontFileLoader> loader;assert(SUCCEEDED(fontFile->GetLoader(&loader)));
+      ComPtr<IDWriteLocalFontFileLoader> local;assert(SUCCEEDED(loader.As(&local)));
+    }
+    for(const auto name:{L"SitkaBanner",L"SitkaBanner-Bold",L"SitkaSmall"}) {
+      DWRITE_FONT_PROPERTY property={DWRITE_FONT_PROPERTY_ID_POSTSCRIPT_NAME,name,L""};
+      ComPtr<IDWriteFontSet> before,after;
+      assert(SUCCEEDED(baselineSet->GetMatchingFonts(&property,1,&before)));
+      assert(SUCCEEDED(selectedSet->GetMatchingFonts(&property,1,&after)));
+      assert(before->GetFontCount()==after->GetFontCount());
+    }
     for(UINT32 i=0;i<baseline;++i) {
       ComPtr<IDWriteFontFamily> family;ComPtr<IDWriteLocalizedStrings> names;
       assert(SUCCEEDED(system->GetFontFamily(i,&family)));

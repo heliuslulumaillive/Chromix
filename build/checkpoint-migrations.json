@@ -753,6 +753,39 @@
         }
       ],
       "scope": "Two-source additive country font resource loader. Select exactly one hash-pinned regional group from a shared content-addressed store; hold read-only handles and preserve the native font collection. Unknown, missing or invalid country resources use the same native US-base fallback at every DirectWrite entry. Legacy explicit experiments retain their existing failure semantics. Other source/object bytes are unchanged. No DLL or country-configuration acceptance is inherited."
+    },
+    {
+      "id": "lite157-auto-country-native-view-v2",
+      "chromium_version": "157.0.8103.38",
+      "core_commit": "de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c",
+      "windows_commit": "f85bc55429c37b1c748b676b18fe79b38eee3207",
+      "arch": "x64",
+      "source_commit": "8bcffede69c750eca78661534e296cc4a34b6ca5",
+      "source_run": "43630999220",
+      "source_stage": 1,
+      "source_recipe_sha256": "06b18db2518e4d8403e837ae9921be96a825b94802738849c240c2253a6bd0a7",
+      "target_recipe_sha256": "e220f404747e3861eb6859e86dcce2a8276c1ca64f828ff29f86a3466aeb48fc",
+      "source_preparation_sha256": "06b18db2518e4d8403e837ae9921be96a825b94802738849c240c2253a6bd0a7",
+      "target_preparation_sha256": "e220f404747e3861eb6859e86dcce2a8276c1ca64f828ff29f86a3466aeb48fc",
+      "source_aggregate_sha256": "4ce84a706957948ad72791cfa26f036830b03eafe52443e5944ae201e1b7ea67",
+      "target_aggregate_sha256": "2ce554867480ae458d26243e8f6c204c00b431c8bc7807ac003230bf4a91498f",
+      "source_patch_kind": "lite-windows157-product",
+      "target_patch_kind": "lite-windows157-product",
+      "product_source_updates": [
+        {
+          "path": "base/uxr_private_font_packages_win.h",
+          "before_sha256": "643992375bf52f1bf507f56bec0b7542b8d628333ad0cd1c140186eaf2a1e98d",
+          "after_sha256": "e02c2b902623dbde93c0ec97cfc0356789863398e4b4c6d7151e2829f030a22d",
+          "replacement_path": "build/checkpoint-sources/e02c2b902623dbde93c0ec97cfc0356789863398e4b4c6d7151e2829f030a22d.h"
+        },
+        {
+          "path": "ui/gfx/win/direct_write.cc",
+          "before_sha256": "6565bb78bb92eb6d0864048d8b54019520bec09f13efdece8de3892d1bfdf040",
+          "after_sha256": "958e819e7a8742158ce5045c17efcc6f3d106a33c89d4e1f8d42165085ef911b",
+          "replacement_path": "build/checkpoint-sources/958e819e7a8742158ce5045c17efcc6f3d106a33c89d4e1f8d42165085ef911b.cc"
+        }
+      ],
+      "scope": "Exact two-source country loader update from the retained 157 donor. Merge only the original native Windows collection font set, not the broader GetSystemFontSet view that imports compatibility/remote-backed faces. Keep original native styles, hashes, read-only lifetime and broker invariants; validate that every newly introduced face is backed by a real local file. Native and country resource admission remains pending actual DLL and interface checks. No validation is weakened."
     }
   ]
 }
