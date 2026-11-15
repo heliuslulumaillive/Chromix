@@ -786,6 +786,33 @@
         }
       ],
       "scope": "Exact two-source country loader update from the retained 157 donor. Merge only the original native Windows collection font set, not the broader GetSystemFontSet view that imports compatibility/remote-backed faces. Keep original native styles, hashes, read-only lifetime and broker invariants; validate that every newly introduced face is backed by a real local file. Native and country resource admission remains pending actual DLL and interface checks. No validation is weakened."
+    },
+    {
+      "id": "lite157-country-font-coverage-v3",
+      "chromium_version": "157.0.8103.38",
+      "core_commit": "de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c",
+      "windows_commit": "f85bc55429c37b1c748b676b18fe79b38eee3207",
+      "arch": "x64",
+      "source_commit": "3324ab1c76831cabbebd08172c40d1318dc35d19",
+      "source_run": "43675068974",
+      "source_stage": 1,
+      "source_recipe_sha256": "e220f404747e3861eb6859e86dcce2a8276c1ca64f828ff29f86a3466aeb48fc",
+      "target_recipe_sha256": "aaee48253c5d23b08e3dee191309ee68252c58e0fd50aee20426bdb17d0b9974",
+      "source_preparation_sha256": "e220f404747e3861eb6859e86dcce2a8276c1ca64f828ff29f86a3466aeb48fc",
+      "target_preparation_sha256": "aaee48253c5d23b08e3dee191309ee68252c58e0fd50aee20426bdb17d0b9974",
+      "source_aggregate_sha256": "2ce554867480ae458d26243e8f6c204c00b431c8bc7807ac003230bf4a91498f",
+      "target_aggregate_sha256": "e57d291676965e38d3ecb6e3dd85f2fcd735d3426f37726ad8eb00d58aa7d82e",
+      "source_patch_kind": "lite-windows157-product",
+      "target_patch_kind": "lite-windows157-product",
+      "product_source_updates": [
+        {
+          "path": "base/uxr_private_font_packages_win.h",
+          "before_sha256": "e02c2b902623dbde93c0ec97cfc0356789863398e4b4c6d7151e2829f030a22d",
+          "after_sha256": "94a69e74131b848edb45389933f8fc0e59e6550aa7724305773fcf1da7aa39b4",
+          "replacement_path": "build/checkpoint-sources/94a69e74131b848edb45389933f8fc0e59e6550aa7724305773fcf1da7aa39b4.h"
+        }
+      ],
+      "scope": "One-source expansion of immutable country font resource pins to CLDR-derived application supplements. Shared native-complete base, 250 country entries/25 combinations, real local open font assets, unchanged path/hash/size/read-only checks and native fallback. Not evidence of complete country Windows installations. No DLL admission or formal binding inherited."
     }
   ]
 }

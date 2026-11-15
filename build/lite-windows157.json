@@ -55,7 +55,7 @@
     "country_font_resources": {
       "version": 1,
       "manifest": "build/country-font-resources.json",
-      "manifest_sha256": "1c6a5454a9bc1545fcab2fe89e7051c62e9b72958a157f73bda8a23031698363",
+      "manifest_sha256": "96aa96bbbea1254ebad917a4576f7cdcb067ef842005fd42fd77bb2ae52fa826",
       "install_to_windows": false,
       "loading": "selected-group-only-read-locked-native-complete",
       "fallback": "US-native-base"
@@ -268,7 +268,7 @@
     },
     {
       "path": "patches/lite-windows157/13-fonts.patch",
-      "sha256": "1d528c9ed69180324d46b10a89e6e9dd12fadd10e659c1f7a732f4e638cea510",
+      "sha256": "0b8a426eb4d4997fd8e7a96c5e4dbfb9ac023c0e07a5630763b3a4408885fbc8",
       "files": [
         "base/uxr_font_allowlist.h",
         "base/uxr_font_allowlist_tests.cc",
@@ -971,7 +971,7 @@
     {
       "path": "base/uxr_private_font_packages_win.h",
       "before_sha256": null,
-      "after_sha256": "e02c2b902623dbde93c0ec97cfc0356789863398e4b4c6d7151e2829f030a22d"
+      "after_sha256": "94a69e74131b848edb45389933f8fc0e59e6550aa7724305773fcf1da7aa39b4"
     },
     {
       "path": "base/uxr_shard_webgl_v2_properties.h",
@@ -4787,7 +4787,6 @@
     "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
     "cross_version_byte_equivalence_claimed": false
   },
-  "stack_sha256": "2ce554867480ae458d26243e8f6c204c00b431c8bc7807ac003230bf4a91498f",
   "upstream_port": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",
@@ -4795,5 +4794,6 @@
     "search_engines_commit": "5dc9f1afd38a8ac2b26b1972eb4fc1bbd5754e8c",
     "source_manifest_sha256": "58b7c277b69682b708597177d558228a1ed5e810aec3da50db87c5c129fb888e",
     "review": "build/windows157-port.json"
-  }
+  },
+  "stack_sha256": "e57d291676965e38d3ecb6e3dd85f2fcd735d3426f37726ad8eb00d58aa7d82e"
 }

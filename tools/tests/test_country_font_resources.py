@@ -1,5 +1,6 @@
 """Exercise the compiled native resource helper against actual selected files."""
 import os
+import json
 from pathlib import Path
 import subprocess
 import unittest
@@ -29,16 +30,22 @@ int wmain(int argc,wchar_t**argv) {
   const auto baseline=system->GetFontFamilyCount();
   ComPtr<IDWriteFontCollection1> baseline1;assert(SUCCEEDED(system.As(&baseline1)));
   ComPtr<IDWriteFontSet> baselineSet;assert(SUCCEEDED(baseline1->GetFontSet(&baselineSet)));
-  for(const auto group:{"ja","ko","hant-hk","hant-tw"}) {
+  struct Case {const char* group;size_t fontCount;std::vector<const wchar_t*> families;};
+  for(const auto test:{/* COUNTRY_CASES */}) {
+    const auto group=test.group;
     std::shared_ptr<base::uxr_private_fonts_v1::Resources> files;
     assert(SUCCEEDED(base::uxr_private_fonts_v1::VerifyCountry(argv[1],group,&files)));
-    assert(files && files->fonts.size() == 2);
+    assert(files && files->fonts.size() == test.fontCount);
     for(const auto& font:files->fonts) {
       HANDLE writable=CreateFileW(font.c_str(),GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_EXISTING,0,nullptr);
       assert(writable==INVALID_HANDLE_VALUE);
     }
     ComPtr<IDWriteFontCollection> selected;
     assert(SUCCEEDED(base::uxr_private_fonts_v1::CreateCollection(factory.Get(),files,&selected)));
+    for(const auto name:test.families) {
+      UINT32 index=0;BOOL exists=FALSE;
+      assert(SUCCEEDED(selected->FindFamilyName(name,&index,&exists)) && exists);
+    }
     ComPtr<IDWriteFontCollection1> selected1;assert(SUCCEEDED(selected.As(&selected1)));
     ComPtr<IDWriteFontSet> selectedSet;assert(SUCCEEDED(selected1->GetFontSet(&selectedSet)));
     for(UINT32 index=0;index<selectedSet->GetFontCount();++index) {
@@ -77,6 +84,12 @@ int wmain(int argc,wchar_t**argv) {
   std::cout<<"native_inventory_unchanged_and_unknown_group_rejected\n";
 }
 '''
+        manifest=json.loads((Path(__file__).resolve().parents[2]/'build/country-font-resources.json').read_text('utf-8'))
+        cases=[]
+        for name,assets in sorted(manifest['groups'].items()):
+            families=manifest.get('groupFamilies',{}).get(name,[])
+            cases.append('Case{'+json.dumps(name)+','+str(sum(a['kind']=='font' for a in assets))+',{'+','.join('L'+json.dumps(f) for f in families)+'}}')
+        source=source.replace('/* COUNTRY_CASES */',','.join(cases))
         unit=self.root/'country-font-resources.cc'; binary=self.root/'country-font-resources.exe'
         unit.write_text(source,encoding='utf-8',newline='\n')
         result=subprocess.run([self.compiler,'-std=c++20','-O2','-I'+str(self.root),str(unit),'-o',str(binary),'-ldwrite','-lbcrypt'],env=self.env,capture_output=True,text=True,timeout=120)

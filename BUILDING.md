@@ -1,5 +1,15 @@
 # Windows product builds
 
+The country-coverage expansion on `codex/country-font-coverage-win157-20261115`
+adds 250 CLDR-derived country/territory entries sharing 25 application supplement
+combinations. All retain the native-complete font view. Pinned open fonts are
+shared by content hash; the complete store is about 183 MiB. Local compiled
+DirectWrite checks passed for all 25 combinations, including native retention,
+real local files and read-only handles. The registered hosted upgrade changes
+only `base/uxr_private_font_packages_win.h` from run `43675068974` stage 1.
+Actual rebuilt-DLL browser acceptance and DLL admission remain pending. These
+are language coverage choices, not captured Windows country installations.
+
 The additive country-resource candidate is built by `43675068974` from
 `3324ab1c76831cabbebd08172c40d1318dc35d19`; DLL SHA-256 is
 `147c98d2c0d03293239677f2a46ace142f13d635ac6ec3f0f5b75bf9973a1941`.
