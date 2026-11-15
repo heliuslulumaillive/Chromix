@@ -23,6 +23,7 @@ struct Asset {
   bool font;
 };
 // PINNED_ASSETS
+// PINNED_COUNTRY_ASSETS
 struct Resources {
   HANDLE directory = INVALID_HANDLE_VALUE;
   std::vector<HANDLE> handles;
@@ -94,8 +95,9 @@ inline bool CheckHash(HANDLE file, const Asset &asset) {
       return false;
   return true;
 }
-inline HRESULT Verify(const std::wstring &supplied,
-                      std::shared_ptr<Resources> *result) {
+inline HRESULT VerifyAssets(const std::wstring &supplied,
+                            const Asset *assets, size_t asset_count,
+                            std::shared_ptr<Resources> *result) {
   if (!result)
     return E_POINTER;
   result->reset();
@@ -130,7 +132,8 @@ inline HRESULT Verify(const std::wstring &supplied,
       !(info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ||
       (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT))
     return E_ACCESSDENIED;
-  for (const auto &asset : kAssets) {
+  for (size_t index = 0; index < asset_count; ++index) {
+    const auto &asset = assets[index];
     const auto path = root + L"\\" + asset.name;
     HANDLE file = CreateFileW(
         path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
@@ -150,6 +153,20 @@ inline HRESULT Verify(const std::wstring &supplied,
     return E_FAIL;
   *result = std::move(files);
   return S_OK;
+}
+inline HRESULT Verify(const std::wstring &supplied,
+                      std::shared_ptr<Resources> *result) {
+  return VerifyAssets(supplied, kAssets, sizeof(kAssets) / sizeof(kAssets[0]), result);
+}
+inline HRESULT VerifyCountry(const std::wstring &supplied,
+                             std::string_view group,
+                             std::shared_ptr<Resources> *result) {
+  if (!result) return E_POINTER;
+  result->reset();
+  size_t count = 0;
+  const Asset *assets = CountryAssets(group, &count);
+  if (!assets || !count) return E_INVALIDARG;
+  return VerifyAssets(supplied, assets, count, result);
 }
 inline HRESULT CreateCollection(IDWriteFactory *factory,
                                 const std::shared_ptr<Resources> &resources,

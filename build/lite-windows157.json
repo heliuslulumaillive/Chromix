@@ -51,6 +51,14 @@
       "manifest_sha256": "53263cba1087f0b942da56219d42544b539708a627f5f9eb8ed3491cceb2507d",
       "install_to_windows": false,
       "experimental_only": true
+    },
+    "country_font_resources": {
+      "version": 1,
+      "manifest": "build/country-font-resources.json",
+      "manifest_sha256": "1c6a5454a9bc1545fcab2fe89e7051c62e9b72958a157f73bda8a23031698363",
+      "install_to_windows": false,
+      "loading": "selected-group-only-read-locked-native-complete",
+      "fallback": "US-native-base"
     }
   },
   "patches": [
@@ -260,7 +268,7 @@
     },
     {
       "path": "patches/lite-windows157/13-fonts.patch",
-      "sha256": "483ce5225a854d8da30db24e23c06549b7f52eaed0a50c144d10a27f0f131a7e",
+      "sha256": "f1b304cbaf8881cb709002975d1ff9791c919d78db5860eb0451a47c50b1e2b9",
       "files": [
         "base/uxr_font_allowlist.h",
         "base/uxr_font_allowlist_tests.cc",
@@ -963,7 +971,7 @@
     {
       "path": "base/uxr_private_font_packages_win.h",
       "before_sha256": null,
-      "after_sha256": "643992375bf52f1bf507f56bec0b7542b8d628333ad0cd1c140186eaf2a1e98d"
+      "after_sha256": "1070a721d3985c997446077c45ae555521d287b836629bf34403c758a395c349"
     },
     {
       "path": "base/uxr_shard_webgl_v2_properties.h",
@@ -4223,7 +4231,7 @@
     {
       "path": "ui/gfx/win/direct_write.cc",
       "before_sha256": "8ef8fd82b4ce653e336ad5cc696503ceb0df0a3bbd86f3759732f3ed45918dad",
-      "after_sha256": "6565bb78bb92eb6d0864048d8b54019520bec09f13efdece8de3892d1bfdf040"
+      "after_sha256": "958e819e7a8742158ce5045c17efcc6f3d106a33c89d4e1f8d42165085ef911b"
     },
     {
       "path": "ui/gfx/win/direct_write.h",
@@ -4779,7 +4787,7 @@
     "baseline_stack_sha256": "446126d531dae31cdc9bf3426733502928771ce6775982d8576ab66920f3a038",
     "cross_version_byte_equivalence_claimed": false
   },
-  "stack_sha256": "4ce84a706957948ad72791cfa26f036830b03eafe52443e5944ae201e1b7ea67",
+  "stack_sha256": "5f31a8eca8c128caf3940fb7e1df1349cc8f3c72491452e564175c35ff1ea700",
   "upstream_port": {
     "chromium_commit": "a733b5afbb3ba618844ff8876b89ad1a774b2f18",
     "v8_commit": "440c1c463e2e528c309af5067952e7b11631507f",

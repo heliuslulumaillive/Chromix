@@ -1,0 +1,82 @@
+{
+  "fallback": "native-US-base-no-additional-assets",
+  "groups": {
+    "hant-hk": [
+      {
+        "file": "76098ee78ec234cd4f8c950742b3f766fea2f8b43d5180d901048f4fc86c6849.blob",
+        "kind": "font",
+        "sha256": "76098ee78ec234cd4f8c950742b3f766fea2f8b43d5180d901048f4fc86c6849",
+        "size": 11905808
+      },
+      {
+        "file": "66108860e321aa413e7cb346448b4a418b779d94ae392accb32d163c024ae661.blob",
+        "kind": "font",
+        "sha256": "66108860e321aa413e7cb346448b4a418b779d94ae392accb32d163c024ae661",
+        "size": 16828640
+      },
+      {
+        "file": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9.blob",
+        "kind": "license",
+        "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+        "size": 4388
+      }
+    ],
+    "hant-tw": [
+      {
+        "file": "864727d210d54f2537bbe23b3a839436c3992af72de9322af5270897246bd44f.blob",
+        "kind": "font",
+        "sha256": "864727d210d54f2537bbe23b3a839436c3992af72de9322af5270897246bd44f",
+        "size": 11941968
+      },
+      {
+        "file": "0077e18f57c6908f4a000969880940bdb0dad057c0e8d98b49dc364c3d1b09c6.blob",
+        "kind": "font",
+        "sha256": "0077e18f57c6908f4a000969880940bdb0dad057c0e8d98b49dc364c3d1b09c6",
+        "size": 16851596
+      },
+      {
+        "file": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9.blob",
+        "kind": "license",
+        "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+        "size": 4388
+      },
+      {
+        "file": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6.blob",
+        "kind": "license",
+        "sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6",
+        "size": 4350
+      }
+    ],
+    "ja": [
+      {
+        "file": "5113756f8a3b5d01b2211025e267c50121e3b36f465b7bbaf3cdaf4c3430bfd0.blob",
+        "kind": "font",
+        "sha256": "5113756f8a3b5d01b2211025e267c50121e3b36f465b7bbaf3cdaf4c3430bfd0",
+        "size": 9590844
+      },
+      {
+        "file": "b7e0d299a21bd2009eff27aca5e9508c75ab494de222f96bd0bbe355a8d8ced5.blob",
+        "kind": "font",
+        "sha256": "b7e0d299a21bd2009eff27aca5e9508c75ab494de222f96bd0bbe355a8d8ced5",
+        "size": 13577804
+      }
+    ],
+    "ko": [
+      {
+        "file": "018174e8cdd366aff67c8d366c7dc806a7babbe7f2819fc23b00d59f7b8353d0.blob",
+        "kind": "font",
+        "sha256": "018174e8cdd366aff67c8d366c7dc806a7babbe7f2819fc23b00d59f7b8353d0",
+        "size": 10415532
+      },
+      {
+        "file": "88bb5b81bccef54628e030c269fa803b0f4935e58b347ad1ee21ca8829540a33.blob",
+        "kind": "font",
+        "sha256": "88bb5b81bccef54628e030c269fa803b0f4935e58b347ad1ee21ca8829540a33",
+        "size": 23776888
+      }
+    ]
+  },
+  "install_to_windows": false,
+  "kind": "hash-pinned-additive-country-font-resources",
+  "schema_version": 1
+}

@@ -720,6 +720,39 @@
         }
       ],
       "scope": "Exact three-source safety correction from the compiled engineering candidate. Preserve actual Noto CJK families in all regions and all their available styles/aliases. Default Windows ShardX font visibility is native-complete; old seeded Office/Liberation experiments require a separate explicit experimental switch and cannot populate country defaults. Country selection and immutable full-installation admission live in the launcher. Private resources are optional engine fixtures, not installation evidence. No DLL admission, formal binding or country profile acceptance is inherited."
+    },
+    {
+      "id": "lite157-auto-country-font-resources-v1",
+      "chromium_version": "157.0.8103.38",
+      "core_commit": "de09e0c70c6bc1ac83d4ecdfd0e82c7e250c9a3c",
+      "windows_commit": "f85bc55429c37b1c748b676b18fe79b38eee3207",
+      "arch": "x64",
+      "source_commit": "8bcffede69c750eca78661534e296cc4a34b6ca5",
+      "source_run": "43630999220",
+      "source_stage": 1,
+      "source_recipe_sha256": "06b18db2518e4d8403e837ae9921be96a825b94802738849c240c2253a6bd0a7",
+      "target_recipe_sha256": "8e9e15a6edd509d7a31f3f546e0a39f35c31557c4ea26e810ca84c82fd56d3db",
+      "source_preparation_sha256": "06b18db2518e4d8403e837ae9921be96a825b94802738849c240c2253a6bd0a7",
+      "target_preparation_sha256": "8e9e15a6edd509d7a31f3f546e0a39f35c31557c4ea26e810ca84c82fd56d3db",
+      "source_aggregate_sha256": "4ce84a706957948ad72791cfa26f036830b03eafe52443e5944ae201e1b7ea67",
+      "target_aggregate_sha256": "5f31a8eca8c128caf3940fb7e1df1349cc8f3c72491452e564175c35ff1ea700",
+      "source_patch_kind": "lite-windows157-product",
+      "target_patch_kind": "lite-windows157-product",
+      "product_source_updates": [
+        {
+          "path": "base/uxr_private_font_packages_win.h",
+          "before_sha256": "643992375bf52f1bf507f56bec0b7542b8d628333ad0cd1c140186eaf2a1e98d",
+          "after_sha256": "1070a721d3985c997446077c45ae555521d287b836629bf34403c758a395c349",
+          "replacement_path": "build/checkpoint-sources/1070a721d3985c997446077c45ae555521d287b836629bf34403c758a395c349.h"
+        },
+        {
+          "path": "ui/gfx/win/direct_write.cc",
+          "before_sha256": "6565bb78bb92eb6d0864048d8b54019520bec09f13efdece8de3892d1bfdf040",
+          "after_sha256": "958e819e7a8742158ce5045c17efcc6f3d106a33c89d4e1f8d42165085ef911b",
+          "replacement_path": "build/checkpoint-sources/958e819e7a8742158ce5045c17efcc6f3d106a33c89d4e1f8d42165085ef911b.cc"
+        }
+      ],
+      "scope": "Two-source additive country font resource loader. Select exactly one hash-pinned regional group from a shared content-addressed store; hold read-only handles and preserve the native font collection. Unknown, missing or invalid country resources use the same native US-base fallback at every DirectWrite entry. Legacy explicit experiments retain their existing failure semantics. Other source/object bytes are unchanged. No DLL or country-configuration acceptance is inherited."
     }
   ]
 }

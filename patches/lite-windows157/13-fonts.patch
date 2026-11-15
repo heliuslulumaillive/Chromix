@@ -454,7 +454,7 @@ diff --git a/base/uxr_private_font_packages_win.h b/base/uxr_private_font_packag
 new file mode 100644
 --- /dev/null
 +++ b/base/uxr_private_font_packages_win.h
-@@ -0,0 +1,217 @@
+@@ -0,0 +1,262 @@
 +// Copyright 2026. Read-only, process-private DirectWrite font resources.
 +#ifndef BASE_UXR_PRIVATE_FONT_PACKAGES_WIN_H_
 +#define BASE_UXR_PRIVATE_FONT_PACKAGES_WIN_H_
@@ -499,6 +499,35 @@ new file mode 100644
 +  {L"Liberation-LICENSE.txt","93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b",4414ULL,false},
 +  {L"private-font-packages.json","53263cba1087f0b942da56219d42544b539708a627f5f9eb8ed3491cceb2507d",7869ULL,false},
 +};
++inline constexpr Asset kCountry_hant_hk[] = {
++  {L"76098ee78ec234cd4f8c950742b3f766fea2f8b43d5180d901048f4fc86c6849.blob","76098ee78ec234cd4f8c950742b3f766fea2f8b43d5180d901048f4fc86c6849",11905808ULL,true},
++  {L"66108860e321aa413e7cb346448b4a418b779d94ae392accb32d163c024ae661.blob","66108860e321aa413e7cb346448b4a418b779d94ae392accb32d163c024ae661",16828640ULL,true},
++  {L"1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9.blob","1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",4388ULL,false},
++};
++inline constexpr Asset kCountry_hant_tw[] = {
++  {L"864727d210d54f2537bbe23b3a839436c3992af72de9322af5270897246bd44f.blob","864727d210d54f2537bbe23b3a839436c3992af72de9322af5270897246bd44f",11941968ULL,true},
++  {L"0077e18f57c6908f4a000969880940bdb0dad057c0e8d98b49dc364c3d1b09c6.blob","0077e18f57c6908f4a000969880940bdb0dad057c0e8d98b49dc364c3d1b09c6",16851596ULL,true},
++  {L"1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9.blob","1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",4388ULL,false},
++  {L"5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6.blob","5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6",4350ULL,false},
++};
++inline constexpr Asset kCountry_ja[] = {
++  {L"5113756f8a3b5d01b2211025e267c50121e3b36f465b7bbaf3cdaf4c3430bfd0.blob","5113756f8a3b5d01b2211025e267c50121e3b36f465b7bbaf3cdaf4c3430bfd0",9590844ULL,true},
++  {L"b7e0d299a21bd2009eff27aca5e9508c75ab494de222f96bd0bbe355a8d8ced5.blob","b7e0d299a21bd2009eff27aca5e9508c75ab494de222f96bd0bbe355a8d8ced5",13577804ULL,true},
++};
++inline constexpr Asset kCountry_ko[] = {
++  {L"018174e8cdd366aff67c8d366c7dc806a7babbe7f2819fc23b00d59f7b8353d0.blob","018174e8cdd366aff67c8d366c7dc806a7babbe7f2819fc23b00d59f7b8353d0",10415532ULL,true},
++  {L"88bb5b81bccef54628e030c269fa803b0f4935e58b347ad1ee21ca8829540a33.blob","88bb5b81bccef54628e030c269fa803b0f4935e58b347ad1ee21ca8829540a33",23776888ULL,true},
++};
++inline const Asset *CountryAssets(std::string_view group, size_t *count) {
++  if (!count) return nullptr;
++  *count = 0;
++  if (group == "hant-hk") { *count = sizeof(kCountry_hant_hk)/sizeof(kCountry_hant_hk[0]); return kCountry_hant_hk; }
++  if (group == "hant-tw") { *count = sizeof(kCountry_hant_tw)/sizeof(kCountry_hant_tw[0]); return kCountry_hant_tw; }
++  if (group == "ja") { *count = sizeof(kCountry_ja)/sizeof(kCountry_ja[0]); return kCountry_ja; }
++  if (group == "ko") { *count = sizeof(kCountry_ko)/sizeof(kCountry_ko[0]); return kCountry_ko; }
++  return nullptr;
++}
++
 +struct Resources {
 +  HANDLE directory = INVALID_HANDLE_VALUE;
 +  std::vector<HANDLE> handles;
@@ -570,8 +599,9 @@ new file mode 100644
 +      return false;
 +  return true;
 +}
-+inline HRESULT Verify(const std::wstring &supplied,
-+                      std::shared_ptr<Resources> *result) {
++inline HRESULT VerifyAssets(const std::wstring &supplied,
++                            const Asset *assets, size_t asset_count,
++                            std::shared_ptr<Resources> *result) {
 +  if (!result)
 +    return E_POINTER;
 +  result->reset();
@@ -606,7 +636,8 @@ new file mode 100644
 +      !(info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ||
 +      (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT))
 +    return E_ACCESSDENIED;
-+  for (const auto &asset : kAssets) {
++  for (size_t index = 0; index < asset_count; ++index) {
++    const auto &asset = assets[index];
 +    const auto path = root + L"\\" + asset.name;
 +    HANDLE file = CreateFileW(
 +        path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
@@ -626,6 +657,20 @@ new file mode 100644
 +    return E_FAIL;
 +  *result = std::move(files);
 +  return S_OK;
++}
++inline HRESULT Verify(const std::wstring &supplied,
++                      std::shared_ptr<Resources> *result) {
++  return VerifyAssets(supplied, kAssets, sizeof(kAssets) / sizeof(kAssets[0]), result);
++}
++inline HRESULT VerifyCountry(const std::wstring &supplied,
++                             std::string_view group,
++                             std::shared_ptr<Resources> *result) {
++  if (!result) return E_POINTER;
++  result->reset();
++  size_t count = 0;
++  const Asset *assets = CountryAssets(group, &count);
++  if (!assets || !count) return E_INVALIDARG;
++  return VerifyAssets(supplied, assets, count, result);
 +}
 +inline HRESULT CreateCollection(IDWriteFactory *factory,
 +                                const std::shared_ptr<Resources> &resources,
@@ -712,7 +757,7 @@ index 83a9552..c7f154f 100644
    if (!g_sideloaded_fonts) {
      // Normal path - The DirectWrite font manager will use the system's font
      // collection with no sideloading when passed `nullptr` for the collection.
-@@ -115,6 +122,31 @@
+@@ -115,6 +122,44 @@
  }
  
  }  // anonymous namespace
@@ -726,25 +771,38 @@ index 83a9552..c7f154f 100644
 +    return S_FALSE;
 +  const auto root = base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
 +      "uxr-fonts-resources-dir");
++  const auto group = base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
++      "uxr-fonts-resource-group");
++  const bool country_resources = base::CommandLine::ForCurrentProcess()->HasSwitch(
++      "uxr-fonts-resource-group");
 +  struct CachedPrivateCollection {
 +    HRESULT result = E_FAIL;
 +    std::shared_ptr<base::uxr_private_fonts_v1::Resources> resources;
 +    Microsoft::WRL::ComPtr<IDWriteFontCollection> fonts;
-+    CachedPrivateCollection(IDWriteFactory* factory, const std::wstring& root) {
-+      result = base::uxr_private_fonts_v1::Verify(root, &resources);
++    CachedPrivateCollection(IDWriteFactory* factory, const std::wstring& root,
++                            const std::string& group, bool country_resources) {
++      result = country_resources
++          ? base::uxr_private_fonts_v1::VerifyCountry(root, group, &resources)
++          : base::uxr_private_fonts_v1::Verify(root, &resources);
 +      if (SUCCEEDED(result)) result = base::uxr_private_fonts_v1::CreateCollection(
 +          factory, resources, &fonts);
-+      if (FAILED(result)) LOG(ERROR) << "Private font resources rejected: " << result;
++      if (FAILED(result)) {
++        LOG(ERROR) << "Private font resources rejected: " << result;
++        // All font interfaces use the same native fallback for country mode.
++        // Legacy explicit resource experiments retain their failure result.
++        if (country_resources) result = S_FALSE;
++      }
 +    }
 +  };
-+  static const base::NoDestructor<CachedPrivateCollection> cache(factory, root.value());
-+  if (FAILED(cache->result)) return cache->result;
++  static const base::NoDestructor<CachedPrivateCollection> cache(
++      factory, root.value(), group, country_resources);
++  if (cache->result != S_OK) return cache->result;
 +  return cache->fonts.CopyTo(collection);
 +}
  
  void SideLoadFontForTesting(base::FilePath path) {
    if (!g_sideloaded_fonts) {
-@@ -159,7 +191,8 @@
+@@ -159,7 +204,8 @@
    bool should_use_collection = GetFontCollection(factory, &collection);
    if (g_sideloaded_fonts) {
      DCHECK(should_use_collection);

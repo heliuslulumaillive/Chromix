@@ -62,6 +62,11 @@ def load(repo: Path):
                 or resources.get('install_to_windows') is not False
                 or resources.get('manifest_sha256') != digest(owned(repo, resources['manifest']).read_bytes())):
             raise ValueError('Private font resources differ from the pinned product contract')
+        country = runtime.get('country_font_resources', {})
+        if (country.get('version') != 1 or country.get('manifest') != 'build/country-font-resources.json'
+                or country.get('install_to_windows') is not False
+                or country.get('manifest_sha256') != digest(owned(repo, country['manifest']).read_bytes())):
+            raise ValueError('Country font resources differ from the pinned product contract')
     actual = {p.relative_to(repo).as_posix() for p in directory.glob('*.patch')}
     if not paths or actual != paths:
         raise ValueError('Unexpected or incomplete product patch inventory')
@@ -123,7 +128,8 @@ def input_hashes(repo):
              'tools/font_profile_selection_cli.mjs',
              'tools/capture_windows_font_environment.py', 'tools/capture_browser_font_installation.mjs',
              'tools/generate_windows_font_packages.py',
-             'build/private-font-packages.json', 'tools/private_font_packages_win.h.in',
+             'build/private-font-packages.json', 'build/country-font-resources.json',
+             'tools/tests/test_country_font_resources.py', 'tools/private_font_packages_win.h.in',
              'tools/generate_private_font_packages.py', 'tools/stage_private_font_packages.py',
              'tools/tests/test_private_font_packages.py',
              'tools/verify_fingerprint_modes_runtime.mjs',
