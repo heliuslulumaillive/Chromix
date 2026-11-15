@@ -1,5 +1,21 @@
 # Windows product builds
 
+The additive country-resource candidate is built by `43675068974` from
+`3324ab1c76831cabbebd08172c40d1318dc35d19`; DLL SHA-256 is
+`147c98d2c0d03293239677f2a46ace142f13d635ac6ec3f0f5b75bf9973a1941`.
+It merges the original native collection's own font set with only one pinned
+regional package, rather than importing compatibility/remote-backed faces from
+GetSystemFontSet. Broker checks remain unchanged. Actual Font Access bytes,
+Window/iframe/Worker aliases and metrics, content-bound regular/bold CSS,
+repeated choice, missing/unknown-group fallback and explicit seed variation
+passed. The manager candidate defaults to auto supplement selection per launch;
+US is the native-complete base with no additional assets. This is additive
+resource loading, not admission of complete country installation profiles.
+The 12 public headed-CDP observations had Rare=false (one explicit perturbation
+was p99-p99.5), but Bot/DevTools were detected and demo raw attributes did not
+reflect the added fonts. Formal kernel installation/bindings remain unchanged.
+Local receipts: `G:/Shardxlite/tests/country-font-browser-20261114/report.html`.
+
 The `font-installation-profiles-win157-20261114` branch supersedes the engineered
 package-combination default proposal. JP/KR/US are selection entries, not font
 inventories. `windows-font-installations-v3.json` has no verified defaults until
