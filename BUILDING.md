@@ -1,5 +1,24 @@
 # Windows product builds
 
+## .38 source-controlled country font view candidate
+
+The `codex/native-font-view-win157-20261116` backport keeps explicit native mode
+unchanged. Country auto mode retains the reviewed 143 system sources and
+registered supported Terminal shared-font variants; only the CN-specific group
+includes the eight Fonts.Hans sources. Other host application fonts are excluded
+from this process-private view. No Windows fonts are installed or removed.
+Optional resource verification or DirectWrite loading failures retry only the
+verified selected native view. Required-source mismatches reject controlled
+startup; the launcher preflight reports compatibility errors before launch.
+
+The exact upgrade donor is accepted .38 run `43767199807`, stage 1 / `96173fd`.
+Only the private font helper and its common DirectWrite entry point change in
+compiled source. The reviewed transition and target identities are in
+`build/native-font-view-upgrade-plan.json`. Local native/source tests do not
+enroll a DLL. Actual hosted output, ordinary-start and font-interface acceptance,
+signed packaging and temporary deployment remain pending. The independent .78
+build is unchanged.
+
 The country-coverage expansion on `codex/country-font-coverage-win157-20261115`
 adds 250 CLDR-derived country/territory entries sharing 25 application supplement
 combinations. All retain the native-complete font view. Pinned open fonts are

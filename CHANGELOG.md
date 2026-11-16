@@ -2,6 +2,10 @@
 
 ## Unreleased — Windows 157 product build
 
+- Add a source-controlled Windows font view for country auto mode: retain reviewed core and registered inbox shared sources, select the eight Fonts.Hans files only for the CN group, and exclude unselected host application fonts. Preserve the native global collection and explicit native mode. Required-source mismatches reject controlled startup; unavailable optional additions retain the verified view. Add matching launcher preflight/data without enrolling any new DLL before actual acceptance. The .78 build remains separate and unchanged.
+- Affected implementation: the private DirectWrite helper/generator, its shared collection entry point, native source pins and CN-specific resource data. Use an exact two-source .38 checkpoint transition; no host font installation, deletion or production migration is part of this source commit.
+- Bind each reused native pin to its verified full path. If DirectWrite rejects optional additions after file verification, rebuild the selected native-only view; never return a partial addition set or the complete host collection.
+
 - Activate the exact completed-157 MIDL repair for pruned empty type libraries, with native generation and once-only declared-output invalidation. Restore the omitted native security-sync metadata and require its compiled regression; retain the frozen 156 browser inventory separately from the reviewed 157 extension.
 - Repair the observed 157 ICU API compile failure through the native locale owner. Admit only the registered run/stage and exact source replacements when preserving the completed checkpoint; unchanged sources and objects retain timestamps. Candidate acceptance remains pending.
 - Port the 26 product topics to Chromium 157.0.8103.38, including explicit sign-in failure recovery and the requested history/tab-sync default. Keep native account and policy checks.

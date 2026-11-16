@@ -21,7 +21,17 @@ def render():
   groups.append('inline constexpr Asset '+symbol+'[] = {\n'+''.join(lines)+'};\n')
   choices.append('  if (group == '+json.dumps(name)+') { *count = sizeof('+symbol+')/sizeof('+symbol+'[0]); return '+symbol+'; }\n')
  countries=''.join(groups)+'inline const Asset *CountryAssets(std::string_view group, size_t *count) {\n  if (!count) return nullptr;\n  *count = 0;\n'+''.join(choices)+'  return nullptr;\n}\n'
- return (ROOT/'tools/private_font_packages_win.h.in').read_text('utf-8').replace('// PINNED_ASSETS',entries).replace('// PINNED_COUNTRY_ASSETS',countries)
+ native=ROOT/'build/native-font-view.json'
+ native_code=''
+ if native.exists():
+  view=json.loads(native.read_text('utf8'));native_rows=[]
+  for kind,assets,package in [('kCore',view['core'],''),('kHans',view['hans'],'')]+[('kTerminal',p['fonts'],p['package']) for p in view['inboxPackages']]:
+   for asset in assets:
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+',asset['file']) or not re.fullmatch(r'[a-f0-9]{64}',asset['sha256']) or not 0<asset['size']<128*1024*1024:raise ValueError('Invalid native font source pin')
+    native_rows.append('  {{L'+json.dumps(asset['file'])+','+json.dumps(asset['sha256'])+','+str(asset['size'])+'ULL,true},NativeSourceKind::'+kind+',L'+json.dumps(package)+'},\n')
+  table='inline constexpr NativeSourcePin kNativeSourcePins[] = {\n'+''.join(native_rows)+'};\n'
+  native_code=(ROOT/'tools/native_font_view_win.h.in').read_text('utf8').replace('// PINNED_NATIVE_VIEW',table)
+ return (ROOT/'tools/private_font_packages_win.h.in').read_text('utf-8').replace('// PINNED_ASSETS',entries).replace('// PINNED_COUNTRY_ASSETS',countries).replace('// NATIVE_FONT_VIEW',native_code)
 if __name__=='__main__':
  import argparse
  p=argparse.ArgumentParser();p.add_argument('--write',action='store_true');p.add_argument('--check',action='store_true');a=p.parse_args()

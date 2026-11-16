@@ -168,6 +168,7 @@ inline HRESULT VerifyCountry(const std::wstring &supplied,
   if (!assets || !count) return E_INVALIDARG;
   return VerifyAssets(supplied, assets, count, result);
 }
+// NATIVE_FONT_VIEW
 inline HRESULT CreateCollection(IDWriteFactory *factory,
                                 const std::shared_ptr<Resources> &resources,
                                 IDWriteFontCollection **output) {

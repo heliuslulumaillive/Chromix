@@ -55,10 +55,20 @@
     "country_font_resources": {
       "version": 1,
       "manifest": "build/country-font-resources.json",
-      "manifest_sha256": "96aa96bbbea1254ebad917a4576f7cdcb067ef842005fd42fd77bb2ae52fa826",
+      "manifest_sha256": "03893cf4309707304afb84e19a0506ff2004ecb8d70a0cb92be22dbff7c6e245",
       "install_to_windows": false,
       "loading": "selected-group-only-read-locked-native-complete",
       "fallback": "US-native-base"
+    },
+    "native_font_view": {
+      "version": 1,
+      "manifest": "build/native-font-view.json",
+      "manifest_sha256": "d6db0d0fd54dcad28aa71647ff523d97c55fcd7c0dea953bd3d53a5621b1af34",
+      "core_source": "verified native system files",
+      "registered_inbox_shared_fonts": true,
+      "hans_country": "CN",
+      "fallback": "verified common view only; required-source failure rejects startup",
+      "install_to_windows": false
     }
   },
   "patches": [
@@ -268,7 +278,7 @@
     },
     {
       "path": "patches/lite-windows157/13-fonts.patch",
-      "sha256": "0b8a426eb4d4997fd8e7a96c5e4dbfb9ac023c0e07a5630763b3a4408885fbc8",
+      "sha256": "82fb4105f95a8ba20b41f9d830c4203b43d11f8ed995e08d189b99cc2256622f",
       "files": [
         "base/uxr_font_allowlist.h",
         "base/uxr_font_allowlist_tests.cc",
@@ -971,7 +981,7 @@
     {
       "path": "base/uxr_private_font_packages_win.h",
       "before_sha256": null,
-      "after_sha256": "94a69e74131b848edb45389933f8fc0e59e6550aa7724305773fcf1da7aa39b4"
+      "after_sha256": "e6f6fa4ca7554ad4a4fe4f3c1c6dd252c17ebdc535c5e3cf002507df699c0f4f"
     },
     {
       "path": "base/uxr_shard_webgl_v2_properties.h",
@@ -4231,7 +4241,7 @@
     {
       "path": "ui/gfx/win/direct_write.cc",
       "before_sha256": "8ef8fd82b4ce653e336ad5cc696503ceb0df0a3bbd86f3759732f3ed45918dad",
-      "after_sha256": "958e819e7a8742158ce5045c17efcc6f3d106a33c89d4e1f8d42165085ef911b"
+      "after_sha256": "6cb0693c8f3f515fc58189505c3140032ba7eb8f11756f67194c2d270afc489e"
     },
     {
       "path": "ui/gfx/win/direct_write.h",
@@ -4795,5 +4805,5 @@
     "source_manifest_sha256": "58b7c277b69682b708597177d558228a1ed5e810aec3da50db87c5c129fb888e",
     "review": "build/windows157-port.json"
   },
-  "stack_sha256": "e57d291676965e38d3ecb6e3dd85f2fcd735d3426f37726ad8eb00d58aa7d82e"
+  "stack_sha256": "d77ba2cfb5a6b7d3a7745a95889b3522e46f33a6adf076dab0cd2b2779e86c58"
 }

@@ -17,6 +17,7 @@
 *.json    text eol=lf
 *.go      text eol=lf
 tools/private_font_packages_win.h.in text eol=lf
+tools/native_font_view_win.h.in text eol=lf
 go.mod    text eol=lf
 go.sum    text eol=lf
 *.gn      text eol=lf

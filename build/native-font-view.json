@@ -1,0 +1,823 @@
+{
+  "schema_version": 1,
+  "kind": "source-verified-native-font-view-v1",
+  "referenceProfile": "windows11-25h2-core-x64-26200.9974-us-gb",
+  "referenceEvidenceSHA256": "7b48d4714cb06ec9e866a6076a327181895b57ab9856480c256428818b82d8a3",
+  "core": [
+    {
+      "file": "arial.ttf",
+      "sha256": "edfbd22a3d088fc2f5d7c79b8c9c732df6dc878a60f0a80be0f92a3c7a634404",
+      "size": 1045956
+    },
+    {
+      "file": "arialbd.ttf",
+      "sha256": "4d59199834e7439c67ea4949407639961060b21b173833f566eb60ac6fd8f5af",
+      "size": 990008
+    },
+    {
+      "file": "arialbi.ttf",
+      "sha256": "d68bdf8ebfe67a72e6db02b104e8062de5e75c358ba9bb7ef5d0e5c70272a1c5",
+      "size": 725204
+    },
+    {
+      "file": "ariali.ttf",
+      "sha256": "4487a06c1b8de98deb0cab2c04a876cbc8f31b7e397dc1f2b2021c0746321d7c",
+      "size": 721916
+    },
+    {
+      "file": "ariblk.ttf",
+      "sha256": "10df702864b1f89cb29ba0d6b97c04228338d16807e13e8d8c74b91aba5e5f23",
+      "size": 167592
+    },
+    {
+      "file": "bahnschrift.ttf",
+      "sha256": "eaad201da94cb323401fdb8cc760650803ddf8fd704cb9fa56317e6c69bc6fd6",
+      "size": 361564
+    },
+    {
+      "file": "calibri.ttf",
+      "sha256": "57e93ff143572bcc092c1f56202d43ddc07bb119aa104c6d7af163470fb551f6",
+      "size": 1650632
+    },
+    {
+      "file": "calibrib.ttf",
+      "sha256": "0a8296747536ead27d5f48f67e911cc3b207742b3f704e66995251d12fd422e5",
+      "size": 1615616
+    },
+    {
+      "file": "calibrii.ttf",
+      "sha256": "7f150e9eabe5db3e1b0f9469dca5c96176bc2fbb306dc9d48b7029dc69c52763",
+      "size": 1202512
+    },
+    {
+      "file": "calibril.ttf",
+      "sha256": "2db491080305b349588b9851fb6fe960eee04cd7c1097784a987287d782f0a54",
+      "size": 1441448
+    },
+    {
+      "file": "calibrili.ttf",
+      "sha256": "64ca9b15ca79927c3c4c69094bb41f78e5f0d79e9501d9d381a8794b220eead1",
+      "size": 1065868
+    },
+    {
+      "file": "calibriz.ttf",
+      "sha256": "760539bfedbe24e7853ca8a621d9cb1f3de52036c116e81aae36b33c4ab60a7c",
+      "size": 1163904
+    },
+    {
+      "file": "cambria.ttc",
+      "sha256": "84e70ccc1664482f4a960442c7a166c91a1b2cf98ff88c33cb73f79403f66d7b",
+      "size": 1792664
+    },
+    {
+      "file": "cambriab.ttf",
+      "sha256": "6685c657a7e292083e28f19bbf1a1e90509ce3e1130dbc4ed1c62ba3f9140543",
+      "size": 841440
+    },
+    {
+      "file": "cambriai.ttf",
+      "sha256": "6905f0ac846d1ec4326cd14a46cb7379204940aa293b098ee4c1a69723bbd165",
+      "size": 892620
+    },
+    {
+      "file": "cambriaz.ttf",
+      "sha256": "fa90f376ad37f308a819b341c8185f788d30a1012829278592eab45a41818d1a",
+      "size": 856672
+    },
+    {
+      "file": "Candara.ttf",
+      "sha256": "002c1e3378d02ed7dbdb3df1c94d433413a56f3f2f3aa8315a57720ee851dc45",
+      "size": 242012
+    },
+    {
+      "file": "Candarab.ttf",
+      "sha256": "ec0dce5170aaaf2cf485d4ba39d86fbba1dd1c76d9140cbf75a6b84b50fb20de",
+      "size": 250772
+    },
+    {
+      "file": "Candarai.ttf",
+      "sha256": "c165dbbc35bbf1fefae865c3e6b02404c8d182074fe04e78e221bab7d35ce3f8",
+      "size": 251156
+    },
+    {
+      "file": "Candaral.ttf",
+      "sha256": "c35742957794a81b6c73aa43d2f19e3d3d0c45a6dafbc2efcddd04ad6b3aeac8",
+      "size": 252124
+    },
+    {
+      "file": "Candarali.ttf",
+      "sha256": "ff22b2841bc0aa0664b50c9215e8440f1da4f74bedd27ab33865f63f433b2681",
+      "size": 189388
+    },
+    {
+      "file": "Candaraz.ttf",
+      "sha256": "a873581d9f0886441bd45c5e425a734e86e063ef583b9cf8081b1aa03b871f1c",
+      "size": 254676
+    },
+    {
+      "file": "comic.ttf",
+      "sha256": "fc7fbc3fb456a363f1f719b0ec62ae093c78124bb6da046006ae7e217a6b8575",
+      "size": 272612
+    },
+    {
+      "file": "comicbd.ttf",
+      "sha256": "128fdcfdfdd358e1624c15dd1f84a4d0689e59afcdefb81f8105efb2253b9c00",
+      "size": 255972
+    },
+    {
+      "file": "comici.ttf",
+      "sha256": "872cdefea79e25ff1a8a814109593c23ed66ba46f5bb843815d49e1ab4e0be3c",
+      "size": 255796
+    },
+    {
+      "file": "comicz.ttf",
+      "sha256": "36eb300a76582b7d39f3d34834ce1255f0b9b2830fb2e81485c4b85a5ff7f03b",
+      "size": 253232
+    },
+    {
+      "file": "consola.ttf",
+      "sha256": "cf00b507b3286870cc5064ebd0633c303f70b491a4af25eec2d32df413db0179",
+      "size": 453088
+    },
+    {
+      "file": "consolab.ttf",
+      "sha256": "7e8de70c92a891722bd3fbd623db005caab2bfe267e5dab5be46b95a44e0c7f1",
+      "size": 391756
+    },
+    {
+      "file": "consolai.ttf",
+      "sha256": "0b5b0484cf69ae973bd39380069f141271a4c9299b8885fa2d13f42aadbefef9",
+      "size": 461496
+    },
+    {
+      "file": "consolaz.ttf",
+      "sha256": "9bc225ec52aa8f4b88b98bb735b1908bd72c9e31a12139fafcc1bd6c86bed3b4",
+      "size": 401732
+    },
+    {
+      "file": "constan.ttf",
+      "sha256": "495577bf8ef74deab6ecc2e7acf63cd966184148f9bc2044a1068cd58501577e",
+      "size": 448376
+    },
+    {
+      "file": "constanb.ttf",
+      "sha256": "b6c66a1858370fe575629e19d53c05350738bf5105e18ceac07fe9efc9cd008d",
+      "size": 451824
+    },
+    {
+      "file": "constani.ttf",
+      "sha256": "2314a03c53506fa79525bc479ea4be9c036d1ebd86a1ffb5837ca5b43ff51f07",
+      "size": 448748
+    },
+    {
+      "file": "constanz.ttf",
+      "sha256": "9311aadcbd919746f50d222fa0215fb44266d6993221c14a196f0725fdae464f",
+      "size": 455564
+    },
+    {
+      "file": "corbel.ttf",
+      "sha256": "a183b77b655df66793639af7874828fb50f748dc4af57ae40f758156f7f34634",
+      "size": 277168
+    },
+    {
+      "file": "corbelb.ttf",
+      "sha256": "fa008372f8a94945d0daef9daf0bfb9e3fba3a25fd17f2607d47ac6861bd0303",
+      "size": 290908
+    },
+    {
+      "file": "corbeli.ttf",
+      "sha256": "9be778c9ed418770f6b5a02064d9c0b47a8fdea1137618f0bec9ac4072430a45",
+      "size": 284690
+    },
+    {
+      "file": "corbell.ttf",
+      "sha256": "0e36ddf90102e476c6739ca4c8cc18ba8309d880c12558981d2e4d42de78fc00",
+      "size": 172256
+    },
+    {
+      "file": "corbelli.ttf",
+      "sha256": "a031500bccd32b5d6e819699b774fc679c696ed4965b643d51a94eb398475550",
+      "size": 169228
+    },
+    {
+      "file": "corbelz.ttf",
+      "sha256": "588f090ae3a6d31370457312683d14ee3a5bfbdaaa0a070b7c80225b55b23e78",
+      "size": 294692
+    },
+    {
+      "file": "cour.ttf",
+      "sha256": "e4a66a0259718d0c8f4b6e14319b4803ced45afbddf3abba8b8c3e2006856206",
+      "size": 817164
+    },
+    {
+      "file": "courbd.ttf",
+      "sha256": "11e629cef937cd08f942aa1bd994a71302dbe2819c72c6d4c183a623acbb421a",
+      "size": 818292
+    },
+    {
+      "file": "courbi.ttf",
+      "sha256": "2d61f452de49b57d9ef14ce8896bc1cd2ed8285c2e9fb2e73e78a4b23f91d308",
+      "size": 593192
+    },
+    {
+      "file": "couri.ttf",
+      "sha256": "d82eeeb458f661d867f916d691fc6d3c53f8735fe4d5b04b54a5757321ee03e0",
+      "size": 682968
+    },
+    {
+      "file": "ebrima.ttf",
+      "sha256": "3c5ce79b86ef4e4dd5c61d9a976c89751fe3ec35ae15dd253f3fb0745f883ef9",
+      "size": 1022716
+    },
+    {
+      "file": "ebrimabd.ttf",
+      "sha256": "08e47df2f8c6d1e94067b4e50680b232ff29c517bc1bff0c092c69f21c7549ca",
+      "size": 1100372
+    },
+    {
+      "file": "framd.ttf",
+      "sha256": "bac844bd41f847cf138737026d41c983387a1065535c32e78aa22c48708b52ad",
+      "size": 133632
+    },
+    {
+      "file": "framdit.ttf",
+      "sha256": "df59f9ea915957b22a389d68580bf40dc5bd05822cc65b5fdcc188c706a694e7",
+      "size": 148728
+    },
+    {
+      "file": "Gabriola.ttf",
+      "sha256": "ddd852f9e43a5e81af62a3f6654324ba7553d7d66101ab848abc1bd2d626ac4b",
+      "size": 1806004
+    },
+    {
+      "file": "gadugi.ttf",
+      "sha256": "0ec2bdbfc2ba99d9fb05b6f7c511e7ab8b7c055e2d644570ad777455d6e9796d",
+      "size": 242684
+    },
+    {
+      "file": "gadugib.ttf",
+      "sha256": "c96226cba7f50e94b534a5f8ade6a54f48a03be7c73360524eda5cbce4de34b6",
+      "size": 249236
+    },
+    {
+      "file": "georgia.ttf",
+      "sha256": "38dffcaf1fac89492f7c56c600a14daf36ae42f7c21985cd4134ae113124a58f",
+      "size": 219712
+    },
+    {
+      "file": "georgiab.ttf",
+      "sha256": "72a6cd94fab6c179392075d3fb361e269cdddfad41bb7ab385fa22a37e49a900",
+      "size": 207476
+    },
+    {
+      "file": "georgiai.ttf",
+      "sha256": "d3e4bad27651d120ac8f2cea42cf4b4f077264fb243f66b3caffcfd35465f49b",
+      "size": 208444
+    },
+    {
+      "file": "georgiaz.ttf",
+      "sha256": "3f9e512f82eaf6f1b7869b82013fb79f6eaf1a41e75a0e7b96f31f35b1022ae4",
+      "size": 211780
+    },
+    {
+      "file": "himalaya.ttf",
+      "sha256": "fdec3a7efacd57913d3c14111837908ccbabea5b0b44ec62527eb73acf743afb",
+      "size": 572776
+    },
+    {
+      "file": "impact.ttf",
+      "sha256": "d8bbdb72e3f930157824b2e59677d3a912d4512c14a948e6656a2e3fb0c935ad",
+      "size": 206784
+    },
+    {
+      "file": "Inkfree.ttf",
+      "sha256": "c8ab96bc49ec1dc36936b5973fc143ca222c1a33ab27b87071a3bbc44d34ca9a",
+      "size": 198972
+    },
+    {
+      "file": "javatext.ttf",
+      "sha256": "df8d94382f73e6d2197b60653c3d55c28ab5cf127a82e65b8af4ed1b52fdc412",
+      "size": 305448
+    },
+    {
+      "file": "l_10646.ttf",
+      "sha256": "97226e81f19eff8c8fb191745748bab920472c005d3ec4e23d9a50a12c471d92",
+      "size": 309516
+    },
+    {
+      "file": "LeelaUIb.ttf",
+      "sha256": "15f58cff987dce2ca1e7740ca6001b8e4e2589ea80898fdedca26d2726979f7e",
+      "size": 324708
+    },
+    {
+      "file": "LeelawUI.ttf",
+      "sha256": "ca9a670f12d0e47c20441012a22f78ab17c1b126818e0e887ef7db6ecf5e76b4",
+      "size": 390004
+    },
+    {
+      "file": "LeelUIsl.ttf",
+      "sha256": "f7a9d979c27baad75ebcd41ea45113919576c2e56af9ffd483dd9d0ef9272a25",
+      "size": 382988
+    },
+    {
+      "file": "lucon.ttf",
+      "sha256": "2ca2cfde263fa420e8d39420f075ee9ac80bc0794272c53ac4571a88f8a075a6",
+      "size": 111108
+    },
+    {
+      "file": "malgun.ttf",
+      "sha256": "7a183cf1c6c56b9609fcc16eda8b5229fbc11758a21e669ec00343239b02192f",
+      "size": 13459196
+    },
+    {
+      "file": "malgunbd.ttf",
+      "sha256": "e8cbc0b2afcc14fb45dfb6086d5102c0b23a96e7b6e708f3122acde1b86c9082",
+      "size": 12600392
+    },
+    {
+      "file": "malgunsl.ttf",
+      "sha256": "c0ca810a242c4482594182db40f0f9d35a3d51bb2eeac750e6e867b2110eb00e",
+      "size": 5085196
+    },
+    {
+      "file": "marlett.ttf",
+      "sha256": "b7397adf2dcc24ca790348a3c26deb2122b45e5728fd25fc588de4cf5a75b469",
+      "size": 27724
+    },
+    {
+      "file": "micross.ttf",
+      "sha256": "89b42a12ea0379133fb2f4a1d1bd53058fb61e2343c1d509452d5761acc85b7a",
+      "size": 857472
+    },
+    {
+      "file": "mingliub.ttc",
+      "sha256": "8f8afdb3ec7047118f6dc51b29d395e697ee6770d0afd0cd407457e2ad6e93cb",
+      "size": 37112128
+    },
+    {
+      "file": "mmrtext.ttf",
+      "sha256": "f9b362b1e0e09880cdf71852e3cc6dd6f7babb3fb6c12019f39af2135c6233cc",
+      "size": 336912
+    },
+    {
+      "file": "mmrtextb.ttf",
+      "sha256": "a96d49aa45e2800f49734578e5f5c1eaeb142e60a1fe1a4cc4d885170be5dcfe",
+      "size": 318804
+    },
+    {
+      "file": "monbaiti.ttf",
+      "sha256": "bf15e713f2ae14f85201ad31752054b0d88adb64634d9a1f5a7bc032f981ff89",
+      "size": 579752
+    },
+    {
+      "file": "msgothic.ttc",
+      "sha256": "4bde3e6392b96910fb59094c6c1a4dbfae18fee78d0bf13dc30616837c4f95db",
+      "size": 8990160
+    },
+    {
+      "file": "msjh.ttc",
+      "sha256": "1fd5fc7046e0eea753988ee06d1a5a731df68475614e2174fbba9b4800f392ac",
+      "size": 21404172
+    },
+    {
+      "file": "msjhbd.ttc",
+      "sha256": "7d55cd4801102131d991630cea74534dcf73a9fabf4a33e54fe05dfb4f5aa790",
+      "size": 14441188
+    },
+    {
+      "file": "msjhl.ttc",
+      "sha256": "15f1162a68b5859f246d89ea62aed711b1994817c72e78e3df5d205c89c5c6e8",
+      "size": 12877764
+    },
+    {
+      "file": "msyh.ttc",
+      "sha256": "d79c55e68b1131eea0cc1c47be4f572d964f28c682e143db2ad09c1e4cb07a3f",
+      "size": 19704352
+    },
+    {
+      "file": "msyhbd.ttc",
+      "sha256": "4508821b3dffe01f0ef5e5326a3e60df705a44633858811f67b6982dce3f6ee6",
+      "size": 16883552
+    },
+    {
+      "file": "msyhl.ttc",
+      "sha256": "7e9bdf90bb5d3fe1b5975fc8ae31944b8fa674122261f92c28d4ec0b9c482fa1",
+      "size": 12189612
+    },
+    {
+      "file": "msyi.ttf",
+      "sha256": "80aef1c25135b945e9de7d09e6445c386405eb2e0ea7032d4cd00a2fe3eef0ae",
+      "size": 301180
+    },
+    {
+      "file": "mvboli.ttf",
+      "sha256": "5dfd7a4c708caeefae42cdb9540946de042beeb8c069dfde0dbc14c2fa0705ae",
+      "size": 79320
+    },
+    {
+      "file": "Nirmala.ttc",
+      "sha256": "ad02cdfc06e144ac45f318e8e5a64cbe04c7479d4beb91d25f5a319a466b1767",
+      "size": 5304988
+    },
+    {
+      "file": "ntailu.ttf",
+      "sha256": "de0b632015447f28c2db41c8e07c745cedb05ead5dbc2e73f19da14d2e5f2151",
+      "size": 74464
+    },
+    {
+      "file": "ntailub.ttf",
+      "sha256": "cfc2acbf9ae0205a0a258e564bdbf5466a4e49a95281a1d2e72690f149ec837b",
+      "size": 67168
+    },
+    {
+      "file": "pala.ttf",
+      "sha256": "e47d594e2e2bc31b28f87b6f66483d32f925843ceb002f919c7a403aca48813d",
+      "size": 472284
+    },
+    {
+      "file": "palab.ttf",
+      "sha256": "8e14668bbae03f78ed668dbe3261218881960dcd9fb80ad6c1d1dfb4226a57c3",
+      "size": 419932
+    },
+    {
+      "file": "palabi.ttf",
+      "sha256": "d0e722b91ffd5391cc2e7d6e976f274d5aee9fe0b8d0fedfffe093763e695cde",
+      "size": 335292
+    },
+    {
+      "file": "palai.ttf",
+      "sha256": "99f0af2d1941707fecda23da38bafbed5144a73a3720d773c05b9d4c445920ed",
+      "size": 413708
+    },
+    {
+      "file": "phagspa.ttf",
+      "sha256": "538949482d964e9f353a3a8d860bb3eda93b46b830f3b677e4f53eb2ff3a6e7d",
+      "size": 93720
+    },
+    {
+      "file": "phagspab.ttf",
+      "sha256": "03e4e45bb8ebb6d055a5584166cc26712bf7e746ea29cb6e548341361d31dc85",
+      "size": 97476
+    },
+    {
+      "file": "SansSerifCollection.ttf",
+      "sha256": "eb78c210d380fce7d3822b3a5ccfa808f1eb0390de6237f5460970679f393ce0",
+      "size": 3775516
+    },
+    {
+      "file": "segmdl2.ttf",
+      "sha256": "a2efc8b8e51fbd031a7142a1ade8866fa904c0c349511abc579ee53f8a926f31",
+      "size": 283820
+    },
+    {
+      "file": "SegoeIcons.ttf",
+      "sha256": "031ada497ddcc9bf3f2536efba2f4bd53f12a0dead44460a4a934b06a952dd2b",
+      "size": 472516
+    },
+    {
+      "file": "segoepr.ttf",
+      "sha256": "91046862e08fbade0bdd648e81c4efbe6a963947f8b6e32b64a28fe39073c468",
+      "size": 168404
+    },
+    {
+      "file": "segoeprb.ttf",
+      "sha256": "3cced0162ddb9e5f1e63ee1b36fd6e581c090318dce1a0af01b77f5ea9952c80",
+      "size": 167800
+    },
+    {
+      "file": "segoesc.ttf",
+      "sha256": "b24aa49a4bcb99a0ffc60cad77f00941e4b121153d8b0a519c03719d9be6004e",
+      "size": 597476
+    },
+    {
+      "file": "segoescb.ttf",
+      "sha256": "6cd482205e1390b32a2b6327e1e5039424e346172c187074eac12006bc51935e",
+      "size": 593028
+    },
+    {
+      "file": "segoeui.ttf",
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e",
+      "size": 960076
+    },
+    {
+      "file": "segoeuib.ttf",
+      "sha256": "b169e636719880976a97e94e3b1cb3dbe5f4a38eabc037bf9f2a9165154c3ad2",
+      "size": 947364
+    },
+    {
+      "file": "segoeuii.ttf",
+      "sha256": "f9feaeee8b20751c15700b4fb03571b335f52e91edece7fb7aa1ceaa6eeb0db7",
+      "size": 530916
+    },
+    {
+      "file": "segoeuil.ttf",
+      "sha256": "0dbddf9e20b2dc0facd568c877aa1155b3597c09a7ca41d00ca580af25d1cc51",
+      "size": 910408
+    },
+    {
+      "file": "segoeuisl.ttf",
+      "sha256": "288a8e3fcd0f6090881dcc469b557f55e0a85864abe1cc24330bb4f08105f69b",
+      "size": 848476
+    },
+    {
+      "file": "segoeuiz.ttf",
+      "sha256": "f2ecff1a943929f07a7b872c948b1de57fe688ac7d0bab6fc9f624c95a97dbfe",
+      "size": 542460
+    },
+    {
+      "file": "seguibl.ttf",
+      "sha256": "bdf29c9b7484c631f19d6ef436a63d15f8a1a82bc856f1a0f6906c41a097d2b1",
+      "size": 318948
+    },
+    {
+      "file": "seguibli.ttf",
+      "sha256": "6efcb158b0093bdeb6c308a93e10c2240e6510b99b756d9583cb59b7e219aaf9",
+      "size": 350732
+    },
+    {
+      "file": "seguiemj.ttf",
+      "sha256": "451df9bb5546055af625ff86aa72695df43e8e170b4c6c1316fe44e9c7a22f7c",
+      "size": 12934920
+    },
+    {
+      "file": "seguihis.ttf",
+      "sha256": "a162ceeaf701b55d11c542daf1c39c52bfaf686496505bff2eb75ca24814c136",
+      "size": 1622060
+    },
+    {
+      "file": "seguili.ttf",
+      "sha256": "07bbf002d8dccb6bf7db8e31207076bf357fe92b1e5f82a20d2c941d59ebeb96",
+      "size": 458648
+    },
+    {
+      "file": "seguisb.ttf",
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501",
+      "size": 974760
+    },
+    {
+      "file": "seguisbi.ttf",
+      "sha256": "16847ed882097cd1c0d45c63b6d75c3021f2133c64db03796f57dac198d0b2ad",
+      "size": 456372
+    },
+    {
+      "file": "seguisli.ttf",
+      "sha256": "032eb41f836c3d6fd765dc4c287ea87f7f0c392a454ffc58d7e5fbe29d1fee86",
+      "size": 465904
+    },
+    {
+      "file": "seguisym.ttf",
+      "sha256": "a4a35dcc62cd30e1a6c97b695ecef83e59d2b149e3af834f6a49f11851d56b37",
+      "size": 2514056
+    },
+    {
+      "file": "SegUIVar.ttf",
+      "sha256": "27ca1ab4bd5ad3b0404ee6a9a03b143408dbd7e5a4c9e4b2054639c03fc0f682",
+      "size": 1851000
+    },
+    {
+      "file": "simsun.ttc",
+      "sha256": "1526ac24375f51f6eb73bc2d3f8072dbe4a80a3a65217677c9d9a84f67dab2ab",
+      "size": 18316748
+    },
+    {
+      "file": "simsunb.ttf",
+      "sha256": "2a476ca00b5fbbbc12a4c5335634722b11a495ed87429284325701f1e36b596a",
+      "size": 21894056
+    },
+    {
+      "file": "SimsunExtG.ttf",
+      "sha256": "9cadcd0ab3d549446b51001d9896773d87ad012d93d842532f321eca514bffd8",
+      "size": 3549508
+    },
+    {
+      "file": "SitkaVF-Italic.ttf",
+      "sha256": "74d4b98aabe85e16cb2fa6583c93f9f17642234d030a38462c36d1bcdde65928",
+      "size": 558188
+    },
+    {
+      "file": "SitkaVF.ttf",
+      "sha256": "9f71aabf76ccc757d25e18801d6a37e45cacc8b74c8b42a19e9f36ca99eef594",
+      "size": 516124
+    },
+    {
+      "file": "sylfaen.ttf",
+      "sha256": "ac278d932d59558a76817e98051b1dae53867aa81ad83e5198b1b4c4b8066a08",
+      "size": 260108
+    },
+    {
+      "file": "symbol.ttf",
+      "sha256": "bbf1192965e5266fbf23370416337d2861fc1e8bd349def93f2994ba67382fc3",
+      "size": 69036
+    },
+    {
+      "file": "tahoma.ttf",
+      "sha256": "9af03d4ad44a3b413d92f7de48b94aa7cc8a1471a75d498406eae837f62ee1d1",
+      "size": 919260
+    },
+    {
+      "file": "tahomabd.ttf",
+      "sha256": "b16ed1a15e0cabea8d41d9f8899c253cd61ac466af5e3980d02bd0cf311c2267",
+      "size": 849284
+    },
+    {
+      "file": "taile.ttf",
+      "sha256": "f5151d081f6afea4c26464e0cd5e695f57a99209cfeea2f483c3108684660eb6",
+      "size": 67568
+    },
+    {
+      "file": "taileb.ttf",
+      "sha256": "1878842d8dbdf8489794af0bace95a956db270dfa506ddcaabf94fa827b769ac",
+      "size": 58532
+    },
+    {
+      "file": "times.ttf",
+      "sha256": "0bf1b21b27b370039b60eca23d532c3fe3fb308750d8f13816db70a6cb666804",
+      "size": 1190952
+    },
+    {
+      "file": "timesbd.ttf",
+      "sha256": "cb8f85dedb0ab01792baad20da28d26773485ac9c21e112bb5c511a8b2001eee",
+      "size": 1170312
+    },
+    {
+      "file": "timesbi.ttf",
+      "sha256": "5d78b5c66ac8e9c3fc94bd4ead792e1127f5f3faa29f768ff9b599339afe95bf",
+      "size": 904428
+    },
+    {
+      "file": "timesi.ttf",
+      "sha256": "11e6aae7436a5f2442eada66493d1767c78dde02acedc0afa6e7d0afeb0f3a14",
+      "size": 963084
+    },
+    {
+      "file": "trebuc.ttf",
+      "sha256": "fe3e8bdd64c1c9f3b9cf5189d06510c80d72cec28e03d04bffc560f77eec58d1",
+      "size": 254396
+    },
+    {
+      "file": "trebucbd.ttf",
+      "sha256": "dfcc306777a594d2815368547dd897e2ac82aff8073e55d9e682569939e49b81",
+      "size": 244124
+    },
+    {
+      "file": "trebucbi.ttf",
+      "sha256": "87942234ab0cc4400088648bef8d1f7afc4c44e676c7ed6b32ca31462c18307d",
+      "size": 225868
+    },
+    {
+      "file": "trebucit.ttf",
+      "sha256": "9c9dc0cd0fd6b1a06e8f406d04bb15a88aaf20328d3e166c12d6bc7994b781d2",
+      "size": 252224
+    },
+    {
+      "file": "verdana.ttf",
+      "sha256": "6a8481fe107ee547893c018b13dba291c2020bec3de5da6525d9ac09f6bc2105",
+      "size": 243304
+    },
+    {
+      "file": "verdanab.ttf",
+      "sha256": "f3245f5f38f61bd1ceefb0f1338a5b88a21e6220832c2f43a38bbc7e1547c36f",
+      "size": 211260
+    },
+    {
+      "file": "verdanai.ttf",
+      "sha256": "14f2ebcdaa1b77e5993a8533662e4bd3ebfe2c5771b6daafd8ccb39b2ad588b9",
+      "size": 223268
+    },
+    {
+      "file": "verdanaz.ttf",
+      "sha256": "d71f81c83ec63eaa32d36d5df7be1d9e71d3ea9150f47cebda2924923cbbf18a",
+      "size": 229800
+    },
+    {
+      "file": "webdings.ttf",
+      "sha256": "67461fabd8329d0d8ad62689cac642b34fac81c754ff9077ad211160ec62282d",
+      "size": 120560
+    },
+    {
+      "file": "wingding.ttf",
+      "sha256": "9bcd6064e3b52fa30a347edd6e82506e2ec8b1602930b423c629a82c10468a5b",
+      "size": 82180
+    },
+    {
+      "file": "YuGothB.ttc",
+      "sha256": "d923a57f781f06198167da4f58287be7ac64a954a47aff4295e078a42b4b68b2",
+      "size": 14729372
+    },
+    {
+      "file": "YuGothL.ttc",
+      "sha256": "0acf409fc61e1560ea0384f8c72bf87c6fa7282077420657979680ee21dad2a4",
+      "size": 13969876
+    },
+    {
+      "file": "YuGothM.ttc",
+      "sha256": "cb2021bbfe40b21ec564848b8d702125661594e1b4f1eb2e77fd8a98b485cf19",
+      "size": 13908392
+    },
+    {
+      "file": "YuGothR.ttc",
+      "sha256": "cd24b5617c1e26572b0a7fe7e558f7121ca42c36f7b50e8d9216ac222a1c0a93",
+      "size": 13835976
+    }
+  ],
+  "hans": [
+    {
+      "file": "Deng.ttf",
+      "sha256": "e051009b42b454352a90ae0c9b8adb58bbdbcd168768750b35bc3357510de141",
+      "size": 16324168
+    },
+    {
+      "file": "Dengb.ttf",
+      "sha256": "236df24be867e527bdf810d00eb5c38f18244e776238a9f5ca937363267a9169",
+      "size": 16450596
+    },
+    {
+      "file": "Dengl.ttf",
+      "sha256": "3ae7cf364a29b9da69eff7333decb88e577c262c5847df2510e37695e25a8395",
+      "size": 15437648
+    },
+    {
+      "file": "NotoSansSC-VF.ttf",
+      "sha256": "763146584cf0710223441356b4395e279021b0806c196614377a7a0174ae074a",
+      "size": 17773244
+    },
+    {
+      "file": "NotoSerifSC-VF.ttf",
+      "sha256": "a4aed9985a5916fbf6690456f8732a9fccd517938e353165d4142b4f11a39280",
+      "size": 25129160
+    },
+    {
+      "file": "simfang.ttf",
+      "sha256": "fb8fd25dd5ffb09951f54d2038b7a44405659dcf7db059f502a34d62e4d689ee",
+      "size": 10570564
+    },
+    {
+      "file": "simhei.ttf",
+      "sha256": "9b1959db3b3abeb7efdaec26edf7dfe871a6039de8d614af7248575207be629e",
+      "size": 9745792
+    },
+    {
+      "file": "simkai.ttf",
+      "sha256": "95b3e69321f4e55f6ecf36b29d1e31a0c1205acfde0117df6472a17494c3cbd2",
+      "size": 11779732
+    }
+  ],
+  "inboxPackages": [
+    {
+      "package": "Microsoft.WindowsTerminal_1.18.10301.0_x64__8wekyb3d8bbwe",
+      "fonts": [
+        {
+          "file": "CascadiaCode.ttf",
+          "sha256": "6cc226254720a2db059d6af4b3fdfb211ea4f0940dceeb1c6ff52c5a94a29f3b",
+          "size": 648732
+        },
+        {
+          "file": "CascadiaCodeItalic.ttf",
+          "sha256": "8f1473402e2a7e7c4fa478bb1a42ae627861d797edd4f272add4c03f8862b399",
+          "size": 443804
+        },
+        {
+          "file": "CascadiaMono.ttf",
+          "sha256": "16558423a4734fa8ffe53763ae3e6a4e6b9575d1d52cbbc8e3888b44d733f5ce",
+          "size": 624892
+        },
+        {
+          "file": "CascadiaMonoItalic.ttf",
+          "sha256": "bbedf657cfc54e85b75c84b6894834bc446ee48e4664ac6954baf1cd561addf9",
+          "size": 427072
+        }
+      ]
+    },
+    {
+      "package": "Microsoft.WindowsTerminal_1.24.12741.0_x64__8wekyb3d8bbwe",
+      "fonts": [
+        {
+          "file": "CascadiaCode.ttf",
+          "sha256": "54eae6e26961e980eb3e1ec4ee30f6d3ba7a932a2028832baceb91cc65844a65",
+          "size": 736136
+        },
+        {
+          "file": "CascadiaCodeItalic.ttf",
+          "sha256": "48e64f8d82acd86956df5f33076966eacf4d9c3ea620c9d88231fa94da117f2c",
+          "size": 540828
+        },
+        {
+          "file": "CascadiaMono.ttf",
+          "sha256": "08026f617eea315caca59898784e999f6cdb2d0c34d2040deeb042bcdc359fa2",
+          "size": 714804
+        },
+        {
+          "file": "CascadiaMonoItalic.ttf",
+          "sha256": "d9d23dfb03c6844448a24cf0337a657ac99965262874d2e6fb5b82ac0ac08c4d",
+          "size": 524380
+        }
+      ]
+    }
+  ],
+  "hansCountry": "CN",
+  "hansGroup": "hans-cn",
+  "unknownSourcePolicy": "excluded-from-controlled-view",
+  "unsupportedRequiredSourcePolicy": "reject-controlled-startup",
+  "nativeMode": "unchanged complete original collection",
+  "redistributeWindowsFontFiles": false
+}

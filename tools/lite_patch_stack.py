@@ -67,6 +67,11 @@ def load(repo: Path):
                 or country.get('install_to_windows') is not False
                 or country.get('manifest_sha256') != digest(owned(repo, country['manifest']).read_bytes())):
             raise ValueError('Country font resources differ from the pinned product contract')
+        view = runtime.get('native_font_view')
+        if view is not None and (view.get('version') != 1 or view.get('manifest') != 'build/native-font-view.json'
+                or view.get('install_to_windows') is not False
+                or view.get('manifest_sha256') != digest(owned(repo,view['manifest']).read_bytes())):
+            raise ValueError('Native font source view differs from its pinned contract')
     actual = {p.relative_to(repo).as_posix() for p in directory.glob('*.patch')}
     if not paths or actual != paths:
         raise ValueError('Unexpected or incomplete product patch inventory')
@@ -146,6 +151,9 @@ def input_hashes(repo):
              'build/native-browser-capabilities.json', 'build/native-cookie-capabilities.json',
              'build/fingerprint-modes-capabilities.json', 'build/gpu-binding-capabilities.json',
              'patches/lite-win156/retirement-manifest.json'}
+    if data['runtime'].get('native_font_view'):
+        names.update({'build/native-font-view.json','tools/native_font_view_win.h.in',
+                      'tools/tests/test_native_font_view.py'})
     names.update(row['path'] for row in data['patches'])
     names.update('tools/' + name for name in (
         'webrtc_document_loopback_runtime.mjs', 'webrtc_document_loopback_probe.js',
