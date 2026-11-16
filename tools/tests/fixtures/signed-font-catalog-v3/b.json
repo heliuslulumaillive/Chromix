@@ -1,0 +1,82 @@
+{
+  "countries": {
+    "US": "sample-a",
+    "SG": "sample-b"
+  },
+  "groups": {
+    "sample-a": [
+      {
+        "sha256": "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f",
+        "file": "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f.blob",
+        "size": 9589900,
+        "kind": "font"
+      },
+      {
+        "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+        "file": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9.blob",
+        "size": 4388,
+        "kind": "license"
+      },
+      {
+        "sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6",
+        "file": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6.blob",
+        "size": 4350,
+        "kind": "license"
+      },
+      {
+        "sha256": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b",
+        "file": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b.blob",
+        "size": 4414,
+        "kind": "license"
+      }
+    ],
+    "sample-b": [
+      {
+        "sha256": "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f",
+        "file": "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f.blob",
+        "size": 9589900,
+        "kind": "font"
+      },
+      {
+        "sha256": "2fd527ba12b6a44ec30d796d633360da0aeba6c5d4af1304ce12bb4dc15a7dfc",
+        "file": "2fd527ba12b6a44ec30d796d633360da0aeba6c5d4af1304ce12bb4dc15a7dfc.blob",
+        "size": 13574352,
+        "kind": "font"
+      },
+      {
+        "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+        "file": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9.blob",
+        "size": 4388,
+        "kind": "license"
+      },
+      {
+        "sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6",
+        "file": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6.blob",
+        "size": 4350,
+        "kind": "license"
+      },
+      {
+        "sha256": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b",
+        "file": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b.blob",
+        "size": 4414,
+        "kind": "license"
+      }
+    ]
+  },
+  "nativeView": {
+    "core": [
+      {
+        "file": "arial.ttf",
+        "sha256": "edfbd22a3d088fc2f5d7c79b8c9c732df6dc878a60f0a80be0f92a3c7a634404",
+        "size": 1045956
+      },
+      {
+        "file": "times.ttf",
+        "sha256": "0bf1b21b27b370039b60eca23d532c3fe3fb308750d8f13816db70a6cb666804",
+        "size": 1190952
+      }
+    ],
+    "inboxPackages": [],
+    "regionalGroups": {}
+  }
+}

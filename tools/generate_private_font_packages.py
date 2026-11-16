@@ -2,7 +2,7 @@
 import base64,hashlib,json,re
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-def render():
+def render(controlled=True):
  manifest=ROOT/'build/private-font-packages.json';data=json.loads(manifest.read_text('utf-8'));rows=[]
  for font,items in [(True,data['fonts']),(False,data['licenses'])]:
   for item in items:
@@ -14,7 +14,12 @@ def render():
  public=base64.b64decode(key['cngPublicBlob'],validate=True)
  if key['schemaVersion']!=2 or key['algorithm']!='ECDSA-P256-SHA256-P1363' or len(public)!=72 or hashlib.sha256(public).hexdigest()!=key['keyId']:raise ValueError('Invalid catalog trust anchor')
  anchor='inline constexpr unsigned char kCatalogPublicKey[] = {'+','.join(str(b) for b in public)+'};'
- loader=(ROOT/'tools/signed_font_catalog_win.h.in').read_text('utf-8').replace('// TRUSTED_CATALOG_PUBLIC_KEY',anchor)
+ if controlled:
+  if key.get('domain')!='ShardXFontCatalog-v3':raise ValueError('Controlled catalog requires its own signature domain')
+  decoder=(ROOT/'tools/signed_font_catalog_v3_win.h.in').read_text('utf-8').replace('// TRUSTED_CATALOG_PUBLIC_KEY',anchor)
+  loader=(ROOT/'tools/catalog_native_view_win.h.in').read_text('utf-8').replace('// SIGNED_CATALOG_V3',decoder)
+ else:
+  loader=(ROOT/'tools/signed_font_catalog_win.h.in').read_text('utf-8').replace('// TRUSTED_CATALOG_PUBLIC_KEY',anchor)
  return (ROOT/'tools/private_font_packages_win.h.in').read_text('utf-8').replace('// PINNED_ASSETS',entries).replace('// SIGNED_CATALOG_LOADER',loader)
 if __name__=='__main__':
  import argparse

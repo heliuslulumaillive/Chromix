@@ -33,7 +33,7 @@ try {
   $public=$key.Export([Security.Cryptography.CngKeyBlobFormat]::EccPublicBlob)
   if($public.Length -ne 72 -or [BitConverter]::ToUInt32($public,0) -ne 0x31534345 -or [BitConverter]::ToUInt32($public,4) -ne 32) { throw 'Unexpected P-256 public key' }
   $publicHash=([Security.Cryptography.SHA256]::Create().ComputeHash($public) | ForEach-Object {$_.ToString('x2')}) -join ''
-  $record=[ordered]@{schemaVersion=2;algorithm='ECDSA-P256-SHA256-P1363';domain='ShardXFontCatalog-v2';keyId=$publicHash;cngPublicBlob=[Convert]::ToBase64String($public)}
+  $record=[ordered]@{schemaVersion=2;algorithm='ECDSA-P256-SHA256-P1363';domain='ShardXFontCatalog-v3';keyId=$publicHash;cngPublicBlob=[Convert]::ToBase64String($public)}
   if(Test-Path -LiteralPath $PublicKeyFile) {
     $expected=[IO.File]::ReadAllText($PublicKeyFile)|ConvertFrom-Json
     if($expected.keyId -cne $publicHash -or $expected.cngPublicBlob -cne $record.cngPublicBlob -or $expected.algorithm -cne $record.algorithm) { throw 'Local signer differs from the kernel trusted public key' }
@@ -47,7 +47,12 @@ try {
   Assert-Plain $PayloadFile; Assert-Plain $SignatureFile
   $payload=[IO.File]::ReadAllBytes($PayloadFile)
   if($payload.Length -lt 18 -or $payload.Length -gt 1MB) { throw 'Catalog payload length is invalid' }
-  $prefix=[Text.Encoding]::ASCII.GetBytes("ShardXFontCatalog-v2`0")
+  $magic=[Text.Encoding]::ASCII.GetString($payload,0,8)
+  if($magic -ceq "SXFONT3`0" -and [BitConverter]::ToUInt16($payload,8) -eq 3) {
+    $prefix=[Text.Encoding]::ASCII.GetBytes("ShardXFontCatalog-v3`0")
+  } elseif($magic -ceq "SXFONT2`0" -and [BitConverter]::ToUInt16($payload,8) -eq 2) {
+    $prefix=[Text.Encoding]::ASCII.GetBytes("ShardXFontCatalog-v2`0")
+  } else { throw 'Unknown catalog protocol; refusing to sign' }
   $signed=[byte[]]::new($prefix.Length+$payload.Length)
   [Array]::Copy($prefix,0,$signed,0,$prefix.Length)
   [Array]::Copy($payload,0,$signed,$prefix.Length,$payload.Length)

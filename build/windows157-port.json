@@ -75,8 +75,8 @@
     }
   ],
   "conflicts": [],
-  "font_loader_change": "Signed external catalog: compiled public key and bounded parser only. Preserve native collection, path/hash/size checks and native fallback.",
-  "product_stack_sha256": "9fb7b6a76faaed4a115df819fec58b9846e8774223c856207928fbb7a5ac371c",
+  "font_loader_change": "Signed external source-controlled catalog v3: compiled public key and bounded protocol only. Select authenticated common/shared/regional native sources; optional additions fall back to the controlled selection, required-source or policy failures reject startup.",
+  "product_stack_sha256": "87e4b8fcd8e0d52b7052dc924f7aee9192604819d78bca9470269e6f1edb3921",
   "compiled": false,
   "runtime_verified": false,
   "installed_package_changed": false

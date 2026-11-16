@@ -35,6 +35,7 @@ class ProductTests(unittest.TestCase):
     def test_country_and_font_data_updates_do_not_change_the_kernel_recipe(self):
         inputs=stack.input_hashes(ROOT)
         self.assertNotIn('build/country-font-resources.json',inputs)
+        self.assertNotIn('build/controlled-external-font-resources.json',inputs)
         self.assertIn('build/font-catalog-key.json',inputs)
         with tempfile.TemporaryDirectory(prefix='external-font-recipe-') as temporary:
             repo=Path(temporary)
@@ -45,6 +46,14 @@ class ProductTests(unittest.TestCase):
             file.write_text('{"countries":{"US":"new-data-only-group"},"groups":{"new-data-only-group":[]}}')
             self.assertEqual(security_build_record.recipe(repo),before)
             file.write_text('{"countries":{"SG":"another-group"},"groups":{}}')
+            self.assertEqual(security_build_record.recipe(repo),before)
+            controlled=repo/'build/controlled-external-font-resources.json'
+            data=json.loads((ROOT/'build/controlled-external-font-resources.json').read_text('utf8'))
+            data['countries']['XX']=data['countries']['US']
+            controlled.write_text(json.dumps(data))
+            self.assertEqual(security_build_record.recipe(repo),before)
+            data['nativeView']['core'][0]['sha256']='1'*64
+            controlled.write_text(json.dumps(data))
             self.assertEqual(security_build_record.recipe(repo),before)
 
     def test_source_preserves_retired_absence(self):

@@ -1,0 +1,20 @@
+{
+  "profile": "ungoogled-llvm23",
+  "commit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4",
+  "bindings": {
+    "__init__.py": {
+      "sha256": "961d8ad419dc7aa10d8d7b75e5fcd624cc681403a55ce99ad14ae4fe4a7be749",
+      "bytes": 595,
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/ea7d852a70e8bdfaf601d6626a760f9771b2c4b4/clang/bindings/python/clang/__init__.py"
+    },
+    "cindex.py": {
+      "sha256": "0d572be5704bd7065420166bbe5e5b3fb5943423bd73ba6e40e4f8e9253c3f08",
+      "bytes": 151739,
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/ea7d852a70e8bdfaf601d6626a760f9771b2c4b4/clang/bindings/python/clang/cindex.py"
+    }
+  },
+  "license": {
+    "url": "https://raw.githubusercontent.com/llvm/llvm-project/ea7d852a70e8bdfaf601d6626a760f9771b2c4b4/llvm/LICENSE.TXT",
+    "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee"
+  }
+}

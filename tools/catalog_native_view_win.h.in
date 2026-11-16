@@ -1,0 +1,173 @@
+// Signed source selections; country mappings and concrete source pins stay external.
+enum class NativeSourceKind { kCore, kRegional, kShared };
+struct NativeSourcePin {
+  std::wstring name;
+  std::string hash;
+  uint64_t size = 0;
+  NativeSourceKind kind = NativeSourceKind::kCore;
+  std::wstring package;
+  Asset GetAsset() const { return {name.c_str(), hash, size, true}; }
+};
+// SIGNED_CATALOG_V3
+
+struct NativeViewSnapshot {
+  std::vector<HANDLE> handles;
+  std::vector<std::wstring> paths;
+  std::vector<size_t> pins;
+  bool additions_rejected = false;
+  ~NativeViewSnapshot() { for (HANDLE handle : handles) CloseHandle(handle); }
+};
+inline bool SameNativePath(std::wstring_view a, std::wstring_view b) {
+  return a.size() == b.size() &&
+      CompareStringOrdinal(a.data(), static_cast<int>(a.size()), b.data(),
+                           static_cast<int>(b.size()), TRUE) == CSTR_EQUAL;
+}
+inline std::wstring_view NativeLeaf(std::wstring_view path) {
+  const auto at = path.find_last_of(L"\\/");
+  return at == std::wstring_view::npos ? path : path.substr(at + 1);
+}
+inline std::wstring_view NativeParent(std::wstring_view path) {
+  const auto at = path.find_last_of(L"\\/");
+  return at == std::wstring_view::npos ? std::wstring_view() : path.substr(0, at);
+}
+inline HRESULT NativeFontPath(IDWriteFontFaceReference* reference,
+                              std::wstring* path) {
+  if (!reference || !path) return E_POINTER;
+  Microsoft::WRL::ComPtr<IDWriteFontFace3> face;
+  HRESULT hr = reference->CreateFontFace(&face);
+  if (FAILED(hr)) return hr;
+  UINT32 count = 1;
+  Microsoft::WRL::ComPtr<IDWriteFontFile> file;
+  hr = face->GetFiles(&count, &file);
+  if (FAILED(hr) || count != 1) return DWRITE_E_FILEFORMAT;
+  Microsoft::WRL::ComPtr<IDWriteFontFileLoader> loader;
+  Microsoft::WRL::ComPtr<IDWriteLocalFontFileLoader> local;
+  const void* key = nullptr;
+  UINT32 key_size = 0, length = 0;
+  if (FAILED(hr = file->GetLoader(&loader)) ||
+      FAILED(hr = loader.As(&local)) ||
+      FAILED(hr = file->GetReferenceKey(&key, &key_size)) ||
+      FAILED(hr = local->GetFilePathLengthFromKey(key, key_size, &length)))
+    return hr;
+  if (!length || length > 32766) return E_INVALIDARG;
+  std::vector<wchar_t> buffer(length + 1);
+  hr = local->GetFilePathFromKey(key, key_size, buffer.data(), length + 1);
+  if (SUCCEEDED(hr)) path->assign(buffer.data(), length);
+  return hr;
+}
+inline HRESULT CreateControlledCollection(
+    IDWriteFactory* factory, const std::vector<NativeSourcePin>& source_pins,
+    const std::shared_ptr<Resources>& additions,
+    std::shared_ptr<NativeViewSnapshot>* retained,
+    IDWriteFontCollection** output) {
+  if (!factory || !retained || !output) return E_POINTER;
+  retained->reset(); *output = nullptr;
+  wchar_t windows_path[MAX_PATH + 1] = {};
+  const UINT windows_length = GetWindowsDirectoryW(windows_path, MAX_PATH + 1);
+  if (!windows_length || windows_length > MAX_PATH) return E_FAIL;
+  const std::wstring system_root = std::wstring(windows_path) + L"\\Fonts";
+  Microsoft::WRL::ComPtr<IDWriteFactory> original(factory);
+  Microsoft::WRL::ComPtr<IDWriteFactory5> modern;
+  HRESULT hr = original.As(&modern);
+  if (FAILED(hr)) return hr;
+  Microsoft::WRL::ComPtr<IDWriteFontCollection> native;
+  Microsoft::WRL::ComPtr<IDWriteFontCollection1> native1;
+  Microsoft::WRL::ComPtr<IDWriteFontSet> native_set;
+  if (FAILED(hr = original->GetSystemFontCollection(&native)) ||
+      FAILED(hr = native.As(&native1)) ||
+      FAILED(hr = native1->GetFontSet(&native_set))) return hr;
+  if (!native_set || native_set->GetFontCount() > 32768) return E_FAIL;
+  Microsoft::WRL::ComPtr<IDWriteFontSetBuilder1> builder;
+  if (FAILED(hr = modern->CreateFontSetBuilder(&builder))) return hr;
+  const size_t count = source_pins.size();
+  if (!count || count > 1024) return E_INVALIDARG;
+  std::vector<bool> seen(count, false);
+  std::vector<std::wstring> verified_paths(count);
+  auto snapshot = std::make_shared<NativeViewSnapshot>();
+  for (UINT32 index = 0; index < native_set->GetFontCount(); ++index) {
+    Microsoft::WRL::ComPtr<IDWriteFontFaceReference> reference;
+    std::wstring path;
+    if (FAILED(native_set->GetFontFaceReference(index, &reference)) ||
+        FAILED(NativeFontPath(reference.Get(), &path))) continue;
+    const auto leaf = NativeLeaf(path);
+    const auto parent = NativeParent(path);
+    const auto package = NativeLeaf(parent);
+    size_t selected = count;
+    for (size_t pin = 0; pin < count; ++pin) {
+      const auto& allowed = source_pins[pin];
+      if (!SameNativePath(leaf, allowed.name)) continue;
+      if (allowed.kind == NativeSourceKind::kShared) {
+        if (!SameNativePath(package, allowed.package) ||
+            !SameNativePath(NativeLeaf(NativeParent(parent)), L"WindowsApps"))
+          continue;
+      } else if (!SameNativePath(parent, system_root)) {
+        continue;
+      }
+      selected = pin; break;
+    }
+    // Registered inbox shared sources must not silently disappear after a Store
+    // update. A new package version needs another reviewed data variant.
+    if (selected == count && SameNativePath(NativeLeaf(NativeParent(parent)), L"WindowsApps")) {
+      for (const auto& pin : source_pins) {
+        if (pin.kind != NativeSourceKind::kShared) continue;
+        const auto split = pin.package.find(L'_');
+        if (split == std::wstring::npos) return E_INVALIDARG;
+        const auto prefix = std::wstring_view(pin.package).substr(0, split + 1);
+        if (package.size() > prefix.size() && SameNativePath(package.substr(0, prefix.size()), prefix))
+          return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+      }
+    }
+    if (selected == count) continue;
+    if (!seen[selected]) {
+      HANDLE handle = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ,
+          nullptr, OPEN_EXISTING,
+          FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+      if (handle == INVALID_HANDLE_VALUE) return HRESULT_FROM_WIN32(GetLastError());
+      snapshot->handles.push_back(handle);
+      BY_HANDLE_FILE_INFORMATION info;
+      if (!GetFileInformationByHandle(handle, &info) ||
+          (info.dwFileAttributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) ||
+          !CheckHash(handle, source_pins[selected].GetAsset()))
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+      snapshot->paths.push_back(path); snapshot->pins.push_back(selected);
+      verified_paths[selected] = path;
+      seen[selected] = true;
+    } else if (!SameNativePath(path, verified_paths[selected])) {
+      // A pin does not authorize another physical pathname. Every reference
+      // added below must use the exact source that was hashed and retained.
+      return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    }
+    // Preserve native named instances, simulations, TTC face indices and axes.
+    if (FAILED(hr = builder->AddFontFaceReference(reference.Get()))) return hr;
+  }
+  for (size_t pin = 0; pin < count; ++pin) {
+    const auto kind = source_pins[pin].kind;
+    if ((kind != NativeSourceKind::kShared) && !seen[pin])
+      return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    if (kind != NativeSourceKind::kShared || !seen[pin]) continue;
+    // A registered supported package retains its complete reviewed source set.
+    for (size_t other = 0; other < count; ++other)
+      if (source_pins[other].kind == NativeSourceKind::kShared &&
+          SameNativePath(source_pins[other].package, source_pins[pin].package) &&
+          !seen[other]) return E_FAIL;
+  }
+  const auto retry_without_additions = [&]() -> HRESULT {
+    const HRESULT retry = CreateControlledCollection(
+        factory, source_pins, nullptr, retained, output);
+    if (SUCCEEDED(retry) && *retained) (*retained)->additions_rejected = true;
+    return retry;
+  };
+  if (additions) for (const auto& path : additions->fonts) {
+    Microsoft::WRL::ComPtr<IDWriteFontFile> file;
+    if (FAILED(hr = modern->CreateFontFileReference(path.c_str(), nullptr, &file)) ||
+        FAILED(hr = builder->AddFontFile(file.Get()))) return retry_without_additions();
+  }
+  Microsoft::WRL::ComPtr<IDWriteFontSet> set;
+  Microsoft::WRL::ComPtr<IDWriteFontCollection1> collection;
+  if (FAILED(hr = builder->CreateFontSet(&set)) ||
+      FAILED(hr = modern->CreateFontCollectionFromFontSet(set.Get(), &collection)))
+    return additions && !additions->fonts.empty() ? retry_without_additions() : hr;
+  hr = collection.CopyTo(output);
+  if (SUCCEEDED(hr)) *retained = std::move(snapshot);
+  return hr;
+}

@@ -17,6 +17,19 @@ FILES = {"__init__.py": b"# pinned LLVM package\n", "cindex.py": b"# pinned cind
 HASHES = {name: hashlib.sha256(data).hexdigest() for name, data in FILES.items()}
 
 
+class RepositoryBindingsCacheTest(unittest.TestCase):
+    def test_all_supported_profiles_have_exact_offline_code_and_license_receipts(self):
+        for profile in bindings.LLVM_PROFILES:
+            with self.subTest(profile=profile), bindings.llvm_profile(profile):
+                root = bindings.REPOSITORY_PACKAGE_CACHE / bindings.LLVM_COMMIT
+                files = bindings.read_package(root / 'clang')
+                record = json.loads((root / 'provenance.json').read_text('utf8'))
+                self.assertEqual(record['profile'], profile)
+                self.assertEqual(record['commit'], bindings.LLVM_COMMIT)
+                self.assertEqual({name: record['bindings'][name]['sha256'] for name in files}, bindings.HASHES)
+                self.assertEqual(hashlib.sha256((root / 'LICENSE.TXT').read_bytes()).hexdigest(), record['license']['sha256'])
+
+
 def pe_dll(machine=bindings.AMD64):
     data = bytearray(240)
     data[:2] = b"MZ"
@@ -32,6 +45,9 @@ class WindowsMetagenBindingsTest(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name).resolve()
+        cache_patch = mock.patch.object(bindings, 'REPOSITORY_PACKAGE_CACHE', self.root / 'repository-cache')
+        cache_patch.start()
+        self.addCleanup(cache_patch.stop)
         self.src = self.root / "source cache/src"
         self.out = self.src / "out/Default"
         self.out.mkdir(parents=True)
@@ -156,6 +172,14 @@ class WindowsMetagenBindingsTest(unittest.TestCase):
             fetch.assert_not_called()
         self.assertFalse(self.site.exists())
 
+    def test_verified_repository_cache_is_used_offline_on_the_first_runner(self):
+        cached = bindings.REPOSITORY_PACKAGE_CACHE / bindings.LLVM_COMMIT / 'clang'
+        self.package(cached)
+        with mock.patch.object(bindings, 'fetch_package', side_effect=AssertionError('network after large transfer')):
+            self.assertEqual(bindings.provision(self.src, self.site, download=False), str(cached))
+        self.assertEqual(bindings.read_package(self.site / 'clang'), FILES)
+        self.assertEqual(bindings.read_package(self.src / bindings.SOURCE_PACKAGES[0]), FILES)
+
     def test_missing_package_uses_only_pinned_python_files(self):
         with mock.patch.object(bindings, "fetch_package", return_value=FILES):
             self.assertIn(bindings.LLVM_COMMIT, bindings.provision(self.src, self.site, download=True))
@@ -181,6 +205,37 @@ class WindowsMetagenBindingsTest(unittest.TestCase):
         self.assertEqual(len(urls), 2)
         with self.assertRaisesRegex(ValueError, 'redirects'):
             bindings.NoRedirect().redirect_request(None, None, 302, '', {}, 'https://elsewhere')
+
+    def test_verified_download_survives_a_fresh_runner_without_network(self):
+        with mock.patch.object(bindings, 'fetch_package', return_value=FILES) as fetch:
+            bindings.provision(self.src, self.site, download=True)
+            fetch.assert_called_once()
+        cached = self.src / bindings.SOURCE_PACKAGES[0]
+        before = {p: p.stat().st_mtime_ns for p in cached.iterdir()}
+        with mock.patch.object(bindings, 'fetch_package', side_effect=AssertionError('network repeated')):
+            bindings.provision(self.src, self.root / 'next runner/site-packages', download=True)
+        self.assertEqual(before, {p: p.stat().st_mtime_ns for p in before})
+        self.assertEqual(bindings.read_package(cached), FILES)
+
+    def test_rate_limit_retries_only_the_same_pinned_url(self):
+        opener = mock.Mock()
+        response = mock.MagicMock()
+        response.__enter__.return_value = response
+        response.status = 200
+        first = f'https://raw.githubusercontent.com/llvm/llvm-project/{bindings.LLVM_COMMIT}/clang/bindings/python/clang/__init__.py'
+        calls = []
+        def fetch(url, timeout):
+            calls.append(url)
+            if len(calls) == 1:
+                raise bindings.urllib.error.HTTPError(url, 429, 'limited', {}, None)
+            response.geturl.return_value = url
+            response.read.return_value = FILES[url.rsplit('/', 1)[1]]
+            return response
+        opener.open.side_effect = fetch
+        with mock.patch.object(bindings.urllib.request, 'build_opener', return_value=opener), mock.patch.object(bindings.time, 'sleep') as sleep:
+            self.assertEqual(bindings.fetch_package(), FILES)
+            sleep.assert_called_once_with(2)
+        self.assertEqual(calls[:2], [first, first])
 
     def test_hash_mismatch_fails_before_writes(self):
         with mock.patch.object(bindings, "fetch_package", return_value=dict(FILES, **{"cindex.py": b"bad"})):

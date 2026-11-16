@@ -1,35 +1,52 @@
 # Windows product builds
 
-## 157.0.8103.78 / signed external font catalog v2
+## 157.0.8103.78 / signed source-controlled catalog v3 (candidate)
 
-This branch starts from successful upstream x64 run `43476895250`, Windows
-commit `20e9a348fc616bd73a366fbd5d8881613d6c5cb0` and core
-`8c886dffc6ade39d8f7df5d64ace5a8824b455e1`. Use the existing hosted `upstream`
-operation, which admits artifact `14150905341` before transfer. Never resume a
-.38 checkpoint into .78. Selected-source review preserved all nine changed
-upstream files; raw/substituted replay and warm preparation passed for 678 files.
+This candidate combines the external catalog loader with the source boundary
+verified by the .38 backport (`ca743abb`, actual DLL `cb9dee64300a6eb379cbe4e64d0942a448f427bebe74b2510d638e889228c586`).
+The .78 implementation compiles only the public trust anchor and bounded
+protocol. Country maps, common native source pins, supported registered shared
+package variants, regional native sources and open-font additions stay in
+external signed data. Editing that data does not trigger a kernel build.
 
-Country/font data is now external: edit `build/country-font-resources.json`, then
-run `python -m tools.font_catalog --manifest <json> --store <absolute-font-root>
---version <release-id> --public-key <absolute-font-catalog-key.json>
---powershell <absolute-powershell.exe> --activate`. The publisher verifies assets,
-signs an immutable `catalogs/<payload-SHA256>` generation and atomically updates
-`current.json`, retaining `previous.json`. Existing valid signatures and bytes
-are reused. Fonts remain shared SHA256 objects, not per-profile copies.
+The current reviewed data has 250 country/territory entries and 25 groups.
+The 143 common Windows sources and supported registered Terminal sources are
+retained; only CN selects the eight Fonts.Hans sources. Windows-provided
+SimSun/YaHei and other verified shared Asian foundations remain common. Other
+host app/custom sources are excluded from automatic mode; explicit native mode
+continues to use the complete original collection. Windows fonts are read from
+legitimate installed sources and are not redistributed or installed by this tool.
+The present source profile is the reviewed Windows 11 25H2 x64 26200.9974 set;
+other OS/source versions need reviewed data variants and actual acceptance.
 
-The private signing key stays non-exportable in the current user's Windows CNG
-store; only its public anchor ships. The kernel verifies ECDSA P-256/SHA256,
-bounded catalogue structure, content-addressed paths, asset sizes/hashes and
-read-only lifetimes, then merges with the original complete native collection.
-Unknown countries/groups, invalid catalogues/signatures, missing/altered assets
-or collection failures retain native fonts. Kernel/runtime integrity failures
-remain launch failures. Each browser keeps one immutable generation until exit.
+Publish a data-only update with the existing current-user non-exportable CNG
+signer (historical key name `ShardX Lite Font Catalog v2`, key identity unchanged):
 
-Country, combination and asset updates do not enter the kernel recipe. Key
-rotation, protocol or loader-capability changes still require a reviewed build.
-Local CNG/DirectWrite and Node checks passed, including a new country/group/font
-loaded by the same compiled helper. Actual rebuilt-DLL browser acceptance and
-precise DLL admission are pending; no formal kernel/profile binding is changed.
+```
+python -m tools.font_catalog_v3 --manifest build/controlled-external-font-resources.json --store <absolute-font-root> --version <release-id> --public-key <absolute-font-catalog-key.json> --powershell <absolute-powershell.exe> --activate
+```
+
+Every selected native source and resource is independently authenticated by the
+kernel; real named faces, axes, styles and read-only lifetime are preserved.
+Unknown countries use the valid catalog's US group. Unknown raw groups retain only its authenticated controlled native sources, without optional additions. Missing or corrupt optional
+additions retain only the selected controlled native view. A missing/invalid
+catalog or required native source mismatch rejects controlled
+startup, never exposes the complete host collection. The launcher preflight
+provides compatibility errors before normal browser launch. Each running
+browser keeps its own immutable signed generation; publication affects later
+launches only. Key rotation, protocol or native loader changes still require a
+kernel build, whereas country/font/source data changes within this protocol do
+not. Old signed generations support explicit rollback.
+
+The original .78 run `43775379956` / `d9727f1` retained a resume-safe stage-4
+checkpoint after an HTTP 429 during metagen bindings provisioning; it did not
+deliver an accepted DLL. Completed work was 28,402 of 52,406 actions. The new
+candidate will use an exact two-source reviewed migration from that checkpoint;
+no .38 objects or relaxed checks are used. Verified LLVM Python bindings now
+persist inside the source/toolchain checkpoint, and transient HTTP responses
+have bounded retries. Actual rebuilt .78 DLL/browser acceptance and enrollment
+remain pending. Local v3 CNG/parser, all 25 controlled DirectWrite groups,
+required-source rejection and optional-addition fallback have passed.
 
 ## Prior .38 work and evidence
 

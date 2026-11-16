@@ -23,6 +23,14 @@ def expression(text, event, inputs):
 
 
 class ProductEntrypointTest(unittest.TestCase):
+    def test_country_and_source_selection_data_do_not_require_kernel_builds(self):
+        from tools.lite_patch_stack import input_hashes
+        patterns = load('security-win157.yml')['on']['push']['paths']
+        inputs = input_hashes(ROOT)
+        for name in ['build/country-font-resources.json', 'build/controlled-external-font-resources.json']:
+            self.assertNotIn(name, inputs)
+            self.assertFalse(any(fnmatch.fnmatchcase(name, p) for p in patterns), name)
+
     def test_all_active_payload_inputs_trigger_the_current_product_build(self):
         from tools.lite_patch_stack import input_hashes
         patterns = load('security-win157.yml')['on']['push']['paths']

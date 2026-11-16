@@ -1,0 +1,20 @@
+{
+  "profile": "chromium-llvm24-62397f8b",
+  "commit": "62397f8b3c3986f54187ce08f00b3448ea1f8880",
+  "bindings": {
+    "__init__.py": {
+      "sha256": "961d8ad419dc7aa10d8d7b75e5fcd624cc681403a55ce99ad14ae4fe4a7be749",
+      "bytes": 595,
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/62397f8b3c3986f54187ce08f00b3448ea1f8880/clang/bindings/python/clang/__init__.py"
+    },
+    "cindex.py": {
+      "sha256": "63d99dac8ecc68dbc10b9d77fda2784fdcc13c4c555d84c6d150b59ede1865d5",
+      "bytes": 145846,
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/62397f8b3c3986f54187ce08f00b3448ea1f8880/clang/bindings/python/clang/cindex.py"
+    }
+  },
+  "license": {
+    "url": "https://raw.githubusercontent.com/llvm/llvm-project/62397f8b3c3986f54187ce08f00b3448ea1f8880/llvm/LICENSE.TXT",
+    "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee"
+  }
+}

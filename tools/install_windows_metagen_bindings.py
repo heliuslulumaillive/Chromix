@@ -17,6 +17,8 @@ import subprocess
 import sys
 import sysconfig
 import tempfile
+import time
+import urllib.error
 import urllib.request
 
 LLVM_COMMIT = "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4"  # llvmorg-23.1.0
@@ -74,6 +76,7 @@ SOURCE_PACKAGES = (
     "third_party/llvm-build/Release+Asserts/bindings/python/clang",
     "third_party/llvm-libclang/bindings/python/clang",
 )
+REPOSITORY_PACKAGE_CACHE = Path(__file__).resolve().parents[1] / 'build/windows/metagen-python'
 TARGET = "gen/v8/metagen/instance-types.h"
 MAX_FILE = 1024 * 1024
 PINS = {
@@ -279,11 +282,37 @@ def fetch_package() -> dict[str, bytes]:
     package = {}
     for name in HASHES:
         url = f"https://raw.githubusercontent.com/llvm/llvm-project/{LLVM_COMMIT}/clang/bindings/python/clang/{name}"
-        with opener.open(url, timeout=60) as response:
-            if response.status != 200 or response.geturl() != url:
-                raise ValueError("unexpected bindings download response")
-            package[name] = checked(response.read(MAX_FILE + 1), name)
+        for attempt in range(3):
+            try:
+                with opener.open(url, timeout=60) as response:
+                    if response.status != 200 or response.geturl() != url:
+                        raise ValueError("unexpected bindings download response")
+                    package[name] = checked(response.read(MAX_FILE + 1), name)
+                break
+            except urllib.error.HTTPError as error:
+                if error.code not in (429, 502, 503, 504) or attempt == 2:
+                    raise
+                time.sleep((2, 5)[attempt])
     return package
+
+
+def retain_package(src: Path, files: dict[str, bytes]) -> None:
+    """Keep verified bytes inside the resumable source/toolchain checkpoint."""
+    package = local(src / SOURCE_PACKAGES[0])
+    if package.exists():
+        if read_package(package) != files:
+            raise ValueError('checkpoint bindings differ from their exact LLVM pins')
+        return
+    for name, data in files.items():
+        checked(data, name)
+    package.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='.verified-bindings-', dir=package.parent) as temporary:
+        staged = Path(temporary) / 'clang'
+        staged.mkdir()
+        for name, data in files.items():
+            (staged / name).write_bytes(data)
+        read_package(staged)
+        os.replace(staged, package)
 
 
 def provision(src: Path, bindings: Path, *, download: bool) -> str:
@@ -295,7 +324,8 @@ def provision(src: Path, bindings: Path, *, download: bool) -> str:
         for path in package.rglob("*"):
             local(path)
         try:
-            read_package(package)
+            files = read_package(package)
+            retain_package(src, files)
             cache = package / "__pycache__"
             if cache.exists():
                 shutil.rmtree(cache)
@@ -311,6 +341,11 @@ def provision(src: Path, bindings: Path, *, download: bool) -> str:
         files = read_package(candidate)
         origin = str(candidate)
         break
+    if files is None:
+        cached = local(REPOSITORY_PACKAGE_CACHE / LLVM_COMMIT / 'clang')
+        if cached.exists():
+            files = read_package(cached)
+            origin = str(cached)
     if files is None:
         if not download:
             raise ValueError("missing pinned LLVM bindings; provide source bindings or explicitly allow --download")
@@ -331,7 +366,7 @@ def provision(src: Path, bindings: Path, *, download: bool) -> str:
     cache = package / "__pycache__"
     if cache.exists():
         shutil.rmtree(cache)
-    read_package(package)
+    retain_package(src, read_package(package))
     return origin
 
 

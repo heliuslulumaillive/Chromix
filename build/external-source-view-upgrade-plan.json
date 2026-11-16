@@ -1,0 +1,21 @@
+{
+  "recipeSHA256": "deb1c6013dc55fdbf60c78000fb2e2afe337c8c59e32483a82c167b1b94116ea",
+  "stackSHA256": "87e4b8fcd8e0d52b7052dc924f7aee9192604819d78bca9470269e6f1edb3921",
+  "ruleId": "lite15778-signed-source-controlled-fonts-v3",
+  "donorRun": "43775379956",
+  "donorStage": 4,
+  "sourceUpdates": [
+    {
+      "path": "base/uxr_private_font_packages_win.h",
+      "before_sha256": "6f858e890ba4f6aa7bb8a10fb6c061c29c5febbb245455efac872e38b07a0c93",
+      "after_sha256": "f9f5aa82d16b20074843e801433907a6295847e8add77e899dfc07ceb505a2fc",
+      "replacement_path": "build/checkpoint-sources/f9f5aa82d16b20074843e801433907a6295847e8add77e899dfc07ceb505a2fc.h"
+    },
+    {
+      "path": "ui/gfx/win/direct_write.cc",
+      "before_sha256": "5f8f4040d5132420d988587ab7a661c399ca9818f5231140e19f0e937662dca6",
+      "after_sha256": "100c4f8975049934489b92ff8fceb0fa73e318483c70c5d94f1391c361bf0a99",
+      "replacement_path": "build/checkpoint-sources/100c4f8975049934489b92ff8fceb0fa73e318483c70c5d94f1391c361bf0a99.cc"
+    }
+  ]
+}

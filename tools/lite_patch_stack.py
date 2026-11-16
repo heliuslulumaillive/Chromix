@@ -63,7 +63,7 @@ def load(repo: Path):
                 or resources.get('manifest_sha256') != digest(owned(repo, resources['manifest']).read_bytes())):
             raise ValueError('Private font resources differ from the pinned product contract')
         country = runtime.get('country_font_resources', {})
-        if (country.get('version') != 2 or country.get('protocol') != 'signed-external-catalog-v2'
+        if (country.get('version') != 3 or country.get('protocol') != 'signed-source-controlled-catalog-v3'
                 or country.get('install_to_windows') is not False
                 or country.get('trusted_key') != 'build/font-catalog-key.json'
                 or country.get('trusted_key_sha256') != digest(owned(repo, country['trusted_key']).read_bytes())):
@@ -117,6 +117,7 @@ def input_hashes(repo):
              'build/windows/package-win.ps1',
              'tools/lite_patch_stack.py', 'tools/prepare_lite_product.py', 'tools/lite_product_migration.py',
              'tools/prepare_restored_build.py', 'tools/repair_windows_midl.py',
+             'tools/install_windows_metagen_bindings.py',
              'tools/verify_native_browser_tests.py',
              'tools/tests/test_windows_font_cohorts.py',
              'tools/tests/test_windows_font_acceptance.mjs',
@@ -131,6 +132,9 @@ def input_hashes(repo):
              'tools/generate_windows_font_packages.py',
              'build/private-font-packages.json', 'build/font-catalog-key.json',
              'tools/signed_font_catalog_win.h.in',
+             'tools/signed_font_catalog_v3_win.h.in', 'tools/catalog_native_view_win.h.in',
+             'tools/font_catalog_v3.mjs', 'tools/tests/test_font_catalog_v3.mjs',
+             'tools/tests/test_signed_source_font_catalog.py',
              'tools/tests/test_signed_font_catalog.py', 'tools/tests/test_font_catalog.mjs',
              'tools/font_catalog.mjs',
              'tools/tests/test_country_font_resources.py', 'tools/private_font_packages_win.h.in',
@@ -151,7 +155,9 @@ def input_hashes(repo):
              'build/fingerprint-modes-capabilities.json', 'build/gpu-binding-capabilities.json',
              'patches/lite-win156/retirement-manifest.json'}
     names.update(row['path'] for row in data['patches'])
+    names.update(p.relative_to(repo).as_posix() for p in owned(repo,'build/windows/metagen-python').rglob('*') if p.is_file())
     names.update(p.relative_to(repo).as_posix() for p in owned(repo,'tools/tests/fixtures/signed-font-catalog-v2').iterdir() if p.is_file())
+    names.update(p.relative_to(repo).as_posix() for p in owned(repo,'tools/tests/fixtures/signed-font-catalog-v3').iterdir() if p.is_file())
     names.update('tools/' + name for name in (
         'webrtc_document_loopback_runtime.mjs', 'webrtc_document_loopback_probe.js',
         'webrtc_runtime_controller.mjs', 'webrtc_network_fixtures.mjs',

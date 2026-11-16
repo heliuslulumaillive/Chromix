@@ -1,0 +1,270 @@
+// External source-controlled catalog v3: only this public trust anchor and the bounded protocol
+// are compiled. Country mappings, combinations and font pins remain data.
+// TRUSTED_CATALOG_PUBLIC_KEY
+inline constexpr unsigned char kCatalogMagic[] = {'S','X','F','O','N','T','3',0};
+inline constexpr char kCatalogSignatureDomain[] = "ShardXFontCatalog-v3\0";
+inline constexpr size_t kMaximumCatalogBytes = 1024 * 1024;
+
+inline bool CatalogHash(const std::vector<unsigned char>& data,
+                        bool signature_domain,
+                        std::array<unsigned char,32>* result) {
+  HashState state;
+  DWORD length=0,used=0;
+  if (BCryptOpenAlgorithmProvider(&state.algorithm,BCRYPT_SHA256_ALGORITHM,nullptr,0)<0 ||
+      BCryptGetProperty(state.algorithm,BCRYPT_OBJECT_LENGTH,reinterpret_cast<PUCHAR>(&length),sizeof(length),&used,0)<0 ||
+      length==0 || length>65536) return false;
+  state.object.resize(length);
+  if (BCryptCreateHash(state.algorithm,&state.hash,state.object.data(),length,nullptr,0,0)<0) return false;
+  if (signature_domain && BCryptHashData(state.hash,
+      reinterpret_cast<PUCHAR>(const_cast<char*>(kCatalogSignatureDomain)),
+      sizeof(kCatalogSignatureDomain)-1,0)<0) return false;
+  return BCryptHashData(state.hash,const_cast<PUCHAR>(data.data()),static_cast<ULONG>(data.size()),0)>=0 &&
+         BCryptFinishHash(state.hash,result->data(),static_cast<ULONG>(result->size()),0)>=0;
+}
+
+inline bool VerifyCatalogSignature(const std::vector<unsigned char>& payload,
+                                   const std::vector<unsigned char>& signature) {
+  if (signature.size()!=64 || payload.size()>kMaximumCatalogBytes) return false;
+  std::array<unsigned char,32> digest;
+  if (!CatalogHash(payload,true,&digest)) return false;
+  BCRYPT_ALG_HANDLE algorithm=nullptr;
+  BCRYPT_KEY_HANDLE key=nullptr;
+  if (BCryptOpenAlgorithmProvider(&algorithm,BCRYPT_ECDSA_P256_ALGORITHM,nullptr,0)<0) return false;
+  const auto imported=BCryptImportKeyPair(algorithm,nullptr,BCRYPT_ECCPUBLIC_BLOB,&key,
+      const_cast<PUCHAR>(kCatalogPublicKey),sizeof(kCatalogPublicKey),0);
+  const bool valid=imported>=0 && BCryptVerifySignature(key,nullptr,digest.data(),static_cast<ULONG>(digest.size()),
+      const_cast<PUCHAR>(signature.data()),static_cast<ULONG>(signature.size()),0)>=0;
+  if (key) BCryptDestroyKey(key);
+  BCryptCloseAlgorithmProvider(algorithm,0);
+  return valid;
+}
+
+inline std::string CatalogHex(const unsigned char* bytes,size_t size) {
+  constexpr char hex[]="0123456789abcdef";
+  std::string value;value.reserve(size*2);
+  for (size_t i=0;i<size;++i) {value.push_back(hex[bytes[i]>>4]);value.push_back(hex[bytes[i]&15]);}
+  return value;
+}
+
+struct CatalogReader {
+  const std::vector<unsigned char>& bytes;
+  size_t offset=0;
+  bool Read(size_t length,const unsigned char** value) {
+    if (offset>bytes.size() || length>bytes.size()-offset) return false;
+    *value=bytes.data()+offset;offset+=length;return true;
+  }
+  bool Integer(size_t width,uint64_t* result) {
+    const unsigned char* value=nullptr;
+    if (width>8 || !Read(width,&value)) return false;
+    *result=0;for(size_t i=0;i<width;++i)*result|=static_cast<uint64_t>(value[i])<<(i*8);
+    return true;
+  }
+};
+
+struct CatalogFontAsset {
+  std::string hash;
+  std::wstring name;
+  uint64_t size=0;
+  bool font=false;
+};
+
+inline bool ParseCatalogGroup(const std::vector<unsigned char>& payload,
+                              std::string_view requested,
+                              std::vector<CatalogFontAsset>* selected,
+                              std::vector<NativeSourcePin>* native_selected) {
+  if(!selected||!native_selected)return false;
+  selected->clear();native_selected->clear();
+  CatalogReader input{payload};
+  const unsigned char* magic=nullptr;
+  uint64_t schema=0,asset_count=0,group_count=0,country_count=0,version_length=0;
+  if (!input.Read(sizeof(kCatalogMagic),&magic) ||
+      !std::equal(std::begin(kCatalogMagic),std::end(kCatalogMagic),magic) ||
+      !input.Integer(2,&schema) || schema!=3 ||
+      !input.Integer(2,&asset_count) || !asset_count || asset_count>4096 ||
+      !input.Integer(2,&group_count) || !group_count || group_count>512 ||
+      !input.Integer(2,&country_count) || !country_count || country_count>512 ||
+      !input.Integer(2,&version_length) || !version_length || version_length>64) return false;
+  const unsigned char* version=nullptr;
+  if (!input.Read(static_cast<size_t>(version_length),&version)) return false;
+  for(size_t i=0;i<version_length;++i)if(version[i]<33 || version[i]>126)return false;
+  std::vector<CatalogFontAsset> assets;assets.reserve(static_cast<size_t>(asset_count));
+  std::set<std::string> identities;
+  for(size_t i=0;i<asset_count;++i) {
+    uint64_t kind=0,size=0;const unsigned char* hash=nullptr;
+    if (!input.Integer(1,&kind) || kind>1 || !input.Integer(8,&size) || !size || size>=(128ULL<<20) || !input.Read(32,&hash)) return false;
+    CatalogFontAsset asset;asset.hash=CatalogHex(hash,32);asset.name=std::wstring(asset.hash.begin(),asset.hash.end())+L".blob";
+    asset.size=size;asset.font=kind==1;
+    if(!identities.insert(asset.hash).second)return false;
+    assets.push_back(std::move(asset));
+  }
+  std::set<std::string> names;bool found=false;
+  std::vector<std::string> group_names;
+  for(size_t i=0;i<group_count;++i) {
+    uint64_t length=0,count=0;const unsigned char* text=nullptr;
+    if (!input.Integer(1,&length) || !length || length>96 || !input.Read(static_cast<size_t>(length),&text)) return false;
+    std::string name(reinterpret_cast<const char*>(text),static_cast<size_t>(length));
+    if(name[0]<'a'||name[0]>'z'||!names.insert(name).second)return false;
+    for(char c:name)if(!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='-'))return false;
+    if(!input.Integer(2,&count)||!count||count>128)return false;
+    std::set<size_t> indexes;size_t fonts=0;bool license=false;uint64_t total=0;
+    std::vector<CatalogFontAsset> members;
+    for(size_t j=0;j<count;++j) {
+      uint64_t index=0;if(!input.Integer(2,&index)||index>=assets.size()||!indexes.insert(static_cast<size_t>(index)).second)return false;
+      const auto& asset=assets[static_cast<size_t>(index)];
+      fonts+=asset.font;license=license||!asset.font;total+=asset.size;
+      if(name==requested)members.push_back(asset);
+    }
+    if(!fonts||fonts>64||!license||total>(512ULL<<20))return false;
+    group_names.push_back(name);
+    if(name==requested){found=true;*selected=std::move(members);}
+  }
+  std::set<std::string> countries;size_t us_group=group_names.size();
+  for(size_t i=0;i<country_count;++i) {
+    const unsigned char* country=nullptr;uint64_t index=0;
+    if(!input.Read(2,&country)||!input.Integer(2,&index)||index>=group_count)return false;
+    if(country[0]<'A'||country[0]>'Z'||country[1]<'A'||country[1]>'Z')return false;
+    if(!countries.insert(std::string(reinterpret_cast<const char*>(country),2)).second)return false;
+    if(country[0]=='U'&&country[1]=='S')us_group=static_cast<size_t>(index);
+  }
+  if(us_group>=group_names.size())return false;
+  // An unknown raw group retains only the authenticated US native selection;
+  // its optional asset list stays empty. Invalid signatures never reach here.
+  const std::string target_name=found?std::string(requested):group_names[us_group];
+
+  uint64_t source_count=0;
+  if(!input.Integer(2,&source_count)||!source_count||source_count>4096)return false;
+  std::vector<NativeSourcePin> sources;sources.reserve(static_cast<size_t>(source_count));
+  std::set<std::string> source_identities;size_t common_count=0;
+  const auto safe_name=[](const unsigned char* value,size_t length) {
+    if(!length||length>160)return false;
+    std::string text(reinterpret_cast<const char*>(value),length);
+    if(text.find("..")!=std::string::npos)return false;
+    for(char c:text)if(!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='_'||c=='.'||c=='-'))return false;
+    return text[0]!='.'&&text[0]!='-'&&text[0]!='_';
+  };
+  for(size_t i=0;i<source_count;++i) {
+    uint64_t kind=0,length=0,package_length=0,size=0;
+    const unsigned char *name=nullptr,*package=nullptr,*hash=nullptr;
+    if(!input.Integer(1,&kind)||kind>2||!input.Integer(1,&length)||length>127||
+        !input.Read(static_cast<size_t>(length),&name)||!safe_name(name,static_cast<size_t>(length))||
+        !input.Integer(1,&package_length)||package_length>160||
+        !input.Read(static_cast<size_t>(package_length),&package)||
+        !input.Integer(8,&size)||!size||size>=(128ULL<<20)||!input.Read(32,&hash))return false;
+    if((kind==2)!=(package_length>0)|| (package_length&&!safe_name(package,static_cast<size_t>(package_length))))return false;
+    const std::string file_name(reinterpret_cast<const char*>(name),static_cast<size_t>(length));
+    const std::string package_name(reinterpret_cast<const char*>(package),static_cast<size_t>(package_length));
+    if(kind==2&&package_name.find('_')==std::string::npos)return false;
+    std::string identity=package_name+"|"+file_name;
+    for(char& c:identity)if(c>='A'&&c<='Z')c=static_cast<char>(c-'A'+'a');
+    if(!source_identities.insert(identity).second)return false;
+    NativeSourcePin source;source.name.assign(file_name.begin(),file_name.end());
+    source.package.assign(package_name.begin(),package_name.end());source.hash=CatalogHex(hash,32);source.size=size;
+    source.kind=kind==0?NativeSourceKind::kCore:kind==1?NativeSourceKind::kRegional:NativeSourceKind::kShared;
+    if(kind!=1)++common_count;
+    sources.push_back(std::move(source));
+  }
+  if(!common_count||std::none_of(sources.begin(),sources.end(),[](const auto& s){return s.kind==NativeSourceKind::kCore;}))return false;
+  for(const auto& name:group_names) {
+    uint64_t count=0,total=0;
+    if(!input.Integer(2,&count)||count<common_count||count>1024)return false;
+    std::set<size_t> indexes;size_t common_seen=0;std::vector<NativeSourcePin> members;
+    for(size_t i=0;i<count;++i) {
+      uint64_t index=0;if(!input.Integer(2,&index)||index>=sources.size()||!indexes.insert(static_cast<size_t>(index)).second)return false;
+      const auto& source=sources[static_cast<size_t>(index)];total+=source.size;
+      if(source.kind!=NativeSourceKind::kRegional)++common_seen;
+      if(name==target_name)members.push_back(source);
+    }
+    if(common_seen!=common_count||total>(2ULL<<30))return false;
+    if(name==target_name)*native_selected=std::move(members);
+  }
+  return !native_selected->empty()&&input.offset==payload.size();
+}
+
+inline HRESULT OpenCatalogDirectory(const std::wstring& supplied,
+                                    std::wstring* root,Resources* handles) {
+  if(supplied.size()<3||supplied[1]!=L':'||(supplied[2]!=L'\\'&&supplied[2]!=L'/'))return E_INVALIDARG;
+  std::vector<wchar_t> buffer(32768);
+  const DWORD count=GetFullPathNameW(supplied.c_str(),static_cast<DWORD>(buffer.size()),buffer.data(),nullptr);
+  if(!count||count>=buffer.size())return E_INVALIDARG;
+  root->assign(buffer.data(),count);
+  while(root->size()>3&&(root->back()==L'\\'||root->back()==L'/'))root->pop_back();
+  for(size_t i=3;i<=root->size();++i) {
+    if(i<root->size()&&(*root)[i]!=L'\\'&&(*root)[i]!=L'/')continue;
+    const DWORD attributes=GetFileAttributesW(root->substr(0,i).c_str());
+    if(attributes==INVALID_FILE_ATTRIBUTES||(attributes&FILE_ATTRIBUTE_REPARSE_POINT))return E_ACCESSDENIED;
+  }
+  handles->directory=CreateFileW(root->c_str(),FILE_READ_ATTRIBUTES,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_EXISTING,
+      FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,nullptr);
+  if(handles->directory==INVALID_HANDLE_VALUE)return HRESULT_FROM_WIN32(GetLastError());
+  BY_HANDLE_FILE_INFORMATION info;
+  if(!GetFileInformationByHandle(handles->directory,&info)||!(info.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||
+      (info.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return E_ACCESSDENIED;
+  return S_OK;
+}
+
+inline bool ReadCatalogFile(const std::wstring& file,size_t maximum,
+                            Resources* handles,std::vector<unsigned char>* bytes) {
+  HANDLE input=CreateFileW(file.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,
+      FILE_FLAG_OPEN_REPARSE_POINT|FILE_FLAG_SEQUENTIAL_SCAN,nullptr);
+  if(input==INVALID_HANDLE_VALUE)return false;
+  handles->handles.push_back(input);
+  BY_HANDLE_FILE_INFORMATION info;LARGE_INTEGER size;
+  if(!GetFileInformationByHandle(input,&info)||(info.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT))||
+      !GetFileSizeEx(input,&size)||size.QuadPart<=0||static_cast<uint64_t>(size.QuadPart)>maximum)return false;
+  bytes->resize(static_cast<size_t>(size.QuadPart));size_t offset=0;
+  while(offset<bytes->size()) {
+    DWORD read=0;if(!ReadFile(input,bytes->data()+offset,static_cast<DWORD>(bytes->size()-offset),&read,nullptr)||!read)return false;
+    offset+=read;
+  }
+  return true;
+}
+
+
+struct CatalogSelection {
+  std::vector<CatalogFontAsset> assets;
+  std::vector<NativeSourcePin> native_sources;
+  std::shared_ptr<Resources> retained_catalog;
+};
+inline HRESULT LoadCountryCatalog(const std::wstring& catalog_directory,
+                                  std::string_view group,
+                                  std::shared_ptr<CatalogSelection>* result) {
+  if(!result)return E_POINTER;result->reset();
+  auto selection=std::make_shared<CatalogSelection>();
+  selection->retained_catalog=std::make_shared<Resources>();
+  auto& catalogue=*selection->retained_catalog;std::wstring root;
+  HRESULT status=OpenCatalogDirectory(catalog_directory,&root,&catalogue);
+  if(FAILED(status))return status;
+  std::vector<unsigned char> payload,signature;
+  if(!ReadCatalogFile(root+L"\\catalog.bin",kMaximumCatalogBytes,&catalogue,&payload)||
+      !ReadCatalogFile(root+L"\\catalog.sig",64,&catalogue,&signature)||
+      !VerifyCatalogSignature(payload,signature))return E_ACCESSDENIED;
+  std::array<unsigned char,32> digest;
+  if(!CatalogHash(payload,false,&digest))return E_FAIL;
+  const std::string identity=CatalogHex(digest.data(),digest.size());
+  const auto separator=root.find_last_of(L"\\/");
+  if(separator==std::wstring::npos||root.substr(separator+1)!=std::wstring(identity.begin(),identity.end()))return E_ACCESSDENIED;
+  if(!ParseCatalogGroup(payload,group,&selection->assets,&selection->native_sources))return E_INVALIDARG;
+  *result=std::move(selection);return S_OK;
+}
+inline HRESULT VerifyCatalogAssets(const std::wstring& supplied,
+                                    const CatalogSelection& selection,
+                                    std::shared_ptr<Resources>* result) {
+  if(!result)return E_POINTER;result->reset();
+  std::vector<Asset> assets;assets.reserve(selection.assets.size());
+  for(const auto& asset:selection.assets)assets.push_back({asset.name.c_str(),asset.hash,asset.size,asset.font});
+  return VerifyAssets(supplied,assets.data(),assets.size(),result);
+}
+inline HRESULT VerifyCountry(const std::wstring& supplied,std::string_view group,
+                              const std::wstring& catalog_directory,
+                              std::shared_ptr<Resources>* result) {
+  if(!result)return E_POINTER;result->reset();
+  std::shared_ptr<CatalogSelection> selection;
+  HRESULT hr=LoadCountryCatalog(catalog_directory,group,&selection);
+  if(FAILED(hr))return hr;
+  hr=VerifyCatalogAssets(supplied,*selection,result);
+  if(FAILED(hr))return hr;
+  auto& retained=*selection->retained_catalog;
+  (*result)->handles.push_back(retained.directory);retained.directory=INVALID_HANDLE_VALUE;
+  (*result)->handles.insert((*result)->handles.end(),retained.handles.begin(),retained.handles.end());retained.handles.clear();
+  return S_OK;
+}

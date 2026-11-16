@@ -2,6 +2,8 @@
 
 ## Unreleased — Windows 157 product build
 
+- Add the .78 signed source-controlled font catalog v3: keep reviewed common/shared Windows sources, select regional sources from signed data, retain the controlled view on optional-addition failures, and reject invalid required policy/sources. Country/font data stays outside kernel build inputs and automatic build triggers. Actual rebuilt DLL acceptance is pending.
+- Resume the exact .78 stage-4 checkpoint with two declared source replacements; retain verified LLVM Python bindings in the source/toolchain checkpoint and retry transient HTTP failures without weakening hashes.
 - Activate the exact completed-157 MIDL repair for pruned empty type libraries, with native generation and once-only declared-output invalidation. Restore the omitted native security-sync metadata and require its compiled regression; retain the frozen 156 browser inventory separately from the reviewed 157 extension.
 - Repair the observed 157 ICU API compile failure through the native locale owner. Admit only the registered run/stage and exact source replacements when preserving the completed checkpoint; unchanged sources and objects retain timestamps. Candidate acceptance remains pending.
 - Port the 26 product topics to Chromium 157.0.8103.38, including explicit sign-in failure recovery and the requested history/tab-sync default. Keep native account and policy checks.

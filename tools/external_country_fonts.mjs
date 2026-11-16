@@ -13,7 +13,9 @@ export async function prepareExternalCountryFontPlan({country,resourcesDir,catal
   try{catalog=await loadCurrentCatalog(catalogRoot,key);}
   catch{return {...base,fallbackReason:'catalog-unavailable'};}
   const diagnostics={catalogProtocol:2,catalogVersion:catalog.version,catalogSHA256:catalog.sha256,catalogKeyId:catalog.keyId};
-  const group=/^[A-Z]{2}$/.test(requestedCountry)&&Object.hasOwn(catalog.countries,requestedCountry)?catalog.countries[requestedCountry]:null;
+  const listed=/^[A-Z]{2}$/.test(requestedCountry)&&Object.hasOwn(catalog.countries,requestedCountry);
+  const effectiveCountry=listed?requestedCountry:'US';
+  const group=catalog.countries[effectiveCountry];
   if(!group)return {...base,...diagnostics,fallbackReason:'no-regional-supplement'};
   try{
     await assertOrdinaryPath(resourcesDir,true);
@@ -24,7 +26,7 @@ export async function prepareExternalCountryFontPlan({country,resourcesDir,catal
       const bytes=await readFile(file);
       if(bytes.length!==asset.size||createHash('sha256').update(bytes).digest('hex')!==asset.sha256)throw Error('Selected font resource hash differs');
     }
-    return {...base,...diagnostics,effectiveCountry:requestedCountry,group,fallbackReason:null,
+    return {...base,...diagnostics,effectiveCountry,group,fallbackReason:listed?null:'country-not-listed-use-US',
       selectedFontFiles:assets.filter(a=>a.kind==='font').length,
       args:[`--uxr-fonts-resources-dir=${resourcesDir}`,`--uxr-fonts-resource-group=${group}`,`--uxr-fonts-catalog-dir=${catalog.directory}`]};
   }catch{return {...base,...diagnostics,fallbackReason:'resources-unavailable'};}

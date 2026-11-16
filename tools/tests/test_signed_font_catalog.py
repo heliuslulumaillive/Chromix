@@ -19,6 +19,7 @@ class SignedFontCatalogTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         host.CanvasInputMaskTests.setUpClass.__func__(cls)
+        (cls.root/'base/uxr_private_font_packages_win.h').write_text(render(controlled=False),encoding='utf8')
         cls.objects=cls.root/'objects';cls.objects.mkdir()
         source=Path(os.environ.get('CHROMIX_PRIVATE_FONT_ASSETS',r'G:\Shardxlite\tests\font-packs-candidate-20261114\private-fonts'))
         manifest=json.loads((ROOT/'build/private-font-packages.json').read_bytes())
@@ -59,7 +60,7 @@ int wmain(int argc,wchar_t** argv) {
   std::cout<<"accepted fonts="<<files->fonts.size()<<"\n";
 }
 '''
-        assert (cls.root/'base/uxr_private_font_packages_win.h').read_text('utf-8')==render()
+        assert (cls.root/'base/uxr_private_font_packages_win.h').read_text('utf-8')==render(controlled=False)
         unit=cls.root/'signed-catalog.cc';unit.write_text(source,encoding='utf-8',newline='\n');cls.binary=cls.root/'signed-catalog.exe'
         result=subprocess.run([cls.compiler,'-std=c++20','-O2','-I'+str(cls.root),str(unit),'-o',str(cls.binary),'-ldwrite','-lbcrypt'],env=cls.env,capture_output=True,text=True,timeout=120)
         assert result.returncode==0,result.stdout+result.stderr

@@ -53,13 +53,13 @@
       "experimental_only": true
     },
     "country_font_resources": {
-      "version": 2,
-      "protocol": "signed-external-catalog-v2",
+      "version": 3,
+      "protocol": "signed-source-controlled-catalog-v3",
       "trusted_key": "build/font-catalog-key.json",
-      "trusted_key_sha256": "7bc73113e1dbc160bd4b1a0da1d5d17f18736d8a6d91e986246e3511a83d2908",
+      "trusted_key_sha256": "cd2bb4b1b6991cbf6395ea758d0bdc9abf497a2d0a648afe22bd895df97f5a38",
       "install_to_windows": false,
       "source_gate_required": true,
-      "fallback": "native-complete-no-additional-assets"
+      "fallback": "verified-controlled-base; required-source-or-catalog-failure-rejects-startup"
     }
   },
   "patches": [
@@ -269,7 +269,7 @@
     },
     {
       "path": "patches/lite-windows157/13-fonts.patch",
-      "sha256": "c092b1ead63484aeb31d278bd24c89a71d67977eaaa257041e16c3757cec2857",
+      "sha256": "59dc6bb5bf03b0b3f6960ac85758b1ddfffaa83cbab1aa32fd22e510c7b63f12",
       "files": [
         "base/uxr_font_allowlist.h",
         "base/uxr_font_allowlist_tests.cc",
@@ -972,7 +972,7 @@
     {
       "path": "base/uxr_private_font_packages_win.h",
       "before_sha256": null,
-      "after_sha256": "6f858e890ba4f6aa7bb8a10fb6c061c29c5febbb245455efac872e38b07a0c93"
+      "after_sha256": "f9f5aa82d16b20074843e801433907a6295847e8add77e899dfc07ceb505a2fc"
     },
     {
       "path": "base/uxr_shard_webgl_v2_properties.h",
@@ -4232,7 +4232,7 @@
     {
       "path": "ui/gfx/win/direct_write.cc",
       "before_sha256": "8ef8fd82b4ce653e336ad5cc696503ceb0df0a3bbd86f3759732f3ed45918dad",
-      "after_sha256": "5f8f4040d5132420d988587ab7a661c399ca9818f5231140e19f0e937662dca6"
+      "after_sha256": "100c4f8975049934489b92ff8fceb0fa73e318483c70c5d94f1391c361bf0a99"
     },
     {
       "path": "ui/gfx/win/direct_write.h",
@@ -4796,5 +4796,5 @@
     "source_manifest_sha256": "f0cf82f501b4183b26bdcf7c2c9e4eedf314d7817b8eaa1c60b3b26ce4e76bb7",
     "review": "build/windows157-port.json"
   },
-  "stack_sha256": "9fb7b6a76faaed4a115df819fec58b9846e8774223c856207928fbb7a5ac371c"
+  "stack_sha256": "87e4b8fcd8e0d52b7052dc924f7aee9192604819d78bca9470269e6f1edb3921"
 }
