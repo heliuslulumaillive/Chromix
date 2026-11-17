@@ -44,7 +44,9 @@ deliver an accepted DLL. Completed work was 28,402 of 52,406 actions. The new
 candidate will use an exact two-source reviewed migration from that checkpoint;
 no .38 objects or relaxed checks are used. Verified LLVM Python bindings now
 persist inside the source/toolchain checkpoint, and transient HTTP responses
-have bounded retries. Actual rebuilt .78 DLL/browser acceptance and enrollment
+have bounded retries. The first v3 stage completed 5,975 tasks and retained 18,032 remaining. Its next stage exposed a cache-placement bug: two pinned Python files inside the LLVM tree changed the full tool fingerprint, which invalidated that runner copy. Recovery is pinned to intact run `43953428441`, stage 1, never its stage-2 tree. The audited relocation verifies complete compiler fingerprints before and after moving only those files outside toolchain roots. Future cache writes leave compiler trees unchanged; GN bootstrap follows environment completion, and incremental-only recovery refuses toolchain-wide invalidation. No compiler-fingerprint check is weakened.
+
+Actual rebuilt .78 DLL/browser acceptance and enrollment
 remain pending. Local v3 CNG/parser, all 25 controlled DirectWrite groups,
 required-source rejection and optional-addition fallback have passed.
 

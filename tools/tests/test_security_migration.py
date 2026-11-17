@@ -97,6 +97,16 @@ class MigrationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'not been finalized'):
             m.registered_rule(self.repo, self.manifest)
 
+    def test_identical_source_stack_still_requires_its_explicit_donor_stage(self):
+        self.rule.update(source_patch_kind='lite-windows157-product',target_patch_kind='lite-windows157-product',
+                         source_aggregate_sha256=self.new,source_run='123',source_stage=1)
+        self.write_policy()
+        donor=dict(self.manifest,run_id='123',stage=1)
+        with patch('tools.lite_patch_stack.load',return_value={'stack_sha256':self.new}):
+            self.assertEqual(m.registered_rule(self.repo,donor)['id'],self.rule['id'])
+            for changed in [dict(donor,stage=2),dict(donor,run_id='124')]:
+                with self.assertRaisesRegex(ValueError,'another donor run/stage'):m.registered_rule(self.repo,changed)
+
     def test_modified_donor_receipt_refused(self):
         (self.work / 'google-services-source.json').write_text('{}')
         with self.assertRaisesRegex(ValueError, 'changed after'):
@@ -153,7 +163,7 @@ class RegisteredCheckoutTest(unittest.TestCase):
             with self.subTest(migration=rule['id']):
                 donor = {**c.IDENTITY, 'source_commit': rule['source_commit'],
                          'recipe_sha256': rule['source_recipe_sha256']}
-                if rule.get('product_source_updates'):
+                if 'source_run' in rule or rule.get('product_source_updates'):
                     donor.update(run_id=rule['source_run'], stage=rule['source_stage'])
                 self.assertEqual(m.registered_rule(root, donor)['id'], rule['id'])
                 profile = 'lite' if rule.get('target_patch_kind') == 'lite-windows157-product' else 'legacy'

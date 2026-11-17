@@ -1,0 +1,8 @@
+{
+  "recipeSHA256": "01763107abb4032850942200414a59e4cfaf1d2f9df89ecd7452b3c1182e7ee4",
+  "stackSHA256": "87e4b8fcd8e0d52b7052dc924f7aee9192604819d78bca9470269e6f1edb3921",
+  "donorRun": "43953428441",
+  "donorStage": 1,
+  "sourceUpdates": [],
+  "ruleId": "lite15778-metagen-cache-placement-recovery-v1"
+}

@@ -296,9 +296,13 @@ def fetch_package() -> dict[str, bytes]:
     return package
 
 
+def retained_package(src: Path) -> Path:
+    return local(src / '.chromix-metagen-bindings' / LLVM_COMMIT / 'clang')
+
+
 def retain_package(src: Path, files: dict[str, bytes]) -> None:
     """Keep verified bytes inside the resumable source/toolchain checkpoint."""
-    package = local(src / SOURCE_PACKAGES[0])
+    package = retained_package(src)
     if package.exists():
         if read_package(package) != files:
             raise ValueError('checkpoint bindings differ from their exact LLVM pins')
@@ -334,7 +338,13 @@ def provision(src: Path, bindings: Path, *, download: bool) -> str:
             pass
     files = None
     origin = ""
+    retained = retained_package(src)
+    if retained != package and retained.exists():
+        files = read_package(retained)
+        origin = str(retained)
     for relative in SOURCE_PACKAGES:
+        if files is not None:
+            break
         candidate = src / relative
         if candidate == package or not candidate.exists():
             continue

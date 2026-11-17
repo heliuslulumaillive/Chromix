@@ -846,6 +846,25 @@
         }
       ],
       "scope": "Exact .78 checkpoint migration changing only the private font helper and common DirectWrite entry. Signed data chooses common/shared/regional source pins and managed additions; no country/source table is compiled. Optional additions retain only the authenticated controlled view; invalid required policy/sources reject startup. Preserve named faces, axes, source/path/hash checks and read-only lifetimes. Verified LLVM bindings persist in the toolchain checkpoint with bounded HTTP retries. No .38 objects, relaxed source checks, DLL enrollment or profile migration."
+    },
+    {
+      "id": "lite15778-metagen-cache-placement-recovery-v1",
+      "chromium_version": "157.0.8103.78",
+      "core_commit": "8c886dffc6ade39d8f7df5d64ace5a8824b455e1",
+      "windows_commit": "20e9a348fc616bd73a366fbd5d8881613d6c5cb0",
+      "arch": "x64",
+      "source_commit": "6d2736013ed645484995df0117a3ffafda942b87",
+      "source_run": "43953428441",
+      "source_stage": 1,
+      "source_recipe_sha256": "deb1c6013dc55fdbf60c78000fb2e2afe337c8c59e32483a82c167b1b94116ea",
+      "target_recipe_sha256": "01763107abb4032850942200414a59e4cfaf1d2f9df89ecd7452b3c1182e7ee4",
+      "source_preparation_sha256": "deb1c6013dc55fdbf60c78000fb2e2afe337c8c59e32483a82c167b1b94116ea",
+      "target_preparation_sha256": "01763107abb4032850942200414a59e4cfaf1d2f9df89ecd7452b3c1182e7ee4",
+      "source_aggregate_sha256": "87e4b8fcd8e0d52b7052dc924f7aee9192604819d78bca9470269e6f1edb3921",
+      "target_aggregate_sha256": "87e4b8fcd8e0d52b7052dc924f7aee9192604819d78bca9470269e6f1edb3921",
+      "source_patch_kind": "lite-windows157-product",
+      "target_patch_kind": "lite-windows157-product",
+      "scope": "Exact intact v3 stage-1 donor, never the stage-2 invalidated tree. No compiled source replacement. Relocate only the two hash-pinned Python cache files after authenticating the complete cache-bearing compiler fingerprints and original marker, then require the unchanged full compiler fingerprints to be restored. Keep every compiled object and original timestamp; reject all other tool drift. Retain future bindings outside toolchain trees and bootstrap GN only after restoration finishes. No validation exemption or DLL admission."
     }
   ]
 }

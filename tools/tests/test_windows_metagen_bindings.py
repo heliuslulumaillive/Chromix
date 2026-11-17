@@ -178,7 +178,7 @@ class WindowsMetagenBindingsTest(unittest.TestCase):
         with mock.patch.object(bindings, 'fetch_package', side_effect=AssertionError('network after large transfer')):
             self.assertEqual(bindings.provision(self.src, self.site, download=False), str(cached))
         self.assertEqual(bindings.read_package(self.site / 'clang'), FILES)
-        self.assertEqual(bindings.read_package(self.src / bindings.SOURCE_PACKAGES[0]), FILES)
+        self.assertEqual(bindings.read_package(bindings.retained_package(self.src)), FILES)
 
     def test_missing_package_uses_only_pinned_python_files(self):
         with mock.patch.object(bindings, "fetch_package", return_value=FILES):
@@ -210,12 +210,24 @@ class WindowsMetagenBindingsTest(unittest.TestCase):
         with mock.patch.object(bindings, 'fetch_package', return_value=FILES) as fetch:
             bindings.provision(self.src, self.site, download=True)
             fetch.assert_called_once()
-        cached = self.src / bindings.SOURCE_PACKAGES[0]
+        cached = bindings.retained_package(self.src)
         before = {p: p.stat().st_mtime_ns for p in cached.iterdir()}
         with mock.patch.object(bindings, 'fetch_package', side_effect=AssertionError('network repeated')):
             bindings.provision(self.src, self.root / 'next runner/site-packages', download=True)
         self.assertEqual(before, {p: p.stat().st_mtime_ns for p in before})
         self.assertEqual(bindings.read_package(cached), FILES)
+
+    def test_retaining_bindings_never_changes_the_compiler_tree_identity(self):
+        from tools.prepare_restored_build import tool_fingerprint, RUST
+        self.put(self.src / RUST / 'bin/rustc.exe', b'unchanged rust compiler')
+        output = self.out / 'obj/retained.obj'
+        self.put(output, b'retained native object')
+        before = tool_fingerprint(self.src, 'windows', 'x64')
+        stamp = output.stat().st_mtime_ns
+        bindings.retain_package(self.src, FILES)
+        self.assertEqual(tool_fingerprint(self.src, 'windows', 'x64'), before)
+        self.assertEqual(output.read_bytes(), b'retained native object')
+        self.assertEqual(output.stat().st_mtime_ns, stamp)
 
     def test_rate_limit_retries_only_the_same_pinned_url(self):
         opener = mock.Mock()

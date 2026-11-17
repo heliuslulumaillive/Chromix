@@ -51,6 +51,11 @@ def registered_rule(repo: Path, manifest: dict) -> dict:
             raise ValueError('Migration recipe has not been finalized: ' + key)
     if rule['source_recipe_sha256'] == rule['target_recipe_sha256']:
         raise ValueError('Identical payloads must use ordinary resume')
+    if 'source_run' in rule or 'source_stage' in rule:
+        if (str(rule.get('source_run')) != str(manifest.get('run_id'))
+                or type(rule.get('source_stage')) is not int
+                or rule['source_stage'] != manifest.get('stage')):
+            raise ValueError('Transition is registered for another donor run/stage')
     product_kind = 'lite-windows157-product'
     if any(rule.get(side + '_patch_kind') not in (None, product_kind) for side in ('source', 'target')):
         raise ValueError('Unknown migration patch identity kind')

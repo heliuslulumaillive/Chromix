@@ -118,6 +118,7 @@ def input_hashes(repo):
              'tools/lite_patch_stack.py', 'tools/prepare_lite_product.py', 'tools/lite_product_migration.py',
              'tools/prepare_restored_build.py', 'tools/repair_windows_midl.py',
              'tools/install_windows_metagen_bindings.py',
+             'tools/relocate_metagen_cache.py', 'tools/tests/test_metagen_cache_relocation.py',
              'tools/verify_native_browser_tests.py',
              'tools/tests/test_windows_font_cohorts.py',
              'tools/tests/test_windows_font_acceptance.mjs',

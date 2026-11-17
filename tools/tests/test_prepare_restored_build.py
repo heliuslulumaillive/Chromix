@@ -803,6 +803,24 @@ class PrepareRestoredBuildTest(unittest.TestCase):
             result = prepare.prepare(self.work, "windows", "x64", repo=self.fixture_repo)
         self.assertTrue(result["native_tools"])
 
+    def test_windows_metagen_cache_survives_two_real_preparation_phases_without_invalidation(self):
+        from tools import install_windows_metagen_bindings as bindings
+        self.fixture('windows','x64')
+        files=bindings.read_package(bindings.REPOSITORY_PACKAGE_CACHE/bindings.LLVM_COMMIT/'clang')
+        with self.native_context('windows','x64'):
+            self.prepare(self.work,'windows','x64')
+            output=self.object('cached-compiler.obj');stamp=output.stat().st_mtime_ns
+            self.deps({'obj/cached-compiler.obj':['../../include/a.h']})
+            gn=self.src/'out/Default/gn.exe';gn_bytes=gn.read_bytes();gn_stamp=gn.stat().st_mtime_ns
+            bindings.retain_package(self.src,files)
+            self.prepare(self.work,'windows','x64',phase='inspect')
+            result=self.prepare(self.work,'windows','x64',phase='finish')
+        self.assertEqual(result['counters']['tool_swap_invalidations'],0)
+        self.assertEqual(result['counters']['toolchain_invalidated_outputs'],0)
+        self.assertFalse(result['removed_gn'])
+        self.assertEqual(output.read_bytes(),b'object');self.assertEqual(output.stat().st_mtime_ns,stamp)
+        self.assertEqual(gn.read_bytes(),gn_bytes);self.assertEqual(gn.stat().st_mtime_ns,gn_stamp)
+
     def test_host_tool_failure_is_not_claimed_compatible(self):
         self.linux_fixture("arm64")
         with mock.patch.object(prepare, "host_identity", return_value=("linux", "arm64")), \

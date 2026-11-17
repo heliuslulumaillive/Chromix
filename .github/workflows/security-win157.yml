@@ -81,6 +81,8 @@ on:
       - 'tools/tests/fixtures/signed-font-catalog-v2/**'
       - 'tools/tests/fixtures/signed-font-catalog-v3/**'
       - 'tools/install_windows_metagen_bindings.py'
+      - 'tools/relocate_metagen_cache.py'
+      - 'tools/tests/test_metagen_cache_relocation.py'
       - 'tools/tests/test_windows_metagen_bindings.py'
       - 'tools/tests/test_country_font_resources.py'
       - 'tools/private_font_packages_win.h.in'

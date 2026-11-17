@@ -456,6 +456,10 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
           '-r',(Join-Path $core 'domain_regex.list'),'-f',(Join-Path $windows 'domain_substitution.list'),
           '-c',(Join-Path $work 'domain_substitution_cache.tar.gz'),$src)
       }
+      if ($Operation -eq 'upgrade' -and $SourceRun -eq '43953428441' -and $SourceStage -eq 1) {
+        Invoke-Owned 'relocate-verified-metagen-cache' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\relocate_metagen_cache.py'),
+          '--src',$src,'--manifest',(Join-Path $work '.security-origin\checkpoint.json'))
+      }
       if ($Operation -in @('resume','upgrade') -and (Test-Path -LiteralPath (Join-Path $src '.chromix-upstream-restored.json'))) {
         Invoke-Owned 'restored-environment-inspect' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\prepare_restored_build.py'),
           '--phase','inspect','--platform','windows','--arch','x64','--workdir',$work)
@@ -495,13 +499,19 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       if (-not (Test-Path -LiteralPath (Join-Path $src 'third_party\rust-toolchain\bin\bindgen.exe'))) {
         Invoke-Owned 'bindgen' @($python,'-B','-X','utf8',(Join-Path $src 'tools\rust\build_bindgen.py'),'--skip-test') -WorkingDirectory $src
       }
-      $gn = Join-Path $out 'gn.exe'
-      if (-not (Test-Path -LiteralPath $gn)) {
-        Invoke-Owned 'gn-bootstrap' @($python,'-B','-X','utf8',(Join-Path $src 'tools\gn\bootstrap\bootstrap.py'),'-o',$gn,'--skip-generate-buildfiles') -WorkingDirectory $src
-      }
       if (Test-Path -LiteralPath (Join-Path $src '.chromix-upstream-restored.json')) {
         Invoke-Owned 'restored-environment-finish' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\prepare_restored_build.py'),
           '--phase','finish','--platform','windows','--arch','x64','--workdir',$work)
+      }
+      if ($Operation -in @('resume','upgrade') -and (Test-Path -LiteralPath (Join-Path $repo 'build/metagen-cache-recovery-plan.json'))) {
+        $restoredCheck = Get-Content -LiteralPath (Join-Path $work 'upstream-cache-preparation.json') -Raw | ConvertFrom-Json
+        if ($restoredCheck.counters.tool_swap_invalidations -ne 0 -or $restoredCheck.counters.toolchain_invalidated_outputs -ne 0) {
+          throw 'Incremental-only recovery refuses toolchain invalidation; retain the intact donor instead of rebuilding from scratch'
+        }
+      }
+      $gn = Join-Path $out 'gn.exe'
+      if (-not (Test-Path -LiteralPath $gn)) {
+        Invoke-Owned 'gn-bootstrap' @($python,'-B','-X','utf8',(Join-Path $src 'tools\gn\bootstrap\bootstrap.py'),'-o',$gn,'--skip-generate-buildfiles') -WorkingDirectory $src
       }
       Invoke-Owned 'metagen-configure' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\install_windows_metagen_bindings.py'),
         '--configure','--src',$src,'--out',$out,'--chromium-version',$version)

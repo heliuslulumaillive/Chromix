@@ -2,6 +2,7 @@
 
 ## Unreleased — Windows 157 product build
 
+- Correct metagen cache placement: keep verified Python bytes outside fingerprinted compiler trees, recover only the authenticated intact v3 stage-1 checkpoint through full before/after fingerprints, and rebuild GN only after environment restoration. Refuse toolchain-wide invalidation in this incremental-only recovery.
 - Add the .78 signed source-controlled font catalog v3: keep reviewed common/shared Windows sources, select regional sources from signed data, retain the controlled view on optional-addition failures, and reject invalid required policy/sources. Country/font data stays outside kernel build inputs and automatic build triggers. Actual rebuilt DLL acceptance is pending.
 - Resume the exact .78 stage-4 checkpoint with two declared source replacements; retain verified LLVM Python bindings in the source/toolchain checkpoint and retry transient HTTP failures without weakening hashes.
 - Activate the exact completed-157 MIDL repair for pruned empty type libraries, with native generation and once-only declared-output invalidation. Restore the omitted native security-sync metadata and require its compiled regression; retain the frozen 156 browser inventory separately from the reviewed 157 extension.
