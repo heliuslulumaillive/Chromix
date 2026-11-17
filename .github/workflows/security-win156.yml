@@ -1,4 +1,4 @@
-name: Security Windows 156
+name: ShardX Lite Windows x64
 on:
   workflow_call:
     secrets:
