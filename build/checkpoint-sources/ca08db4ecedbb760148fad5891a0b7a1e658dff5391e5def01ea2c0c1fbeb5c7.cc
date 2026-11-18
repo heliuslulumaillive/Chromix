@@ -12,7 +12,7 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/taskbar/taskbar_decorator_win.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "components/signin/public/identity_manager/consent_level.h"
+#include "components/signin/public/base/consent_level.h"
 
 WindowsTaskbarIconUpdater::WindowsTaskbarIconUpdater(BrowserView& browser_view)
     : browser_view_(browser_view) {

@@ -578,7 +578,7 @@
     },
     {
       "path": "patches/lite-windows157/23-native-profile.patch",
-      "sha256": "ead2cae29989a7015ea39825d12653fb78ffca57f02818353c0bb4c0dc89ff28",
+      "sha256": "bd48927c98f380967462ead45b0983473b7bf0b67580df653447cc428d18d609",
       "files": [
         "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc",
         "chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc",
@@ -608,7 +608,7 @@
     },
     {
       "path": "patches/lite-windows157/24-google-services-and-browser.patch",
-      "sha256": "00574bdc7e7d8bfff92e0bfe296f463c25b4fcee4b5a4337033ba7db3c8479c6",
+      "sha256": "029159ce04d7ba87d9edac453fd3dab3a539cd90e2ecf937e28ee81f9536333b",
       "files": [
         "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
         "chrome/browser/chrome_browser_main.cc",
@@ -2051,7 +2051,7 @@
     {
       "path": "chrome/browser/taskbar/taskbar_decorator_win.cc",
       "before_sha256": "4a02fe26e49b8182c7927ab4346acc4d315a3734f4e19bfb73649320d1566e37",
-      "after_sha256": "d0ff27beeff7744cea03141b0a9c417771e4ffbf0e77ca44c7fecdc3e9b8788b"
+      "after_sha256": "b37d2722cfcc08c835be871c4f5a00fddbdb36649ccda4b9ab2bf944011e2749"
     },
     {
       "path": "chrome/browser/ui/autofill/BUILD.gn",
@@ -2186,7 +2186,7 @@
     {
       "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc",
       "before_sha256": "04ee63125d44792aa83a6df30967043df6a5439e2c5536f325f559a367ddd47c",
-      "after_sha256": "a73d05bcbc23075b9c58e406d4c6e8f599ad7b874fd46dd757912661bc12ee0d"
+      "after_sha256": "ca08db4ecedbb760148fad5891a0b7a1e658dff5391e5def01ea2c0c1fbeb5c7"
     },
     {
       "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h",
@@ -4820,5 +4820,5 @@
     "source_manifest_sha256": "f0cf82f501b4183b26bdcf7c2c9e4eedf314d7817b8eaa1c60b3b26ce4e76bb7",
     "review": "build/windows157-port.json"
   },
-  "stack_sha256": "b91b0dc416a92081a0a12b1b7fe268cf27fa2d73b0014c1eaafa5ff57a0457a5"
+  "stack_sha256": "52363f717981287f3a9f99a55c6b191bd9dd6d7e1c69041999797e8a6309b187"
 }

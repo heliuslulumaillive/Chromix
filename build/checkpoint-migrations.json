@@ -876,11 +876,11 @@
       "source_run": "44015540387",
       "source_stage": 2,
       "source_recipe_sha256": "01763107abb4032850942200414a59e4cfaf1d2f9df89ecd7452b3c1182e7ee4",
-      "target_recipe_sha256": "5801e92258abd03145fb4a886d3b44f0125d142d6c68536c05a46bbdb2189ff4",
+      "target_recipe_sha256": "bb07af4732c131898cfa7fe862e5ae5e12c441c740d65b88010b70d3da14a596",
       "source_preparation_sha256": "01763107abb4032850942200414a59e4cfaf1d2f9df89ecd7452b3c1182e7ee4",
-      "target_preparation_sha256": "5801e92258abd03145fb4a886d3b44f0125d142d6c68536c05a46bbdb2189ff4",
+      "target_preparation_sha256": "bb07af4732c131898cfa7fe862e5ae5e12c441c740d65b88010b70d3da14a596",
       "source_aggregate_sha256": "87e4b8fcd8e0d52b7052dc924f7aee9192604819d78bca9470269e6f1edb3921",
-      "target_aggregate_sha256": "b91b0dc416a92081a0a12b1b7fe268cf27fa2d73b0014c1eaafa5ff57a0457a5",
+      "target_aggregate_sha256": "52363f717981287f3a9f99a55c6b191bd9dd6d7e1c69041999797e8a6309b187",
       "source_patch_kind": "lite-windows157-product",
       "target_patch_kind": "lite-windows157-product",
       "product_source_updates": [
@@ -893,8 +893,8 @@
         {
           "path": "chrome/browser/taskbar/taskbar_decorator_win.cc",
           "before_sha256": "6c786c3852087649ef0fadf76cf6280356b917621c75604d274bd5355e617f4e",
-          "after_sha256": "d0ff27beeff7744cea03141b0a9c417771e4ffbf0e77ca44c7fecdc3e9b8788b",
-          "replacement_path": "build/checkpoint-sources/d0ff27beeff7744cea03141b0a9c417771e4ffbf0e77ca44c7fecdc3e9b8788b.cc"
+          "after_sha256": "b37d2722cfcc08c835be871c4f5a00fddbdb36649ccda4b9ab2bf944011e2749",
+          "replacement_path": "build/checkpoint-sources/b37d2722cfcc08c835be871c4f5a00fddbdb36649ccda4b9ab2bf944011e2749.cc"
         },
         {
           "path": "chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc",
@@ -911,8 +911,8 @@
         {
           "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc",
           "before_sha256": "04ee63125d44792aa83a6df30967043df6a5439e2c5536f325f559a367ddd47c",
-          "after_sha256": "a73d05bcbc23075b9c58e406d4c6e8f599ad7b874fd46dd757912661bc12ee0d",
-          "replacement_path": "build/checkpoint-sources/a73d05bcbc23075b9c58e406d4c6e8f599ad7b874fd46dd757912661bc12ee0d.cc"
+          "after_sha256": "ca08db4ecedbb760148fad5891a0b7a1e658dff5391e5def01ea2c0c1fbeb5c7",
+          "replacement_path": "build/checkpoint-sources/ca08db4ecedbb760148fad5891a0b7a1e658dff5391e5def01ea2c0c1fbeb5c7.cc"
         },
         {
           "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h",

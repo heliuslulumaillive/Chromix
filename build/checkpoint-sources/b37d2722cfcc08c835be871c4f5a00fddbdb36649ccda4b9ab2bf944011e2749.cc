@@ -29,7 +29,7 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/shell_integration_win.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "components/signin/public/identity_manager/consent_level.h"
+#include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "skia/ext/font_utils.h"
 #include "skia/ext/image_operations.h"

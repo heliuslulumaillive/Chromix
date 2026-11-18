@@ -51,6 +51,8 @@ def require(source, tokens, location):
 def verify_account_overlay(src: Path):
     decorator = 'chrome/browser/taskbar/taskbar_decorator_win.cc'
     source = read(src, decorator)
+    consent_header = '#include "components/signin/public/base/consent_level.h"'
+    require(source, [consent_header], decorator)
     update = body(source, 'UpdateTaskbarDecoration')
     require(update, [
         'shell_integration::win::IsShardXManagedEnvironment()',
@@ -74,7 +76,7 @@ def verify_account_overlay(src: Path):
 
     updater = 'chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc'
     source = read(src, updater)
-    require(source, ['identity_observation_.Observe(identity)', 'identity_observation_.Reset()'], updater)
+    require(source, [consent_header, 'identity_observation_.Observe(identity)', 'identity_observation_.Reset()'], updater)
     for event in ('OnPrimaryAccountChanged', 'OnExtendedAccountInfoUpdated', 'OnWidgetVisibilityChanged'):
         require(body(source, 'WindowsTaskbarIconUpdater::' + event), ['UpdateIcon()'], updater)
     return [decorator, frame, updater]
