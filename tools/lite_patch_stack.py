@@ -133,7 +133,7 @@ def input_hashes(repo):
              'tools/generate_windows_font_packages.py',
              'build/private-font-packages.json', 'build/font-catalog-key.json',
              'tools/signed_font_catalog_win.h.in',
-             'tools/signed_font_catalog_v3_win.h.in', 'tools/catalog_native_view_win.h.in',
+             'tools/signed_font_catalog_v3_win.h.in', 'tools/catalog_native_view_win.h.in', 'tools/font_face_index_win.h',
              'tools/font_catalog_v3.mjs', 'tools/tests/test_font_catalog_v3.mjs',
              'tools/tests/test_signed_source_font_catalog.py',
              'tools/tests/test_signed_font_catalog.py', 'tools/tests/test_font_catalog.mjs',

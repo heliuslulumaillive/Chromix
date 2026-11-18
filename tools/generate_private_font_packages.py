@@ -20,7 +20,7 @@ def render(controlled=True):
   loader=(ROOT/'tools/catalog_native_view_win.h.in').read_text('utf-8').replace('// SIGNED_CATALOG_V3',decoder)
  else:
   loader=(ROOT/'tools/signed_font_catalog_win.h.in').read_text('utf-8').replace('// TRUSTED_CATALOG_PUBLIC_KEY',anchor)
- return (ROOT/'tools/private_font_packages_win.h.in').read_text('utf-8').replace('// PINNED_ASSETS',entries).replace('// SIGNED_CATALOG_LOADER',loader)
+ return (ROOT/'tools/private_font_packages_win.h.in').read_text('utf-8').replace('// FONT_INDEX_FORMAT',(ROOT/'tools/font_face_index_win.h').read_text('utf-8')).replace('// PINNED_ASSETS',entries).replace('// SIGNED_CATALOG_LOADER',loader)
 if __name__=='__main__':
  import argparse
  p=argparse.ArgumentParser();p.add_argument('--write',action='store_true');p.add_argument('--check',action='store_true');a=p.parse_args()

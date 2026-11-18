@@ -12,9 +12,11 @@ struct NativeSourcePin {
 
 struct NativeViewSnapshot {
   std::vector<HANDLE> handles;
+  std::vector<std::shared_ptr<Resources>> directories;
   std::vector<std::wstring> paths;
   std::vector<size_t> pins;
   bool additions_rejected = false;
+  bool used_index = false;
   ~NativeViewSnapshot() { for (HANDLE handle : handles) CloseHandle(handle); }
 };
 inline bool SameNativePath(std::wstring_view a, std::wstring_view b) {
@@ -33,13 +35,9 @@ inline std::wstring_view NativeParent(std::wstring_view path) {
 inline HRESULT NativeFontPath(IDWriteFontFaceReference* reference,
                               std::wstring* path) {
   if (!reference || !path) return E_POINTER;
-  Microsoft::WRL::ComPtr<IDWriteFontFace3> face;
-  HRESULT hr = reference->CreateFontFace(&face);
-  if (FAILED(hr)) return hr;
-  UINT32 count = 1;
   Microsoft::WRL::ComPtr<IDWriteFontFile> file;
-  hr = face->GetFiles(&count, &file);
-  if (FAILED(hr) || count != 1) return DWRITE_E_FILEFORMAT;
+  HRESULT hr = reference->GetFontFile(&file);
+  if (FAILED(hr)) return hr;
   Microsoft::WRL::ComPtr<IDWriteFontFileLoader> loader;
   Microsoft::WRL::ComPtr<IDWriteLocalFontFileLoader> local;
   const void* key = nullptr;
@@ -55,13 +53,144 @@ inline HRESULT NativeFontPath(IDWriteFontFaceReference* reference,
   if (SUCCEEDED(hr)) path->assign(buffer.data(), length);
   return hr;
 }
+
+// Resolve only the package families authorized by this signed group. When an
+// unfamiliar registration layout is encountered, use the original controlled
+// discovery and all its source checks.
+inline bool IndexedPackagePaths(const std::vector<NativeSourcePin>& pins,
+                                std::map<std::wstring,std::wstring>* paths) {
+  std::set<std::wstring> allowed, families;
+  for (const auto& pin:pins) {
+    if(pin.kind!=NativeSourceKind::kShared || !allowed.insert(pin.package).second)continue;
+    wchar_t family[PACKAGE_FAMILY_NAME_MAX_LENGTH+1]{};
+    UINT32 length=static_cast<UINT32>(std::size(family));
+    if(PackageFamilyNameFromFullName(pin.package.c_str(),&length,family)!=ERROR_SUCCESS)return false;
+    families.insert(family);
+  }
+  for(const auto& family:families){
+    UINT32 count=0,length=0;
+    LONG rc=GetPackagesByPackageFamily(family.c_str(),&count,nullptr,&length,nullptr);
+    if(rc==ERROR_SUCCESS && count==0)continue;
+    if(rc!=ERROR_INSUFFICIENT_BUFFER || count>128 || !length || length>65536)return false;
+    std::vector<PWSTR> names(count);std::vector<wchar_t> storage(length);
+    if(GetPackagesByPackageFamily(family.c_str(),&count,names.data(),&length,storage.data())!=ERROR_SUCCESS)return false;
+    for(UINT32 n=0;n<count;++n){
+      if(!allowed.count(names[n]))return false;
+      UINT32 chars=0;
+      if(GetPackagePathByFullName(names[n],&chars,nullptr)!=ERROR_INSUFFICIENT_BUFFER || !chars || chars>32767)return false;
+      std::vector<wchar_t> path(chars);
+      if(GetPackagePathByFullName(names[n],&chars,path.data())!=ERROR_SUCCESS)return false;
+      (*paths)[names[n]]=path.data();
+    }
+  }
+  return true;
+}
+
+inline HRESULT CreateIndexedCollection(
+    IDWriteFactory* factory,const std::vector<NativeSourcePin>& pins,
+    const shardx_font_index::Index& index,const std::shared_ptr<Resources>& additions,
+    std::shared_ptr<NativeViewSnapshot>* retained,IDWriteFontCollection** output) {
+  using Microsoft::WRL::ComPtr;
+  ComPtr<IDWriteFactory6> modern;
+  if(FAILED(factory->QueryInterface(IID_PPV_ARGS(&modern))))return S_FALSE;
+  wchar_t windows_path[MAX_PATH+1]{};
+  const UINT length=GetWindowsDirectoryW(windows_path,MAX_PATH+1);
+  if(!length || length>MAX_PATH)return E_FAIL;
+  const std::wstring system_root=std::wstring(windows_path)+L"\\Fonts";
+  std::map<std::wstring,std::wstring> packages;
+  if(!IndexedPackagePaths(pins,&packages))return S_FALSE;
+  auto snapshot=std::make_shared<NativeViewSnapshot>();
+  std::set<std::wstring> directories;
+  std::map<std::pair<std::wstring,std::wstring>,size_t> rows;
+  for(size_t i=0;i<index.sources.size();++i){
+    const auto& s=index.sources[i];
+    if(s.kind==3)continue;
+    auto key=std::make_pair(std::wstring(s.package.begin(),s.package.end()),std::wstring(s.name.begin(),s.name.end()));
+    if(!rows.emplace(std::move(key),i).second)return S_FALSE;
+  }
+  std::vector<ComPtr<IDWriteFontFile>> files(index.sources.size());
+  std::vector<bool> seen(index.sources.size());
+  for(size_t p=0;p<pins.size();++p){
+    const auto& pin=pins[p];
+    std::wstring directory=system_root;
+    if(pin.kind==NativeSourceKind::kShared){
+      auto registered=packages.find(pin.package);
+      if(registered==packages.end())continue;
+      directory=registered->second;
+    }
+    const auto it=rows.find({pin.package,pin.name});
+    if(it==rows.end())return S_FALSE;
+    const size_t row=it->second;const auto& stored=index.sources[row];
+    if(stored.kind!=static_cast<uint8_t>(pin.kind) || stored.size!=pin.size || stored.hash!=pin.hash)return S_FALSE;
+    if(directories.insert(directory).second){
+      auto held=std::make_shared<Resources>();std::wstring canonical;
+      HRESULT hr=OpenCatalogDirectory(directory,&canonical,held.get());
+      if(FAILED(hr))return hr;
+      snapshot->directories.push_back(std::move(held));
+    }
+    const std::wstring path=directory+L"\\"+pin.name;
+    HANDLE handle=CreateFileW(path.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,
+        FILE_FLAG_OPEN_REPARSE_POINT|FILE_FLAG_SEQUENTIAL_SCAN,nullptr);
+    if(handle==INVALID_HANDLE_VALUE)return HRESULT_FROM_WIN32(GetLastError());
+    snapshot->handles.push_back(handle);
+    BY_HANDLE_FILE_INFORMATION info{};
+    if(!GetFileInformationByHandle(handle,&info) || (info.dwFileAttributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY)))return E_ACCESSDENIED;
+    shardx_font_index::Stamp now;
+    if(!(shardx_font_index::FileStamp(handle,&now) && now==stored.stamp) && !CheckHash(handle,pin.GetAsset()))
+      return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    HRESULT hr=modern->CreateFontFileReference(path.c_str(),nullptr,&files[row]);
+    if(FAILED(hr))return hr;
+    snapshot->paths.push_back(path);snapshot->pins.push_back(p);
+  }
+  ComPtr<IDWriteFontSetBuilder1> builder;
+  HRESULT hr=modern->CreateFontSetBuilder(&builder);if(FAILED(hr))return hr;
+  for(const auto& f:index.faces){
+    if(!files[f.file])continue;
+    ComPtr<IDWriteFontFaceReference1> ref;
+    hr=modern->CreateFontFaceReference(files[f.file].Get(),f.index,
+        static_cast<DWRITE_FONT_SIMULATIONS>(f.simulations),f.axes.data(),static_cast<UINT32>(f.axes.size()),&ref);
+    if(FAILED(hr) || FAILED(hr=builder->AddFontFaceReference(ref.Get())))return hr;
+    seen[f.file]=true;
+  }
+  for(size_t i=0;i<files.size();++i)if(files[i] && !seen[i])return S_FALSE;
+  ComPtr<IDWriteFontSet> base;
+  if(FAILED(hr=builder->CreateFontSet(&base)))return hr;
+  ComPtr<IDWriteFontSet> chosen=base;
+  if(additions && !additions->fonts.empty()){
+    ComPtr<IDWriteFontSetBuilder1> combined;ComPtr<IDWriteFontSet> all;
+    hr=modern->CreateFontSetBuilder(&combined);
+    if(SUCCEEDED(hr))hr=combined->AddFontSet(base.Get());
+    for(const auto& path:additions->fonts){
+      if(FAILED(hr))break;
+      ComPtr<IDWriteFontFile> file;
+      hr=modern->CreateFontFileReference(path.c_str(),nullptr,&file);
+      if(SUCCEEDED(hr))hr=combined->AddFontFile(file.Get());
+    }
+    if(SUCCEEDED(hr))hr=combined->CreateFontSet(&all);
+    if(SUCCEEDED(hr))chosen=std::move(all);else snapshot->additions_rejected=true;
+  }
+  ComPtr<IDWriteFontCollection1> collection;
+  hr=modern->CreateFontCollectionFromFontSet(chosen.Get(),&collection);
+  if(FAILED(hr) && chosen.Get()!=base.Get()){
+    collection.Reset();snapshot->additions_rejected=true;
+    hr=modern->CreateFontCollectionFromFontSet(base.Get(),&collection);
+  }
+  if(FAILED(hr))return hr;
+  hr=collection.CopyTo(output);if(SUCCEEDED(hr)){snapshot->used_index=true;*retained=std::move(snapshot);}
+  return hr;
+}
+
 inline HRESULT CreateControlledCollection(
     IDWriteFactory* factory, const std::vector<NativeSourcePin>& source_pins,
     const std::shared_ptr<Resources>& additions,
     std::shared_ptr<NativeViewSnapshot>* retained,
-    IDWriteFontCollection** output) {
+    IDWriteFontCollection** output, const shardx_font_index::Index* index=nullptr) {
   if (!factory || !retained || !output) return E_POINTER;
   retained->reset(); *output = nullptr;
+  if(index){
+    const HRESULT indexed=CreateIndexedCollection(factory,source_pins,*index,additions,retained,output);
+    if(indexed!=S_FALSE)return indexed;
+  }
   wchar_t windows_path[MAX_PATH + 1] = {};
   const UINT windows_length = GetWindowsDirectoryW(windows_path, MAX_PATH + 1);
   if (!windows_length || windows_length > MAX_PATH) return E_FAIL;

@@ -454,7 +454,7 @@ diff --git a/base/uxr_private_font_packages_win.h b/base/uxr_private_font_packag
 new file mode 100644
 --- /dev/null
 +++ b/base/uxr_private_font_packages_win.h
-@@ -0,0 +1,682 @@
+@@ -0,0 +1,979 @@
 +// Copyright 2026. Read-only, process-private DirectWrite font resources.
 +#ifndef BASE_UXR_PRIVATE_FONT_PACKAGES_WIN_H_
 +#define BASE_UXR_PRIVATE_FONT_PACKAGES_WIN_H_
@@ -476,6 +476,142 @@ new file mode 100644
 +#include <vector>
 +#include <utility>
 +#include <wrl/client.h>
++#include <appmodel.h>
++#include <map>
++// On-disk face descriptors shared by the release index generator and DirectWrite.
++#ifndef SHARDX_FONT_FACE_INDEX_WIN_H_
++#define SHARDX_FONT_FACE_INDEX_WIN_H_
++
++#include <windows.h>
++#include <winioctl.h>
++#include <dwrite_3.h>
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <cstdint>
++#include <cstring>
++#include <string>
++#include <vector>
++
++namespace shardx_font_index {
++
++constexpr char kMagic[] = "SXFACE1";
++constexpr size_t kLimit = 4 * 1024 * 1024;
++struct Stamp {
++  uint64_t volume = 0, file = 0, size = 0, modified = 0, journal = 0, usn = 0;
++  bool operator==(const Stamp& b) const {
++    return journal && usn && volume == b.volume && file == b.file &&
++           size == b.size && modified == b.modified && journal == b.journal && usn == b.usn;
++  }
++};
++inline uint64_t Join32(DWORD high, DWORD low) {
++  return (static_cast<uint64_t>(high) << 32) | low;
++}
++// Both controls are issued on the read-locked file, so volume elevation is
++// unnecessary on supported NTFS volumes. Other filesystems take the hash path.
++inline bool FileStamp(HANDLE handle, Stamp* out) {
++  BY_HANDLE_FILE_INFORMATION info{};
++  USN_JOURNAL_DATA_V0 journal{};
++  alignas(USN_RECORD_V2) std::array<unsigned char, 2048> buffer{};
++  DWORD count = 0;
++  if (!GetFileInformationByHandle(handle, &info) ||
++      (info.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) ||
++      !DeviceIoControl(handle, FSCTL_QUERY_USN_JOURNAL, nullptr, 0, &journal,
++                       sizeof(journal), &count, nullptr) || count < sizeof(journal) ||
++      !DeviceIoControl(handle, FSCTL_READ_FILE_USN_DATA, nullptr, 0, buffer.data(),
++                       static_cast<DWORD>(buffer.size()), &count, nullptr) ||
++      count < FIELD_OFFSET(USN_RECORD_V2, FileName))
++    return false;
++  const auto* record = reinterpret_cast<const USN_RECORD_V2*>(buffer.data());
++  const auto file = Join32(info.nFileIndexHigh, info.nFileIndexLow);
++  if (record->MajorVersion != 2 || record->RecordLength > count ||
++      record->FileReferenceNumber != file || record->Usn <= 0 ||
++      !journal.UsnJournalID || !file || record->Usn >= journal.NextUsn)
++    return false;
++  *out = {info.dwVolumeSerialNumber, file, Join32(info.nFileSizeHigh, info.nFileSizeLow),
++          Join32(info.ftLastWriteTime.dwHighDateTime,info.ftLastWriteTime.dwLowDateTime),
++          journal.UsnJournalID, static_cast<uint64_t>(record->Usn)};
++  return true;
++}
++
++struct Source {
++  uint8_t kind = 0;  // core, regional Windows source, registered shared source, object
++  std::string name, package, hash;
++  uint64_t size = 0;
++  Stamp stamp;
++};
++struct Face {
++  uint16_t file = 0;
++  uint32_t index = 0, simulations = 0;
++  std::vector<DWRITE_FONT_AXIS_VALUE> axes;
++};
++struct Index {
++  std::string catalog;
++  std::vector<Source> sources;
++  std::vector<Face> faces;
++};
++class Reader {
++ public:
++  explicit Reader(const std::vector<unsigned char>& bytes) : bytes_(bytes) {}
++  template <class T> bool Read(T* value) {
++    if (bytes_.size() - pos_ < sizeof(T)) return false;
++    std::memcpy(value, bytes_.data() + pos_, sizeof(T)); pos_ += sizeof(T); return true;
++  }
++  bool Text(size_t n, std::string* out) {
++    if (bytes_.size() - pos_ < n) return false;
++    out->assign(reinterpret_cast<const char*>(bytes_.data()+pos_),n); pos_+=n; return true;
++  }
++  bool Done() const { return pos_ == bytes_.size(); }
++ private:
++  const std::vector<unsigned char>& bytes_;
++  size_t pos_ = 0;
++};
++inline bool HexDigest(const std::string& s) {
++  return s.size()==64 && s.find_first_not_of("0123456789abcdef")==std::string::npos;
++}
++inline bool Leaf(const std::string& s) {
++  return !s.empty() && s.size()<=180 && s.find("..")==std::string::npos &&
++         s.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-")==std::string::npos;
++}
++inline bool Parse(const std::vector<unsigned char>& bytes, const std::string& catalog, Index* output) {
++  if (bytes.size()>kLimit) return false;
++  Reader r(bytes); Index result; std::string magic;
++  uint16_t version=0,files=0; uint32_t faces=0;
++  if (!r.Text(sizeof(kMagic),&magic) || magic!=std::string(kMagic,sizeof(kMagic)) ||
++      !r.Read(&version) || version!=1 || !r.Text(64,&result.catalog) ||
++      result.catalog!=catalog || !HexDigest(result.catalog) || !r.Read(&files) ||
++      !files || files>4096 || !r.Read(&faces) || !faces || faces>32768) return false;
++  for (unsigned i=0;i<files;++i) {
++    Source s; uint16_t n=0,p=0;
++    if (!r.Read(&s.kind) || s.kind>3 || !r.Read(&n) || !r.Read(&p) ||
++        !r.Text(n,&s.name) || !Leaf(s.name) || !r.Text(p,&s.package) ||
++        (s.kind==2 ? !Leaf(s.package) : !s.package.empty()) ||
++        !r.Text(64,&s.hash) || !HexDigest(s.hash) || !r.Read(&s.size) || !s.size ||
++        !r.Read(&s.stamp.volume) || !r.Read(&s.stamp.file) || !r.Read(&s.stamp.size) ||
++        !r.Read(&s.stamp.modified) || !r.Read(&s.stamp.journal) || !r.Read(&s.stamp.usn) ||
++        (s.stamp.journal && s.stamp.size!=s.size)) return false;
++    result.sources.push_back(std::move(s));
++  }
++  for (uint32_t i=0;i<faces;++i) {
++    Face f; uint16_t n=0;
++    if (!r.Read(&f.file) || f.file>=files || result.sources[f.file].kind==3 ||
++        !r.Read(&f.index) || f.index>65535 || !r.Read(&f.simulations) ||
++        (f.simulations & ~3u) || !r.Read(&n) || n>64) return false;
++    f.axes.resize(n);
++    for (auto& axis:f.axes) {
++      uint32_t tag=0;
++      if (!r.Read(&tag) || !r.Read(&axis.value) || !std::isfinite(axis.value)) return false;
++      axis.axisTag=static_cast<DWRITE_FONT_AXIS_TAG>(tag);
++    }
++    result.faces.push_back(std::move(f));
++  }
++  if (!r.Done()) return false;
++  *output=std::move(result);
++  return true;
++}
++}  // namespace shardx_font_index
++#endif  // SHARDX_FONT_FACE_INDEX_WIN_H_
++
 +namespace base::uxr_private_fonts_v1 {
 +struct Asset {
 +  const wchar_t *name;
@@ -574,9 +710,22 @@ new file mode 100644
 +      return false;
 +  return true;
 +}
++inline bool VerifiedIndexedAsset(HANDLE file, const Asset& asset,
++                                 const shardx_font_index::Index* index) {
++  if (index) {
++    for (const auto& source : index->sources) {
++      if (source.kind!=3 || source.hash!=asset.sha256 || source.size!=asset.size ||
++          std::wstring(source.name.begin(),source.name.end())!=asset.name) continue;
++      shardx_font_index::Stamp actual;
++      if (shardx_font_index::FileStamp(file,&actual) && actual==source.stamp) return true;
++      break;
++    }
++  }
++  return CheckHash(file,asset);
++}
 +inline HRESULT VerifyAssets(const std::wstring &supplied,
 +                            const Asset *assets, size_t asset_count,
-+                            std::shared_ptr<Resources> *result) {
++                            std::shared_ptr<Resources> *result, const shardx_font_index::Index* face_index = nullptr) {
 +  if (!result)
 +    return E_POINTER;
 +  result->reset();
@@ -623,7 +772,7 @@ new file mode 100644
 +    if (!GetFileInformationByHandle(file, &info) ||
 +        (info.dwFileAttributes &
 +         (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) ||
-+        !CheckHash(file, asset))
++        !VerifiedIndexedAsset(file, asset, face_index))
 +      return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
 +    if (asset.font)
 +      files->fonts.push_back(path);
@@ -654,8 +803,8 @@ new file mode 100644
 +inline constexpr char kCatalogSignatureDomain[] = "ShardXFontCatalog-v3\0";
 +inline constexpr size_t kMaximumCatalogBytes = 1024 * 1024;
 +
-+inline bool CatalogHash(const std::vector<unsigned char>& data,
-+                        bool signature_domain,
++inline bool CatalogHashDomain(const std::vector<unsigned char>& data,
++                        std::string_view domain,
 +                        std::array<unsigned char,32>* result) {
 +  HashState state;
 +  DWORD length=0,used=0;
@@ -664,18 +813,23 @@ new file mode 100644
 +      length==0 || length>65536) return false;
 +  state.object.resize(length);
 +  if (BCryptCreateHash(state.algorithm,&state.hash,state.object.data(),length,nullptr,0,0)<0) return false;
-+  if (signature_domain && BCryptHashData(state.hash,
-+      reinterpret_cast<PUCHAR>(const_cast<char*>(kCatalogSignatureDomain)),
-+      sizeof(kCatalogSignatureDomain)-1,0)<0) return false;
++  if (!domain.empty() && BCryptHashData(state.hash,
++      reinterpret_cast<PUCHAR>(const_cast<char*>(domain.data())),
++      static_cast<ULONG>(domain.size()),0)<0) return false;
 +  return BCryptHashData(state.hash,const_cast<PUCHAR>(data.data()),static_cast<ULONG>(data.size()),0)>=0 &&
 +         BCryptFinishHash(state.hash,result->data(),static_cast<ULONG>(result->size()),0)>=0;
 +}
 +
-+inline bool VerifyCatalogSignature(const std::vector<unsigned char>& payload,
-+                                   const std::vector<unsigned char>& signature) {
-+  if (signature.size()!=64 || payload.size()>kMaximumCatalogBytes) return false;
++inline bool CatalogHash(const std::vector<unsigned char>& data, bool signed_payload,
++                        std::array<unsigned char,32>* result) {
++  return CatalogHashDomain(data,signed_payload ? std::string_view(kCatalogSignatureDomain,sizeof(kCatalogSignatureDomain)-1) : std::string_view(), result);
++}
++inline bool VerifyFontSignature(const std::vector<unsigned char>& payload,
++                                const std::vector<unsigned char>& signature,
++                                std::string_view domain,size_t limit) {
++  if (signature.size()!=64 || payload.size()>limit) return false;
 +  std::array<unsigned char,32> digest;
-+  if (!CatalogHash(payload,true,&digest)) return false;
++  if (!CatalogHashDomain(payload,domain,&digest)) return false;
 +  BCRYPT_ALG_HANDLE algorithm=nullptr;
 +  BCRYPT_KEY_HANDLE key=nullptr;
 +  if (BCryptOpenAlgorithmProvider(&algorithm,BCRYPT_ECDSA_P256_ALGORITHM,nullptr,0)<0) return false;
@@ -688,6 +842,11 @@ new file mode 100644
 +  return valid;
 +}
 +
++inline bool VerifyCatalogSignature(const std::vector<unsigned char>& payload,
++                                   const std::vector<unsigned char>& signature) {
++  return VerifyFontSignature(payload,signature,
++      std::string_view(kCatalogSignatureDomain,sizeof(kCatalogSignatureDomain)-1),kMaximumCatalogBytes);
++}
 +inline std::string CatalogHex(const unsigned char* bytes,size_t size) {
 +  constexpr char hex[]="0123456789abcdef";
 +  std::string value;value.reserve(size*2);
@@ -873,6 +1032,7 @@ new file mode 100644
 +  std::vector<CatalogFontAsset> assets;
 +  std::vector<NativeSourcePin> native_sources;
 +  std::shared_ptr<Resources> retained_catalog;
++  std::shared_ptr<shardx_font_index::Index> face_index;
 +};
 +inline HRESULT LoadCountryCatalog(const std::wstring& catalog_directory,
 +                                  std::string_view group,
@@ -893,6 +1053,14 @@ new file mode 100644
 +  const auto separator=root.find_last_of(L"\\/");
 +  if(separator==std::wstring::npos||root.substr(separator+1)!=std::wstring(identity.begin(),identity.end()))return E_ACCESSDENIED;
 +  if(!ParseCatalogGroup(payload,group,&selection->assets,&selection->native_sources))return E_INVALIDARG;
++  std::vector<unsigned char> index_bytes,index_signature;
++  constexpr char face_domain[]="ShardXFontFaceIndex-v1\0";
++  if (ReadCatalogFile(root+L"\\faces.bin",shardx_font_index::kLimit,&catalogue,&index_bytes) &&
++      ReadCatalogFile(root+L"\\faces.sig",64,&catalogue,&index_signature) &&
++      VerifyFontSignature(index_bytes,index_signature,std::string_view(face_domain,sizeof(face_domain)-1),shardx_font_index::kLimit)) {
++    auto index=std::make_shared<shardx_font_index::Index>();
++    if (shardx_font_index::Parse(index_bytes,identity,index.get())) selection->face_index=std::move(index);
++  }
 +  *result=std::move(selection);return S_OK;
 +}
 +inline HRESULT VerifyCatalogAssets(const std::wstring& supplied,
@@ -901,7 +1069,7 @@ new file mode 100644
 +  if(!result)return E_POINTER;result->reset();
 +  std::vector<Asset> assets;assets.reserve(selection.assets.size());
 +  for(const auto& asset:selection.assets)assets.push_back({asset.name.c_str(),asset.hash,asset.size,asset.font});
-+  return VerifyAssets(supplied,assets.data(),assets.size(),result);
++  return VerifyAssets(supplied,assets.data(),assets.size(),result,selection.face_index.get());
 +}
 +inline HRESULT VerifyCountry(const std::wstring& supplied,std::string_view group,
 +                              const std::wstring& catalog_directory,
@@ -921,9 +1089,11 @@ new file mode 100644
 +
 +struct NativeViewSnapshot {
 +  std::vector<HANDLE> handles;
++  std::vector<std::shared_ptr<Resources>> directories;
 +  std::vector<std::wstring> paths;
 +  std::vector<size_t> pins;
 +  bool additions_rejected = false;
++  bool used_index = false;
 +  ~NativeViewSnapshot() { for (HANDLE handle : handles) CloseHandle(handle); }
 +};
 +inline bool SameNativePath(std::wstring_view a, std::wstring_view b) {
@@ -942,13 +1112,9 @@ new file mode 100644
 +inline HRESULT NativeFontPath(IDWriteFontFaceReference* reference,
 +                              std::wstring* path) {
 +  if (!reference || !path) return E_POINTER;
-+  Microsoft::WRL::ComPtr<IDWriteFontFace3> face;
-+  HRESULT hr = reference->CreateFontFace(&face);
-+  if (FAILED(hr)) return hr;
-+  UINT32 count = 1;
 +  Microsoft::WRL::ComPtr<IDWriteFontFile> file;
-+  hr = face->GetFiles(&count, &file);
-+  if (FAILED(hr) || count != 1) return DWRITE_E_FILEFORMAT;
++  HRESULT hr = reference->GetFontFile(&file);
++  if (FAILED(hr)) return hr;
 +  Microsoft::WRL::ComPtr<IDWriteFontFileLoader> loader;
 +  Microsoft::WRL::ComPtr<IDWriteLocalFontFileLoader> local;
 +  const void* key = nullptr;
@@ -964,13 +1130,144 @@ new file mode 100644
 +  if (SUCCEEDED(hr)) path->assign(buffer.data(), length);
 +  return hr;
 +}
++
++// Resolve only the package families authorized by this signed group. When an
++// unfamiliar registration layout is encountered, use the original controlled
++// discovery and all its source checks.
++inline bool IndexedPackagePaths(const std::vector<NativeSourcePin>& pins,
++                                std::map<std::wstring,std::wstring>* paths) {
++  std::set<std::wstring> allowed, families;
++  for (const auto& pin:pins) {
++    if(pin.kind!=NativeSourceKind::kShared || !allowed.insert(pin.package).second)continue;
++    wchar_t family[PACKAGE_FAMILY_NAME_MAX_LENGTH+1]{};
++    UINT32 length=static_cast<UINT32>(std::size(family));
++    if(PackageFamilyNameFromFullName(pin.package.c_str(),&length,family)!=ERROR_SUCCESS)return false;
++    families.insert(family);
++  }
++  for(const auto& family:families){
++    UINT32 count=0,length=0;
++    LONG rc=GetPackagesByPackageFamily(family.c_str(),&count,nullptr,&length,nullptr);
++    if(rc==ERROR_SUCCESS && count==0)continue;
++    if(rc!=ERROR_INSUFFICIENT_BUFFER || count>128 || !length || length>65536)return false;
++    std::vector<PWSTR> names(count);std::vector<wchar_t> storage(length);
++    if(GetPackagesByPackageFamily(family.c_str(),&count,names.data(),&length,storage.data())!=ERROR_SUCCESS)return false;
++    for(UINT32 n=0;n<count;++n){
++      if(!allowed.count(names[n]))return false;
++      UINT32 chars=0;
++      if(GetPackagePathByFullName(names[n],&chars,nullptr)!=ERROR_INSUFFICIENT_BUFFER || !chars || chars>32767)return false;
++      std::vector<wchar_t> path(chars);
++      if(GetPackagePathByFullName(names[n],&chars,path.data())!=ERROR_SUCCESS)return false;
++      (*paths)[names[n]]=path.data();
++    }
++  }
++  return true;
++}
++
++inline HRESULT CreateIndexedCollection(
++    IDWriteFactory* factory,const std::vector<NativeSourcePin>& pins,
++    const shardx_font_index::Index& index,const std::shared_ptr<Resources>& additions,
++    std::shared_ptr<NativeViewSnapshot>* retained,IDWriteFontCollection** output) {
++  using Microsoft::WRL::ComPtr;
++  ComPtr<IDWriteFactory6> modern;
++  if(FAILED(factory->QueryInterface(IID_PPV_ARGS(&modern))))return S_FALSE;
++  wchar_t windows_path[MAX_PATH+1]{};
++  const UINT length=GetWindowsDirectoryW(windows_path,MAX_PATH+1);
++  if(!length || length>MAX_PATH)return E_FAIL;
++  const std::wstring system_root=std::wstring(windows_path)+L"\\Fonts";
++  std::map<std::wstring,std::wstring> packages;
++  if(!IndexedPackagePaths(pins,&packages))return S_FALSE;
++  auto snapshot=std::make_shared<NativeViewSnapshot>();
++  std::set<std::wstring> directories;
++  std::map<std::pair<std::wstring,std::wstring>,size_t> rows;
++  for(size_t i=0;i<index.sources.size();++i){
++    const auto& s=index.sources[i];
++    if(s.kind==3)continue;
++    auto key=std::make_pair(std::wstring(s.package.begin(),s.package.end()),std::wstring(s.name.begin(),s.name.end()));
++    if(!rows.emplace(std::move(key),i).second)return S_FALSE;
++  }
++  std::vector<ComPtr<IDWriteFontFile>> files(index.sources.size());
++  std::vector<bool> seen(index.sources.size());
++  for(size_t p=0;p<pins.size();++p){
++    const auto& pin=pins[p];
++    std::wstring directory=system_root;
++    if(pin.kind==NativeSourceKind::kShared){
++      auto registered=packages.find(pin.package);
++      if(registered==packages.end())continue;
++      directory=registered->second;
++    }
++    const auto it=rows.find({pin.package,pin.name});
++    if(it==rows.end())return S_FALSE;
++    const size_t row=it->second;const auto& stored=index.sources[row];
++    if(stored.kind!=static_cast<uint8_t>(pin.kind) || stored.size!=pin.size || stored.hash!=pin.hash)return S_FALSE;
++    if(directories.insert(directory).second){
++      auto held=std::make_shared<Resources>();std::wstring canonical;
++      HRESULT hr=OpenCatalogDirectory(directory,&canonical,held.get());
++      if(FAILED(hr))return hr;
++      snapshot->directories.push_back(std::move(held));
++    }
++    const std::wstring path=directory+L"\\"+pin.name;
++    HANDLE handle=CreateFileW(path.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,
++        FILE_FLAG_OPEN_REPARSE_POINT|FILE_FLAG_SEQUENTIAL_SCAN,nullptr);
++    if(handle==INVALID_HANDLE_VALUE)return HRESULT_FROM_WIN32(GetLastError());
++    snapshot->handles.push_back(handle);
++    BY_HANDLE_FILE_INFORMATION info{};
++    if(!GetFileInformationByHandle(handle,&info) || (info.dwFileAttributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY)))return E_ACCESSDENIED;
++    shardx_font_index::Stamp now;
++    if(!(shardx_font_index::FileStamp(handle,&now) && now==stored.stamp) && !CheckHash(handle,pin.GetAsset()))
++      return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
++    HRESULT hr=modern->CreateFontFileReference(path.c_str(),nullptr,&files[row]);
++    if(FAILED(hr))return hr;
++    snapshot->paths.push_back(path);snapshot->pins.push_back(p);
++  }
++  ComPtr<IDWriteFontSetBuilder1> builder;
++  HRESULT hr=modern->CreateFontSetBuilder(&builder);if(FAILED(hr))return hr;
++  for(const auto& f:index.faces){
++    if(!files[f.file])continue;
++    ComPtr<IDWriteFontFaceReference1> ref;
++    hr=modern->CreateFontFaceReference(files[f.file].Get(),f.index,
++        static_cast<DWRITE_FONT_SIMULATIONS>(f.simulations),f.axes.data(),static_cast<UINT32>(f.axes.size()),&ref);
++    if(FAILED(hr) || FAILED(hr=builder->AddFontFaceReference(ref.Get())))return hr;
++    seen[f.file]=true;
++  }
++  for(size_t i=0;i<files.size();++i)if(files[i] && !seen[i])return S_FALSE;
++  ComPtr<IDWriteFontSet> base;
++  if(FAILED(hr=builder->CreateFontSet(&base)))return hr;
++  ComPtr<IDWriteFontSet> chosen=base;
++  if(additions && !additions->fonts.empty()){
++    ComPtr<IDWriteFontSetBuilder1> combined;ComPtr<IDWriteFontSet> all;
++    hr=modern->CreateFontSetBuilder(&combined);
++    if(SUCCEEDED(hr))hr=combined->AddFontSet(base.Get());
++    for(const auto& path:additions->fonts){
++      if(FAILED(hr))break;
++      ComPtr<IDWriteFontFile> file;
++      hr=modern->CreateFontFileReference(path.c_str(),nullptr,&file);
++      if(SUCCEEDED(hr))hr=combined->AddFontFile(file.Get());
++    }
++    if(SUCCEEDED(hr))hr=combined->CreateFontSet(&all);
++    if(SUCCEEDED(hr))chosen=std::move(all);else snapshot->additions_rejected=true;
++  }
++  ComPtr<IDWriteFontCollection1> collection;
++  hr=modern->CreateFontCollectionFromFontSet(chosen.Get(),&collection);
++  if(FAILED(hr) && chosen.Get()!=base.Get()){
++    collection.Reset();snapshot->additions_rejected=true;
++    hr=modern->CreateFontCollectionFromFontSet(base.Get(),&collection);
++  }
++  if(FAILED(hr))return hr;
++  hr=collection.CopyTo(output);if(SUCCEEDED(hr)){snapshot->used_index=true;*retained=std::move(snapshot);}
++  return hr;
++}
++
 +inline HRESULT CreateControlledCollection(
 +    IDWriteFactory* factory, const std::vector<NativeSourcePin>& source_pins,
 +    const std::shared_ptr<Resources>& additions,
 +    std::shared_ptr<NativeViewSnapshot>* retained,
-+    IDWriteFontCollection** output) {
++    IDWriteFontCollection** output, const shardx_font_index::Index* index=nullptr) {
 +  if (!factory || !retained || !output) return E_POINTER;
 +  retained->reset(); *output = nullptr;
++  if(index){
++    const HRESULT indexed=CreateIndexedCollection(factory,source_pins,*index,additions,retained,output);
++    if(indexed!=S_FALSE)return indexed;
++  }
 +  wchar_t windows_path[MAX_PATH + 1] = {};
 +  const UINT windows_length = GetWindowsDirectoryW(windows_path, MAX_PATH + 1);
 +  if (!windows_length || windows_length > MAX_PATH) return E_FAIL;
@@ -1175,7 +1472,7 @@ diff --git a/ui/gfx/win/direct_write.cc b/ui/gfx/win/direct_write.cc
    if (!g_sideloaded_fonts) {
      // Normal path - The DirectWrite font manager will use the system's font
      // collection with no sideloading when passed `nullptr` for the collection.
-@@ -115,6 +122,62 @@
+@@ -115,6 +122,63 @@
  }
  
  }  // anonymous namespace
@@ -1216,7 +1513,8 @@ diff --git a/ui/gfx/win/direct_write.cc b/ui/gfx/win/direct_write.cc
 +          resources.reset();
 +        }
 +        result = base::uxr_private_fonts_v1::CreateControlledCollection(
-+            factory, selection->native_sources, resources, &native_snapshot, &fonts);
++            factory, selection->native_sources, resources, &native_snapshot, &fonts,
++            selection->face_index.get());
 +        if (SUCCEEDED(result) && native_snapshot->additions_rejected)
 +          LOG(ERROR) << "Regional font loading failed; verified controlled base retained";
 +        // A missing required source or invalid policy must never expose the
@@ -1238,7 +1536,7 @@ diff --git a/ui/gfx/win/direct_write.cc b/ui/gfx/win/direct_write.cc
  
  void SideLoadFontForTesting(base::FilePath path) {
    if (!g_sideloaded_fonts) {
-@@ -159,7 +222,10 @@
+@@ -159,7 +223,10 @@
    bool should_use_collection = GetFontCollection(factory, &collection);
    if (g_sideloaded_fonts) {
      DCHECK(should_use_collection);

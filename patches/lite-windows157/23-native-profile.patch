@@ -1145,7 +1145,7 @@ diff --git a/chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc b/chr
 +
 +void WindowsTaskbarIconUpdater::OnExtendedAccountInfoUpdated(
 +    const AccountInfo& info) {
-+  if (info.account_id == identity_observation_.GetSource()->GetPrimaryAccountId(
++  if (info.GetAccountId() == identity_observation_.GetSource()->GetPrimaryAccountId(
 +                             signin::ConsentLevel::kSignin)) {
 +    UpdateIcon();
 +  }

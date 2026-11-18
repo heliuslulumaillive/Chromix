@@ -269,7 +269,7 @@
     },
     {
       "path": "patches/lite-windows157/13-fonts.patch",
-      "sha256": "59dc6bb5bf03b0b3f6960ac85758b1ddfffaa83cbab1aa32fd22e510c7b63f12",
+      "sha256": "29abd41269164faa02f0cf186f548aa70836d6086c498e0e959f7f2b3ce75265",
       "files": [
         "base/uxr_font_allowlist.h",
         "base/uxr_font_allowlist_tests.cc",
@@ -578,7 +578,7 @@
     },
     {
       "path": "patches/lite-windows157/23-native-profile.patch",
-      "sha256": "bd48927c98f380967462ead45b0983473b7bf0b67580df653447cc428d18d609",
+      "sha256": "5f3c42e62bc5dbe00bf6472a655bc1951e0fe17989441c69852cc3ff0d1fb88a",
       "files": [
         "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc",
         "chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc",
@@ -976,7 +976,7 @@
     {
       "path": "base/uxr_private_font_packages_win.h",
       "before_sha256": null,
-      "after_sha256": "f9f5aa82d16b20074843e801433907a6295847e8add77e899dfc07ceb505a2fc"
+      "after_sha256": "247b2e911567dce0f0c05de7a6baecc9503a4ce6998022de6485e239dbb43b8c"
     },
     {
       "path": "base/uxr_shard_webgl_v2_properties.h",
@@ -2186,7 +2186,7 @@
     {
       "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc",
       "before_sha256": "04ee63125d44792aa83a6df30967043df6a5439e2c5536f325f559a367ddd47c",
-      "after_sha256": "ca08db4ecedbb760148fad5891a0b7a1e658dff5391e5def01ea2c0c1fbeb5c7"
+      "after_sha256": "c869990412cc04140c626607a848308c9101d963f1e6b14f7a426b144e76124e"
     },
     {
       "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h",
@@ -4256,7 +4256,7 @@
     {
       "path": "ui/gfx/win/direct_write.cc",
       "before_sha256": "8ef8fd82b4ce653e336ad5cc696503ceb0df0a3bbd86f3759732f3ed45918dad",
-      "after_sha256": "100c4f8975049934489b92ff8fceb0fa73e318483c70c5d94f1391c361bf0a99"
+      "after_sha256": "7c6b2ddb70e4a6de31055956eecafd71f0902077e73705d6b53d3626d4dcf917"
     },
     {
       "path": "ui/gfx/win/direct_write.h",
@@ -4820,5 +4820,5 @@
     "source_manifest_sha256": "f0cf82f501b4183b26bdcf7c2c9e4eedf314d7817b8eaa1c60b3b26ce4e76bb7",
     "review": "build/windows157-port.json"
   },
-  "stack_sha256": "52363f717981287f3a9f99a55c6b191bd9dd6d7e1c69041999797e8a6309b187"
+  "stack_sha256": "273e8e4786a870a81e02def518b6d5091a214e184810d30d9c9f795a7264d229"
 }

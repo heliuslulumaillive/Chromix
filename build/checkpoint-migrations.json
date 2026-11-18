@@ -922,6 +922,75 @@
         }
       ],
       "scope": "Windows managed taskbar uses the current regular primary account image, clears on sign-out, and reapplies after the shell creates its button. Ordinary window icon, stable grouping and all unrelated browser behavior remain intact. Exact donor inventory and six reviewed source updates."
+    },
+    {
+      "id": "lite15778-release-font-face-index-primary-account",
+      "chromium_version": "157.0.8103.78",
+      "core_commit": "8c886dffc6ade39d8f7df5d64ace5a8824b455e1",
+      "windows_commit": "20e9a348fc616bd73a366fbd5d8881613d6c5cb0",
+      "arch": "x64",
+      "source_commit": "d1be5d20056653eb5d00ee7cb3eb1e043b879bb3",
+      "source_run": "44015540387",
+      "source_stage": 2,
+      "source_recipe_sha256": "01763107abb4032850942200414a59e4cfaf1d2f9df89ecd7452b3c1182e7ee4",
+      "target_recipe_sha256": "d1ff657c24b34213f4f0b0ec890f23c40b05d9add42e0aa536294d691691f612",
+      "source_preparation_sha256": "01763107abb4032850942200414a59e4cfaf1d2f9df89ecd7452b3c1182e7ee4",
+      "target_preparation_sha256": "d1ff657c24b34213f4f0b0ec890f23c40b05d9add42e0aa536294d691691f612",
+      "source_aggregate_sha256": "87e4b8fcd8e0d52b7052dc924f7aee9192604819d78bca9470269e6f1edb3921",
+      "target_aggregate_sha256": "273e8e4786a870a81e02def518b6d5091a214e184810d30d9c9f795a7264d229",
+      "source_patch_kind": "lite-windows157-product",
+      "target_patch_kind": "lite-windows157-product",
+      "product_source_updates": [
+        {
+          "path": "base/uxr_private_font_packages_win.h",
+          "before_sha256": "f9f5aa82d16b20074843e801433907a6295847e8add77e899dfc07ceb505a2fc",
+          "after_sha256": "247b2e911567dce0f0c05de7a6baecc9503a4ce6998022de6485e239dbb43b8c",
+          "replacement_path": "build/checkpoint-sources/247b2e911567dce0f0c05de7a6baecc9503a4ce6998022de6485e239dbb43b8c.h"
+        },
+        {
+          "path": "chrome/browser/taskbar/BUILD.gn",
+          "before_sha256": "c4ad1a275dcf7a1a910ae8f8cbd163823d05bd3500e12bb35dd4db4cd640e6b6",
+          "after_sha256": "cb3675450cea2aedb133670e8d2b2f35ce5bab6bd7a378e1df2e1adbaab1f348",
+          "replacement_path": "build/checkpoint-sources/cb3675450cea2aedb133670e8d2b2f35ce5bab6bd7a378e1df2e1adbaab1f348.gn"
+        },
+        {
+          "path": "chrome/browser/taskbar/taskbar_decorator_win.cc",
+          "before_sha256": "6c786c3852087649ef0fadf76cf6280356b917621c75604d274bd5355e617f4e",
+          "after_sha256": "b37d2722cfcc08c835be871c4f5a00fddbdb36649ccda4b9ab2bf944011e2749",
+          "replacement_path": "build/checkpoint-sources/b37d2722cfcc08c835be871c4f5a00fddbdb36649ccda4b9ab2bf944011e2749.cc"
+        },
+        {
+          "path": "chrome/browser/ui/views/frame/BUILD.gn",
+          "before_sha256": "3ff00320fc3ad02f5d8044946e23ed6b1d73ce7a326312a0994d7c30bfe0f5eb",
+          "after_sha256": "42dae57aded565307f04cb0d9ef65b6da471918501b8fdc5e7494f94552e45b4",
+          "replacement_path": "build/checkpoint-sources/42dae57aded565307f04cb0d9ef65b6da471918501b8fdc5e7494f94552e45b4.gn"
+        },
+        {
+          "path": "chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc",
+          "before_sha256": "e2ddcbc7c769139e422e0ae5b06748dea09a5eb54575218e02f5c40fb458b694",
+          "after_sha256": "c54c5e56af59a227fdb46cce15b680e5fc5c1bbd47bb69ba2909f248fac6230d",
+          "replacement_path": "build/checkpoint-sources/c54c5e56af59a227fdb46cce15b680e5fc5c1bbd47bb69ba2909f248fac6230d.cc"
+        },
+        {
+          "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc",
+          "before_sha256": "04ee63125d44792aa83a6df30967043df6a5439e2c5536f325f559a367ddd47c",
+          "after_sha256": "c869990412cc04140c626607a848308c9101d963f1e6b14f7a426b144e76124e",
+          "replacement_path": "build/checkpoint-sources/c869990412cc04140c626607a848308c9101d963f1e6b14f7a426b144e76124e.cc"
+        },
+        {
+          "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h",
+          "before_sha256": "e9fd3d55842cad3f3cd4d53559c97fdf0aae154d4e4972ff9ffcf0872143c7de",
+          "after_sha256": "a1efbfcda8fc5f3583aa2a111af942089a4ab75382da2137482525366adbe011",
+          "replacement_path": "build/checkpoint-sources/a1efbfcda8fc5f3583aa2a111af942089a4ab75382da2137482525366adbe011.h"
+        },
+        {
+          "path": "ui/gfx/win/direct_write.cc",
+          "before_sha256": "100c4f8975049934489b92ff8fceb0fa73e318483c70c5d94f1391c361bf0a99",
+          "after_sha256": "7c6b2ddb70e4a6de31055956eecafd71f0902077e73705d6b53d3626d4dcf917",
+          "replacement_path": "build/checkpoint-sources/7c6b2ddb70e4a6de31055956eecafd71f0902077e73705d6b53d3626d4dcf917.cc"
+        }
+      ],
+      "scope": "Signed per-file face inventory bound to the signed catalog. Reconstruct the reviewed system faces in order, including collection indexes, simulations and variable axes; verify immutable native handles by signed NTFS journal identity or full SHA-256. Preserve authenticated region supplements and the signed-in-only native taskbar overlay. Fix the Chromium 157 AccountInfo accessor."
     }
   ]
 }

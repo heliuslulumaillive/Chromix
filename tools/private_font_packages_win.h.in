@@ -19,6 +19,9 @@
 #include <vector>
 #include <utility>
 #include <wrl/client.h>
+#include <appmodel.h>
+#include <map>
+// FONT_INDEX_FORMAT
 namespace base::uxr_private_fonts_v1 {
 struct Asset {
   const wchar_t *name;
@@ -98,9 +101,22 @@ inline bool CheckHash(HANDLE file, const Asset &asset) {
       return false;
   return true;
 }
+inline bool VerifiedIndexedAsset(HANDLE file, const Asset& asset,
+                                 const shardx_font_index::Index* index) {
+  if (index) {
+    for (const auto& source : index->sources) {
+      if (source.kind!=3 || source.hash!=asset.sha256 || source.size!=asset.size ||
+          std::wstring(source.name.begin(),source.name.end())!=asset.name) continue;
+      shardx_font_index::Stamp actual;
+      if (shardx_font_index::FileStamp(file,&actual) && actual==source.stamp) return true;
+      break;
+    }
+  }
+  return CheckHash(file,asset);
+}
 inline HRESULT VerifyAssets(const std::wstring &supplied,
                             const Asset *assets, size_t asset_count,
-                            std::shared_ptr<Resources> *result) {
+                            std::shared_ptr<Resources> *result, const shardx_font_index::Index* face_index = nullptr) {
   if (!result)
     return E_POINTER;
   result->reset();
@@ -147,7 +163,7 @@ inline HRESULT VerifyAssets(const std::wstring &supplied,
     if (!GetFileInformationByHandle(file, &info) ||
         (info.dwFileAttributes &
          (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) ||
-        !CheckHash(file, asset))
+        !VerifiedIndexedAsset(file, asset, face_index))
       return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
     if (asset.font)
       files->fonts.push_back(path);

@@ -50,6 +50,8 @@ try {
   $magic=[Text.Encoding]::ASCII.GetString($payload,0,8)
   if($magic -ceq "SXFONT3`0" -and [BitConverter]::ToUInt16($payload,8) -eq 3) {
     $prefix=[Text.Encoding]::ASCII.GetBytes("ShardXFontCatalog-v3`0")
+  } elseif($magic -ceq "SXFACE1`0" -and [BitConverter]::ToUInt16($payload,8) -eq 1) {
+    $prefix=[Text.Encoding]::ASCII.GetBytes("ShardXFontFaceIndex-v1`0")
   } elseif($magic -ceq "SXFONT2`0" -and [BitConverter]::ToUInt16($payload,8) -eq 2) {
     $prefix=[Text.Encoding]::ASCII.GetBytes("ShardXFontCatalog-v2`0")
   } else { throw 'Unknown catalog protocol; refusing to sign' }

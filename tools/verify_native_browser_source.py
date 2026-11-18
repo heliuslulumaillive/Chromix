@@ -77,6 +77,7 @@ def verify_account_overlay(src: Path):
     updater = 'chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc'
     source = read(src, updater)
     require(source, [consent_header, 'identity_observation_.Observe(identity)', 'identity_observation_.Reset()'], updater)
+    require(body(source, 'WindowsTaskbarIconUpdater::OnExtendedAccountInfoUpdated'), ['info.GetAccountId() ==', 'GetPrimaryAccountId('], updater)
     for event in ('OnPrimaryAccountChanged', 'OnExtendedAccountInfoUpdated', 'OnWidgetVisibilityChanged'):
         require(body(source, 'WindowsTaskbarIconUpdater::' + event), ['UpdateIcon()'], updater)
     return [decorator, frame, updater]
