@@ -72,6 +72,7 @@ on:
       - 'tools/signed_font_catalog_win.h.in'
       - 'tools/signed_font_catalog_v3_win.h.in'
       - 'tools/catalog_native_view_win.h.in'
+      - 'tools/font_face_index_win.h'
       - 'tools/font_catalog.mjs'
       - 'tools/font_catalog_v3.mjs'
       - 'tools/tests/test_signed_font_catalog.py'
