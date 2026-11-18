@@ -52,6 +52,8 @@ tools/google-services-requirements.txt text eol=lf
 *.bin     binary
 /build/security-resources/etw_events/*.BIN binary
 /build/checkpoint-sources/** text eol=lf
+/tools/font_face_index_win.h text eol=lf
+/tools/capture_font_face_index_win.cc text eol=lf
 /build/windows/metagen-python/** text eol=lf
 *.pb      binary
 /tools/tests/fixtures/pixel-semantics-v1/cases.tsv text eol=lf
