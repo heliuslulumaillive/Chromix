@@ -48,7 +48,39 @@ def require(source, tokens, location):
             raise ValueError(location + ': native browser contract is missing ' + token)
 
 
-def verify_shell(src: Path):
+def verify_account_overlay(src: Path):
+    decorator = 'chrome/browser/taskbar/taskbar_decorator_win.cc'
+    source = read(src, decorator)
+    update = body(source, 'UpdateTaskbarDecoration')
+    require(update, [
+        'shell_integration::win::IsShardXManagedEnvironment()',
+        'profile->IsRegularProfile()', 'IdentityManagerFactory::GetForProfileIfExists(profile)',
+        'if (!identity || !identity->HasPrimaryAccount(signin::ConsentLevel::kSignin)) { DrawTaskbarDecoration(window, nullptr); return; }',
+        'identity->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)',
+        'identity->FindExtendedAccountInfo(primary).GetAvatarImage()',
+        'profiles::GetPlaceholderAvatarIconResourceID()', 'DrawTaskbarDecoration(window, &image); return;',
+        'profile->IsGuestSession()', '.GetNumberOfProfiles() <= 1',
+        'AvatarMenu::GetImageForMenuButton'], decorator)
+    require(body(source, 'PostSetOverlayIcon'), ['base::NoDestructor', 'CreateCOMSTATaskRunner', '(*runner)->PostTask'], decorator)
+
+    frame = 'chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc'
+    source = read(src, frame)
+    for event in ('HandleCreate', 'OnProfileAvatarChanged', 'OnProfileAdded'):
+        require(body(source, 'BrowserDesktopWindowTreeHostWin::' + event),
+                ['if (!shell_integration::win::IsShardXManagedEnvironment() &&', 'SetWindowIcon(/*badged=*/true)'], frame)
+    require(body(source, 'BrowserDesktopWindowTreeHostWin::OnProfileWasRemoved'), ['SetWindowIcon(/*badged=*/false)'], frame)
+    require(body(source, 'BrowserDesktopWindowTreeHostWin::PreHandleMSG'),
+            ['RegisterWindowMessageW(L"TaskbarButtonCreated")', 'taskbar::UpdateTaskbarDecoration'], frame)
+
+    updater = 'chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc'
+    source = read(src, updater)
+    require(source, ['identity_observation_.Observe(identity)', 'identity_observation_.Reset()'], updater)
+    for event in ('OnPrimaryAccountChanged', 'OnExtendedAccountInfoUpdated', 'OnWidgetVisibilityChanged'):
+        require(body(source, 'WindowsTaskbarIconUpdater::' + event), ['UpdateIcon()'], updater)
+    return [decorator, frame, updater]
+
+
+def verify_shell(src: Path, *, account_overlay=False):
     checked = []
     name = 'chrome/browser/shell_integration_win.cc'
     source = read(src, name)
@@ -93,23 +125,27 @@ def verify_shell(src: Path):
         raise ValueError(name + ': native shortcut feature gate does not protect managed environments')
     checked.append(name)
 
-    name = 'chrome/browser/taskbar/taskbar_decorator_win.cc'
-    avatar = body(read(src, name), 'UpdateTaskbarDecoration')
-    require(avatar, ['shell_integration::win::IsShardXManagedEnvironment() && profile->IsRegularProfile()',
-        'profile->IsGuestSession()', '.GetNumberOfProfiles() <= 1 && !managed_avatar',
-        'AvatarMenu::GetImageForMenuButton', 'taskbar::DrawTaskbarDecoration(window, &decoration)'], name)
-    checked.append(name)
-
+    if account_overlay:
+        checked.extend(verify_account_overlay(src))
+    else:
+        name = 'chrome/browser/taskbar/taskbar_decorator_win.cc'
+        avatar = body(read(src, name), 'UpdateTaskbarDecoration')
+        require(avatar, ['shell_integration::win::IsShardXManagedEnvironment() && profile->IsRegularProfile()',
+            'profile->IsGuestSession()', '.GetNumberOfProfiles() <= 1 && !managed_avatar',
+            'AvatarMenu::GetImageForMenuButton', 'taskbar::DrawTaskbarDecoration(window, &decoration)'], name)
+        checked.append(name)
+        name = 'chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc'
+        source = read(src, name)
+        for event in ('HandleCreate', 'OnProfileAvatarChanged', 'OnProfileWasRemoved'):
+            require(body(source, 'BrowserDesktopWindowTreeHostWin::' + event), [
+                'shell_integration::win::IsShardXManagedEnvironment()',
+                'IsRegularProfile()', 'SetWindowIcon'], name + '/' + event)
+        checked.append(name)
     name = 'chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc'
     source = read(src, name)
-    for event in ('HandleCreate', 'OnProfileAvatarChanged', 'OnProfileWasRemoved'):
-        require(body(source, 'BrowserDesktopWindowTreeHostWin::' + event), [
-            'shell_integration::win::IsShardXManagedEnvironment()',
-            'IsRegularProfile()', 'SetWindowIcon'], name + '/' + event)
     require(body(source, 'GetBadgedIconBitmapForProfile'), [
         'GetProfileAttributesStorage()', 'profiles::GetWin2xAvatarImage(entry)',
         'profiles::GetBadgedWinIconBitmapForAvatar'], name)
-    checked.append(name)
 
     name = 'chrome/test/BUILD.gn'
     source = read(src, name)
@@ -178,7 +214,14 @@ def verify(src: Path, repo: Path, *, config=None):
             or config.get('chromium_version') not in ('156.0.8078.79', '157.0.8103.38', '157.0.8103.78')
             or capabilities.get('managed_environment', {}).get('flag') != 'shardx-managed-environment'):
         raise ValueError('Native browser capability identity is invalid')
-    checked = verify_shell(src)
+    account_overlay = not legacy and config['chromium_version'] == '157.0.8103.78'
+    if account_overlay:
+        avatar = capabilities.get('windows_avatar', {})
+        if (avatar.get('source') != 'native-primary-account-kSignin' or avatar.get('window_icon') is not False
+                or avatar.get('taskbar_overlay') is not True or avatar.get('signed_out') != 'ordinary-chromium-icon'
+                or avatar.get('manager_image_input') is not False):
+            raise ValueError('Native signed-in taskbar avatar contract is invalid')
+    checked = verify_shell(src, account_overlay=account_overlay)
     requirements = {
         'chrome/browser/profiles/profile.cc': ['prefs::kSearchSuggestEnabled, true'],
         'chrome/browser/ui/browser_ui_prefs.cc': ['translate::prefs::kOfferTranslateEnabled, true'],

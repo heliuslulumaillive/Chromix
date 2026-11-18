@@ -4150,33 +4150,79 @@ diff --git a/chrome/browser/sync/sync_service_factory.cc b/chrome/browser/sync/s
 diff --git a/chrome/browser/taskbar/taskbar_decorator_win.cc b/chrome/browser/taskbar/taskbar_decorator_win.cc
 --- a/chrome/browser/taskbar/taskbar_decorator_win.cc
 +++ b/chrome/browser/taskbar/taskbar_decorator_win.cc
-@@ -26,6 +26,7 @@
+@@ -15,6 +15,7 @@
+ 
+ #include "base/functional/bind.h"
+ #include "base/location.h"
++#include "base/no_destructor.h"
+ #include "base/numerics/safe_conversions.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/task/single_thread_task_runner.h"
+@@ -26,6 +27,10 @@
  #include "chrome/browser/profiles/profile_attributes_storage.h"
  #include "chrome/browser/profiles/profile_avatar_icon_util.h"
  #include "chrome/browser/profiles/profile_manager.h"
 +#include "chrome/browser/shell_integration_win.h"
++#include "chrome/browser/signin/identity_manager_factory.h"
++#include "components/signin/public/identity_manager/consent_level.h"
++#include "components/signin/public/identity_manager/identity_manager.h"
  #include "skia/ext/font_utils.h"
  #include "skia/ext/image_operations.h"
  #include "skia/ext/legacy_display_globals.h"
-@@ -193,12 +194,17 @@
+@@ -38,6 +43,7 @@
+ #include "third_party/skia/include/core/SkImageInfo.h"
+ #include "third_party/skia/include/core/SkRRect.h"
+ #include "third_party/skia/include/core/SkStream.h"
++#include "ui/base/resource/resource_bundle.h"
+ #include "ui/gfx/image/image.h"
+ #include "ui/gfx/win/icon_util.h"
+ #include "ui/views/win/hwnd_util.h"
+@@ -109,10 +115,12 @@
+ void PostSetOverlayIcon(HWND hwnd,
+                         std::unique_ptr<SkBitmap> bitmap,
+                         const std::string& alt_text) {
+-  base::ThreadPool::CreateCOMSTATaskRunner(
+-      {base::MayBlock(), base::TaskPriority::USER_VISIBLE})
+-      ->PostTask(FROM_HERE, base::BindOnce(&SetOverlayIcon, hwnd,
+-                                           std::move(bitmap), alt_text));
++  // Preserve the order of account switches, sign-out clears and avatar loads.
++  static const base::NoDestructor<scoped_refptr<base::SingleThreadTaskRunner>>
++      runner(base::ThreadPool::CreateCOMSTATaskRunner(
++          {base::MayBlock(), base::TaskPriority::USER_VISIBLE}));
++  (*runner)->PostTask(FROM_HERE, base::BindOnce(&SetOverlayIcon, hwnd,
++                                                std::move(bitmap), alt_text));
+ }
+ 
+ }  // namespace
+@@ -193,6 +201,28 @@
  }
  
  void UpdateTaskbarDecoration(Profile* profile, gfx::NativeWindow window) {
-+  // Each managed environment owns a separate user-data root. Even a single
-+  // regular profile therefore needs its native avatar to identify its window.
-+  const bool managed_avatar =
-+      shell_integration::win::IsShardXManagedEnvironment() &&
-+      profile->IsRegularProfile();
++  if (shell_integration::win::IsShardXManagedEnvironment()) {
++    auto* identity = profile->IsRegularProfile()
++                         ? IdentityManagerFactory::GetForProfileIfExists(profile)
++                         : nullptr;
++    if (!identity || !identity->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
++      DrawTaskbarDecoration(window, nullptr);
++      return;
++    }
++
++    const CoreAccountInfo primary =
++        identity->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
++    const auto avatar = identity->FindExtendedAccountInfo(primary).GetAvatarImage();
++    // While this account's picture is loading, use Chromium's own silhouette.
++    // A previous account's cached profile picture must never be substituted.
++    const gfx::Image& image =
++        avatar && !avatar->IsEmpty()
++            ? *avatar
++            : ui::ResourceBundle::GetSharedInstance().GetImageNamed(
++                  profiles::GetPlaceholderAvatarIconResourceID());
++    DrawTaskbarDecoration(window, &image);
++    return;
++  }
    if (profile->IsGuestSession() ||
        // Browser process and profile manager may be null in tests.
        (g_browser_process && g_browser_process->profile_manager() &&
-        g_browser_process->profile_manager()
-                ->GetProfileAttributesStorage()
--               .GetNumberOfProfiles() <= 1)) {
-+               .GetNumberOfProfiles() <= 1 && !managed_avatar)) {
-     taskbar::DrawTaskbarDecoration(window, nullptr);
-     return;
-   }
 diff --git a/chrome/browser/ui/autofill/chrome_autofill_client.cc b/chrome/browser/ui/autofill/chrome_autofill_client.cc
 --- a/chrome/browser/ui/autofill/chrome_autofill_client.cc
 +++ b/chrome/browser/ui/autofill/chrome_autofill_client.cc

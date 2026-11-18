@@ -24,11 +24,12 @@
     "web_permission_authority": "This marker does not grant or constrain web permissions."
   },
   "windows_avatar": {
-    "source": "native-ProfileAttributesStorage",
-    "window_icon": true,
+    "source": "native-primary-account-kSignin",
+    "window_icon": false,
     "taskbar_overlay": true,
     "managed_single_regular_profile": true,
-    "guest_behavior": "upstream",
+    "signed_out": "ordinary-chromium-icon",
+    "guest_behavior": "ordinary-chromium-icon",
     "manager_image_input": false
   },
   "environment_controls": {

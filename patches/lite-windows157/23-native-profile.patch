@@ -859,15 +859,16 @@ diff --git a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.
  
  #include <windows.h>
  
-@@ -22,6 +25,7 @@
+@@ -22,6 +25,8 @@
  #include "chrome/browser/lifetime/application_lifetime_desktop.h"
  #include "chrome/browser/profiles/profile_avatar_icon_util.h"
  #include "chrome/browser/profiles/profile_manager.h"
 +#include "chrome/browser/shell_integration_win.h"
++#include "chrome/browser/taskbar/taskbar_decorator_win.h"
  #include "chrome/browser/themes/theme_service.h"
  #include "chrome/browser/themes/theme_service_factory.h"
  #include "chrome/browser/ui/ui_features.h"
-@@ -392,12 +396,13 @@
+@@ -392,12 +397,11 @@
        BrowserWindowPropertyManager::CreateBrowserWindowPropertyManager(
            browser_view_, GetHWND());
  
@@ -877,20 +878,26 @@ diff --git a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.
 -  if (g_browser_process->profile_manager()
 -          ->GetProfileAttributesStorage()
 -          .GetNumberOfProfiles() > 1) {
-+  // Use Chromium's profile image for managed environments, including a
-+  // single regular profile. Other browsers retain native multi-profile badging.
-+  if ((shell_integration::win::IsShardXManagedEnvironment() &&
-+       browser_view_->browser()->GetProfile()->IsRegularProfile()) ||
++  // Managed taskbar buttons have an account overlay and an ordinary app icon.
++  if (!shell_integration::win::IsShardXManagedEnvironment() &&
 +      g_browser_process->profile_manager()
 +              ->GetProfileAttributesStorage()
 +              .GetNumberOfProfiles() > 1) {
      SetWindowIcon(/*badged=*/true);
    }
  }
-@@ -411,6 +416,16 @@
+@@ -411,6 +415,24 @@
                                                     WPARAM w_param,
                                                     LPARAM l_param,
                                                     LRESULT* result) {
++  static const UINT taskbar_button_created =
++      ::RegisterWindowMessageW(L"TaskbarButtonCreated");
++  if (taskbar_button_created && message == taskbar_button_created && browser_view_ &&
++      shell_integration::win::IsShardXManagedEnvironment() &&
++      browser_view_->GetWidget() && browser_view_->GetNativeWindow()) {
++    taskbar::UpdateTaskbarDecoration(browser_view_->browser()->GetProfile(),
++                                    browser_view_->GetNativeWindow());
++  }
 +  static const UINT exit_message = ::RegisterWindowMessageW(shardx::kExitEnvironmentMessage);
 +  if (exit_message && message == exit_message && w_param == shardx::kExitEnvironmentAck &&
 +      shardx::ManagedSessionRestore(*base::CommandLine::ForCurrentProcess()).has_value()) {
@@ -904,43 +911,40 @@ diff --git a/chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.
    switch (message) {
      case WM_ENDSESSION:
        chrome::SessionEnding();
-@@ -555,14 +570,16 @@
+@@ -555,21 +577,20 @@
  
  void BrowserDesktopWindowTreeHostWin::OnProfileAvatarChanged(
      const base::FilePath& profile_path) {
 -  // If we're currently badging the window icon (>1 available profile),
 -  // and this window's profile's avatar changed, update the window icon.
-+  // Update the native image for this window's profile, including managed
-+  // single-profile windows.
    CHECK(browser_view_);
-   if (browser_view_->browser()->GetProfile()->GetPath() == profile_path &&
--      g_browser_process->profile_manager()
--              ->GetProfileAttributesStorage()
--              .GetNumberOfProfiles() > 1) {
+-  if (browser_view_->browser()->GetProfile()->GetPath() == profile_path &&
++  if (!shell_integration::win::IsShardXManagedEnvironment() &&
++      browser_view_->browser()->GetProfile()->GetPath() == profile_path &&
+       g_browser_process->profile_manager()
+               ->GetProfileAttributesStorage()
+               .GetNumberOfProfiles() > 1) {
 -    // If we went from 1 to 2 profiles, window icons should be badged.
-+      ((shell_integration::win::IsShardXManagedEnvironment() &&
-+        browser_view_->browser()->GetProfile()->IsRegularProfile()) ||
-+       g_browser_process->profile_manager()
-+               ->GetProfileAttributesStorage()
-+               .GetNumberOfProfiles() > 1)) {
-+    // Profile avatar changes also update managed single-profile windows.
      SetWindowIcon(/*badged=*/true);
    }
  }
-@@ -582,8 +599,11 @@
+ 
+ void BrowserDesktopWindowTreeHostWin::OnProfileAdded(
+     const base::FilePath& profile_path) {
+-  if (g_browser_process->profile_manager()
++  if (!shell_integration::win::IsShardXManagedEnvironment() &&
++      g_browser_process->profile_manager()
+           ->GetProfileAttributesStorage()
+           .GetNumberOfProfiles() == 2) {
+     SetWindowIcon(/*badged=*/true);
+@@ -582,7 +603,6 @@
    if (g_browser_process->profile_manager()
            ->GetProfileAttributesStorage()
            .GetNumberOfProfiles() == 1) {
 -    // If we went from 2 profiles to 1, window icons should not be badged.
--    SetWindowIcon(/*badged=*/false);
-+    // Ordinary single-profile windows lose the badge; managed environments
-+    // retain their own native profile image.
-+    SetWindowIcon(
-+        /*badged=*/shell_integration::win::IsShardXManagedEnvironment() &&
-+        browser_view_->browser()->GetProfile()->IsRegularProfile());
+     SetWindowIcon(/*badged=*/false);
    }
  }
- 
 diff --git a/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc b/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
 --- a/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
 +++ b/chrome/browser/ui/views/frame/browser_window_property_manager_win.cc
@@ -1058,3 +1062,159 @@ diff --git a/chrome/browser/ui/views/profiles/profile_menu_view.cc b/chrome/brow
  }
  
  void ProfileMenuView::MaybeBuildManageGoogleAccountButton() {
+diff --git a/chrome/browser/taskbar/BUILD.gn b/chrome/browser/taskbar/BUILD.gn
+--- a/chrome/browser/taskbar/BUILD.gn
++++ b/chrome/browser/taskbar/BUILD.gn
+@@ -18,7 +18,10 @@
+       "//chrome/browser/profiles:profile",
+       "//chrome/browser/profiles:profile_manager",
+       "//chrome/browser/profiles:profile_util",
++      "//chrome/browser/signin",
++      "//components/signin/public/identity_manager",
+       "//skia",
++      "//ui/base",
+       "//ui/gfx/geometry",
+       "//ui/views",
+     ]
+diff --git a/chrome/browser/ui/views/frame/BUILD.gn b/chrome/browser/ui/views/frame/BUILD.gn
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -1339,6 +1339,7 @@
+       "//chrome/browser/lifetime",
+       "//chrome/browser/profiles:profile_manager",
+       "//chrome/browser/profiles:profile_util",
++      "//chrome/browser/taskbar",
+       "//chrome/browser/themes",
+       "//chrome/browser/ui:ui_features",
+       "//chrome/browser/ui/views/frame:browser_view_header",
+@@ -1922,6 +1923,7 @@
+     public_deps = [
+       "//base",
+       "//chrome/browser/profiles:profile_util",
++      "//components/signin/public/identity_manager",
+       "//ui/views",
+     ]
+   }
+@@ -1936,6 +1938,7 @@
+       "//base",
+       "//chrome/browser:browser_process",
+       "//chrome/browser/profiles:profile_manager",
++      "//chrome/browser/signin",
+       "//chrome/browser/taskbar",
+       "//chrome/browser/ui/browser_window",
+       "//chrome/browser/ui/views/frame:browser_view_header",
+diff --git a/chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc b/chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc
+--- a/chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc
++++ b/chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc
+@@ -6,9 +6,13 @@
+ 
+ #include "base/check_is_test.h"
+ #include "chrome/browser/browser_process.h"
++#include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/profiles/profile_manager.h"
++#include "chrome/browser/shell_integration_win.h"
++#include "chrome/browser/signin/identity_manager_factory.h"
+ #include "chrome/browser/taskbar/taskbar_decorator_win.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "components/signin/public/identity_manager/consent_level.h"
+ 
+ WindowsTaskbarIconUpdater::WindowsTaskbarIconUpdater(BrowserView& browser_view)
+     : browser_view_(browser_view) {
+@@ -20,6 +24,13 @@
+     CHECK_IS_TEST();
+   }
+ 
++  Profile* profile = browser_view_->browser()->GetProfile();
++  if (shell_integration::win::IsShardXManagedEnvironment() &&
++      profile->IsRegularProfile()) {
++    if (auto* identity = IdentityManagerFactory::GetForProfile(profile)) {
++      identity_observation_.Observe(identity);
++    }
++  }
+   browser_view_observer_.Observe(&*browser_view_);
+ }
+ 
+@@ -46,6 +57,29 @@
+   UpdateIcon();
+ }
+ 
++void WindowsTaskbarIconUpdater::OnPrimaryAccountChanged(
++    const signin::PrimaryAccountChangeEvent&) {
++  UpdateIcon();
++}
++
++void WindowsTaskbarIconUpdater::OnExtendedAccountInfoUpdated(
++    const AccountInfo& info) {
++  if (info.account_id == identity_observation_.GetSource()->GetPrimaryAccountId(
++                             signin::ConsentLevel::kSignin)) {
++    UpdateIcon();
++  }
++}
++
++void WindowsTaskbarIconUpdater::OnExtendedAccountInfoRemoved(
++    const AccountInfo& info) {
++  OnExtendedAccountInfoUpdated(info);
++}
++
++void WindowsTaskbarIconUpdater::OnIdentityManagerShutdown(
++    signin::IdentityManager*) {
++  identity_observation_.Reset();
++}
++
+ void WindowsTaskbarIconUpdater::OnViewAddedToWidget(
+     views::View* observed_view) {
+   // When the browser view is created, it does not yet have a widget; this
+@@ -66,6 +100,9 @@
+ }
+ 
+ void WindowsTaskbarIconUpdater::UpdateIcon() {
++  if (!browser_view_->GetWidget() || !browser_view_->GetNativeWindow()) {
++    return;
++  }
+   taskbar::UpdateTaskbarDecoration(browser_view_->browser()->GetProfile(),
+                                    browser_view_->GetNativeWindow());
+ }
+diff --git a/chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h b/chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h
+--- a/chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h
++++ b/chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h
+@@ -8,6 +8,7 @@
+ #include "base/memory/raw_ref.h"
+ #include "base/scoped_observation.h"
+ #include "chrome/browser/profiles/profile_attributes_storage.h"
++#include "components/signin/public/identity_manager/identity_manager.h"
+ #include "ui/views/view_observer.h"
+ #include "ui/views/widget/widget_observer.h"
+ 
+@@ -16,7 +17,8 @@
+ // Watches for profile changes and updates the window icon.
+ class WindowsTaskbarIconUpdater : public ProfileAttributesStorage::Observer,
+                                   public views::ViewObserver,
+-                                  public views::WidgetObserver {
++                                  public views::WidgetObserver,
++                                  public signin::IdentityManager::Observer {
+  public:
+   explicit WindowsTaskbarIconUpdater(BrowserView& browser_view);
+   ~WindowsTaskbarIconUpdater() override;
+@@ -30,6 +32,13 @@
+   void OnProfileHighResAvatarLoaded(
+       const base::FilePath& profile_path) override;
+ 
++  // signin::IdentityManager::Observer:
++  void OnPrimaryAccountChanged(
++      const signin::PrimaryAccountChangeEvent& event) override;
++  void OnExtendedAccountInfoUpdated(const AccountInfo& info) override;
++  void OnExtendedAccountInfoRemoved(const AccountInfo& info) override;
++  void OnIdentityManagerShutdown(signin::IdentityManager* identity) override;
++
+   // ViewObserver:
+   void OnViewAddedToWidget(views::View* observed_view) override;
+ 
+@@ -40,6 +49,8 @@
+   void UpdateIcon();
+ 
+   raw_ref<BrowserView> browser_view_;
++  base::ScopedObservation<signin::IdentityManager, signin::IdentityManager::Observer>
++      identity_observation_{this};
+   base::ScopedObservation<views::View, views::ViewObserver>
+       browser_view_observer_{this};
+   base::ScopedObservation<views::Widget, views::WidgetObserver>

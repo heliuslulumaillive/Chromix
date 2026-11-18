@@ -578,7 +578,7 @@
     },
     {
       "path": "patches/lite-windows157/23-native-profile.patch",
-      "sha256": "16e0edd3826f870cb8353b48f3055199b6b2e0cc57f639dd99cf4d235b45e5dd",
+      "sha256": "ead2cae29989a7015ea39825d12653fb78ffca57f02818353c0bb4c0dc89ff28",
       "files": [
         "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc",
         "chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc",
@@ -599,12 +599,16 @@
         "chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc",
         "chrome/browser/ui/views/frame/browser_window_property_manager_win.cc",
         "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc",
-        "chrome/browser/ui/views/profiles/profile_menu_view.cc"
+        "chrome/browser/ui/views/profiles/profile_menu_view.cc",
+        "chrome/browser/taskbar/BUILD.gn",
+        "chrome/browser/ui/views/frame/BUILD.gn",
+        "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc",
+        "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h"
       ]
     },
     {
       "path": "patches/lite-windows157/24-google-services-and-browser.patch",
-      "sha256": "c16c9c8956e7d50e83809fd272139d51f6132c7cab2385c11e46a73ea3fe561a",
+      "sha256": "00574bdc7e7d8bfff92e0bfe296f463c25b4fcee4b5a4337033ba7db3c8479c6",
       "files": [
         "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
         "chrome/browser/chrome_browser_main.cc",
@@ -2040,9 +2044,14 @@
       "after_sha256": "2aa8e3c60c9efa1bf66aa61f77462b24c5dca994b9bcc7296158bee5a0531ce8"
     },
     {
+      "path": "chrome/browser/taskbar/BUILD.gn",
+      "before_sha256": "c4ad1a275dcf7a1a910ae8f8cbd163823d05bd3500e12bb35dd4db4cd640e6b6",
+      "after_sha256": "cb3675450cea2aedb133670e8d2b2f35ce5bab6bd7a378e1df2e1adbaab1f348"
+    },
+    {
       "path": "chrome/browser/taskbar/taskbar_decorator_win.cc",
       "before_sha256": "4a02fe26e49b8182c7927ab4346acc4d315a3734f4e19bfb73649320d1566e37",
-      "after_sha256": "6c786c3852087649ef0fadf76cf6280356b917621c75604d274bd5355e617f4e"
+      "after_sha256": "d0ff27beeff7744cea03141b0a9c417771e4ffbf0e77ca44c7fecdc3e9b8788b"
     },
     {
       "path": "chrome/browser/ui/autofill/BUILD.gn",
@@ -2160,14 +2169,29 @@
       "after_sha256": "46c4179a7d0f1351a9a18aaf9067292aff77d4e4448126ae57a876d9a035418c"
     },
     {
+      "path": "chrome/browser/ui/views/frame/BUILD.gn",
+      "before_sha256": "3ff00320fc3ad02f5d8044946e23ed6b1d73ce7a326312a0994d7c30bfe0f5eb",
+      "after_sha256": "42dae57aded565307f04cb0d9ef65b6da471918501b8fdc5e7494f94552e45b4"
+    },
+    {
       "path": "chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc",
       "before_sha256": "15509e13eed6903e9cde77053d04cd179060174ebbbe643b32ec46f0480369a8",
-      "after_sha256": "e2ddcbc7c769139e422e0ae5b06748dea09a5eb54575218e02f5c40fb458b694"
+      "after_sha256": "c54c5e56af59a227fdb46cce15b680e5fc5c1bbd47bb69ba2909f248fac6230d"
     },
     {
       "path": "chrome/browser/ui/views/frame/browser_window_property_manager_win.cc",
       "before_sha256": "1cfde103e2e5b602519e10ba9d123932e10a4b7a922da05cc6ba5bd2d96ea92a",
       "after_sha256": "083c772dce16a79c263a139d3f86749dedb580f2e16f6156f35a397f9545637b"
+    },
+    {
+      "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc",
+      "before_sha256": "04ee63125d44792aa83a6df30967043df6a5439e2c5536f325f559a367ddd47c",
+      "after_sha256": "a73d05bcbc23075b9c58e406d4c6e8f599ad7b874fd46dd757912661bc12ee0d"
+    },
+    {
+      "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h",
+      "before_sha256": "e9fd3d55842cad3f3cd4d53559c97fdf0aae154d4e4972ff9ffcf0872143c7de",
+      "after_sha256": "a1efbfcda8fc5f3583aa2a111af942089a4ab75382da2137482525366adbe011"
     },
     {
       "path": "chrome/browser/ui/views/page_info/BUILD.gn",
@@ -4796,5 +4820,5 @@
     "source_manifest_sha256": "f0cf82f501b4183b26bdcf7c2c9e4eedf314d7817b8eaa1c60b3b26ce4e76bb7",
     "review": "build/windows157-port.json"
   },
-  "stack_sha256": "87e4b8fcd8e0d52b7052dc924f7aee9192604819d78bca9470269e6f1edb3921"
+  "stack_sha256": "b91b0dc416a92081a0a12b1b7fe268cf27fa2d73b0014c1eaafa5ff57a0457a5"
 }

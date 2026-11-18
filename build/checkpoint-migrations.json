@@ -865,6 +865,63 @@
       "source_patch_kind": "lite-windows157-product",
       "target_patch_kind": "lite-windows157-product",
       "scope": "Exact intact v3 stage-1 donor, never the stage-2 invalidated tree. No compiled source replacement. Relocate only the two hash-pinned Python cache files after authenticating the complete cache-bearing compiler fingerprints and original marker, then require the unchanged full compiler fingerprints to be restored. Keep every compiled object and original timestamp; reject all other tool drift. Retain future bindings outside toolchain trees and bootstrap GN only after restoration finishes. No validation exemption or DLL admission."
+    },
+    {
+      "id": "lite15778-account-taskbar-overlay",
+      "chromium_version": "157.0.8103.78",
+      "core_commit": "8c886dffc6ade39d8f7df5d64ace5a8824b455e1",
+      "windows_commit": "20e9a348fc616bd73a366fbd5d8881613d6c5cb0",
+      "arch": "x64",
+      "source_commit": "d1be5d20056653eb5d00ee7cb3eb1e043b879bb3",
+      "source_run": "44015540387",
+      "source_stage": 2,
+      "source_recipe_sha256": "01763107abb4032850942200414a59e4cfaf1d2f9df89ecd7452b3c1182e7ee4",
+      "target_recipe_sha256": "5801e92258abd03145fb4a886d3b44f0125d142d6c68536c05a46bbdb2189ff4",
+      "source_preparation_sha256": "01763107abb4032850942200414a59e4cfaf1d2f9df89ecd7452b3c1182e7ee4",
+      "target_preparation_sha256": "5801e92258abd03145fb4a886d3b44f0125d142d6c68536c05a46bbdb2189ff4",
+      "source_aggregate_sha256": "87e4b8fcd8e0d52b7052dc924f7aee9192604819d78bca9470269e6f1edb3921",
+      "target_aggregate_sha256": "b91b0dc416a92081a0a12b1b7fe268cf27fa2d73b0014c1eaafa5ff57a0457a5",
+      "source_patch_kind": "lite-windows157-product",
+      "target_patch_kind": "lite-windows157-product",
+      "product_source_updates": [
+        {
+          "path": "chrome/browser/taskbar/BUILD.gn",
+          "before_sha256": "c4ad1a275dcf7a1a910ae8f8cbd163823d05bd3500e12bb35dd4db4cd640e6b6",
+          "after_sha256": "cb3675450cea2aedb133670e8d2b2f35ce5bab6bd7a378e1df2e1adbaab1f348",
+          "replacement_path": "build/checkpoint-sources/cb3675450cea2aedb133670e8d2b2f35ce5bab6bd7a378e1df2e1adbaab1f348.gn"
+        },
+        {
+          "path": "chrome/browser/taskbar/taskbar_decorator_win.cc",
+          "before_sha256": "6c786c3852087649ef0fadf76cf6280356b917621c75604d274bd5355e617f4e",
+          "after_sha256": "d0ff27beeff7744cea03141b0a9c417771e4ffbf0e77ca44c7fecdc3e9b8788b",
+          "replacement_path": "build/checkpoint-sources/d0ff27beeff7744cea03141b0a9c417771e4ffbf0e77ca44c7fecdc3e9b8788b.cc"
+        },
+        {
+          "path": "chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc",
+          "before_sha256": "e2ddcbc7c769139e422e0ae5b06748dea09a5eb54575218e02f5c40fb458b694",
+          "after_sha256": "c54c5e56af59a227fdb46cce15b680e5fc5c1bbd47bb69ba2909f248fac6230d",
+          "replacement_path": "build/checkpoint-sources/c54c5e56af59a227fdb46cce15b680e5fc5c1bbd47bb69ba2909f248fac6230d.cc"
+        },
+        {
+          "path": "chrome/browser/ui/views/frame/BUILD.gn",
+          "before_sha256": "3ff00320fc3ad02f5d8044946e23ed6b1d73ce7a326312a0994d7c30bfe0f5eb",
+          "after_sha256": "42dae57aded565307f04cb0d9ef65b6da471918501b8fdc5e7494f94552e45b4",
+          "replacement_path": "build/checkpoint-sources/42dae57aded565307f04cb0d9ef65b6da471918501b8fdc5e7494f94552e45b4.gn"
+        },
+        {
+          "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc",
+          "before_sha256": "04ee63125d44792aa83a6df30967043df6a5439e2c5536f325f559a367ddd47c",
+          "after_sha256": "a73d05bcbc23075b9c58e406d4c6e8f599ad7b874fd46dd757912661bc12ee0d",
+          "replacement_path": "build/checkpoint-sources/a73d05bcbc23075b9c58e406d4c6e8f599ad7b874fd46dd757912661bc12ee0d.cc"
+        },
+        {
+          "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h",
+          "before_sha256": "e9fd3d55842cad3f3cd4d53559c97fdf0aae154d4e4972ff9ffcf0872143c7de",
+          "after_sha256": "a1efbfcda8fc5f3583aa2a111af942089a4ab75382da2137482525366adbe011",
+          "replacement_path": "build/checkpoint-sources/a1efbfcda8fc5f3583aa2a111af942089a4ab75382da2137482525366adbe011.h"
+        }
+      ],
+      "scope": "Windows managed taskbar uses the current regular primary account image, clears on sign-out, and reapplies after the shell creates its button. Ordinary window icon, stable grouping and all unrelated browser behavior remain intact. Exact donor inventory and six reviewed source updates."
     }
   ]
 }
