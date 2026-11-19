@@ -325,10 +325,11 @@
     },
     {
       "path": "patches/lite-windows157/16-display.patch",
-      "sha256": "cb3d006efe7f4286222be951de10f26d19737b4659bd788493e8913ae97a18fe",
+      "sha256": "887bf17f89f34a11341aaae167374c65979c06ad740f5bd120bc725e27c5f536",
       "files": [
         "base/uxr_headless_screen.h",
         "chrome/browser/feedback/report_unsafe_site/screenshot_taker.cc",
+        "chrome/browser/ui/views/extensions/extension_view_views.cc",
         "components/send_tab_to_self/entry_point_display_reason.cc",
         "content/browser/renderer_host/cross_process_frame_connector.cc",
         "content/browser/renderer_host/render_widget_host_impl.cc",
@@ -346,6 +347,7 @@
         "third_party/blink/renderer/core/frame/remote_frame.h",
         "third_party/blink/renderer/core/frame/screen.cc",
         "third_party/blink/renderer/core/frame/screen_metrics_emulator.cc",
+        "third_party/blink/renderer/core/frame/screen_metrics_emulator.h",
         "third_party/blink/renderer/core/frame/web_remote_frame_impl.cc",
         "third_party/blink/renderer/modules/screen_details/screen_detailed.cc",
         "third_party/blink/renderer/modules/screen_orientation/screen_orientation.cc",
@@ -515,7 +517,7 @@
     },
     {
       "path": "patches/lite-windows157/21-web-platform-surfaces.patch",
-      "sha256": "c55da8132e95de9ffd65ea73ab98996f306b6edb73242745f146d7fe25b05cbc",
+      "sha256": "c30dc31be053677e70aa992898d946dad016b0abc4065e8c793f84771c3cdd6f",
       "files": [
         "third_party/blink/common/device_memory/approximated_device_memory.cc",
         "third_party/blink/public/devtools_protocol/domains/CSS.pdl",
@@ -2164,6 +2166,11 @@
       "after_sha256": "406779409667323b3ed5d000c5d2739e812fc6051198c16a7ecb14e7b233b1dc"
     },
     {
+      "path": "chrome/browser/ui/views/extensions/extension_view_views.cc",
+      "before_sha256": "6351ed0460feb803aa184fe705c9a5173edec5960ed3307bba66e02ba609b9fa",
+      "after_sha256": "27e03aca44986be3e4297c6d4924855d59a13e451fcfc68c42d34cb3788ffa4a"
+    },
+    {
       "path": "chrome/browser/ui/views/file_system_access/BUILD.gn",
       "before_sha256": "f84138a9506b2b79816b5c8351a80271106c3ba7c9dcd69f343082ed99d35db3",
       "after_sha256": "46c4179a7d0f1351a9a18aaf9067292aff77d4e4448126ae57a876d9a035418c"
@@ -3661,12 +3668,17 @@
     {
       "path": "third_party/blink/renderer/core/frame/screen_metrics_emulator.cc",
       "before_sha256": "e4c05835bab1e93b14ca7920d3744ce9918ac3dde031962d542e4974a7ecb36e",
-      "after_sha256": "aa10a5c98cfad4c6983044db341f9f5301eb9cf52aceb678d6d5998d7047ec71"
+      "after_sha256": "93a6e7eec6f5f21d856fd2e5b54913aa5c88e0afe5b8b1f3572ce5f0927d50b7"
+    },
+    {
+      "path": "third_party/blink/renderer/core/frame/screen_metrics_emulator.h",
+      "before_sha256": "a78820467f8c08c9c398e3968203240a950f3beadb7ee4c9235d7b6d7eb4f19b",
+      "after_sha256": "2ad448455cf0497b6fd9aca3c75dc0c3fba4ca176e46fe92882d19b96f43cd1b"
     },
     {
       "path": "third_party/blink/renderer/core/frame/web_frame_widget_impl.cc",
       "before_sha256": "52c6f92a1f61546898af31fcfe3833bf88a21c08c2fee0065214ec0d28014cf7",
-      "after_sha256": "cfce67a09c22be1903592897bc82cf999417b5d12ee1aa408b4d81475860a7ea"
+      "after_sha256": "416b7e8df19ad06ce1a59bb26cd5ced294a35e7b16ea94a847e20eb5a64213ed"
     },
     {
       "path": "third_party/blink/renderer/core/frame/web_frame_widget_impl.h",
@@ -3676,7 +3688,7 @@
     {
       "path": "third_party/blink/renderer/core/frame/web_frame_widget_test.cc",
       "before_sha256": "083c564c5e12b9f1b27ed17cadee6b0fd7f0a7358aa26d4ffee4aa2469c1d318",
-      "after_sha256": "61d1793d672fb070bf3d44abf621208ce36c492a79404b2e231c1b763765865a"
+      "after_sha256": "1794fdd465ac588cfa36cde681c653cffc5338f8112ace308524eaec4133f0ff"
     },
     {
       "path": "third_party/blink/renderer/core/frame/web_remote_frame_impl.cc",
@@ -4820,5 +4832,5 @@
     "source_manifest_sha256": "f0cf82f501b4183b26bdcf7c2c9e4eedf314d7817b8eaa1c60b3b26ce4e76bb7",
     "review": "build/windows157-port.json"
   },
-  "stack_sha256": "273e8e4786a870a81e02def518b6d5091a214e184810d30d9c9f795a7264d229"
+  "stack_sha256": "8664e2dea19c8cb6eedf6303109f6862877e1450259394a4639fcbfca4e81828"
 }

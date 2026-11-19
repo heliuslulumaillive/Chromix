@@ -68,6 +68,28 @@ diff --git a/chrome/browser/feedback/report_unsafe_site/screenshot_taker.cc b/ch
    std::move(copy_from_surface_callback)
        .Run(gfx::Rect(view_size), target_size,
             base::BindOnce(&ScreenshotTaker::OnGotScreenshot,
+diff --git a/chrome/browser/ui/views/extensions/extension_view_views.cc b/chrome/browser/ui/views/extensions/extension_view_views.cc
+--- a/chrome/browser/ui/views/extensions/extension_view_views.cc
++++ b/chrome/browser/ui/views/extensions/extension_view_views.cc
+@@ -5,6 +5,7 @@
+ #include "chrome/browser/ui/views/extensions/extension_view_views.h"
+ 
+ #include "base/functional/bind.h"
++#include "base/trace_event/trace_event.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/extensions/extension_view_host.h"
+ #include "chrome/browser/profiles/profile.h"
+@@ -103,6 +104,10 @@
+ void ExtensionViewViews::ResizeDueToAutoResize(
+     content::WebContents* web_contents,
+     const gfx::Size& new_size) {
++  TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("viz.surface_id_flow"),
++                      "ExtensionView.AutoResize", "extension",
++                      host_->extension_id(), "size_dip", new_size.ToString(),
++                      "visible", GetVisible());
+   // Don't actually do anything with this information until we have been shown.
+   // Size changes will not be honored by lower layers while we are hidden.
+   if (!GetVisible()) {
 diff --git a/components/send_tab_to_self/entry_point_display_reason.cc b/components/send_tab_to_self/entry_point_display_reason.cc
 --- a/components/send_tab_to_self/entry_point_display_reason.cc
 +++ b/components/send_tab_to_self/entry_point_display_reason.cc
@@ -362,7 +384,21 @@ diff --git a/third_party/blink/renderer/core/frame/screen_metrics_emulator.cc b/
  #include "third_party/blink/public/common/widget/visual_properties.h"
  #include "third_party/blink/renderer/core/frame/web_frame_widget_impl.h"
  
-@@ -155,11 +156,27 @@
+@@ -83,6 +84,13 @@
+         base::ClampRound(widget_size.height() / emulation_params_.scale));
+   }
+ 
++  // The embedder's bounds can still describe the previous compositor frame
++  // while an auto-sized widget is waiting to submit its measured content.
++  const bool auto_resize = frame_widget_->AutoResizeMode();
++  if (auto_resize) {
++    widget_size = frame_widget_->BlinkSpaceToFlooredDIPs(frame_widget_->Size());
++  }
++
+   // For mobile emulation, the window size is changed to match the widget size,
+   // as there are no window decorations around the widget.
+   if (!emulating_desktop())
+@@ -155,24 +163,37 @@
    }
  
    display::ScreenInfos emulated_screen_infos = original_screen_infos_;
@@ -389,8 +425,26 @@ diff --git a/third_party/blink/renderer/core/frame/screen_metrics_emulator.cc b/
 +  }
    emulated_screen_info.orientation_type = orientation_type;
    emulated_screen_info.orientation_angle = orientation_angle;
-   frame_widget_->SetScreenInfoAndSize(emulated_screen_infos,
-@@ -183,7 +200,13 @@
+-  frame_widget_->SetScreenInfoAndSize(emulated_screen_infos,
+-                                      /*widget_size=*/widget_size,
+-                                      /*visible_viewport_size=*/widget_size);
++  frame_widget_->SetScreenInfoAndSize(
++      emulated_screen_infos, widget_size,
++      auto_resize ? original_visible_viewport_size_ : widget_size);
+ }
+ 
+ void ScreenMetricsEmulator::UpdateVisualProperties(
+-    const VisualProperties& visual_properties) {
+-  // Device emulation isn't supported for widgets that have auto resize mode
+-  // enabled.
+-  DCHECK(!frame_widget_->AutoResizeMode());
+-
++    const VisualProperties& visual_properties,
++    const gfx::Rect& compositor_viewport_pixel_rect) {
+   original_screen_infos_ = visual_properties.screen_infos;
+ 
+   original_widget_size_dips_ = gfx::ScaleToFlooredSize(
+@@ -183,14 +204,20 @@
        visual_properties.visible_viewport_size_device_px;
    original_root_viewport_segments_ =
        visual_properties.root_widget_viewport_segments;
@@ -404,6 +458,27 @@ diff --git a/third_party/blink/renderer/core/frame/screen_metrics_emulator.cc b/
  
    // Appy the compositor viewport rect and surface id allocation. The screen
    // info is kept the same as the current ScreenInfo state. The screen info
+   // already was updated in |Apply| via |SetScreenInfoAndSize|.
+   frame_widget_->UpdateSurfaceAndCompositorRect(
+       visual_properties.local_surface_id.value_or(viz::LocalSurfaceId()),
+-      visual_properties.compositor_viewport_pixel_rect);
++      compositor_viewport_pixel_rect);
+ }
+ 
+ void ScreenMetricsEmulator::OnUpdateScreenRects(
+diff --git a/third_party/blink/renderer/core/frame/screen_metrics_emulator.h b/third_party/blink/renderer/core/frame/screen_metrics_emulator.h
+--- a/third_party/blink/renderer/core/frame/screen_metrics_emulator.h
++++ b/third_party/blink/renderer/core/frame/screen_metrics_emulator.h
+@@ -74,7 +74,8 @@
+       const mojom::blink::DeviceEmulationCacheBehavior& cache_behavior =
+           mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
+ 
+-  void UpdateVisualProperties(const VisualProperties& visual_properties);
++  void UpdateVisualProperties(const VisualProperties& visual_properties,
++                              const gfx::Rect& compositor_viewport_pixel_rect);
+ 
+   void OnUpdateScreenRects(const gfx::Rect& view_screen_rect,
+                            const gfx::Rect& window_screen_rect);
 diff --git a/third_party/blink/renderer/core/frame/web_remote_frame_impl.cc b/third_party/blink/renderer/core/frame/web_remote_frame_impl.cc
 --- a/third_party/blink/renderer/core/frame/web_remote_frame_impl.cc
 +++ b/third_party/blink/renderer/core/frame/web_remote_frame_impl.cc
