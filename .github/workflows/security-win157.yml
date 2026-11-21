@@ -49,6 +49,7 @@ on:
       - 'tools/build_lite_retirement_patch.py'
       - 'tools/verify_*_source.py'
       - 'tools/tests/fixtures/pixel-semantics-v1/**'
+      - 'tools/tests/fixtures/graphics-modes-v1/**'
       - 'tools/tests/test_lite_*.py'
       - 'tools/tests/test_security_*.py'
       - 'tools/tests/test_native_*.py'
