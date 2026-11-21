@@ -29,7 +29,7 @@ class WindowsVoiceCompatibilityTest(unittest.TestCase):
         self.assertEqual(receipt['patch_sha256'], hashlib.sha256(combined.read_bytes()).hexdigest())
         self.assertIn('content/browser/speech/tts_win.cc', receipt['changed_files'])
 
-    def test_overlay_manifest_matches_the_actual_ci_recipe(self):
+    def test_historical_overlay_manifest_matches_its_pinned_aggregate(self):
         config = json.loads((ROOT / 'build/google-services-win155.json').read_text(encoding='utf-8'))
         manifest = json.loads((ROOT / 'patches/fingerprint-modes/manifest.json').read_text(encoding='utf-8'))
         active = [name for name in config['restoration_overlays']
@@ -37,7 +37,7 @@ class WindowsVoiceCompatibilityTest(unittest.TestCase):
         self.assertEqual([entry['path'] for entry in manifest['ordered_overlays']], active)
         for entry in manifest['ordered_overlays']:
             self.assertEqual(entry['sha256'], hashlib.sha256((ROOT / entry['path']).read_bytes()).hexdigest())
-        combined = ROOT / 'patches/google-services/0001-restore-google-services.patch'
+        combined = ROOT / 'patches/google-services/history' / (manifest['combined_patch_sha256'] + '.patch')
         self.assertEqual(manifest['combined_patch_sha256'], hashlib.sha256(combined.read_bytes()).hexdigest())
 
     def test_overlay_is_in_the_verified_preparation_recipe(self):
