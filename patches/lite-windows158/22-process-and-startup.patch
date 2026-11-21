@@ -1,0 +1,1651 @@
+diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
+--- a/chrome/app/chrome_main.cc
++++ b/chrome/app/chrome_main.cc
+@@ -7,11 +7,21 @@
+ #include <stdint.h>
+ 
+ #include <iostream>
++#include <vector>
+ #include <memory>
+ #include <optional>
+ 
++#include <string_view>
++
+ #include "base/command_line.h"
++#include "base/uxr_cloak_hardware.h"
+ #include "base/environment.h"
++#include "base/i18n/tag_converters.h"
++#include "base/rand_util.h"
++#include "base/strings/string_number_conversions.h"
++#include "base/strings/string_split.h"
++#include "base/strings/string_util.h"
++#include "base/uxr_headless_screen.h"
+ #include "base/functional/bind.h"
+ #include "base/functional/callback_helpers.h"
+ #include "base/logging.h"
+@@ -164,6 +174,699 @@
+ 
+   base::CommandLine* command_line(base::CommandLine::ForCurrentProcess());
+ 
++  // Normalize public switches only in the browser; children inherit the result.
++  if (!command_line->HasSwitch(switches::kProcessType)) {
++    const auto set_switch = [&](const char* key, const std::string& value) {
++      command_line->RemoveSwitch(key);
++      command_line->AppendSwitchASCII(key, value);
++    };
++    // These implementations are absent in the Lite kernel. Reject stale
++    // inputs instead of silently accepting switches that cannot work.
++    for (const char* retired : {
++             "fingerprint-canvas-bridge",
++             "uxr-canvas-bridge",
++             "fingerprint-canvas-bridge-unsafe",
++             "uxr-canvas-bridge-unsafe",
++             "fingerprint-devtools-runtime-suppression",
++             "uxr-devtools-runtime-suppression",
++             "uxr-synthetic-device-tests",
++             "fingerprint-keyboard-layout",
++             "uxr-keyboard-layout",
++             "uxr-webauthn-uvpaa",
++             "uxr-plugins",
++             "fingerprint-offset-mode-seed",
++             "uxr-offset-mode-seed",
++             "fingerprint-voices-mode-seed",
++             "uxr-voices-mode-seed",
++             "fingerprint-sapi-voices",
++             "uxr-sapi-voices",
++             "fingerprint-hdr",
++             "uxr-hdr",
++             "fingerprint-widevine-cdm",
++             "uxr-widevine-cdm",
++             "uxr-voices",
++             "uxr-voices-mode-sapi",
++             "uxr-voices-mode-locale",
++             "fingerprint-audio-render",
++             "uxr-audio-render",
++             "fingerprint-font-policy",
++             "uxr-font-policy",
++             "fingerprint-font-whitelist",
++             "uxr-font-whitelist",
++             "fingerprint-fonts-mode-seed",
++             "uxr-fonts-mode-seed",
++             "fingerprint-fonts-amount",
++             "uxr-fonts-amount",
++             "fingerprint-fonts-allowlist",
++             "uxr-fonts-allowlist",
++             "fingerprint-fonts-local-allowlist",
++             "uxr-fonts-local-allowlist",
++             "fingerprint-fonts-experimental-packages",
++             "uxr-fonts-experimental-packages",
++             "fingerprint-windows-font-metrics",
++             "uxr-windows-font-metrics",
++         }) {
++      if (command_line->HasSwitch(retired)) {
++        std::cerr << "Retired Lite kernel switch: " << retired << std::endl;
++        return 1;
++      }
++    }
++
++    for (const char* surface : {"canvas", "webgl", "fonts", "audio", "rects",
++                                "text", "sensors", "media", "offset", "voices"}) {
++      const bool removed = std::string_view(surface) == "offset" ||
++                           std::string_view(surface) == "voices";
++      for (const char* prefix : {"fingerprint-", "uxr-"}) {
++        const std::string key = std::string(prefix) + surface + "-mode";
++        if (!command_line->HasSwitch(key))
++          continue;
++        const std::string mode = command_line->GetSwitchValueASCII(key);
++        if (removed || (std::string_view(surface) == "fonts" && mode != "native") ||
++            (mode != "native" && mode != "shardx")) {
++          std::cerr << "Unsupported Lite surface mode: " << key << "=" << mode
++                    << std::endl;
++          return 1;
++        }
++      }
++    }
++
++    if (command_line->HasSwitch("uxr-fonts-resources-dir") &&
++        !command_line->HasSwitch("uxr-fonts-catalog-dir")) {
++      std::cerr << "Signed font catalog is required for resource loading" << std::endl;
++      return 1;
++    }
++
++    // Reject conflicting caller duplicates; repeated identical values are safe.
++    base::CommandLine::SwitchMap seen;
++    for (size_t i = 1; i < command_line->argv().size(); ++i) {
++      const auto& arg = command_line->argv()[i];
++      if (arg == FILE_PATH_LITERAL("--"))
++        break;
++      const auto parsed = base::CommandLine::FromArgvWithoutProgram({arg});
++      for (const auto& [key, value] : parsed.GetSwitches()) {
++        if (key == "fingerprint" || key.starts_with("fingerprint-") ||
++            key.starts_with("uxr-")) {
++          auto found = seen.find(key);
++          if (found != seen.end() && found->second != value) {
++            std::cerr << "Conflicting fingerprint switch: " << key << std::endl;
++            return 1;
++          }
++          seen[key] = value;
++        }
++      }
++    }
++    for (const auto& [key, value] : seen) {
++      command_line->RemoveSwitch(key);
++      command_line->AppendSwitchNative(key, value);
++    }
++    // Canonicalize public booleans identically for direct and SDK launches.
++    for (const char* key : {"fingerprint-noise",
++                            "fingerprint-allow-3p-cookies", "fingerprint-windows-font-metrics",
++                            "fingerprint-reduced-motion", "fingerprint-reduced-transparency",
++                            "fingerprint-inverted-colors", "uxr-reduced-motion",
++                            "uxr-reduced-transparency", "uxr-inverted-colors"}) {
++      if (!command_line->HasSwitch(key))
++        continue;
++      const std::string value = base::ToLowerASCII(command_line->GetSwitchValueASCII(key));
++      if (value == "off" || value == "false" || value == "0" ||
++          value == "disable" || value == "disabled")
++        set_switch(key, "false");
++      else if (value.empty() || value == "true" || value == "1" ||
++               value == "on" || value == "enable" || value == "enabled")
++        set_switch(key, "true");
++    }
++
++    struct Alias { const char* fp; const char* uxr; };
++    static constexpr Alias kAliases[] = {
++      {"fingerprint-surface-modes-version", "uxr-surface-modes-version"},
++      {"fingerprint-hardware-profile",   "uxr-hardware-profile"},
++      {"fingerprint-hardware-vendor",    "uxr-hardware-vendor"},
++      {"fingerprint-hardware-gpu-index", "uxr-hardware-gpu-index"},
++      {"fingerprint-hardware-platform-version", "uxr-hardware-platform-version"},
++      {"fingerprint-gpu-mode",           "uxr-gpu-mode"},
++      {"fingerprint-webgl-identity-mode", "uxr-webgl-identity-mode"},
++      {"fingerprint-webgpu-identity-mode", "uxr-webgpu-identity-mode"},
++      {"fingerprint-webgl-capabilities-mode", "uxr-webgl-capabilities-mode"},
++      {"fingerprint-webgpu-features-mode", "uxr-webgpu-features-mode"},
++      {"fingerprint-webgpu-limits-mode", "uxr-webgpu-limits-mode"},
++      {"fingerprint-webgl-extensions", "uxr-webgl-extensions"},
++      {"fingerprint-webgpu-features", "uxr-webgpu-features"},
++      {"fingerprint-webgl-masked-vendor", "uxr-webgl-masked-vendor"},
++      {"fingerprint-webgl-masked-renderer", "uxr-webgl-masked-renderer"},
++      {"fingerprint-audio-default-sample-rate", "uxr-audio-default-sample-rate"},
++      {"fingerprint-audio-channel-limit", "uxr-audio-channel-limit"},
++      {"fingerprint-audio-default-channel-count", "uxr-audio-default-channel-count"},
++      {"fingerprint-media-audio-inputs", "uxr-media-audio-inputs"},
++      {"fingerprint-media-audio-outputs", "uxr-media-audio-outputs"},
++      {"fingerprint-media-video-inputs", "uxr-media-video-inputs"},
++      {"fingerprint-gpu-backend",         "uxr-gpu-backend"},
++      {"fingerprint-pixel-noise",         "uxr-pixel-noise"},
++      {"fingerprint-audio-seed",          "uxr-audio-seed"},
++      {"fingerprint-timer-resolution",    "uxr-timer-resolution"},
++      {"fingerprint-max-touch-points",    "uxr-max-touch-points"},
++      {"fingerprint-reduced-motion",      "uxr-reduced-motion"},
++      {"fingerprint-reduced-transparency", "uxr-reduced-transparency"},
++      {"fingerprint-inverted-colors",     "uxr-inverted-colors"},
++      {"fingerprint-color-scheme",        "uxr-color-scheme"},
++      {"fingerprint-preferred-contrast",  "uxr-preferred-contrast"},
++      {"fingerprint-forced-colors",       "uxr-forced-colors"},
++      {"fingerprint-pointer",             "uxr-pointer"},
++      {"fingerprint-hover",               "uxr-hover"},
++      {"fingerprint-gpu-vendor",          "uxr-webgl-vendor"},
++      {"fingerprint-gpu-renderer",         "uxr-webgl-renderer"},
++      {"disable-gpu-fingerprint",           "uxr-disable-gpu-fingerprint"},
++      {"fingerprint-hardware-concurrency", "uxr-hw-concurrency"},
++      {"fingerprint-device-memory",       "uxr-device-memory"},
++      {"fingerprint-screen-width",        "uxr-screen-width"},
++      {"fingerprint-screen-height",       "uxr-screen-height"},
++      {"fingerprint-brand",               "uxr-ua-brand"},
++      {"fingerprint-brand-version",        "uxr-ua-brand-version"},
++      {"fingerprint-platform-version",    "uxr-ua-platform-version"},
++      {"fingerprint-timezone",            "uxr-timezone"},
++      {"fingerprint-storage-quota",        "uxr-storage-quota"},
++      {"fingerprint-taskbar-height",      "uxr-taskbar-height"},
++      {"fingerprint-webrtc-ip",           "uxr-webrtc-ip"},
++      {"fingerprint-geolocation",         "uxr-geolocation"},
++      {"fingerprint-codec-h264",          "uxr-codec-h264"},
++      {"fingerprint-codec-vp8",           "uxr-codec-vp8"},
++      {"fingerprint-codec-vp9",           "uxr-codec-vp9"},
++      {"fingerprint-codec-av1",           "uxr-codec-av1"},
++      {"fingerprint-codec-hevc",          "uxr-codec-hevc"},
++    };
++    for (const auto& a : kAliases) {
++      if (command_line->HasSwitch(a.fp) &&
++          !command_line->HasSwitch(a.uxr)) {
++        command_line->AppendSwitchNative(
++            a.uxr, command_line->GetSwitchValueNative(a.fp));
++      }
++    }
++
++    // v1 adds independent surface choices. Unspecified surfaces retain the
++    // existing switch contract; never enable synthetic-device-tests here.
++    bool has_surface_mode = false;
++    for (const char* surface : {"canvas", "webgl", "audio", "fonts", "rects",
++                                "text", "sensors", "media"}) {
++      for (const char* suffix : {"-mode", "-mode-seed", "-amount"}) {
++        const std::string tail = std::string(surface) + suffix;
++        const std::string public_key = "fingerprint-" + tail;
++        const std::string internal_key = "uxr-" + tail;
++        if (command_line->HasSwitch(public_key) &&
++            !command_line->HasSwitch(internal_key)) {
++          command_line->AppendSwitchASCII(
++              internal_key, command_line->GetSwitchValueASCII(public_key));
++        }
++      }
++      has_surface_mode |= command_line->HasSwitch(
++          std::string("uxr-") + surface + "-mode");
++    }
++    if (has_surface_mode) {
++      if (!command_line->HasSwitch("uxr-surface-modes-version"))
++        set_switch("uxr-surface-modes-version", "1");
++      if (command_line->HasSwitch("fingerprint-noise"))
++        set_switch("uxr-mode-noise",
++                   command_line->GetSwitchValueASCII("fingerprint-noise"));
++    }
++    for (const char* field : {"identity", "cpu", "memory", "screen"}) {
++      const std::string public_key = std::string("fingerprint-") + field + "-mode";
++      const std::string internal_key = std::string("uxr-") + field + "-mode";
++      if (command_line->HasSwitch(public_key) &&
++          !command_line->HasSwitch(internal_key)) {
++        command_line->AppendSwitchASCII(
++            internal_key, command_line->GetSwitchValueASCII(public_key));
++      }
++      if (command_line->HasSwitch(internal_key)) {
++        const std::string mode = command_line->GetSwitchValueASCII(internal_key);
++        if (mode != "native" && mode != "custom") {
++          std::cerr << "Invalid field mode: " << public_key << std::endl;
++          return 1;
++        }
++      }
++    }
++
++    if (command_line->HasSwitch("fingerprint-locale") &&
++        !command_line->HasSwitch("uxr-languages")) {
++      command_line->AppendSwitchASCII("uxr-languages",
++          command_line->GetSwitchValueASCII("fingerprint-locale"));
++    }
++
++    // Canonicalize the public off spellings before any consumer sees them.
++    if (command_line->HasSwitch("fingerprint")) {
++      const std::string mode = base::ToLowerASCII(
++          command_line->GetSwitchValueASCII("fingerprint"));
++      if (mode == "off" || mode == "false" || mode == "0" ||
++          mode == "disable" || mode == "disabled") {
++        set_switch("fingerprint", "off");
++        command_line->RemoveSwitch("fingerprint-platform");
++      }
++    }
++
++    if (command_line->HasSwitch("uxr-ua-brand")) {
++      const std::string brand = base::ToLowerASCII(
++          command_line->GetSwitchValueASCII("uxr-ua-brand"));
++      if (brand == "chrome" || brand == "google chrome")
++        set_switch("uxr-ua-brand", "Google Chrome");
++      else if (brand == "edge" || brand == "microsoft edge")
++        set_switch("uxr-ua-brand", "Microsoft Edge");
++      else if (brand == "opera")
++        set_switch("uxr-ua-brand", "Opera");
++      else if (brand == "vivaldi")
++        set_switch("uxr-ua-brand", "Vivaldi");
++    }
++    // Chrome's brand version is its engine version. Other brands have their
++    // own version and must not change the Chromium token or GREASE seed.
++    const std::string brand = command_line->GetSwitchValueASCII("uxr-ua-brand");
++    if ((brand.empty() || brand == "Google Chrome" || brand == "Chromium") &&
++        command_line->HasSwitch("uxr-ua-brand-version") &&
++        !command_line->HasSwitch("uxr-ua-full-version")) {
++      command_line->AppendSwitchASCII("uxr-ua-full-version",
++          command_line->GetSwitchValueASCII("uxr-ua-brand-version"));
++    }
++
++    if (command_line->HasSwitch("fingerprint-platform")) {
++      const std::string alias = base::ToLowerASCII(
++          command_line->GetSwitchValueASCII("fingerprint-platform"));
++      std::string platform;
++      std::string ua_platform;
++      std::string ua_os;
++      std::string platform_version;
++      bool native_platform = false;
++      if (alias == "windows" || alias == "win32") {
++        platform = "Win32";
++        ua_platform = "Windows";
++        ua_os = "Windows NT 10.0; Win64; x64";
++        platform_version = "10.0.0";
++#if BUILDFLAG(IS_WIN)
++        native_platform = true;
++#endif
++      } else if (alias == "macos" || alias == "macintel") {
++        platform = "MacIntel";
++        ua_platform = "macOS";
++        ua_os = "Macintosh; Intel Mac OS X 10_15_7";
++        platform_version = "10.15.7";
++#if BUILDFLAG(IS_MAC)
++        native_platform = true;
++#endif
++      } else if (alias == "linux" || alias == "linux x86_64") {
++        platform = "Linux x86_64";
++        ua_platform = "Linux";
++        ua_os = "X11; Linux x86_64";
++#if BUILDFLAG(IS_LINUX)
++        native_platform = true;
++#endif
++      }
++      if (!platform.empty()) {
++        const auto append_default = [&](const char* name,
++                                        const std::string& value) {
++          if (!command_line->HasSwitch(name))
++            command_line->AppendSwitchASCII(name, value);
++        };
++        if (!native_platform) {
++          // Cross-OS templates prevent host fallback; they are not device data.
++          append_default("uxr-platform", platform);
++          append_default("uxr-ua-os", ua_os);
++          append_default("uxr-ua-platform", ua_platform);
++          append_default("uxr-ua-arch", "x86");
++          append_default("uxr-ua-bitness", "64");
++          append_default("uxr-ua-model", "");
++          append_default("uxr-ua-wow64", "false");
++          append_default("uxr-ua-platform-version", platform_version);
++        } else if (alias == "linux x86_64") {
++          // This alias explicitly declares an x86_64 Linux persona.
++          append_default("uxr-platform", platform);
++          append_default("uxr-ua-os", ua_os);
++          append_default("uxr-ua-platform", ua_platform);
++          append_default("uxr-ua-arch", "x86");
++          append_default("uxr-ua-bitness", "64");
++        }
++      }
++    }
++
++    if (command_line->HasSwitch("fingerprint")) {
++      std::string seed =
++          command_line->GetSwitchValueASCII("fingerprint");
++      if (seed.empty()) {
++        seed = command_line->GetSwitchValueASCII("uxr-fingerprint-seed");
++        if (seed.empty())
++          seed = command_line->GetSwitchValueASCII("uxr-canvas-seed");
++        if (seed.empty()) {
++          uint64_t random_seed = base::RandUint64();
++          if (random_seed == 0)
++            random_seed = 1;
++          seed = base::NumberToString(random_seed);
++        }
++      }
++      if (!seed.empty() && seed != "off") {
++        set_switch("uxr-fingerprint-enabled", "true");
++        set_switch("uxr-webgl-fingerprint", "true");
++        if (!command_line->HasSwitch("uxr-fingerprint-seed"))
++          command_line->AppendSwitchASCII("uxr-fingerprint-seed", seed);
++        if (!command_line->HasSwitch("uxr-canvas-seed"))
++          command_line->AppendSwitchASCII("uxr-canvas-seed", seed);
++        if (!command_line->HasSwitch("uxr-audio-seed"))
++          command_line->AppendSwitchASCII("uxr-audio-seed", seed);
++      }
++    }
++
++    const bool public_fingerprint =
++        command_line->GetSwitchValueASCII("uxr-fingerprint-enabled") == "true";
++    if (public_fingerprint || command_line->HasSwitch("uxr-screen-width") ||
++        command_line->HasSwitch("uxr-screen-height") ||
++        command_line->HasSwitch("uxr-screen-avail-width") ||
++        command_line->HasSwitch("uxr-screen-avail-height") ||
++        command_line->HasSwitch("uxr-taskbar-height")) {
++      const auto append_default = [&](const char* key, const char* value) {
++        if (!command_line->HasSwitch(key))
++          command_line->AppendSwitchASCII(key, value);
++      };
++      std::string platform = base::ToLowerASCII(
++          command_line->GetSwitchValueASCII("uxr-ua-platform"));
++      if (platform.empty())
++        platform = base::ToLowerASCII(
++            command_line->GetSwitchValueASCII("uxr-platform"));
++      if (platform.empty()) {
++#if BUILDFLAG(IS_WIN)
++        platform = "windows";
++#elif BUILDFLAG(IS_MAC)
++        platform = "macos";
++#else
++        platform = "linux";
++#endif
++      }
++      const bool mac = platform == "macos" || platform == "macintel";
++      const bool win = platform == "windows" || platform == "win32";
++      if (public_fingerprint) {
++        append_default("uxr-hw-concurrency", "8");
++        append_default("uxr-device-memory", "8");
++      }
++      append_default("uxr-screen-width", mac ? "1440" : "1920");
++      append_default("uxr-screen-height", mac ? "900" : "1080");
++      if (!command_line->HasSwitch("uxr-screen-avail-height"))
++        append_default("uxr-taskbar-height", win ? "48" : mac ? "95" : "0");
++    }
++
++    if (command_line->GetSwitchValueASCII("fingerprint") != "off" &&
++        !command_line->HasSwitch("uxr-hardware-profile") &&
++        (command_line->HasSwitch("uxr-hardware-vendor") ||
++         command_line->HasSwitch("uxr-hardware-gpu-index"))) {
++      std::cerr << "Hardware vendor/index requires hardware-profile" << std::endl;
++      return 1;
++    }
++    if (command_line->HasSwitch("uxr-hardware-profile") &&
++        command_line->GetSwitchValueASCII("fingerprint") != "off") {
++      if (command_line->GetSwitchValueASCII("uxr-hardware-profile") != "cloak") {
++        std::cerr << "Unsupported hardware profile" << std::endl;
++        return 1;
++      }
++      uint64_t hardware_seed = 0;
++      std::string raw_seed =
++          command_line->GetSwitchValueASCII("uxr-fingerprint-seed");
++      if (raw_seed.empty())
++        raw_seed = command_line->GetSwitchValueASCII("uxr-canvas-seed");
++      int gpu_index = -1;
++      if (!base::StringToUint64(raw_seed, &hardware_seed) || !hardware_seed ||
++          (command_line->HasSwitch("uxr-hardware-gpu-index") &&
++           (!base::StringToInt(
++                command_line->GetSwitchValueASCII("uxr-hardware-gpu-index"),
++                &gpu_index) || gpu_index < 0))) {
++        std::cerr << "Invalid hardware profile seed or GPU index" << std::endl;
++        return 1;
++      }
++      std::string hardware_platform = base::ToLowerASCII(
++          command_line->GetSwitchValueASCII("fingerprint-platform"));
++      if (hardware_platform == "win32")
++        hardware_platform = "windows";
++      else if (hardware_platform == "macintel")
++        hardware_platform = "macos";
++      else if (hardware_platform == "linux x86_64")
++        hardware_platform = "linux";
++      if (hardware_platform.empty()) {
++#if BUILDFLAG(IS_WIN)
++        hardware_platform = "windows";
++#elif BUILDFLAG(IS_MAC)
++        hardware_platform = "macos";
++#else
++        hardware_platform = "linux";
++#endif
++      }
++      const auto choice = base::UxrSelectCloakHardwareV1(
++          hardware_seed, hardware_platform,
++          base::ToLowerASCII(
++              command_line->GetSwitchValueASCII("uxr-hardware-vendor")),
++          gpu_index);
++      if (!choice) {
++        std::cerr << "Unsupported hardware profile/platform/vendor/index"
++                  << std::endl;
++        return 1;
++      }
++      const auto caller_supplied = [&](const char* public_name,
++                                       const char* internal_name) {
++        return seen.contains(public_name) || seen.contains(internal_name);
++      };
++      if (!caller_supplied("fingerprint-hardware-concurrency", "uxr-hw-concurrency"))
++        set_switch("uxr-hw-concurrency", base::NumberToString(choice->cpu));
++      if (!caller_supplied("fingerprint-device-memory", "uxr-device-memory"))
++        set_switch("uxr-device-memory", base::NumberToString(choice->memory_gb));
++      if (!command_line->HasSwitch("uxr-memory-mode"))
++        set_switch("uxr-memory-mode",
++                   command_line->GetSwitchValueASCII("uxr-device-memory").empty()
++                       ? "native" : "custom");
++      if (!caller_supplied("fingerprint-gpu-vendor", "uxr-webgl-vendor"))
++        set_switch("uxr-webgl-vendor", choice->webgl_vendor);
++      if (!caller_supplied("fingerprint-gpu-renderer", "uxr-webgl-renderer"))
++        set_switch("uxr-webgl-renderer", choice->webgl_renderer);
++      if (!command_line->HasSwitch("uxr-gpu-mode"))
++        set_switch("uxr-gpu-mode", "cloak");
++      set_switch("uxr-hardware-resolved-family", choice->family);
++      set_switch("uxr-hardware-resolved-index",
++                 base::NumberToString(choice->index));
++    }
++
++    // Keep GPU profile version separate from the UA fields that a single
++    // native identity choice removes below.
++    if (!command_line->HasSwitch("uxr-hardware-platform-version") &&
++        (command_line->HasSwitch("uxr-gpu-mode") ||
++         command_line->HasSwitch("uxr-webgl-identity-mode") ||
++         command_line->HasSwitch("uxr-webgpu-identity-mode") ||
++         command_line->HasSwitch("uxr-webgpu-features-mode") ||
++         command_line->HasSwitch("uxr-webgpu-limits-mode"))) {
++      set_switch("uxr-hardware-platform-version",
++                 command_line->GetSwitchValueASCII("uxr-ua-platform-version"));
++    }
++
++    // Per-field native choices run after legacy default insertion and only
++    // remove values belonging to that field. Other seeds/policies survive.
++    if (command_line->GetSwitchValueASCII("uxr-identity-mode") == "native") {
++      std::vector<std::string> identity_keys;
++      for (const auto& entry : command_line->GetSwitches()) {
++        if (entry.first.starts_with("uxr-ua-"))
++          identity_keys.push_back(entry.first);
++      }
++      for (const auto& key : identity_keys)
++        command_line->RemoveSwitch(key);
++      command_line->RemoveSwitch("user-agent");
++    }
++    if (command_line->GetSwitchValueASCII("uxr-cpu-mode") == "native")
++      command_line->RemoveSwitch("uxr-hw-concurrency");
++    if (command_line->GetSwitchValueASCII("uxr-memory-mode") == "native")
++      command_line->RemoveSwitch("uxr-device-memory");
++    if (command_line->GetSwitchValueASCII("uxr-screen-mode") == "native") {
++      std::vector<std::string> screen_keys;
++      for (const auto& entry : command_line->GetSwitches()) {
++        if ((entry.first.starts_with("uxr-screen-") &&
++             entry.first != "uxr-screen-mode") ||
++            entry.first == "uxr-taskbar-height" ||
++            entry.first == "uxr-device-pixel-ratio") {
++          screen_keys.push_back(entry.first);
++        }
++      }
++      for (const auto& key : screen_keys)
++        command_line->RemoveSwitch(key);
++    }
++
++    if (command_line->HasSwitch("fingerprint-noise") &&
++        command_line->GetSwitchValueASCII("fingerprint-noise") == "false") {
++      // Disable perturbation, not persona selection. All seeds stay intact.
++      set_switch("uxr-disable-fingerprint-noise", "");
++    }
++
++    if (command_line->HasSwitch("fingerprint") &&
++        command_line->GetSwitchValueASCII("fingerprint") == "off") {
++      // Explicit regional settings are independent of fingerprint spoofing.
++      const bool has_timezone = command_line->HasSwitch("uxr-timezone");
++      const bool has_languages = command_line->HasSwitch("uxr-languages");
++      const std::string timezone = command_line->GetSwitchValueASCII("uxr-timezone");
++      const std::string languages = command_line->GetSwitchValueASCII("uxr-languages");
++      const auto& sws = command_line->GetSwitches();
++      std::vector<std::string> uxr_keys;
++      for (const auto& s : sws) {
++        if (s.first.compare(0, 4, "uxr-") == 0)
++          uxr_keys.push_back(s.first);
++      }
++      for (const auto& k : uxr_keys)
++        command_line->RemoveSwitch(k);
++      command_line->AppendSwitchASCII("uxr-fingerprint-off", "true");
++      command_line->RemoveSwitch("fingerprint-platform");
++      command_line->RemoveSwitch("fingerprint-pixel-noise");
++      if (has_timezone)
++        command_line->AppendSwitchASCII("uxr-timezone", timezone);
++      if (has_languages)
++        command_line->AppendSwitchASCII("uxr-languages", languages);
++      // GPU identity and readback noise otherwise have enabled defaults.
++      command_line->AppendSwitch("uxr-webgl-real");
++      set_switch("uxr-disable-fingerprint-noise", "");
++    }
++
++    if (command_line->HasSwitch("uxr-languages")) {
++      std::vector<std::string> languages;
++      bool valid = true;
++      for (const auto& value : base::SplitString(
++               command_line->GetSwitchValueASCII("uxr-languages"), ",",
++               base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
++        const auto tag =
++            base::i18n::LanguageTagConverter::GetInstance().FromString(value);
++        if (!tag || tag->language_subtag() == "und") {
++          valid = false;
++          break;
++        }
++        const std::string canonical(tag->tag_string());
++        bool duplicate = false;
++        for (const auto& language : languages)
++          duplicate |= language == canonical;
++        if (!duplicate)
++          languages.push_back(canonical);
++      }
++      if (valid && !languages.empty()) {
++        const std::string normalized = base::JoinString(languages, ",");
++        set_switch("uxr-languages", normalized);
++        set_switch(switches::kAcceptLang, normalized);
++      } else {
++        command_line->RemoveSwitch("uxr-languages");
++      }
++    }
++
++    // Synchronize an explicit virtual display with native headless rastering.
++    // Run after per-field Native/global-off removal. Caller-owned native display
++    // switches win, and ordinary headed windows keep their existing behavior.
++    if (command_line->HasSwitch("headless") &&
++        !command_line->HasSwitch("screen-info") &&
++        !command_line->HasSwitch("force-device-scale-factor") &&
++        command_line->HasSwitch("uxr-screen-width") &&
++        command_line->HasSwitch("uxr-screen-height") &&
++        command_line->HasSwitch("uxr-device-pixel-ratio")) {
++      int width = 0;
++      int height = 0;
++      double scale = 0;
++      bool valid = base::StringToInt(
++                       command_line->GetSwitchValueASCII("uxr-screen-width"),
++                       &width) &&
++                   base::StringToInt(
++                       command_line->GetSwitchValueASCII("uxr-screen-height"),
++                       &height) &&
++                   base::StringToDouble(
++                       command_line->GetSwitchValueASCII("uxr-device-pixel-ratio"),
++                       &scale);
++      int available_width = width;
++      int available_height = height;
++      if (command_line->HasSwitch("uxr-screen-avail-width")) {
++        valid &= base::StringToInt(command_line->GetSwitchValueASCII(
++                                      "uxr-screen-avail-width"),
++                                  &available_width);
++      }
++      if (command_line->HasSwitch("uxr-screen-avail-height")) {
++        valid &= base::StringToInt(command_line->GetSwitchValueASCII(
++                                      "uxr-screen-avail-height"),
++                                  &available_height);
++      }
++      if (command_line->HasSwitch("uxr-taskbar-height")) {
++        int taskbar = 0;
++        valid &= base::StringToInt(
++            command_line->GetSwitchValueASCII("uxr-taskbar-height"), &taskbar);
++        if (taskbar < 0 || taskbar > height) {
++          valid = false;
++        } else {
++          if (command_line->HasSwitch("uxr-screen-avail-height") &&
++              available_height != height - taskbar) {
++            valid = false;
++          }
++          available_height = height - taskbar;
++        }
++      }
++      if (valid) {
++        const auto display = base::MakeUxrHeadlessScreenInfo(
++            width, height, available_width, available_height, scale);
++        if (display) {
++          command_line->AppendSwitchASCII(
++              "screen-info",
++              "{" + base::NumberToString(display->pixel_width) + "x" +
++                  base::NumberToString(display->pixel_height) +
++                  " devicePixelRatio=" + base::NumberToString(scale) +
++                  " colorDepth=24 workAreaRight=" +
++                  base::NumberToString(display->work_area_right) +
++                  " workAreaBottom=" +
++                  base::NumberToString(display->work_area_bottom) + "}");
++        }
++      }
++    }
++
++    // Set actual native window bounds. Getter overrides cannot resize a window
++    // or supply valid negative monitor coordinates. Native caller flags win.
++    constexpr char kWindowSize[] = "window-size";
++    constexpr char kWindowPosition[] = "window-position";
++    if (command_line->HasSwitch("uxr-outer-width") &&
++        command_line->HasSwitch("uxr-outer-height") &&
++        !command_line->HasSwitch(kWindowSize)) {
++      command_line->AppendSwitchASCII(
++          kWindowSize, command_line->GetSwitchValueASCII("uxr-outer-width") +
++                           "," + command_line->GetSwitchValueASCII("uxr-outer-height"));
++    }
++    // An explicit native position must also win inside device emulation;
++    // otherwise the real window and its web-exposed position would disagree.
++    if (command_line->HasSwitch(kWindowPosition)) {
++      command_line->RemoveSwitch("uxr-window-x");
++      command_line->RemoveSwitch("uxr-window-y");
++    } else if ((command_line->HasSwitch("uxr-window-x") ||
++         command_line->HasSwitch("uxr-window-y")) &&
++        !command_line->HasSwitch(kWindowPosition)) {
++      const std::string x = command_line->HasSwitch("uxr-window-x")
++                                ? command_line->GetSwitchValueASCII("uxr-window-x") : "0";
++      const std::string y = command_line->HasSwitch("uxr-window-y")
++                                ? command_line->GetSwitchValueASCII("uxr-window-y") : "0";
++      command_line->AppendSwitchASCII(kWindowPosition, x + "," + y);
++    }
++
++    if (command_line->HasSwitch("fingerprint-allow-3p-cookies") &&
++        command_line->GetSwitchValueASCII("fingerprint-allow-3p-cookies") != "false" &&
++        command_line->GetSwitchValueASCII("fingerprint-allow-3p-cookies") != "0") {
++      // This native switch is presence-based: appending '=false' ENABLES the
++      // phaseout. CookieSettings consumes our explicit, non-persistent opt-in.
++      command_line->RemoveSwitch("test-third-party-cookie-phaseout");
++      set_switch("uxr-allow-3p-cookies", "true");
++      constexpr char kDisableFeatures[] = "disable-features";
++      std::string disabled = command_line->GetSwitchValueASCII(kDisableFeatures);
++      auto features = base::SplitString(disabled, ",", base::TRIM_WHITESPACE,
++                                        base::SPLIT_WANT_NONEMPTY);
++      std::erase(features, "ForceThirdPartyCookieBlocking");
++      disabled = base::JoinString(features, ",");
++      command_line->RemoveSwitch(kDisableFeatures);
++      if (!disabled.empty())
++        disabled += ",";
++      disabled += "ForceThirdPartyCookieBlocking";
++      command_line->AppendSwitchASCII(kDisableFeatures, disabled);
++    }
++
++    // Apply the native socket policy for direct browser launches too. HTTP
++    // proxying or SOCKS TCP authentication cannot carry arbitrary WebRTC UDP.
++    // An explicit caller policy retains Chromium's normal precedence.
++    if (!command_line->HasSwitch(switches::kNoProxyServer) &&
++        (command_line->HasSwitch(switches::kProxyServer) ||
++         command_line->HasSwitch(switches::kProxyPacUrl) ||
++         command_line->HasSwitch(switches::kProxyAutoDetect)) &&
++        !command_line->HasSwitch(switches::kForceWebRtcIPHandlingPolicy)) {
++      command_line->AppendSwitchASCII(switches::kForceWebRtcIPHandlingPolicy,
++                                      "disable_non_proxied_udp");
++    }
++  }
++
+   // Capture the unpolluted command line snapshot in the browser process.
+   // This must happen immediately after CommandLine::Init to ensure we capture
+   // the state before any internal programmatic mutations.
+diff --git a/chrome/browser/chrome_browser_main.cc b/chrome/browser/chrome_browser_main.cc
+--- a/chrome/browser/chrome_browser_main.cc
++++ b/chrome/browser/chrome_browser_main.cc
+@@ -12,6 +12,28 @@
+ #include "base/base_switches.h"
+ #include "base/check.h"
+ #include "base/command_line.h"
++#include "base/functional/bind.h"
++#include "base/run_loop.h"
++#include "base/files/important_file_writer.h"
++#include "base/json/json_writer.h"
++#include "base/process/process_handle.h"
++#include "base/strings/string_number_conversions.h"
++#include "base/timer/timer.h"
++#include "content/public/browser/gpu_data_manager.h"
++#include "content/public/browser/gpu_data_manager_observer.h"
++#include "content/public/common/result_codes.h"
++#include "gpu/config/gpu_info.h"
++#include "ui/gl/gl_implementation.h"
++#include "base/strings/string_util.h"
++#include "base/uxr_config.h"
++#include "net/base/ip_address.h"
++#include "net/base/load_flags.h"
++#include "net/base/proxy_string_util.h"
++#include "net/proxy_resolution/proxy_config_with_annotation.h"
++#include "net/traffic_annotation/network_traffic_annotation.h"
++#include "services/network/public/cpp/originating_process_id.h"
++#include "services/network/public/cpp/resource_request.h"
++#include "services/network/public/cpp/simple_url_loader.h"
+ #include "base/feature_list.h"
+ #include "base/files/file_path.h"
+ #include "base/files/file_util.h"
+@@ -84,6 +106,7 @@
+ #include "chrome/common/chrome_features.h"
+ #include "chrome/common/chrome_paths.h"
+ #include "chrome/common/chrome_result_codes.h"
++#include "components/history/core/browser/shardx_history_retention.h"
+ #include "chrome/common/chrome_switches.h"
+ #include "chrome/common/crash_keys.h"
+ #include "chrome/common/media/media_resource_provider.h"
+@@ -360,6 +383,229 @@
+ 
+ namespace {
+ 
++#if BUILDFLAG(IS_WIN)
++bool UxrRequiredGpuMatches(const gpu::GPUInfo& info) {
++  const auto* command = base::CommandLine::ForCurrentProcess();
++  if (command->GetSwitchValueASCII("chromix-gpu-binding") != "required-v1")
++    return false;
++  const std::string value = command->GetSwitchValueASCII("use-adapter-luid");
++  const size_t comma = value.find(',');
++  int high = 0;
++  unsigned low = 0;
++  if (comma == std::string::npos ||
++      !base::StringToInt(value.substr(0, comma), &high) ||
++      !base::StringToUint(value.substr(comma + 1), &low) ||
++      (high == 0 && low == 0))
++    return false;
++  const auto& active = info.active_gpu();
++  return !info.gl_renderer.empty() && active.active &&
++         info.gl_implementation_parts.angle == gl::ANGLEImplementation::kD3D11 &&
++         active.luid.HighPart == high && active.luid.LowPart == low;
++}
++#endif
++
++#if BUILDFLAG(IS_WIN)
++// Runs before profile creation/session restoration. The values below come from
++// GPU-process initialization, not from the spoofable renderer-facing APIs.
++class UxrRequiredGpuWaiter final : public content::GpuDataManagerObserver {
++ public:
++  bool Wait() {
++    auto* manager = content::GpuDataManager::GetInstance();
++    manager->AddObserver(this);
++    base::OneShotTimer deadline;
++    deadline.Start(FROM_HERE, base::Seconds(20), loop_.QuitClosure());
++    manager->RequestVideoMemoryUsageStatsUpdate(
++        base::BindOnce([](const gpu::VideoMemoryUsageStats&) {}));
++    OnGpuInfoUpdate();
++    if (!done_)
++      loop_.Run();
++    manager->RemoveObserver(this);
++    return accepted_;
++  }
++  void OnGpuInfoUpdate() override {
++    const auto info = content::GpuDataManager::GetInstance()->GetGPUInfo();
++    if (info.gl_renderer.empty())
++      return;
++    accepted_ = UxrRequiredGpuMatches(info);
++    done_ = true;
++    loop_.Quit();
++  }
++  void OnGpuProcessCrashed() override {
++    accepted_ = false;
++    done_ = true;
++    loop_.Quit();
++  }
++ private:
++  base::RunLoop loop_;
++  bool done_ = false;
++  bool accepted_ = false;
++};
++
++bool UxrPrepareRequiredGpu() {
++  const auto* command = base::CommandLine::ForCurrentProcess();
++  if (!command->HasSwitch("chromix-gpu-binding"))
++    return true;
++  const auto receipt = command->GetSwitchValuePath("chromix-gpu-binding-receipt");
++  const auto nonce = command->GetSwitchValueASCII("chromix-gpu-binding-nonce");
++  if (receipt.empty() || !receipt.IsAbsolute() || nonce.size() != 32 ||
++      nonce.find_first_not_of("0123456789abcdef") != std::string::npos)
++    return false;
++  UxrRequiredGpuWaiter waiter;
++  if (!waiter.Wait())
++    return false;
++  const auto info = content::GpuDataManager::GetInstance()->GetGPUInfo();
++  if (!UxrRequiredGpuMatches(info))
++    return false;
++  const auto& device = info.active_gpu();
++  base::DictValue data;
++  data.Set("schemaVersion", 1);
++  data.Set("nonce", nonce);
++  data.Set("browserPid", static_cast<int>(base::GetCurrentProcId()));
++  data.Set("adapterLuid", command->GetSwitchValueASCII("use-adapter-luid"));
++  data.Set("vendorId", static_cast<int>(device.vendor_id));
++  data.Set("deviceId", static_cast<int>(device.device_id));
++  data.Set("subsystemId", base::NumberToString(device.sub_sys_id));
++  data.Set("driverVersion", device.driver_version);
++  data.Set("renderer", info.gl_renderer);
++  data.Set("accepted", true);
++  const auto encoded = base::WriteJson(data);
++  if (!encoded)
++    return false;
++  base::RunLoop write_loop;
++  bool written = false;
++  base::ThreadPool::PostTaskAndReplyWithResult(
++      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
++      base::BindOnce([](base::FilePath file, std::string bytes) {
++        return base::ImportantFileWriter::WriteFileAtomically(file, bytes);
++      }, receipt, *encoded),
++      base::BindOnce([](bool* written, base::OnceClosure quit, bool result) {
++        *written = result;
++        std::move(quit).Run();
++      }, &written, write_loop.QuitClosure()));
++  write_loop.Run();
++  return written;
++}
++#endif
++
++// Resolve an explicitly requested auto address once, before profiles or
++// renderer persona snapshots exist. A bounded startup RunLoop services the
++// network callbacks; no UI-thread socket blocking or profile-state mutation.
++bool ResolveFingerprintWebRtcAuto() {
++  auto* command_line = base::CommandLine::ForCurrentProcess();
++  if (command_line->GetSwitchValueASCII("uxr-fingerprint-off") == "true" ||
++      !base::EqualsCaseInsensitiveASCII(
++          command_line->GetSwitchValueASCII("uxr-webrtc-ip"), "auto"))
++    return true;
++  if (base::UxrConfig::GetInstance().IsInitialized()) {
++    LOG(ERROR) << "WebRTC auto must resolve before the persona snapshot.";
++    return false;
++  }
++  const bool direct = command_line->HasSwitch(switches::kNoProxyServer);
++  if (!direct && (command_line->HasSwitch(switches::kProxyPacUrl) ||
++                  command_line->HasSwitch(switches::kProxyAutoDetect))) {
++    LOG(ERROR) << "WebRTC auto requires a fixed proxy route, not PAC/auto-detect.";
++    return false;
++  }
++  const std::string proxy = direct ? "" :
++      command_line->GetSwitchValueASCII(switches::kProxyServer);
++  if (!direct && command_line->HasSwitch(switches::kProxyServer) &&
++      proxy.empty()) {
++    LOG(ERROR) << "WebRTC auto requires a non-empty explicit proxy route.";
++    return false;
++  }
++  net::ProxyChain chain;
++  if (!proxy.empty()) {
++    // A fallback list can silently change egress. Explicit authentication is
++    // resolved by SDK launchers; Chrome's proxy-server switch has no userinfo.
++    chain = net::ProxyUriToProxyChain(proxy, net::ProxyServer::SCHEME_HTTP);
++    if (proxy.find_first_of(";,=@ \t\r\n") != std::string::npos ||
++        !chain.IsValid() || chain.is_direct()) {
++      LOG(ERROR) << "WebRTC auto requires one HTTP/HTTPS/SOCKS proxy URI.";
++      return false;
++    }
++  }
++  constexpr auto annotation = net::DefineNetworkTrafficAnnotation(
++      "fingerprint_webrtc_auto", R"(
++        semantics {
++          sender: "Fingerprint WebRTC address resolver"
++          description: "Resolve the egress IP for a user-requested WebRTC presentation override."
++          trigger: "The user supplies fingerprint-webrtc-ip=auto at browser startup."
++          data: "No payload, cookies or browsing history; the service observes the connection IP."
++          destination: OTHER
++          destination_other: "https://api.ipify.org"
++        }
++        policy {
++          cookies_allowed: NO
++          setting: "Disabled unless explicitly requested on the command line."
++          policy_exception_justification: "Command-line opt-in only."
++        })");
++  auto* manager = SystemNetworkContextManager::GetInstance();
++  if (!manager) {
++    LOG(ERROR) << "WebRTC auto requires the system network context.";
++    return false;
++  }
++  mojo::Remote<network::mojom::NetworkContext> context;
++  mojo::Remote<network::mojom::URLLoaderFactory> factory;
++  network::mojom::URLLoaderFactory* selected_factory = nullptr;
++  if (direct || !proxy.empty()) {
++    // No bypass list, second proxy, direct fallback or cached proxy auth.
++    auto params = manager->CreateDefaultNetworkContextParams();
++    params->http_cache_enabled = false;
++    net::ProxyConfig proxy_config;
++    if (!direct) {
++      proxy_config.proxy_rules().type = net::ProxyConfig::ProxyRules::Type::PROXY_LIST;
++      proxy_config.proxy_rules().single_proxies.AddProxyChain(std::move(chain));
++    }
++    params->initial_proxy_config = net::ProxyConfigWithAnnotation(proxy_config, annotation);
++    content::GetNetworkService()->CreateNetworkContext(
++        context.BindNewPipeAndPassReceiver(), std::move(params));
++    auto factory_params = network::mojom::URLLoaderFactoryParams::New();
++    factory_params->process_id = network::OriginatingProcessId::browser();
++    factory_params->is_orb_enabled = false;
++    factory_params->is_trusted = true;
++    context->CreateURLLoaderFactory(factory.BindNewPipeAndPassReceiver(),
++                                    std::move(factory_params));
++    selected_factory = factory.get();
++  } else {
++    // Without an explicit route, use the browser's actual system proxy config.
++    selected_factory = manager->GetURLLoaderFactory();
++  }
++  auto request = std::make_unique<network::ResourceRequest>();
++  request->url = GURL("https://api.ipify.org");
++  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
++  request->redirect_mode = network::mojom::RedirectMode::kError;
++  request->load_flags = net::LOAD_DISABLE_CACHE;
++  auto loader = network::SimpleURLLoader::Create(std::move(request), annotation);
++  loader->SetTimeoutDuration(base::Seconds(10));
++  base::RunLoop loop;
++  std::string resolved;
++  loader->DownloadToString(selected_factory, base::BindOnce(
++      [](base::RunLoop* loop, std::string* result, std::optional<std::string> body) {
++        net::IPAddress address;
++        if (body) {
++          std::string text;
++          base::TrimWhitespaceASCII(*body, base::TRIM_ALL, &text);
++          if (address.AssignFromIPLiteral(text) && !address.IsZero())
++            *result = address.ToString();
++        }
++        loop->Quit();
++      }, &loop, &resolved), 256);
++  loop.Run();
++  if (resolved.empty()) {
++    LOG(ERROR) << "WebRTC auto IP lookup failed; no alternate/direct retry.";
++    return false;
++  }
++  // A nested startup task must not have frozen a renderer persona while
++  // the lookup was in flight. Never publish a second launch identity.
++  if (base::UxrConfig::GetInstance().IsInitialized()) {
++    LOG(ERROR) << "WebRTC auto persona initialized during IP lookup.";
++    return false;
++  }
++  command_line->AppendSwitchASCII("uxr-webrtc-ip", resolved);
++  return true;
++}
++
++
+ #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || \
+     BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+ constexpr base::FilePath::CharType kMediaHistoryDatabaseName[] =
+@@ -1004,6 +1250,11 @@
+ // content::BrowserMainParts implementation ------------------------------------
+ 
+ int ChromeBrowserMainParts::PreEarlyInitialization() {
++  if (!history::shardx::HistoryDays(
++          *base::CommandLine::ForCurrentProcess()).has_value()) {
++    LOG(ERROR) << "Invalid managed history retention policy";
++    return CHROME_RESULT_CODE_UNSUPPORTED_PARAM;
++  }
+   TRACE_EVENT0("startup", "ChromeBrowserMainParts::PreEarlyInitialization");
+   for (auto& chrome_extra_part : chrome_extra_parts_) {
+     chrome_extra_part->PreEarlyInitialization();
+@@ -1777,6 +2028,13 @@
+   TRACE_EVENT0("startup", "ChromeBrowserMainParts::PreMainMessageLoopRunImpl");
+ 
+ #if BUILDFLAG(IS_WIN)
++  if (!UxrPrepareRequiredGpu()) {
++    LOG(ERROR) << "Chromix required GPU initialization did not match the binding";
++    return content::RESULT_CODE_GPU_DEAD_ON_ARRIVAL;
++  }
++#endif
++
++#if BUILDFLAG(IS_WIN)
+   // Windows parental controls calls can be slow, so we do an early init here
+   // that calculates this value off of the UI thread.
+   InitializeWinParentalControls();
+@@ -1798,6 +2056,9 @@
+   // Do any initializing in the browser process that requires all threads
+   // running.
+   browser_process_->PreMainMessageLoopRun();
++
++  if (!ResolveFingerprintWebRtcAuto())
++    return CHROME_RESULT_CODE_INVALID_CMDLINE_URL;
+ 
+ #if BUILDFLAG(IS_WIN)
+   // If the command line specifies 'uninstall' then we need to work here
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -338,6 +338,7 @@
+ #include "components/safe_browsing/core/browser/url_checker_delegate.h"
+ #include "components/safe_browsing/core/common/features.h"
+ #include "components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.h"
++#include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+ #include "components/search/ntp_features.h"
+ #include "components/search_engines/search_engines_switches.h"
+ #include "components/security_state/core/security_state.h"
+@@ -3141,6 +3142,8 @@
+   static const char* const kCommonSwitchNames[] = {
+       embedder_support::kUserAgent,
+       switches::kUserDataDir,  // Make logs go to the right file.
++      "shardx-managed-environment",
++      "shardx-blocked-ports",
+   };
+   command_line->CopySwitchesFrom(browser_command_line, kCommonSwitchNames);
+ 
+@@ -5442,6 +5445,7 @@
+ #endif
+     case sandbox::mojom::Sandbox::kPrintCompositor:
+     case sandbox::mojom::Sandbox::kAudio:
++    case sandbox::mojom::Sandbox::kScreenAI:
+     case sandbox::mojom::Sandbox::kPlatformRuntime:
+     case sandbox::mojom::Sandbox::kSpeechRecognition:
+     case sandbox::mojom::Sandbox::kPdfConversion:
+@@ -5550,6 +5554,7 @@
+     case sandbox::mojom::Sandbox::kPrintBackend:
+ #endif
+     case sandbox::mojom::Sandbox::kPrintCompositor:
++    case sandbox::mojom::Sandbox::kScreenAI:
+     case sandbox::mojom::Sandbox::kAudio:
+     case sandbox::mojom::Sandbox::kOnDeviceModelExecution:
+     case sandbox::mojom::Sandbox::kSpeechRecognition:
+diff --git a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
+--- a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
++++ b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
+@@ -33,6 +33,7 @@
+ #include "chrome/browser/preloading/search_preload/search_preload_features.h"
+ #include "chrome/browser/privacy_sandbox/privacy_sandbox_settings_factory.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/profiles/shardx_cookie_bootstrap.h"
+ #include "chrome/browser/pwc/pwc_navigation_throttle.h"
+ #include "chrome/browser/ssl/chrome_security_blocking_page_factory.h"
+ #include "chrome/browser/ssl/https_defaulted_callbacks.h"
+@@ -311,6 +312,10 @@
+ #endif  // BUILDFLAG(IS_ANDROID)
+   }
+ 
++#if BUILDFLAG(IS_WIN)
++  shardx::cookie_import::MaybeCreateThrottle(registry);
++#endif
++
+   DSEPrewarmNavigationThrottle::MaybeCreateAndAdd(registry);
+   if (!features::IsDsePreload2Enabled()) {
+     SearchPrefetchNavigationThrottle::MaybeCreateAndAdd(registry);
+@@ -435,6 +440,15 @@
+           Profile::FromBrowserContext(context)),
+       SafeSearchFactory::GetForBrowserContext(context)));
+ 
++  // Before setting up SSL error detection, configure SSLErrorHandler to invoke
++  // the relevant extension API whenever an SSL interstitial is shown.
++  SSLErrorHandler::SetClientCallbackOnInterstitialsShown(
++      base::BindRepeating([](content::WebContents* web_contents,
++                             const GURL& page_url, const std::string& reason,
++                             int net_error_code) {
++        MaybeTriggerSecurityInterstitialShownEvent(
++            web_contents, page_url, reason, net_error_code, "");
++      }));
+   registry.AddThrottle(std::make_unique<SSLErrorNavigationThrottle>(
+       registry, base::BindOnce(&HandleSSLErrorWrapper),
+       base::BindOnce(&IsInWebApp),
+diff --git a/components/embedder_support/user_agent_utils.cc b/components/embedder_support/user_agent_utils.cc
+--- a/components/embedder_support/user_agent_utils.cc
++++ b/components/embedder_support/user_agent_utils.cc
+@@ -8,6 +8,7 @@
+ 
+ #include <array>
+ #include <cstddef>
++#include "base/uxr_config.h"
+ #include <optional>
+ #include <string>
+ #include <string_view>
+@@ -150,6 +151,73 @@
+ }
+ #endif  // BUILDFLAG(IS_WIN)
+ 
++const std::string& GetEffectiveUserAgentFullVersion() {
++  static const base::NoDestructor<std::string> version([] {
++    std::string override_version =
++        base::UxrConfig::GetInstance().Get("uxr-ua-full-version");
++    if (override_version.empty()) {
++      const base::CommandLine* command_line =
++          base::CommandLine::ForCurrentProcess();
++      if (command_line->HasSwitch("uxr-ua-full-version")) {
++        override_version =
++            command_line->GetSwitchValueASCII("uxr-ua-full-version");
++      }
++    }
++    base::Version parsed_version(override_version);
++    int major_version = 0;
++    if (parsed_version.IsValid() &&
++        base::StringToInt(base::NumberToString(parsed_version.components()[0]),
++                          &major_version) && major_version > 0) {
++      return override_version;
++    }
++    return std::string(version_info::GetVersionNumber());
++  }());
++  return *version;
++}
++
++std::string GetEffectiveBrowserBrandFullVersion() {
++  const std::string version = base::CommandLine::ForCurrentProcess()->
++      GetSwitchValueASCII("uxr-ua-brand-version");
++  const base::Version parsed(version);
++  int major = 0;
++  return parsed.IsValid() &&
++         base::StringToInt(base::NumberToString(parsed.components()[0]), &major) && major > 0
++             ? version : GetEffectiveUserAgentFullVersion();
++}
++
++std::string BrowserBrandProductToken(const std::string& brand) {
++  if (brand == "Microsoft Edge") return "Edg";
++  if (brand == "Opera") return "OPR";
++  if (brand == "Vivaldi") return "Vivaldi";
++  return "";
++}
++
++const std::string& GetEffectiveUserAgentMajorVersion() {
++  static const base::NoDestructor<std::string> major_version([] {
++    base::Version version(GetEffectiveUserAgentFullVersion());
++    DCHECK(version.IsValid());
++    return base::NumberToString(version.components()[0]);
++  }());
++  return *major_version;
++}
++
++std::string ReplaceProductVersion(const std::string& product,
++                                  const std::string& version) {
++  size_t separator = product.find("Chrome/");
++  if (separator == std::string::npos)
++    separator = product.find("Chromium/");
++  if (separator == std::string::npos)
++    return product;
++  separator = product.find('/', separator);
++  const size_t version_end = product.find(' ', separator + 1);
++  std::string result = product;
++  result.replace(separator + 1, version_end == std::string::npos
++                                    ? std::string::npos
++                                    : version_end - separator - 1,
++                 version);
++  return result;
++}
++
+ const blink::UserAgentBrandList GetUserAgentBrandList(
+     const std::string& major_version,
+     const std::string& full_version,
+@@ -163,14 +231,39 @@
+   brand = version_info::GetProductName();
+ #endif
+ 
++  const base::CommandLine* command_line =
++      base::CommandLine::ForCurrentProcess();
++  if (command_line->HasSwitch("uxr-ua-brand")) {
++    brand = command_line->GetSwitchValueASCII("uxr-ua-brand");
++    if (brand->empty() || *brand == "Chromium")
++      brand.reset();
++  } else if (!brand &&
++             command_line->GetSwitchValueASCII("uxr-fingerprint-off") != "true" &&
++             command_line->GetSwitchValueASCII("uxr-identity-mode") != "native") {
++    brand = "Google Chrome";
++  }
++
+   std::string brand_version =
+       output_version_type == blink::UserAgentBrandVersionType::kFullVersion
+           ? full_version
+           : major_version;
+ 
+-  return GenerateBrandVersionList(major_version_number, brand, brand_version,
+-                                  output_version_type,
+-                                  additional_brand_version);
++  auto brands = GenerateBrandVersionList(major_version_number, brand, brand_version,
++                                         output_version_type,
++                                         additional_brand_version);
++  // Preserve the engine's Chromium version and GREASE ordering. Only the
++  // primary browser brand uses its independent marketing version.
++  if (brand && command_line->HasSwitch("uxr-ua-brand-version")) {
++    const std::string full = GetEffectiveBrowserBrandFullVersion();
++    const std::string version =
++        output_version_type == blink::UserAgentBrandVersionType::kFullVersion
++            ? full : base::NumberToString(base::Version(full).components()[0]);
++    for (auto& entry : brands) {
++      if (entry.brand == *brand)
++        entry.version = version;
++    }
++  }
++  return brands;
+ }
+ 
+ // Return UserAgentBrandList with the major version populated in the brand
+@@ -179,10 +272,10 @@
+ // GetVersionNumber()
+ const blink::UserAgentBrandList GetUserAgentBrandMajorVersionListInternal(
+     std::optional<blink::UserAgentBrandVersion> additional_brand_version) {
+-  return GetUserAgentBrandList(version_info::GetMajorVersionNumber(),
+-                               std::string(version_info::GetVersionNumber()),
+-                               blink::UserAgentBrandVersionType::kMajorVersion,
+-                               additional_brand_version);
++  return GetUserAgentBrandList(
++      GetEffectiveUserAgentMajorVersion(), GetEffectiveUserAgentFullVersion(),
++      blink::UserAgentBrandVersionType::kMajorVersion,
++      additional_brand_version);
+ }
+ 
+ // For desktop and android:
+@@ -203,10 +296,10 @@
+ // GetVersionNumber()
+ const blink::UserAgentBrandList GetUserAgentBrandFullVersionListInternal(
+     std::optional<blink::UserAgentBrandVersion> additional_brand_version) {
+-  return GetUserAgentBrandList(version_info::GetMajorVersionNumber(),
+-                               std::string(version_info::GetVersionNumber()),
+-                               blink::UserAgentBrandVersionType::kFullVersion,
+-                               additional_brand_version);
++  return GetUserAgentBrandList(
++      GetEffectiveUserAgentMajorVersion(), GetEffectiveUserAgentFullVersion(),
++      blink::UserAgentBrandVersionType::kFullVersion,
++      additional_brand_version);
+ }
+ 
+ // Generate random order list based on the input size and seed.
+@@ -278,6 +371,18 @@
+ }
+ 
+ std::string GetUnifiedPlatform() {
++  // UXR: persona OS token for the (reduced) UA string. Fixes the C1 instant-flag
++  // where navigator.userAgent said Linux while platform/Sec-CH-UA-Platform said
++  // Windows. Browser-process read; control plane passes the full unified form,
++  // e.g. "Windows NT 10.0; Win64; x64". Must agree with --uxr-platform/-ua-platform.
++  {
++    const base::CommandLine* p_cmd = base::CommandLine::ForCurrentProcess();
++    if (p_cmd->HasSwitch("uxr-ua-os")) {
++      std::string p_os = p_cmd->GetSwitchValueASCII("uxr-ua-os");
++      if (!p_os.empty())
++        return p_os;
++    }
++  }
+ #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
+   // This constant is only used on Android (desktop) and Linux.
+   constexpr char kUnifiedPlatformChromeOSX64[] = "X11; CrOS x86_64 14541.0.0";
+@@ -436,6 +541,11 @@
+ }
+ 
+ std::string BuildUserAgentFromProduct(const std::string& product) {
++  const std::string persona_os =
++      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("uxr-ua-os");
++  if (!persona_os.empty())
++    return BuildUserAgentFromOSAndProduct(persona_os, product);
++
+   std::string os_info;
+   base::StringAppendF(&os_info, "%s%s", GetUserAgentPlatform().c_str(),
+                       BuildOSCpuInfo(IncludeAndroidBuildNumber::Exclude,
+@@ -448,7 +558,18 @@
+ // depending on the Reduce User-Agent reduction phase features.
+ std::string GetUserAgentInternal() {
+   std::string product = GetProductAndVersion();
+-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(kHeadless)) {
++  const std::string& full_version = GetEffectiveUserAgentFullVersion();
++  const std::string& major_version = GetEffectiveUserAgentMajorVersion();
++  const std::string user_agent_version =
++      base::FeatureList::IsEnabled(blink::features::kReduceUserAgentMinorVersion)
++          ? base::StrCat({major_version, ".0.0.0"})
++          : full_version;
++  product = ReplaceProductVersion(product, user_agent_version);
++  const base::CommandLine* command_line =
++      base::CommandLine::ForCurrentProcess();
++  if ((command_line->GetSwitchValueASCII("uxr-fingerprint-off") == "true" ||
++       command_line->GetSwitchValueASCII("uxr-identity-mode") == "native") &&
++      command_line->HasSwitch(kHeadless)) {
+     product.insert(0, "Headless");
+   }
+ 
+@@ -458,9 +579,14 @@
+   }
+ #endif
+ 
+-  return ShouldSendUserAgentUnifiedPlatform()
+-             ? BuildUnifiedPlatformUserAgentFromProduct(product)
+-             : BuildUserAgentFromProduct(product);
++  std::string user_agent = ShouldSendUserAgentUnifiedPlatform()
++                               ? BuildUnifiedPlatformUserAgentFromProduct(product)
++                               : BuildUserAgentFromProduct(product);
++  const std::string token = BrowserBrandProductToken(
++      command_line->GetSwitchValueASCII("uxr-ua-brand"));
++  if (!token.empty())
++    user_agent += " " + token + "/" + GetEffectiveBrowserBrandFullVersion();
++  return user_agent;
+ }
+ 
+ }  // namespace
+@@ -603,6 +729,12 @@
+ }
+ 
+ std::string GetPlatformForUAMetadata() {
++  // UXR: persona-driven Sec-CH-UA-Platform (must match navigator.platform OS).
++  {
++    const base::CommandLine* cmd = base::CommandLine::ForCurrentProcess();
++    if (cmd->HasSwitch("uxr-ua-platform"))
++      return cmd->GetSwitchValueASCII("uxr-ua-platform");
++  }
+ #if BUILDFLAG(IS_ANDROID)
+   if (base::android::device_info::is_desktop() ||
+       base::android::device_info::is_xr()) {
+@@ -645,14 +777,28 @@
+   metadata.mobile = GetMobileBitForUAMetadata();
+   metadata.platform = GetPlatformForUAMetadata();
+ 
+-  // For users providing a valid user-agent override via the command line:
+-  // If kUACHOverrideBlank is enabled, set user-agent metadata with the
+-  // default blank values, otherwise return the default UserAgentMetadata values
+-  // to populate and send only the low entropy client hints.
+-  // Notes: Sending low entropy hints with empty values may cause requests being
+-  // blocked by web application firewall software, etc.
++  const base::CommandLine* command_line =
++      base::CommandLine::ForCurrentProcess();
++  // Structured metadata is an explicit opt-in alongside a complete UA. Do not
++  // parse the UA string or infer metadata from a noise seed. A native-platform
++  // selection can omit normalized uxr-ua-* defaults, so retain that public key.
++  const bool has_custom_metadata =
++      command_line->HasSwitch("fingerprint-platform") ||
++      command_line->HasSwitch("uxr-ua-brand") ||
++      command_line->HasSwitch("uxr-ua-brand-version") ||
++      command_line->HasSwitch("uxr-ua-full-version") ||
++      command_line->HasSwitch("uxr-ua-platform") ||
++      command_line->HasSwitch("uxr-ua-platform-version") ||
++      command_line->HasSwitch("uxr-ua-arch") ||
++      command_line->HasSwitch("uxr-ua-bitness") ||
++      command_line->HasSwitch("uxr-ua-model") ||
++      command_line->HasSwitch("uxr-ua-wow64");
++
++  // Preserve Chromium's blank/low-entropy behavior for a raw UA on its own.
++  // Explicit metadata uses the same path as a generated UA; the low-entropy
++  // request and ReducedSystemInfo checks still apply below.
+   std::optional<std::string> custom_ua = GetUserAgentFromCommandLine();
+-  if (custom_ua.has_value()) {
++  if (custom_ua.has_value() && !has_custom_metadata) {
+     return base::FeatureList::IsEnabled(blink::features::kUACHOverrideBlank)
+                ? blink::UserAgentMetadata()
+                : metadata;
+@@ -665,13 +811,24 @@
+   // High entropy client hints.
+   metadata.brand_full_version_list =
+       GetUserAgentBrandFullVersionListInternal(std::nullopt);
+-  metadata.full_version = std::string(version_info::GetVersionNumber());
+-  metadata.architecture = GetCpuArchitecture();
+-  metadata.model = BuildModelInfo();
++  metadata.full_version = GetEffectiveBrowserBrandFullVersion();
++  metadata.architecture = command_line->HasSwitch("uxr-ua-arch")
++                              ? command_line->GetSwitchValueASCII("uxr-ua-arch")
++                              : GetCpuArchitecture();
++  metadata.model = command_line->HasSwitch("uxr-ua-model")
++                       ? command_line->GetSwitchValueASCII("uxr-ua-model")
++                       : BuildModelInfo();
+   metadata.form_factors = GetFormFactorsClientHint(metadata, metadata.mobile);
+-  metadata.bitness = GetCpuBitness();
+-  metadata.wow64 = IsWoW64();
+-  metadata.platform_version = GetPlatformVersion();
++  metadata.bitness = command_line->HasSwitch("uxr-ua-bitness")
++                         ? command_line->GetSwitchValueASCII("uxr-ua-bitness")
++                         : GetCpuBitness();
++  metadata.wow64 = command_line->HasSwitch("uxr-ua-wow64")
++                       ? command_line->GetSwitchValueASCII("uxr-ua-wow64") == "true"
++                       : IsWoW64();
++  metadata.platform_version =
++      command_line->HasSwitch("uxr-ua-platform-version")
++          ? command_line->GetSwitchValueASCII("uxr-ua-platform-version")
++          : GetPlatformVersion();
+   return metadata;
+ }
+ 
+diff --git a/content/browser/gpu/gpu_data_manager_impl_private.cc b/content/browser/gpu/gpu_data_manager_impl_private.cc
+--- a/content/browser/gpu/gpu_data_manager_impl_private.cc
++++ b/content/browser/gpu/gpu_data_manager_impl_private.cc
+@@ -4,6 +4,10 @@
+ 
+ 
+ #include "content/browser/gpu/gpu_data_manager_impl_private.h"
++#include "base/process/process.h"
++#include "base/strings/string_number_conversions.h"
++#include "content/public/common/result_codes.h"
++#include "ui/gl/gl_implementation.h"
+ 
+ #include "base/notreached.h"
+ #include "build/build_config.h"
+@@ -102,6 +106,27 @@
+ 
+ namespace {
+ 
++#if BUILDFLAG(IS_WIN)
++bool UxrRequiredGpuMatches(const gpu::GPUInfo& info) {
++  const auto* command = base::CommandLine::ForCurrentProcess();
++  if (command->GetSwitchValueASCII("chromix-gpu-binding") != "required-v1")
++    return false;
++  const std::string value = command->GetSwitchValueASCII("use-adapter-luid");
++  const size_t comma = value.find(',');
++  int high = 0;
++  unsigned low = 0;
++  if (comma == std::string::npos ||
++      !base::StringToInt(value.substr(0, comma), &high) ||
++      !base::StringToUint(value.substr(comma + 1), &low) ||
++      (high == 0 && low == 0))
++    return false;
++  const auto& active = info.active_gpu();
++  return !info.gl_renderer.empty() && active.active &&
++         info.gl_implementation_parts.angle == gl::ANGLEImplementation::kD3D11 &&
++         active.luid.HighPart == high && active.luid.LowPart == low;
++}
++#endif
++
+ #if BUILDFLAG(IS_ANDROID)
+ // NOINLINE to ensure this function is used in crash reports.
+ NOINLINE void FatalGpuProcessLaunchFailureOnBackground() {
+@@ -859,8 +884,11 @@
+ 
+ void GpuDataManagerImplPrivate::RequestVideoMemoryUsageStatsUpdate(
+     GpuDataManager::VideoMemoryUsageStatsCallback callback) const {
++  // The opt-in startup gate needs a real GPU process before opening any tab.
++  const bool required = base::CommandLine::ForCurrentProcess()->HasSwitch(
++      "chromix-gpu-binding");
+   GpuProcessHost::CallOnUI(
+-      FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, /*force_create=*/false ,
++      FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, /*force_create=*/required,
+       base::BindOnce(&RequestVideoMemoryUsageStats, std::move(callback)));
+ }
+ 
+@@ -917,6 +945,15 @@
+   uint32_t vulkan_version = gpu_info_.vulkan_version;
+ #endif
+   gpu_info_ = gpu_info;
++#if BUILDFLAG(IS_WIN)
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch("chromix-gpu-binding") &&
++      !gpu_info_.gl_renderer.empty() && !UxrRequiredGpuMatches(gpu_info_)) {
++    LOG(ERROR) << "Chromix GPU binding changed or silently fell back";
++    // Avoid DLL detach callbacks while the GPU manager is updating its state.
++    base::Process::TerminateCurrentProcessImmediately(
++        content::RESULT_CODE_GPU_DEAD_ON_ARRIVAL);
++  }
++#endif
+   RecordDiscreteGpuHistograms(gpu_info_);
+   RecordNpuHistograms(gpu_info_);
+ #if BUILDFLAG(ENABLE_VULKAN)
+@@ -1640,6 +1677,15 @@
+     IntentionallyCrashBrowserForUnusableGpuProcess();
+   }
+ 
++#if BUILDFLAG(IS_WIN)
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch("chromix-gpu-binding") &&
++      fallback_modes_.back() != gpu::GpuMode::HARDWARE_GL &&
++      fallback_modes_.back() != gpu::GpuMode::HARDWARE_GRAPHITE) {
++    LOG(ERROR) << "Chromix bound GPU cannot fall back to a different backend";
++    base::Process::TerminateCurrentProcessImmediately(
++        content::RESULT_CODE_GPU_DEAD_ON_ARRIVAL);
++  }
++#endif
+   gpu_mode_ = fallback_modes_.back();
+   fallback_modes_.pop_back();
+   CHECK_NE(gpu_mode_, gpu::GpuMode::UNKNOWN, base::NotFatalUntil::M159);
+diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
+--- a/content/browser/renderer_host/render_process_host_impl.cc
++++ b/content/browser/renderer_host/render_process_host_impl.cc
+@@ -15,6 +15,7 @@
+ #include <memory>
+ #include <ranges>
+ #include <set>
++#include <string_view>
+ #include <utility>
+ #include <vector>
+ 
+@@ -24,6 +25,7 @@
+ #include "base/clang_profiling_buildflags.h"
+ #include "base/command_line.h"
+ #include "base/containers/flat_map.h"
++#include "base/uxr_config.h"
+ #include "base/containers/map_util.h"
+ #include "base/debug/alias.h"
+ #include "base/debug/crash_logging.h"
+@@ -1182,6 +1184,7 @@
+   SiteProcessIDPairSet site_process_set_;
+ };
+ 
++
+ void CopyFeatureSwitch(const base::CommandLine& src,
+                        base::CommandLine* dest,
+                        const char* switch_name) {
+@@ -2069,6 +2072,24 @@
+   uint64_t trace_id = base::Token::CreateRandom().high();
+   TRACE_EVENT("navigation", "RenderProcessHostImpl::Init",
+               perfetto::Flow::Global(trace_id));
++  // Keep the browser's UA and metadata authoritative for network and JS.
++  {
++    base::flat_map<std::string, std::string> uxr_cfg;
++    for (const auto& sw :
++         base::CommandLine::ForCurrentProcess()->GetSwitches()) {
++      if (sw.first.compare(0, 4, "uxr-") == 0) {
++        uxr_cfg[sw.first] =
++            base::CommandLine::ForCurrentProcess()->GetSwitchValueUTF8(sw.first);
++      }
++    }
++    // Snapshot construction is browser-owned and launch-scoped. Even an empty
++    // native snapshot must arrive before WebKit/isolate initialization.
++    auto& snapshot = base::UxrConfig::GetInstance();
++    CHECK(snapshot.SetAll(uxr_cfg)) << snapshot.ValidationError();
++    uxr_cfg = snapshot.Snapshot();
++    GetRendererInterface()->SetUxrConfig(
++        std::move(uxr_cfg), base::UxrConfig::kSchemaVersion);
++  }
+   GetRendererInterface()->InitializeRenderer(
+       GetContentClient()->browser()->GetUserAgent(),
+       GetContentClient()->browser()->GetUserAgentMetadata(),
+@@ -3841,6 +3862,16 @@
+   const base::CommandLine& browser_command_line =
+       *base::CommandLine::ForCurrentProcess();
+   PropagateBrowserCommandLineToRenderer(browser_command_line, command_line);
++
++  // Locale initialization precedes the renderer's persona IPC.
++  static const char* const kUxrStartupSwitches[] = {
++      "uxr-languages", "uxr-fingerprint-off", "uxr-ua-brand",
++      "uxr-ua-brand-version", "uxr-ua-full-version", "uxr-ua-os",
++      "uxr-ua-platform", "uxr-ua-platform-version", "uxr-ua-arch",
++      "uxr-ua-bitness", "uxr-ua-model", "uxr-ua-wow64"};
++  command_line->CopySwitchesFrom(browser_command_line, kUxrStartupSwitches);
++
++
+ 
+   // Pass on the browser locale.
+   const std::string locale =
+diff --git a/content/common/renderer.mojom b/content/common/renderer.mojom
+--- a/content/common/renderer.mojom
++++ b/content/common/renderer.mojom
+@@ -172,4 +172,8 @@
+                      blink.mojom.OriginTrialsSettings? origin_trials_settings,
+                      blink.mojom.PerformanceTier cpu_performance_tier,
+                      uint64 trace_id);
++
++  // UXR persona config delivered out-of-band (NOT via the renderer command
++  // line) so persona values + seeds never appear in /proc/<renderer>/cmdline.
++  SetUxrConfig(map<string, string> config, uint32 schema_version);
+ };
+diff --git a/content/renderer/render_thread_impl.cc b/content/renderer/render_thread_impl.cc
+--- a/content/renderer/render_thread_impl.cc
++++ b/content/renderer/render_thread_impl.cc
+@@ -17,6 +17,9 @@
+ #include "base/allocator/partition_alloc_support.h"
+ #include "base/at_exit.h"
+ #include "base/command_line.h"
++#include "base/containers/flat_map.h"
++#include "base/i18n/rtl.h"
++#include "base/uxr_config.h"
+ #include "base/debug/crash_logging.h"
+ #include "base/feature_list.h"
+ #include "base/functional/bind.h"
+@@ -852,6 +855,20 @@
+       blink::WebImageGenerator::CreateAsSkImageGenerator);
+ }
+ 
++void RenderThreadImpl::SetUxrConfig(
++    const base::flat_map<std::string, std::string>& config,
++    uint32_t schema_version) {
++  // Persona config arrives here over IPC (not the command line), so it never
++  // appears in /proc/<renderer>/cmdline. Stored once in the process-global.
++  auto& snapshot = base::UxrConfig::GetInstance();
++  CHECK(snapshot.SetAll(config, schema_version)) << snapshot.ValidationError();
++  const std::string timezone = snapshot.Get("uxr-timezone");
++  if (!timezone.empty()) {
++    CHECK(blink::SetRendererDefaultTimeZone(blink::WebString::FromUtf8(timezone)))
++        << "Invalid launch timezone: " << timezone;
++  }
++}
++
+ void RenderThreadImpl::InitializeRenderer(
+     const std::string& user_agent,
+     const blink::UserAgentMetadata& user_agent_metadata,
+diff --git a/content/renderer/render_thread_impl.h b/content/renderer/render_thread_impl.h
+--- a/content/renderer/render_thread_impl.h
++++ b/content/renderer/render_thread_impl.h
+@@ -407,6 +407,8 @@
+       blink::mojom::OriginTrialsSettingsPtr origin_trial_settings,
+       blink::mojom::PerformanceTier cpu_performance_tier,
+       uint64_t trace_id) override;
++  void SetUxrConfig(const base::flat_map<std::string, std::string>& config,
++                    uint32_t schema_version) override;
+ #if BUILDFLAG(IS_MAC)
+   void UpdateScrollbarTheme(
+       mojom::UpdateScrollbarThemeParamsPtr params) override;
+diff --git a/content/renderer/renderer_main.cc b/content/renderer/renderer_main.cc
+--- a/content/renderer/renderer_main.cc
++++ b/content/renderer/renderer_main.cc
+@@ -91,6 +91,13 @@
+ #include "mojo/public/cpp/bindings/lib/test_random_mojo_delays.h"
+ #endif
+ 
++#include "third_party/icu/source/i18n/unicode/timezone.h"
++#include "third_party/icu/source/common/unicode/unistr.h"
++
++#include <stdlib.h>
++#include <time.h>
++#include <memory>
++
+ namespace content {
+ namespace {
+ 
+@@ -156,6 +163,7 @@
+       base::CurrentProcessType::PROCESS_RENDERER);
+ 
+   const base::CommandLine& command_line = *parameters.command_line;
++
+ 
+ #if BUILDFLAG(IS_MAC)
+   base::apple::ScopedNSAutoreleasePool* pool = parameters.autorelease_pool;

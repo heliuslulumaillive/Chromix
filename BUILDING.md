@@ -1,12 +1,18 @@
 # Windows product builds
 
-## 157.0.8103.78 slim source candidate
+## Chromium 158.0.8127.36 for Windows x64
+
+This branch ports the Lite 157 slim V2 features from `a60db89` onto the original Chromium source archive. The [download pin](build/chromium158-source.ini) binds the complete release archive. The [base policy](build/chromium158-base.json) selects the required ungoogled core and Windows patch sections, and keeps the three native binary resources plus four preferences source files during pruning. The [158 product manifest](build/lite-windows158.json) lists the remaining product changes and their verified source identities.
+
+Use the project's hosted Windows workflow with `operation=fresh` for the first 158 build. The existing dispatch entry `security-win156.yml` calls the 158 worker on this branch. Use `resume` with a matching native 158 checkpoint to continue a previous build. The native browser, Cookie, session, security, graphics, font and Windows Passkey suites still run against the produced artifact before DLL admission.
+
+## Historical 157.0.8103.78 slim source candidate
 
 The installed source baseline is `230b7f6` (run `44470833537`, stage 1). The slim target removes the standalone Chromix and Cloak surface modes while retaining the physical GPU and hardware catalog contracts. The Windows product uses its normal proxy broker for authenticated SOCKS5. It uses the native component path for DRM.
 
 Version 2 uses the signed DirectWrite catalog or the native Windows collection for font lookups. It retires font-name masks and unsigned resource directories. Windows speech uses its native voice names and backends. Chromium chooses the default site quota and explicit overrides are supported. Multiline bounds share a rectangle policy, including correct zero-size results for detached nodes.
 
-Use the existing hosted Windows workflow with `operation=upgrade`, `source_run=44470833537`, and `source_stage=1`. The checked-in migration binds both source trees and every source replacement. A rebuilt DLL requires its own native and packaged acceptance before installation.
+The 157 worktree used `operation=upgrade`, `source_run=44470833537`, and `source_stage=1`. Its migration bound both source trees and each source replacement.
 
 ## 157.0.8103.78 / signed source-controlled catalog v3 (candidate)
 

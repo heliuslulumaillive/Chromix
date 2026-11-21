@@ -1,0 +1,110 @@
+diff --git a/net/BUILD.gn b/net/BUILD.gn
+--- a/net/BUILD.gn
++++ b/net/BUILD.gn
+@@ -303,6 +303,7 @@
+     "base/platform_mime_util.h",
+     "base/port_util.cc",
+     "base/port_util.h",
++    "base/shardx_environment_controls.h",
+     "base/prioritized_dispatcher.cc",
+     "base/prioritized_dispatcher.h",
+     "base/prioritized_task_runner.cc",
+diff --git a/net/base/port_util.cc b/net/base/port_util.cc
+--- a/net/base/port_util.cc
++++ b/net/base/port_util.cc
+@@ -7,6 +7,8 @@
+ #include <limits>
+ #include <set>
+ 
++#include "base/command_line.h"
++#include "net/base/shardx_environment_controls.h"
+ #include "base/containers/fixed_flat_map.h"
+ #include "base/containers/flat_set.h"
+ #include "base/feature_list.h"
+@@ -181,6 +183,18 @@
+   if (!IsPortValid(port))
+     return false;
+ 
++  // This is an environment-level deny policy. Evaluate the parsed effective
++  // port before explicit allow exceptions, irrespective of IPv4/IPv6 spelling.
++  // The immutable browser command line is forwarded to network/renderer children.
++  static const base::NoDestructor<net::shardx::BlockedPorts> managed_ports([] {
++    const auto* command_line = base::CommandLine::ForCurrentProcess();
++    return command_line->HasSwitch("shardx-managed-environment")
++               ? net::shardx::ParseBlockedPorts(
++                     command_line->GetSwitchValueASCII("shardx-blocked-ports"))
++               : net::shardx::BlockedPorts();
++  }());
++  if (managed_ports->Contains(port)) return false;
++
+   // Allow explicitly allowed ports for any scheme.
+   if (GetExplicitlyAllowedPorts().count(port) > 0) {
+     return true;
+diff --git a/net/base/shardx_environment_controls.h b/net/base/shardx_environment_controls.h
+new file mode 100644
+--- /dev/null
++++ b/net/base/shardx_environment_controls.h
+@@ -0,0 +1,63 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#ifndef NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
++#define NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
++
++#include <algorithm>
++#include <cstddef>
++#include <string_view>
++#include <vector>
++
++namespace net::shardx {
++struct BlockedPorts {
++  bool valid = true;
++  std::vector<int> ports;
++  bool Contains(int port) const {
++    // Malformed explicit policy never silently becomes unrestricted access.
++    return !valid || std::binary_search(ports.begin(), ports.end(), port);
++  }
++};
++
++inline BlockedPorts ParseBlockedPorts(std::string_view value) {
++  BlockedPorts result;
++  if (value.empty()) return result;
++  if (value.size() > 1535) { result.valid = false; return result; }
++  size_t start = 0;
++  do {
++    if (result.ports.size() >= 256) { result.valid = false; return result; }
++    const size_t end = value.find(',', start);
++    const auto part = value.substr(start, end == std::string_view::npos
++                                             ? value.size() - start : end - start);
++    if (part.empty()) {
++      result.valid = false;
++      return result;
++    }
++    int port = 0;
++    for (const char digit : part) {
++      if (digit < '0' || digit > '9') {
++        result.valid = false;
++        return result;
++      }
++      const int digit_value = digit - '0';
++      // Bound the next decimal step before multiplication, including very
++      // long inputs. Range iteration never exposes an unchecked pointer pair.
++      if (port > (65535 - digit_value) / 10) {
++        result.valid = false;
++        return result;
++      }
++      port = port * 10 + digit_value;
++    }
++    if (port < 1) {
++      result.valid = false;
++      return result;
++    }
++    result.ports.push_back(port);
++    if (end == std::string_view::npos) break;
++    start = end + 1;
++  } while (true);
++  std::sort(result.ports.begin(), result.ports.end());
++  result.ports.erase(std::unique(result.ports.begin(), result.ports.end()), result.ports.end());
++  return result;
++}
++}  // namespace net::shardx
++#endif  // NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_

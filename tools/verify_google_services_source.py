@@ -30,7 +30,7 @@ REQUIRED = {
     ],
     'chrome/browser/extensions/BUILD.gn': [
         'source_set("test_extension_system")',
-        'public_deps = [ ":test_extension_system" ]',
+        'public_deps = [ "//chrome/browser/extensions:test_extension_system" ]',
     ],
     'chrome/test/base/testing_browser_process.h': [
         '#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)\n'

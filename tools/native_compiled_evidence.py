@@ -1,4 +1,4 @@
-"""Reviewed Windows 157 suites bound to the immutable pretest build record."""
+"""Reviewed Windows 158 suites bound to the immutable pretest build record."""
 from __future__ import annotations
 
 import argparse
@@ -17,8 +17,8 @@ except ImportError:
 
 HEX = re.compile(r'[a-f0-9]{64}')
 COMMIT = re.compile(r'[a-f0-9]{40}')
-VERSION = '157.0.8103.78'
-VARIANT = 'fingerprint-modes-win157'
+VERSION = '158.0.8127.36'
+VARIANT = 'fingerprint-modes-win158'
 TEST_EXECUTABLE = 'native_passkey_unittests.exe'
 
 # The frozen list comes from the actual Chromium 156 v3 native execution, not
@@ -164,11 +164,11 @@ def _utc(value):
 
 def validate_compiled_suite(summary_path, launcher_path, build_record_path, kind):
     if kind not in REQUIRED_TESTS:
-        raise ValueError('Unknown Windows 157 native suite')
+        raise ValueError('Unknown Windows 158 native suite')
     required = REQUIRED_TESTS[kind]
     if ({name: len(tests) for name, tests in REQUIRED_TESTS.items()} != {'passkey': 67, 'browser': 10, 'cookie': 10}
             or REQUIRED_TESTS['browser'] != WINDOWS157_BROWSER_TESTS):
-        raise ValueError('Native suites differ from the reviewed Windows 157 inventory')
+        raise ValueError('Native suites differ from the reviewed Windows 158 inventory')
     summary, summary_hash = _read(summary_path)
     launcher, launcher_hash = _read(launcher_path)
     build, build_hash = _read(build_record_path)

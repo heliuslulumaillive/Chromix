@@ -1,0 +1,41 @@
+diff --git a/chrome/browser/resources/settings/privacy_page/security/security_page.html b/chrome/browser/resources/settings/privacy_page/security/security_page.html
+--- a/chrome/browser/resources/settings/privacy_page/security/security_page.html
++++ b/chrome/browser/resources/settings/privacy_page/security/security_page.html
+@@ -219,12 +219,4 @@
+         @click="${this.onAdvancedProtectionProgramLinkClick_}"
+         external>
+     </cr-link-row>
+-    ${this.showDisableSafebrowsingDialog_ ? html`
+-      <settings-simple-confirmation-dialog
+-          title-text="$i18n{safeBrowsingDisableDialog}"
+-          body-text="$i18n{safeBrowsingDisableDialogDesc}"
+-          confirm-text="$i18n{safeBrowsingDisableDialogConfirm}"
+-          @close="${this.onDisableSafebrowsingDialogClose_}">
+-      </settings-simple-confirmation-dialog>
+-    ` : ''}
+   </settings-subpage>
+diff --git a/chrome/browser/resources/settings/privacy_page/security/security_page.ts b/chrome/browser/resources/settings/privacy_page/security/security_page.ts
+--- a/chrome/browser/resources/settings/privacy_page/security/security_page.ts
++++ b/chrome/browser/resources/settings/privacy_page/security/security_page.ts
+@@ -238,10 +238,6 @@
+       }
+     });
+ 
+-    this.registerHelpBubble(
+-        'kEnhancedProtectionSettingElementId',
+-        this.$.safeBrowsingEnhanced.getBubbleAnchor(), {paddingTop: 10});
+-
+     // Initialize the last focus time on page load.
+     this.lastFocusTime_ = HatsBrowserProxyImpl.getInstance().now();
+ 
+diff --git a/chrome/browser/ui/hats/trust_safety_sentiment_service.cc b/chrome/browser/ui/hats/trust_safety_sentiment_service.cc
+--- a/chrome/browser/ui/hats/trust_safety_sentiment_service.cc
++++ b/chrome/browser/ui/hats/trust_safety_sentiment_service.cc
+@@ -157,6 +157,7 @@
+ 
+ // Returns true if the threat_type is not in the phishing, malware, unwanted
+ // software, or billing threat categories.
++[[maybe_unused]]
+ bool IsOtherSBInterstitialCategory(safe_browsing::SBThreatType threat_type) {
+   switch (threat_type) {
+     case safe_browsing::SBThreatType::SB_THREAT_TYPE_URL_PHISHING:

@@ -82,6 +82,7 @@ MAX_FILE = 1024 * 1024
 PINS = {
     "154.0.8037.97": None,
     CHROMIUM_VERSION: {"v8_revision": V8_REVISION, "target_cpus": ("x64", "arm64")},
+    "158.0.8127.36": {"v8_revision": "b601a2347f005e8bfadd32f285df97ffba5cf1bd", "target_cpus": ("x64",)},
     "157.0.8103.78": {"v8_revision": "307108153d1e35e6e74528ee55f97b0cd59bf182",
                       "target_cpus": ("x64",)},
     "157.0.8103.38": {"v8_revision": "440c1c463e2e528c309af5067952e7b11631507f",

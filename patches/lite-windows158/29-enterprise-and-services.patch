@@ -1,0 +1,63 @@
+diff --git a/chrome/browser/enterprise/signals/context_info_fetcher.cc b/chrome/browser/enterprise/signals/context_info_fetcher.cc
+--- a/chrome/browser/enterprise/signals/context_info_fetcher.cc
++++ b/chrome/browser/enterprise/signals/context_info_fetcher.cc
+@@ -117,6 +117,11 @@
+           ChromePolicyBlocklistServiceFactory::GetForProfile(
+               Profile::FromBrowserContext(browser_context_)));
+ 
++  Profile* profile = Profile::FromBrowserContext(browser_context_);
++  info.safe_browsing_protection_level =
++      device_signals::GetSafeBrowsingProtectionLevel(profile->GetPrefs());
++  info.password_protection_warning_trigger =
++      device_signals::GetPasswordProtectionWarningTrigger(profile->GetPrefs());
+ 
+ #if BUILDFLAG(IS_WIN)
+   base::ThreadPool::CreateCOMSTATaskRunner({base::MayBlock()})
+diff --git a/chrome/browser/permissions/prediction_service/permissions_ai_ui_selector.cc b/chrome/browser/permissions/prediction_service/permissions_ai_ui_selector.cc
+--- a/chrome/browser/permissions/prediction_service/permissions_ai_ui_selector.cc
++++ b/chrome/browser/permissions/prediction_service/permissions_ai_ui_selector.cc
+@@ -812,7 +812,7 @@
+     ModelExecutionData model_data) {
+   VLOG(1) << "[PermissionsAI] ExecuteOnDeviceAivXModel";
+   PredictionModelHandlerProvider* prediction_model_handler_provider =
+-      PredictionModelHandlerProviderFactory::GetForBrowserContext(profile_);
++      nullptr;
+   if (prediction_model_handler_provider) {
+     permissions::RequestType request_type =
+         model_data.request_metadata.request_type;
+diff --git a/chrome/browser/policy/configuration_policy_handler_list_factory.cc b/chrome/browser/policy/configuration_policy_handler_list_factory.cc
+--- a/chrome/browser/policy/configuration_policy_handler_list_factory.cc
++++ b/chrome/browser/policy/configuration_policy_handler_list_factory.cc
+@@ -593,9 +593,6 @@
+   { key::kAccessibilityImageLabelsEnabled,
+     prefs::kAccessibilityImageLabelsEnabled,
+     base::Value::Type::BOOLEAN },
+-  { key::kAdvancedProtectionAllowed,
+-    prefs::kAdvancedProtectionAllowed,
+-    base::Value::Type::BOOLEAN },
+   { key::kAllowCrossOriginAuthPrompt,
+     prefs::kAllowCrossOriginAuthPrompt,
+     base::Value::Type::BOOLEAN },
+@@ -3170,9 +3167,6 @@
+       signin_legacy_policies;
+ #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
+     BUILDFLAG(IS_LINUX)
+-  signin_legacy_policies.push_back(std::make_unique<SimplePolicyHandler>(
+-      key::kForceBrowserSignin, prefs::kForceBrowserSignin,
+-      base::Value::Type::BOOLEAN));
+ #endif
+ 
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+diff --git a/components/enterprise/connectors/core/reporting_service_settings.cc b/components/enterprise/connectors/core/reporting_service_settings.cc
+--- a/components/enterprise/connectors/core/reporting_service_settings.cc
++++ b/components/enterprise/connectors/core/reporting_service_settings.cc
+@@ -8,9 +8,6 @@
+ #include "components/enterprise/connectors/core/service_provider_config.h"
+ 
+ namespace enterprise_connectors {
+-namespace {
+-
+-}  // namespace
+ 
+ ReportingServiceSettings::ReportingServiceSettings(
+     const base::Value& settings_value,

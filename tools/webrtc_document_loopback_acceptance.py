@@ -82,7 +82,7 @@ def validate(data, *, exe_sha256, dll_sha256, harness):
             and not fixture.fragment and not fixture.path, 'Owned HTTP fixture identity missing')
     fixture_bypass='--proxy-bypass-list=<-loopback>;127.0.0.1:'+str(fixture.port)
     for name,r in runs.items():
-        require(r.get('version',{}).get('product')=='Chrome/157.0.8103.78', 'Wrong runtime browser version')
+        require(r.get('version',{}).get('product')=='Chrome/158.0.8127.36', 'Wrong runtime browser version')
         cleanup=r.get('cleanup',{})
         require(cleanup.get('normalExit') is True and cleanup.get('forced') is False
                 and cleanup.get('known_owned_processes_remaining')==[]

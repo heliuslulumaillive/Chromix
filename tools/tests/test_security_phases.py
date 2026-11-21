@@ -13,7 +13,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 STAGE = ROOT / 'build/windows/security-stage.ps1'
-WORKER = ROOT / '.github/workflows/security-win157-worker.yml'
+WORKER = ROOT / '.github/workflows/security-win158-worker.yml'
 PWSH = shutil.which('pwsh') or shutil.which('pwsh.exe')
 PHASES = ['Acquire', 'Extract', 'Prepare', 'Configure', 'Compile', 'Bundle', 'Verify', 'Archive']
 HARNESS = r'''
@@ -362,16 +362,16 @@ class WorkflowPhaseTests(unittest.TestCase):
         prepare = text.split("    'Prepare' {", 1)[1].split("    'Configure' {", 1)[0]
         self.assertLess(prepare.index("Invoke-Owned 'sdk'"), prepare.index("'base-prepare'"))
         self.assertLess(prepare.index('Set-CompilerEnvironment -WithoutSourceTools'),
-                        prepare.index("'restored-environment-inspect'"))
+                        prepare.index("'verify-native-product-source'"))
         self.assertEqual(text.count("Invoke-Owned 'sdk'"), 1)
         self.assertNotIn("Remove-Item -LiteralPath $out", text)
         self.assertLess(text.index("'checkpoint-preflight'"), text.index("'checkpoint-download'"))
-        self.assertLess(text.index("'checkpoint-tree'"), text.index("'migration-source'"))
+        self.assertLess(text.index("'checkpoint-tree'"), text.index("'verify-native-product-source'"))
 
     def test_checkpoint_disk_admission_precedes_large_operations(self):
         text = STAGE.read_text(encoding='utf-8')
         acquisition = text.split("    'Acquire' {", 1)[1].split("    'Extract' {", 1)[0]
-        checkpoint = acquisition.split("if ($Operation -in @('resume','upgrade')) {", 1)[1].split('      } else {', 1)[0]
+        checkpoint = acquisition.split("if ($Operation -eq 'resume') {", 1)[1].split('      } else {', 1)[0]
         self.assertLess(checkpoint.index("'checkpoint-preflight'"), checkpoint.index('Clear-HostedToolSpace'))
         self.assertLess(checkpoint.index('Clear-HostedToolSpace'), checkpoint.index('Get-CheckpointDiskBudget'))
         self.assertLess(checkpoint.index('required_free_bytes'), checkpoint.index("'checkpoint-download'"))
@@ -385,9 +385,10 @@ class WorkflowPhaseTests(unittest.TestCase):
         text = STAGE.read_text(encoding='utf-8')
         acquisition = text.split("    'Acquire' {", 1)[1].split("    'Extract' {", 1)[0]
         checkpoint, other = acquisition.split('      } else {', 1)
-        for branch, transfer in ((checkpoint, "'checkpoint-download'"), (other, "'exact-upstream-download'")):
+        for branch in (checkpoint, other):
             self.assertLess(branch.index('Clear-HostedToolSpace'), branch.index('Confirm-HostedCompilerPrerequisites'))
-            self.assertLess(branch.index('Confirm-HostedCompilerPrerequisites'), branch.index(transfer))
+        self.assertLess(checkpoint.index('Confirm-HostedCompilerPrerequisites'), checkpoint.index("'checkpoint-download'"))
+        self.assertLess(text.index(other), text.index("'base-prepare'"))
         self.assertLess(checkpoint.index('Confirm-HostedCompilerPrerequisites'), checkpoint.index('Get-CheckpointDiskBudget'))
         helper = text.split('function Confirm-HostedCompilerPrerequisites {', 1)[1].split('function Set-CompilerEnvironment', 1)[0]
         self.assertIn('Microsoft.VisualStudio.Component.VC.Tools.x86.x64', helper)

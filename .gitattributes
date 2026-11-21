@@ -15,6 +15,7 @@
 *.yml     text eol=lf
 *.yaml    text eol=lf
 *.json    text eol=lf
+/build/chromium158-source.ini text eol=lf
 *.go      text eol=lf
 tools/private_font_packages_win.h.in text eol=lf
 tools/legacy_private_collection_win.h.in text eol=lf

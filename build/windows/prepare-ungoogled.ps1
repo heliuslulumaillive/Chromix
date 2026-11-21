@@ -1,6 +1,6 @@
 <#
-  Prepare a pinned native-Windows source tree:
-    Chromium tarball -> ungoogled core -> Windows overlay -> prune -> Chromix patches.
+  Prepare the pinned Chromium release, apply the selected Windows policy,
+  prune the reviewed paths, and apply the product's patches.
 
   The script is resumable. Each completed layer writes a versioned marker under
   the source tree. A mismatched marker stops the build instead of mixing layers.
@@ -20,6 +20,7 @@ if ($Arch -cnotin @("x64", "arm64")) { throw "Arch/CHROMIX_TARGET_ARCH must be x
 if ($Profile -eq 'lite' -and $Arch -ne 'x64') { throw 'The reviewed Lite product profile requires x64.' }
 
 $Revisions = & "$PSScriptRoot\read-platform-pins.ps1" -Repo $Repo
+$NativeLite = $Profile -ceq 'lite' -and $Revisions.ChromiumVersion -ceq '158.0.8127.36'
 $Tooling = Join-Path $Root "tooling"
 $Ungoogled = Join-Path $Tooling "ungoogled-chromium"
 $Windows = Join-Path $Tooling "ungoogled-chromium-windows"
@@ -109,10 +110,12 @@ function Prepare-RustToolchain {
   # -windows: this prepare script runs under Windows PowerShell 5.1 on GitHub,
   # and a PowerShell transcription of the copy loop silently dropped
   # bin\cargo.exe on the first CI run while pwsh replications looked perfect.
-  Invoke-Checked $Python @(
+  $rustArgs = @(
     (Join-Path $Repo "build\windows\prep_rust_toolchain.py"),
     "--third-party-root", (Join-Path $Src "third_party"), "--arch", $Arch
   )
+  if ($NativeLite) { $rustArgs += '--with-crubit' }
+  Invoke-Checked $Python $rustArgs
   foreach ($binary in @("cargo.exe", "rustc.exe")) {
     if (-not (Test-Path (Join-Path $destination "bin\$binary"))) {
       Get-ChildItem (Join-Path $Src "third_party") -Directory |
@@ -341,6 +344,7 @@ $versionKey = "$($Revisions.ChromiumVersion)|$($Revisions.UngoogledCommit)|$($Re
 $toolchainKey = "$($Revisions.UngoogledCommit)|$($Revisions.UngoogledWindowsCommit)"
 $readyMarker = Join-Path $Src ".chromix-source-ready"
 $RestoredUpstream = Test-Path (Join-Path $Src ".chromix-upstream-restored.json")
+if ($NativeLite -and $RestoredUpstream) { throw 'The native Chromium lane cannot consume an already-patched ungoogled source tree' }
 if (Get-ChildItem -LiteralPath $Root -Directory -Filter ".chromix-upstream-restore-*" -ErrorAction SilentlyContinue) {
   throw "upstream restore transaction was interrupted; use a clean work directory"
 }
@@ -496,14 +500,15 @@ if (-not (Test-Marker ".chromix-source-unpacked" $Revisions.ChromiumVersion)) {
   if (Test-Path $Src) { Remove-Item $Src -Recurse -Force }
   New-Item -ItemType Directory -Force -Path $Src | Out-Null
   Write-Host "==> retrieving Chromium $($Revisions.ChromiumVersion) tarball"
+  $sourceDownloads = if ($NativeLite) { Join-Path $Repo 'build\chromium158-source.ini' } else { Join-Path $Ungoogled 'downloads.ini' }
   Invoke-Checked $Python @(
     (Join-Path $Ungoogled "utils\downloads.py"), "retrieve",
-    "-c", $DownloadCache, "-i", (Join-Path $Ungoogled "downloads.ini")
+    "-c", $DownloadCache, "-i", $sourceDownloads
   )
   Write-Host "==> unpacking Chromium source"
   Invoke-Checked $Python @(
     (Join-Path $Ungoogled "utils\downloads.py"), "unpack",
-    "-c", $DownloadCache, "-i", (Join-Path $Ungoogled "downloads.ini"),
+    "-c", $DownloadCache, "-i", $sourceDownloads,
     "--7z-path", "_use_registry", $Src
   )
   Write-Host "==> retrieving native Windows toolchain dependencies"
@@ -542,12 +547,28 @@ if (-not (Test-Path (Join-Path $Src "third_party\rust-toolchain\bin\rustc.exe"))
   Prepare-RustToolchain
 }
 Assert-Arm64RustToolchain
-Restore-LiteTarballFiles
+$corePatches = Join-Path $Ungoogled 'patches'
+$windowsPatches = Join-Path $Windows 'patches'
+$pruningList = Join-Path $Ungoogled 'pruning.list'
+if ($NativeLite) {
+  if ((Test-Path (Join-Path $Src '.chromix-ungoogled-core')) -and -not (Test-Marker '.chromix-native-layer-key' $patchSetKey)) {
+    throw 'Existing source contains a different native patch selection'
+  }
+  Invoke-Checked $Python @('-B','-X','utf8',(Join-Path $Repo 'tools\chromium158_base.py'),
+    '--repo',$Repo,'--work',$Root,'--core',$Ungoogled,'--windows',$Windows)
+  $selection = Join-Path $Root 'native158-base'
+  $corePatches = Join-Path $selection 'core'
+  $windowsPatches = Join-Path $selection 'windows'
+  $pruningList = Join-Path $selection 'pruning.list'
+  Set-Marker '.chromix-native-layer-key' $patchSetKey
+} else {
+  Restore-LiteTarballFiles
+}
 
 if (-not (Test-Marker ".chromix-ungoogled-core" $Revisions.UngoogledCommit)) {
   Write-Host "==> applying ungoogled-chromium core patches"
   Set-Marker ".chromix-layer-in-progress" "ungoogled-core"
-  Invoke-PatchDirectory (Join-Path $Ungoogled "patches")
+  Invoke-PatchDirectory $corePatches
   Set-Marker ".chromix-ungoogled-core" $Revisions.UngoogledCommit
   Remove-Item (Join-Path $Src ".chromix-layer-in-progress") -Force
 }
@@ -555,7 +576,7 @@ if (-not (Test-Marker ".chromix-ungoogled-core" $Revisions.UngoogledCommit)) {
 if (-not (Test-Marker ".chromix-ungoogled-windows" $Revisions.UngoogledWindowsCommit)) {
   Write-Host "==> applying ungoogled-chromium-windows overlay"
   Set-Marker ".chromix-layer-in-progress" "ungoogled-windows"
-  Invoke-PatchDirectory (Join-Path $Windows "patches")
+  Invoke-PatchDirectory $windowsPatches
   Set-Marker ".chromix-ungoogled-windows" $Revisions.UngoogledWindowsCommit
   Remove-Item (Join-Path $Src ".chromix-layer-in-progress") -Force
 }
@@ -566,12 +587,15 @@ if (-not (Test-Marker ".chromix-binaries-pruned" $Revisions.UngoogledCommit)) {
   Invoke-Checked $Python @(
     (Join-Path $Ungoogled "utils\prune_binaries.py"),
     "--keep-contingent-paths",
-    $Src, (Join-Path $Ungoogled "pruning.list")
+    $Src, $pruningList
   )
   Set-Marker ".chromix-binaries-pruned" $Revisions.UngoogledCommit
 }
 
 if (-not (Test-Marker ".chromix-patches" $patchSetKey)) {
+  if ($NativeLite -and -not $resumeChromixPatch) {
+    Invoke-Checked $Python @('-B','-X','utf8',(Join-Path $Repo 'tools\chromium158_base.py'),'--repo',$Repo,'--work',$Root,'--verify-base')
+  }
   Write-Host "==> applying Chromix patches"
   Set-Marker ".chromix-layer-in-progress" "chromix"
   Set-Marker ".chromix-patch-selection" $patchSetKey

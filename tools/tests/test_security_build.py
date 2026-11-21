@@ -95,27 +95,27 @@ class CheckpointTests(unittest.TestCase):
     def test_extracted_source_and_config_checked(self):
         with tempfile.TemporaryDirectory() as tmp:
             work=Path(tmp);(work/'src/out/Default').mkdir(parents=True);(work/'src/chrome').mkdir()
-            (work/'src/chrome/VERSION').write_text('MAJOR=157\nMINOR=0\nBUILD=8103\nPATCH=78\n')
+            (work/'src/chrome/VERSION').write_text('MAJOR=158\nMINOR=0\nBUILD=8127\nPATCH=36\n')
             (work/'src/out/Default/args.gn').write_bytes(b'gn')
             (work/'google-services-source.json').write_bytes(b'{}')
             m=copy.deepcopy(self.manifest)
             m['gn_args_sha256']=hashlib.sha256(b'gn').hexdigest();m['source_receipt_sha256']=hashlib.sha256(b'{}').hexdigest()
             checkpoint.verify_tree(work,m)
             (work/'src/chrome/VERSION').write_text('MAJOR=155\nMINOR=0\nBUILD=8059\nPATCH=39\n')
-            with self.assertRaisesRegex(ValueError,'not Windows 157'):checkpoint.verify_tree(work,m)
+            with self.assertRaisesRegex(ValueError,'not Windows 158'):checkpoint.verify_tree(work,m)
 
 
 class WorkflowTests(unittest.TestCase):
     def test_action_references_are_full_commits(self):
         import re
         root=Path(__file__).resolve().parents[2]
-        for name in ['security-win157.yml','security-win157-worker.yml']:
+        for name in ['security-win158.yml','security-win158-worker.yml']:
             text=(root/'.github/workflows'/name).read_text()
             for action in re.findall(r'uses:\s*(\S+)',text):
                 if action.startswith('./'):continue
                 self.assertRegex(action,r'^[\w/-]+@[a-f0-9]{40}$')
         stage=(root/'build/windows/security-stage.ps1').read_text()
-        self.assertLess(stage.index("'service-and-fingerprint-restore'"),stage.index("'gn-generate'"))
+        self.assertLess(stage.index("'verify-native-product-source'"),stage.index("'gn-generate'"))
         self.assertLess(stage.index("'record-gn-before-compile'"),stage.index("Invoke-Owned 'ninja'"))
         self.assertIn('local builds are forbidden',stage)
 

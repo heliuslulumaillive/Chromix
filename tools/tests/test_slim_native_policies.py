@@ -8,7 +8,7 @@ ROOT = host.ROOT
 
 
 def created_source(patch_name, path):
-    patch = ROOT / 'patches/lite-windows157' / patch_name
+    patch = ROOT / 'patches/lite-windows158' / patch_name
     for name, created, body in sections(patch.read_text('utf-8')):
         if name == path and created:
             return ''.join(line[1:] for line in body.splitlines(keepends=True)
@@ -93,9 +93,9 @@ int main() {
             self.assertIsNone(files[name]['after_sha256'])
 
     def test_only_an_explicit_site_quota_changes_the_native_quota(self):
-        inputs = (ROOT/'patches/lite-windows157/22-process-and-startup.patch').read_text('utf-8')
+        inputs = (ROOT/'patches/lite-windows158/22-process-and-startup.patch').read_text('utf-8')
         self.assertNotIn('append_default("uxr-storage-quota"', inputs)
         self.assertRegex(inputs, r'\{"fingerprint-storage-quota",\s*"uxr-storage-quota"\}')
-        changes = (ROOT/'patches/lite-windows157/24-google-services-and-browser.patch').read_text('utf-8')
+        changes = (ROOT/'patches/lite-windows158/31-storage-and-cookies.patch').read_text('utf-8')
         self.assertIn('if (const auto quota = FingerprintStorageQuotaBytes())', changes)
         self.assertIn('return FingerprintStorageQuotaBytes();', changes)

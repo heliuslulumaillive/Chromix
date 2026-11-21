@@ -13,8 +13,8 @@ except ImportError:
     from google_services_inputs import owned
     from platform_pins import load_pins
 
-MANIFEST = 'build/lite-windows157.json'
-KIND = 'lite-windows157-product'
+MANIFEST = 'build/lite-windows158.json'
+KIND = 'lite-windows158-product'
 HEX = re.compile(r'[0-9a-f]{64}\Z')
 
 
@@ -38,12 +38,15 @@ def load(repo: Path):
                      ('windows_commit', 'UngoogledWindowsCommit')):
         if runtime[key] != pins[pin]:
             raise ValueError('Product manifest/platform pins differ: ' + key)
-    if runtime['chromium_version'] != '157.0.8103.78':
-        raise ValueError('This reviewed product stack is limited to Chromium 157.0.8103.78')
+    if runtime['chromium_version'] != '158.0.8127.36':
+        raise ValueError('This reviewed product stack is limited to Chromium 158.0.8127.36')
+    if (data.get('chromium_base_sha256') != digest(owned(repo, 'build/chromium158-base.json').read_bytes())
+            or runtime['restore_pruned_resources']):
+        raise ValueError('Original Chromium source policy or native resource inventory mismatch')
     paths, targets = set(), set()
     for entry in data['patches']:
         name = entry['path']
-        if (not re.fullmatch(r'patches/lite-windows157/[0-9]{2}-[a-z0-9-]+\.patch', name)
+        if (not re.fullmatch(r'patches/lite-windows158/[0-9]{2}-[a-z0-9-]+\.patch', name)
                 or name in paths or not entry['files']):
             raise ValueError('Invalid or duplicate product patch')
         paths.add(name)
@@ -55,7 +58,7 @@ def load(repo: Path):
         if actual != entry['files'] or len(actual) != len(set(actual)) or targets.intersection(actual):
             raise ValueError('Product topics must own distinct, complete file sections')
         targets.update(actual)
-    directory = owned(repo, 'patches/lite-windows157')
+    directory = owned(repo, 'patches/lite-windows158')
     if 'base/uxr_private_font_packages_win.h' in targets:
         if 'private_font_packages' in runtime:
             raise ValueError('Unsigned resource collections are retired in this product')
@@ -109,13 +112,14 @@ def input_hashes(repo):
     repo = Path(repo).absolute()
     data = load(repo)
     names = {MANIFEST, 'CHROMIUM_WINDOWS_VERSION', 'UNGOOGLED_WINDOWS_VERSION',
-             'build/ungoogled-revisions.psd1', 'build/args.windows.gn', 'build/args.security.gn', 'build/windows157-port.json',
+             'build/ungoogled-revisions.psd1', 'build/args.windows.gn', 'build/args.security.gn', 'build/chromium158-base.json',
              'build/windows/prepare-ungoogled.ps1', 'tools/patch_selection.py',
+             'tools/chromium158_base.py', 'build/chromium158-source.ini', 'build/windows/build-crubit.ps1',
+             'build/windows/prep_rust_toolchain.py', 'tools/tests/test_chromium158_base.py',
+             'tools/restoration_rules.py',
              'build/windows/package-win.ps1',
-             'tools/lite_patch_stack.py', 'tools/prepare_lite_product.py', 'tools/lite_product_migration.py',
-             'tools/prepare_restored_build.py', 'tools/repair_windows_midl.py',
+             'tools/lite_patch_stack.py', 'tools/prepare_lite_product.py',
              'tools/install_windows_metagen_bindings.py',
-             'tools/relocate_metagen_cache.py', 'tools/tests/test_metagen_cache_relocation.py',
              'tools/verify_native_browser_tests.py',
              'tools/tests/test_windows_font_cohorts.py',
              'tools/tests/test_windows_font_acceptance.mjs',
@@ -165,8 +169,6 @@ def input_hashes(repo):
                  for name in ('cases.tsv', 'pixels.bin', 'provenance.json'))
     names.update('tools/tests/fixtures/graphics-modes-v1/' + name
                  for name in ('cases.tsv', 'pixels.bin', 'provenance.json'))
-    payload = owned(repo, 'build/windows/lite-tarball-files')
-    names.update(p.relative_to(repo).as_posix() for p in payload.rglob('*') if p.is_file())
     return {name: digest(owned(repo, name).read_bytes()) for name in sorted(names)}
 
 

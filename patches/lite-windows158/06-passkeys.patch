@@ -1,0 +1,271 @@
+diff --git a/chrome/browser/webauthn/authenticator_request_dialog_controller.cc b/chrome/browser/webauthn/authenticator_request_dialog_controller.cc
+--- a/chrome/browser/webauthn/authenticator_request_dialog_controller.cc
++++ b/chrome/browser/webauthn/authenticator_request_dialog_controller.cc
+@@ -2178,6 +2178,16 @@
+ 
+   // If there is a single mechanism, go to that.
+   if (model_->mechanisms.size() == 1) {
++    const auto* credential =
++        std::get_if<Mechanism::Credential>(&model_->mechanisms[0].type);
++    if (transport_availability_.has_win_native_api_authenticator && credential &&
++        credential->value().source == AuthenticatorType::kWinNative) {
++      // The Windows cache need not include every native passkey provider. Do
++      // not automatically narrow the RP's allow-list to the sole cached key;
++      // StartGuidedFlowForMostLikelyTransportOrShowMechanismSelection() will
++      // invoke the Windows picker with the original request instead.
++      return std::nullopt;
++    }
+     return 0;
+   }
+ 
+diff --git a/chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc b/chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc
+--- a/chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc
++++ b/chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc
+@@ -1352,6 +1352,47 @@
+   EXPECT_EQ(model->step(), Step::kPlatformAuthenticator);
+   EXPECT_EQ(request_future.Get(), kWinAuthenticatorId);
+ }
++
++// A cached Hello key is not necessarily the only key the RP allows. Windows
++// must be able to offer an uncached native provider using the original list.
++TEST_F(AuthenticatorRequestDialogControllerTest,
++       WinSingleCachedCredentialPreservesOriginalAllowList) {
++  device::FakeWinWebAuthnApi fake_win_webauthn_api;
++  device::WinWebAuthnApi::ScopedOverride win_webauthn_api_override(
++      &fake_win_webauthn_api);
++  fake_win_webauthn_api.set_version(9);
++  for (bool empty_allow_list : {false, true}) {
++    SCOPED_TRACE(empty_allow_list);
++    TransportAvailabilityInfo tai;
++    tai.request_type = device::FidoRequestType::kGetAssertion;
++    tai.available_transports = {AuthenticatorTransport::kInternal};
++    tai.transport_list_did_include_internal = true;
++    tai.request_is_internal_only = !empty_allow_list;
++    tai.has_empty_allow_list = empty_allow_list;
++    tai.win_is_uvpaa = true;
++    tai.has_win_native_api_authenticator = true;
++    tai.has_platform_authenticator_credential = device::FidoRequestHandlerBase::
++        RecognizedCredential::kHasRecognizedCredential;
++    tai.recognized_credentials = {kWinCred1};
++    auto model =
++        base::MakeRefCounted<AuthenticatorRequestDialogModel>(main_rfh());
++    UpdateModelBeforeStartFlow(model.get(), tai, /*is_off_the_record=*/false);
++    AuthenticatorRequestDialogController controller(model.get(), main_rfh());
++    controller.saved_authenticators().emplace_back(
++        "win-native", AuthenticatorTransport::kInternal,
++        device::AuthenticatorType::kWinNative);
++    base::test::TestFuture<std::string> request_future;
++    controller.SetRequestCallback(
++        request_future.GetRepeatingCallback<const std::string&>());
++    controller.SetAccountPreselectedCallback(base::BindLambdaForTesting(
++        [](device::DiscoverableCredentialMetadata) {
++          FAIL() << "Automatic Windows dispatch must preserve the RP allow-list";
++        }));
++    controller.StartFlow(std::move(tai), {});
++    EXPECT_EQ(model->step(), Step::kPlatformAuthenticator);
++    EXPECT_EQ(request_future.Get(), "win-native");
++  }
++}
+ #endif
+ 
+ TEST_F(AuthenticatorRequestDialogControllerTest, NoAvailableTransports) {
+diff --git a/device/fido/win/authenticator.cc b/device/fido/win/authenticator.cc
+--- a/device/fido/win/authenticator.cc
++++ b/device/fido/win/authenticator.cc
+@@ -383,8 +383,12 @@
+        base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+       base::BindOnce(
+           [](WinWebAuthnApi* api, std::u16string rp_id, bool is_incognito) {
+-            return AuthenticatorEnumerateCredentialsBlocking(api, rp_id,
+-                                                             is_incognito);
++            auto [success, credentials] =
++                AuthenticatorEnumerateCredentialsBlocking(api, rp_id,
++                                                          is_incognito);
++            return PlatformCredentialInfo{
++                success, api->Version() >= WEBAUTHN_API_VERSION_9,
++                std::move(credentials)};
+           },
+           win_api_, base::UTF8ToUTF16(request.rp_id),
+           request_options.is_off_the_record_context),
+@@ -396,9 +400,9 @@
+ void WinWebAuthnApiAuthenticator::GetPlatformCredentialInfoForRequestDone(
+     std::vector<PublicKeyCredentialDescriptor> allow_list,
+     GetPlatformCredentialInfoForRequestCallback callback,
+-    std::pair<bool, std::vector<DiscoverableCredentialMetadata>> result) {
+-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+-  auto& [success, credentials] = result;
++    PlatformCredentialInfo result) {
++  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
++  auto& [success, supports_native_passkey_providers, credentials] = result;
+   if (!success) {
+     std::move(callback).Run(
+         /*credentials=*/{},
+@@ -419,6 +423,19 @@
+   if (!allow_list.empty()) {
+     FilterFoundCredentials(&credentials, allow_list);
+   }
++  if (credentials.empty() && supports_native_passkey_providers) {
++    // Native passkey managers can hold credentials absent from this cache. Do
++    // not turn an empty (or filtered) cache into a definitive "no passkeys"
++    // result: keep the Windows picker available to query those providers
++    // interactively.
++    FIDO_LOG(DEBUG)
++        << "Native passkey provider may hold undiscovered credentials; "
++           "retaining Windows authentication";
++    std::move(callback).Run(
++        /*credentials=*/{},
++        FidoRequestHandlerBase::RecognizedCredential::kUnknown);
++    return;
++  }
+   auto recognized = credentials.empty()
+                         ? FidoRequestHandlerBase::RecognizedCredential::
+                               kNoRecognizedCredential
+diff --git a/device/fido/win/authenticator.h b/device/fido/win/authenticator.h
+--- a/device/fido/win/authenticator.h
++++ b/device/fido/win/authenticator.h
+@@ -131,10 +131,16 @@
+       GetAssertionCallback callback,
+       std::pair<GetAssertionStatus,
+                 std::optional<AuthenticatorGetAssertionResponse>> result);
++  struct PlatformCredentialInfo {
++    bool success;
++    bool supports_native_passkey_providers;
++    std::vector<DiscoverableCredentialMetadata> credentials;
++  };
++
+   void GetPlatformCredentialInfoForRequestDone(
+       std::vector<PublicKeyCredentialDescriptor> allow_list,
+       GetPlatformCredentialInfoForRequestCallback callback,
+-      std::pair<bool, std::vector<DiscoverableCredentialMetadata>> result);
++      PlatformCredentialInfo result);
+ 
+   // options_ is per-instance because the capabilities of `win_api_` can
+   // change at run-time in tests.
+diff --git a/device/fido/win/authenticator_unittest.cc b/device/fido/win/authenticator_unittest.cc
+--- a/device/fido/win/authenticator_unittest.cc
++++ b/device/fido/win/authenticator_unittest.cc
+@@ -195,6 +195,101 @@
+ 
+   EXPECT_EQ(std::get<0>(future.Get()),
+             std::vector<DiscoverableCredentialMetadata>{});
++  EXPECT_EQ(
++      std::get<1>(future.Get()),
++      FidoRequestHandlerBase::RecognizedCredential::kNoRecognizedCredential);
++}
++
++TEST_F(WinAuthenticatorTest,
++       GetCredentialInformationForRequest_NativeProvidersEmptyCache) {
++  fido::win::ScopedIsRdpSessionOverride scoped_rdp_override(false);
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  for (bool has_allow_list : {false, true}) {
++    SCOPED_TRACE(has_allow_list);
++    CtapGetAssertionRequest request(kRpId, /*client_data_json=*/"");
++    if (has_allow_list) {
++      PublicKeyCredentialDescriptor credential(CredentialType::kPublicKey,
++                                               kCredentialId);
++      credential.transports = {FidoTransportProtocol::kInternal};
++      request.allow_list.push_back(std::move(credential));
++    }
++    GetCredentialFuture future;
++    authenticator_->GetPlatformCredentialInfoForRequest(
++        std::move(request), CtapGetAssertionOptions(), future.GetCallback());
++    ASSERT_TRUE(future.Wait());
++    EXPECT_TRUE(std::get<0>(future.Get()).empty());
++    EXPECT_EQ(std::get<1>(future.Get()),
++              FidoRequestHandlerBase::RecognizedCredential::kUnknown);
++  }
++}
++
++TEST_F(WinAuthenticatorTest,
++       GetCredentialInformationForRequest_NativeProvidersFilteredCache) {
++  fido::win::ScopedIsRdpSessionOverride scoped_rdp_override(false);
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  fake_webauthn_api_->InjectDiscoverableCredential(
++      kCredentialId, PublicKeyCredentialRpEntity(kRpId),
++      PublicKeyCredentialUserEntity(kUserId, kUserName, kUserDisplayName),
++      kProviderName);
++  CtapGetAssertionRequest request(kRpId, /*client_data_json=*/"");
++  request.allow_list.emplace_back(CredentialType::kPublicKey, kCredentialId2);
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(
++      std::move(request), CtapGetAssertionOptions(), future.GetCallback());
++  ASSERT_TRUE(future.Wait());
++  EXPECT_TRUE(std::get<0>(future.Get()).empty());
++  EXPECT_EQ(std::get<1>(future.Get()),
++            FidoRequestHandlerBase::RecognizedCredential::kUnknown);
++}
++
++TEST_F(WinAuthenticatorTest,
++       GetCredentialInformationForRequest_NativeProvidersPreservesMatch) {
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  fake_webauthn_api_->InjectDiscoverableCredential(
++      kCredentialId, PublicKeyCredentialRpEntity(kRpId),
++      PublicKeyCredentialUserEntity(kUserId, kUserName, kUserDisplayName),
++      kProviderName);
++  CtapGetAssertionRequest request(kRpId, /*client_data_json=*/"");
++  request.allow_list.emplace_back(CredentialType::kPublicKey, kCredentialId);
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(
++      std::move(request), CtapGetAssertionOptions(), future.GetCallback());
++  ASSERT_TRUE(future.Wait());
++  ASSERT_EQ(std::get<0>(future.Get()).size(), 1u);
++  EXPECT_EQ(std::get<0>(future.Get())[0].cred_id, kCredentialId);
++  EXPECT_EQ(
++      std::get<1>(future.Get()),
++      FidoRequestHandlerBase::RecognizedCredential::kHasRecognizedCredential);
++}
++
++TEST_F(WinAuthenticatorTest,
++       GetCredentialInformationForRequest_NativeProvidersRespectsTransports) {
++  SetVersion(WEBAUTHN_API_VERSION_9);
++  CtapGetAssertionRequest request(kRpId, /*client_data_json=*/"");
++  PublicKeyCredentialDescriptor credential(CredentialType::kPublicKey,
++                                           kCredentialId);
++  credential.transports = {FidoTransportProtocol::kUsbHumanInterfaceDevice};
++  request.allow_list.push_back(std::move(credential));
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(
++      std::move(request), CtapGetAssertionOptions(), future.GetCallback());
++  ASSERT_TRUE(future.Wait());
++  EXPECT_TRUE(std::get<0>(future.Get()).empty());
++  EXPECT_EQ(
++      std::get<1>(future.Get()),
++      FidoRequestHandlerBase::RecognizedCredential::kNoRecognizedCredential);
++}
++
++TEST_F(WinAuthenticatorTest,
++       GetCredentialInformationForRequest_NativeProvidersUnavailableBeforeV9) {
++  fido::win::ScopedIsRdpSessionOverride scoped_rdp_override(false);
++  SetVersion(WEBAUTHN_API_VERSION_8);
++  CtapGetAssertionRequest request(kRpId, /*client_data_json=*/"");
++  GetCredentialFuture future;
++  authenticator_->GetPlatformCredentialInfoForRequest(
++      std::move(request), CtapGetAssertionOptions(), future.GetCallback());
++  ASSERT_TRUE(future.Wait());
++  EXPECT_TRUE(std::get<0>(future.Get()).empty());
+   EXPECT_EQ(
+       std::get<1>(future.Get()),
+       FidoRequestHandlerBase::RecognizedCredential::kNoRecognizedCredential);
+diff --git a/third_party/blink/renderer/modules/credentialmanagement/public_key_credential.cc b/third_party/blink/renderer/modules/credentialmanagement/public_key_credential.cc
+--- a/third_party/blink/renderer/modules/credentialmanagement/public_key_credential.cc
++++ b/third_party/blink/renderer/modules/credentialmanagement/public_key_credential.cc
+@@ -8,6 +8,7 @@
+ #include <variant>
+ 
+ #include "third_party/abseil-cpp/absl/functional/overload.h"
++#include "base/uxr_config.h"
+ #include "third_party/blink/public/mojom/webauthn/authenticator.mojom-shared.h"
+ #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+ #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+@@ -192,6 +193,11 @@
+       resolver->GetExecutionContext(),
+       WebFeature::
+           kCredentialManagerIsUserVerifyingPlatformAuthenticatorAvailable);
++
++  // A public platform name cannot install an authenticator. Keep the browser
++  // capability query, callback timing and permission authority for real use.
++  // A forced answer is only available to explicitly synthetic test fixtures.
++
+ 
+   auto* authenticator =
+       CredentialManagerProxy::From(script_state)->Authenticator();

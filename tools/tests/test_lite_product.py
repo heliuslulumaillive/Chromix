@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class ProductTests(unittest.TestCase):
     def test_product_and_legacy_are_explicit_separate_profiles(self):
-        self.assertEqual(len(patch_selection.select(ROOT, 'windows', profile='lite')[1]), 26)
+        self.assertEqual(len(patch_selection.select(ROOT, 'windows', profile='lite')[1]), 30)
         with self.assertRaisesRegex(ValueError, 'unsupported Chromium patch version'):
             patch_selection.select(ROOT, 'windows')
         for platform in ('linux', 'macos', None):
@@ -62,13 +62,12 @@ class ProductTests(unittest.TestCase):
         final = {row['path']: row['after_sha256'] for row in manifest['source_files']}
         for name in REMOVED_FILES:
             self.assertIsNone(final.get(name))
-        self.assertEqual(manifest['legacy_equivalence']['result'], 'ported-to-reviewed15778-source')
-        self.assertEqual(manifest['legacy_equivalence']['baseline_version'], '157.0.8103.38')
-        self.assertIs(manifest['legacy_equivalence']['cross_version_byte_equivalence_claimed'], False)
-        self.assertEqual(manifest['runtime']['chromium_version'], '157.0.8103.78')
-        self.assertEqual(manifest['upstream_port']['chromium_commit'], '4b3d0dabb8250b6f152d2d85d79e7706e309d087')
-        self.assertEqual([Path(row['path']).name for row in manifest['patches'][-2:]],
-                         ['25-signin-failure-recovery.patch', '26-history-sync-default.patch'])
+        self.assertEqual(manifest['runtime']['restore_pruned_resources'], {})
+        self.assertEqual(manifest['chromium_base_sha256'], hashlib.sha256((ROOT/'build/chromium158-base.json').read_bytes()).hexdigest())
+        self.assertEqual(manifest['runtime']['chromium_version'], '158.0.8127.36')
+        self.assertEqual(manifest['upstream_port']['chromium_commit'], '14d6f648e8cd7ad750a4044200ce94d3321be260')
+        self.assertTrue({'25-signin-failure-recovery.patch', '26-history-sync-default.patch'}.issubset(
+            {Path(row['path']).name for row in manifest['patches']}))
 
     def test_manifest_and_patch_tampering_rejected(self):
         with tempfile.TemporaryDirectory(prefix='lite-product-test-') as tmp:
@@ -113,7 +112,7 @@ class ProductTests(unittest.TestCase):
 
     def test_unknown_version_cannot_reuse_product_stack(self):
         with mock.patch.object(stack, 'load_pins', return_value={'ChromiumVersion': '157.0.0.1',
-                'UngoogledWindowsVersion': '157.0.8103.78-1.1', 'UngoogledCommit': '0' * 40,
+                'UngoogledWindowsVersion': '158.0.8127.36-1.1', 'UngoogledCommit': '0' * 40,
                 'UngoogledWindowsCommit': '0' * 40}):
             with self.assertRaises(ValueError):
                 stack.load(ROOT)
@@ -152,7 +151,7 @@ class ProductTests(unittest.TestCase):
             src, core = root / 'src', root / 'core'
             (src / 'chrome').mkdir(parents=True)
             core.mkdir()
-            (core / 'chromium_version.txt').write_text('157.0.8103.78\n')
+            (core / 'chromium_version.txt').write_text('158.0.8127.36\n')
             (src / 'chrome/VERSION').write_text('MAJOR=157\nMINOR=0\nBUILD=8078\nPATCH=79\n')
             (root / 'google-services-source.json').write_text(json.dumps({'patch_kind': stack.KIND,
                 'patch_sha256': product['stack_sha256']}))
@@ -170,13 +169,13 @@ class ProductTests(unittest.TestCase):
                 mock.patch.object(prepare_google_services, 'pinned_inverse_rules', return_value=[]):
             work = Path(tmp)
             (work / 'src/chrome').mkdir(parents=True)
-            (work / 'src/chrome/VERSION').write_text('MAJOR=157\nMINOR=0\nBUILD=8103\nPATCH=78\n')
+            (work / 'src/chrome/VERSION').write_text('MAJOR=158\nMINOR=0\nBUILD=8127\nPATCH=36\n')
             saved = {'patch_kind': stack.KIND, 'patch_sha256': product['stack_sha256'],
-                     'chromium_version': '157.0.8103.78', 'variant': 'wrong',
-                     'build_variant': 'fingerprint-modes-win157', 'preparation_inputs': {},
+                     'chromium_version': '158.0.8127.36', 'variant': 'wrong',
+                     'build_variant': 'fingerprint-modes-win158', 'preparation_inputs': {},
                      'preparation_sha256': hashlib.sha256(b'{}').hexdigest()}
             (work / 'google-services-source.json').write_text(json.dumps(saved))
-            with self.assertRaisesRegex(ValueError, 'registered product migration'):
+            with self.assertRaisesRegex(ValueError, 'different native Chromium source or recipe'):
                 prepare_lite_product.prepare(ROOT, work)
             self.assertFalse((work / '.google-services-preparing').exists())
 

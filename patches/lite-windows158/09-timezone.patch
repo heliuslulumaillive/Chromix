@@ -1,0 +1,125 @@
+diff --git a/third_party/blink/renderer/core/inspector/locale_controller.cc b/third_party/blink/renderer/core/inspector/locale_controller.cc
+--- a/third_party/blink/renderer/core/inspector/locale_controller.cc
++++ b/third_party/blink/renderer/core/inspector/locale_controller.cc
+@@ -4,8 +4,10 @@
+ 
+ #include "third_party/blink/renderer/core/inspector/locale_controller.h"
+ 
++#include "base/command_line.h"
+ #include "base/i18n/icubridge/default_icu_locale.h"
+ #include "base/i18n/tag_converters.h"
++#include "base/strings/string_split.h"
+ #include "third_party/blink/renderer/core/workers/worker_or_worklet_global_scope.h"
+ #include "third_party/blink/renderer/core/workers/worker_thread.h"
+ #include "third_party/blink/renderer/platform/scheduler/public/main_thread.h"
+@@ -39,7 +41,21 @@
+ }  // namespace
+ 
+ LocaleController::LocaleController()
+-    : embedder_locale_(base::i18n::GetDefaultIcuLocale()) {}
++    : embedder_locale_(base::i18n::GetDefaultIcuLocale()) {
++  const auto languages = base::SplitString(
++      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("uxr-languages"),
++      ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
++  if (languages.empty())
++    return;
++  const auto tag = base::i18n::GetLanguageTagFromString(languages.front());
++  if (!tag || tag->language_subtag() == "und")
++    return;
++  // Preserve BCP47 tags without the old application-locale remapping. DevTools
++  // resets return to this configured locale without claiming its override.
++  embedder_locale_ = *tag;
++  base::i18n::SetDefaultIcuLocale(base::i18n::DefaultIcuLocaleSetterKey(),
++                                embedder_locale_);
++}
+ 
+ String LocaleController::SetLocaleOverride(const String& locale,
+                                            bool is_claiming_override) {
+diff --git a/third_party/blink/renderer/core/timezone/timezone_controller.cc b/third_party/blink/renderer/core/timezone/timezone_controller.cc
+--- a/third_party/blink/renderer/core/timezone/timezone_controller.cc
++++ b/third_party/blink/renderer/core/timezone/timezone_controller.cc
+@@ -5,6 +5,8 @@
+ #include "third_party/blink/renderer/core/timezone/timezone_controller.h"
+ 
+ #include "base/command_line.h"
++#include "base/uxr_config.h"
++#include "third_party/blink/renderer/core/inspector/locale_controller.h"
+ #include "base/feature_list.h"
+ #include "mojo/public/cpp/bindings/pending_remote.h"
+ #include "mojo/public/cpp/bindings/remote.h"
+@@ -105,6 +107,9 @@
+ 
+ // static
+ void TimeZoneController::Init() {
++  // Construct the locale owner before the first Blink isolate and worker.
++  LocaleController::instance();
++
+   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+           blink::switches::kTopChromeWebUI) &&
+       base::FeatureList::IsEnabled(features::kWebUIBypassMojoConnections)) {
+@@ -248,17 +253,44 @@
+   return true;
+ }
+ 
++// static
++bool TimeZoneController::SetDefaultTimeZone(const String& timezone_id) {
++  DCHECK(IsMainThread());
++  if (timezone_id.empty())
++    return false;
++
++  base::AutoLock locker(instance().lock_);
++  if (HasTimeZoneOverride()) {
++    // Validate the restore target without disturbing the active override.
++    std::unique_ptr<icu::TimeZone> timezone(icu::TimeZone::createTimeZone(
++        icu::UnicodeString(timezone_id.Ascii().data(), -1, US_INV)));
++    CHECK(timezone);
++    if (*timezone == icu::TimeZone::getUnknown())
++      return false;
++  } else if (!SetIcuTimeZoneAndNotifyV8(timezone_id)) {
++    return false;
++  }
++  instance().host_timezone_id_ = timezone_id;
++  return true;
++}
++
+ void TimeZoneController::OnTimeZoneChange(const String& timezone_id) {
+   DCHECK(IsMainThread());
+ 
+-  base::AutoLock locker(instance().lock_);
+-
+-  // Remember requested timezone id so we can set it when timezone
+-  // override is removed.
+-  instance().host_timezone_id_ = timezone_id;
+-
+-  if (!HasTimeZoneOverride())
+-    SetIcuTimeZoneAndNotifyV8(timezone_id);
++  // UXR Layer 2: pin the persona timezone. The browser TimeZoneMonitor pushes
++  // the HOST tz here; substituting the persona lets the configured choice (tz
++  // matched to the proxy IP, rule C4) survive. This runs with the isolate present,
++  // so SetIcuTimeZoneAndNotifyV8 flushes V8 (the notification an early hook lacks).
++  String effective_id = timezone_id;
++  {
++    if (base::UxrConfig::GetInstance().Has("uxr-timezone")) {
++      String p_tz(base::UxrConfig::GetInstance().Get("uxr-timezone").c_str());
++      if (!p_tz.empty())
++        effective_id = p_tz;
++    }
++  }
++
++  SetDefaultTimeZone(effective_id);
+ }
+ 
+ const String& TimeZoneController::GetHostTimezoneId() {
+diff --git a/third_party/blink/renderer/core/timezone/timezone_controller.h b/third_party/blink/renderer/core/timezone/timezone_controller.h
+--- a/third_party/blink/renderer/core/timezone/timezone_controller.h
++++ b/third_party/blink/renderer/core/timezone/timezone_controller.h
+@@ -30,6 +30,9 @@
+   ~TimeZoneController() override;
+ 
+   static void Init();
++
++  // Updates the default without acquiring or replacing a DevTools override.
++  static bool SetDefaultTimeZone(const String& timezone_id);
+ 
+   enum class TimeZoneOverrideStatus {
+     kSuccess,

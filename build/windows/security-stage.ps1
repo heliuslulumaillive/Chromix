@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 param(
   [ValidateSet('Build','Acquire','Extract','Prepare','Configure','Compile','Bundle','Verify','Archive','Diagnose','Checkpoint','Result')][string]$Phase = 'Build',
-  [ValidateSet('fresh','resume','upstream','upgrade')][string]$Operation = 'fresh',
+  [ValidateSet('fresh','resume')][string]$Operation = 'fresh',
   [ValidateRange(1,99)][int]$Stage = 1,
   [string]$SourceRun = '',
   [ValidateRange(0,99)][int]$SourceStage = 0
@@ -21,7 +21,7 @@ $restore = 'C:\security-restore'
 $upstreamCache = 'C:\security-upstream'
 $statePath = Join-Path $evidence 'stage-state.json'
 $preflight = Join-Path $evidence 'checkpoint-preflight.json'
-$version = '157.0.8103.78'
+$version = '158.0.8127.36'
 $utf8 = [Text.UTF8Encoding]::new($false)
 $seven = (Get-Command 7z.exe -ErrorAction Stop).Source
 $python = (Get-Command python.exe -ErrorAction Stop).Source
@@ -378,13 +378,12 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
     'Acquire' {
       $pins = & "$PSScriptRoot\read-platform-pins.ps1" -Repo $repo
       if ($pins.ChromiumVersion -cne $version -or
-          $pins.UngoogledCommit -cne '8c886dffc6ade39d8f7df5d64ace5a8824b455e1' -or
-          $pins.UngoogledWindowsCommit -cne '20e9a348fc616bd73a366fbd5d8881613d6c5cb0') { throw 'Security lane target pins differ' }
+          $pins.UngoogledCommit -cne '76f39e0fead37326b9ba0440831336b198a17246' -or
+          $pins.UngoogledWindowsCommit -cne '76a692e3e39e1456e4691e7d9de28d32de1cdd87') { throw 'Security lane target pins differ' }
       if (Test-Path -LiteralPath $work) { throw 'Acquisition requires a fresh runner work path' }
-      if ($Operation -in @('resume','upgrade')) {
+      if ($Operation -eq 'resume') {
         if (-not $SourceRun) { throw 'Checkpoint acquisition requires a numeric donor run' }
         $checkpointArgs = @('--repo',$repo,'--run',$SourceRun,'--stage',"$Stage",'--source-stage',"$SourceStage")
-        if ($Operation -eq 'upgrade') { $checkpointArgs += '--allow-migration' }
         Invoke-Owned 'checkpoint-preflight' (@($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_checkpoint.py'),'preflight') + $checkpointArgs + @('--output',$preflight)) -GitHubReadToken
         Clear-HostedToolSpace
         Confirm-HostedCompilerPrerequisites
@@ -395,19 +394,13 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         if ($diskBudget.available_bytes -lt $diskBudget.required_free_bytes) { throw 'Insufficient free disk space for checkpoint transfer, known source size and build reserve' }
         Invoke-Owned 'checkpoint-download' (@($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_checkpoint.py'),'restore') + $checkpointArgs + @('--destination',$restore,'--preflight-file',$preflight)) -GitHubReadToken
       } else {
-        if ($SourceRun -or $SourceStage -ne 0) { throw 'Fresh/upstream acquisition cannot adopt a checkpoint donor' }
+        if ($SourceRun -or $SourceStage -ne 0) { throw 'A fresh native source cannot adopt a checkpoint donor' }
         Clear-HostedToolSpace
         Confirm-HostedCompilerPrerequisites
-        if ($Operation -eq 'upstream') {
-          Invoke-Owned 'exact-upstream-download' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\fetch_upstream_cache.py'),
-            '--platform','windows','--arch','x64','--destination',$upstreamCache,'--run-id','43476895250') -GitHubReadToken
-          $download = Get-Content -LiteralPath (Join-Path $upstreamCache 'result.json') -Raw | ConvertFrom-Json
-          if ($download.status -cne 'hit') { throw 'Exact 157 upstream snapshot unavailable; explicit fresh operation is required, no fallback performed.' }
-        }
       }
     }
     'Extract' {
-      if ($Operation -in @('resume','upgrade')) {
+      if ($Operation -eq 'resume') {
         $layoutPath = Join-Path $evidence 'checkpoint-archive-layout.json'
         Invoke-Owned 'checkpoint-archive-list' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_checkpoint.py'),'verify-archive','--archive',(Join-Path $restore 'tree.7z.001'),'--sevenzip',$seven,'--output',$layoutPath)
         $layout = Get-Content -LiteralPath $layoutPath -Raw | ConvertFrom-Json
@@ -419,23 +412,14 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         $null = New-Item -ItemType Directory -Path $root -Force
         Invoke-Owned 'checkpoint-extract' @($seven,'x',(Join-Path $restore 'tree.7z.001'),"-o$root",'-y','-bsp0')
         Invoke-Owned 'checkpoint-tree' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_checkpoint.py'),'verify-tree','--work',$work,'--manifest',(Join-Path $restore 'checkpoint.json'))
-        if ($Operation -eq 'upgrade') {
-          Invoke-Owned 'migration-source' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_migration.py'),'verify-source','--repo',$repo,'--work',$work,'--manifest',(Join-Path $restore 'checkpoint.json'))
-        } else {
-          $origin = Join-Path $work '.security-origin'
-          $null = New-Item -ItemType Directory -Path $origin -Force
-          Copy-Item -LiteralPath (Join-Path $restore 'checkpoint.json') -Destination (Join-Path $origin "checkpoint-$SourceRun-s$SourceStage.json")
-        }
+        $origin = Join-Path $work '.security-origin'
+        $null = New-Item -ItemType Directory -Path $origin -Force
+        Copy-Item -LiteralPath (Join-Path $restore 'checkpoint.json') -Destination (Join-Path $origin "checkpoint-$SourceRun-s$SourceStage.json")
         Assert-Plain $restore
         if ((Resolve-Path -LiteralPath $restore).Path -cne 'C:\security-restore') { throw 'Unexpected restore cleanup path' }
         Remove-Item -LiteralPath $restore -Recurse -Force
       } else {
         $null = New-Item -ItemType Directory -Path $work -Force
-        if ($Operation -eq 'upstream') {
-          Invoke-Owned 'exact-upstream-restore' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\restore_upstream_cache.py'),
-            '--phase','restore','--platform','windows','--arch','x64','--workdir',$work,'--cache-dir',$upstreamCache)
-          if (-not (Test-Path -LiteralPath (Join-Path $src '.chromix-upstream-restored.json'))) { throw 'Full upstream restoration was not verified; refusing compilation' }
-        }
       }
     }
     'Prepare' {
@@ -445,43 +429,21 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       Set-CompilerEnvironment -WithoutSourceTools
       $state.sdk_ready = $true
       Save-State
-      if ($Operation -in @('fresh','upstream')) {
+      if ($Operation -eq 'fresh') {
         Invoke-Owned 'base-prepare' @($pwsh,'-NoProfile','-File',"$PSScriptRoot\prepare-ungoogled.ps1",'-Root',$work,'-Repo',$repo,'-Arch','x64',
           '-Profile','lite','-DeadlineEpoch',"$($deadline.ToUnixTimeSeconds())",'-ReserveMinutes','10')
       }
-      if ($Operation -eq 'fresh') {
-        $core = Join-Path $work 'tooling\ungoogled-chromium'
-        $windows = Join-Path $work 'tooling\ungoogled-chromium-windows'
-        Invoke-Owned 'domain-substitution' @($python,'-B','-X','utf8',(Join-Path $core 'utils\domain_substitution.py'),'apply',
-          '-r',(Join-Path $core 'domain_regex.list'),'-f',(Join-Path $windows 'domain_substitution.list'),
-          '-c',(Join-Path $work 'domain_substitution_cache.tar.gz'),$src)
-      }
-      if ($Operation -eq 'upgrade' -and $SourceRun -eq '43953428441' -and $SourceStage -eq 1) {
-        Invoke-Owned 'relocate-verified-metagen-cache' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\relocate_metagen_cache.py'),
-          '--src',$src,'--manifest',(Join-Path $work '.security-origin\checkpoint.json'))
-      }
-      if ($Operation -in @('resume','upgrade') -and (Test-Path -LiteralPath (Join-Path $src '.chromix-upstream-restored.json'))) {
-        Invoke-Owned 'restored-environment-inspect' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\prepare_restored_build.py'),
-          '--phase','inspect','--platform','windows','--arch','x64','--workdir',$work)
-      }
       $patch = Join-Path $src 'third_party\git\usr\bin\patch.exe'
-      # Never repeat base preparation/domain replacement after service restoration.
+      # Fresh and resumed sources must satisfy the same native source contract.
       $prepareArgs = @($python,'-B','-X','utf8',(Join-Path $repo 'tools\prepare_google_services.py'),
         '--repo',$repo,'--work',$work,'--patch-bin',$patch,'--profile','lite')
-      if ($Operation -eq 'upgrade') { $prepareArgs += '--reuse-prepared-domains' }
-      Invoke-Owned 'service-and-fingerprint-restore' $prepareArgs
-      if ($Operation -eq 'upgrade') {
-        Invoke-Owned 'migration-target' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_migration.py'),'verify-target','--repo',$repo,'--work',$work)
-      }
+      Invoke-Owned 'verify-native-product-source' $prepareArgs
     }
     'Configure' {
       if ($state.sdk_ready -ne $true) { throw 'Native SDK preparation was not completed' }
       Set-CompilerEnvironment
       $null = New-Item -ItemType Directory -Path $out -Force
       $merge = @($python,'-B','-X','utf8',(Join-Path $repo 'tools\merge_gn_args.py'),(Join-Path $out 'args.gn'))
-      if (Test-Path -LiteralPath (Join-Path $src '.chromix-upstream-restored.json')) {
-        $merge += @('--preserve-pgo-from',(Join-Path $out 'args.gn'),(Join-Path $out 'args.gn'))
-      }
       $merge += @(
         (Join-Path $work 'tooling\ungoogled-chromium\flags.gn'),(Join-Path $work 'tooling\ungoogled-chromium-windows\flags.windows.gn'),
         (Join-Path $repo 'build\args.windows.gn'),(Join-Path $repo 'build\args.security.gn'))
@@ -491,24 +453,10 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       $state.resume_safe = $true
       Save-State
       $ninja = Join-Path $src 'third_party\ninja\ninja.exe'
-      if (Test-Path -LiteralPath (Join-Path $src '.chromix-upstream-restored.json')) {
-        $ninja = & $python -B -X utf8 (Join-Path $repo 'tools\restore_ninja.py') --workdir $work --platform windows --arch x64
-        if ($LASTEXITCODE -ne 0 -or -not $ninja) { throw 'Restored Ninja format compatibility failed' }
-        $env:NINJA = $ninja
-      }
       if (-not (Test-Path -LiteralPath (Join-Path $src 'third_party\rust-toolchain\bin\bindgen.exe'))) {
         Invoke-Owned 'bindgen' @($python,'-B','-X','utf8',(Join-Path $src 'tools\rust\build_bindgen.py'),'--skip-test') -WorkingDirectory $src
       }
-      if (Test-Path -LiteralPath (Join-Path $src '.chromix-upstream-restored.json')) {
-        Invoke-Owned 'restored-environment-finish' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\prepare_restored_build.py'),
-          '--phase','finish','--platform','windows','--arch','x64','--workdir',$work)
-      }
-      if ($Operation -in @('resume','upgrade') -and (Test-Path -LiteralPath (Join-Path $repo 'build/metagen-cache-recovery-plan.json'))) {
-        $restoredCheck = Get-Content -LiteralPath (Join-Path $work 'upstream-cache-preparation.json') -Raw | ConvertFrom-Json
-        if ($restoredCheck.counters.tool_swap_invalidations -ne 0 -or $restoredCheck.counters.toolchain_invalidated_outputs -ne 0) {
-          throw 'Incremental-only recovery refuses toolchain invalidation; retain the intact donor instead of rebuilding from scratch'
-        }
-      }
+      Invoke-Owned 'build-crubit' @($pwsh,'-NoProfile','-File',"$PSScriptRoot\build-crubit.ps1",'-Src',$src)
       $gn = Join-Path $out 'gn.exe'
       if (-not (Test-Path -LiteralPath $gn)) {
         Invoke-Owned 'gn-bootstrap' @($python,'-B','-X','utf8',(Join-Path $src 'tools\gn\bootstrap\bootstrap.py'),'-o',$gn,'--skip-generate-buildfiles') -WorkingDirectory $src
@@ -577,14 +525,14 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'security-runtime.json'))}
       @{label='accept-security-runtime';depends=@('security-runtime');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_candidate.py'),
         '--security-tests-json',(Join-Path $evidence 'security-runtime.json'),'--source-record',(Join-Path $evidence 'build-inputs.json'),
-        '--bundle',$bundle,'--build-variant','fingerprint-modes-win157')}
+        '--bundle',$bundle,'--build-variant','fingerprint-modes-win158')}
       @{label='google-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_runtime.py'),'--browser',(Join-Path $bundle 'chrome.exe'),'--report',(Join-Path $evidence 'google-services-runtime.json'))}
       @{label='fingerprint-runtime';command=@($pwsh,'-NoProfile','-File',"$PSScriptRoot\verify-fingerprint-modes.ps1",'-Out',$out,'-Bundle',$bundle,'-Report',(Join-Path $evidence 'fingerprint-modes-validation.json'))}
       @{label='accept-native-passkey';depends=@('native-passkey');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\native_compiled_evidence.py'),
         '--summary',(Join-Path $evidence 'native-passkey-unittests.json'),'--launcher',(Join-Path $evidence 'native-passkey-launcher.json'),
         '--build-record',(Join-Path $bundle 'google-services-build.json'),'--kind','passkey')}
       @{label='accept-fingerprint';depends=@('fingerprint-runtime');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_candidate.py'),
-        '--fingerprint-tests-json',(Join-Path $evidence 'fingerprint-modes-validation.json'),'--bundle',$bundle,'--build-variant','fingerprint-modes-win157')}
+        '--fingerprint-tests-json',(Join-Path $evidence 'fingerprint-modes-validation.json'),'--bundle',$bundle,'--build-variant','fingerprint-modes-win158')}
       )
       Invoke-VerificationPlan $checks
     }

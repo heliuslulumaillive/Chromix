@@ -1,0 +1,163 @@
+diff --git a/components/translate/content/browser/content_translate_driver.cc b/components/translate/content/browser/content_translate_driver.cc
+--- a/components/translate/content/browser/content_translate_driver.cc
++++ b/components/translate/content/browser/content_translate_driver.cc
+@@ -137,6 +137,14 @@
+ 
+ void ContentTranslateDriver::InitiateTranslation(const std::string& page_lang,
+                                                  int attempt) {
++  // A cached script can be ready before this document's agent is registered.
++  // Sending it to the previous page leaves translation_pending stuck. The
++  // current page's RegisterPage() binds its agent and initiates translation.
++  if (web_contents()->GetPrimaryMainFrame()->GetPageUkmSourceId() !=
++      last_registered_page_id_) {
++    return;
++  }
++
+   if (translate_manager_->GetLanguageState()->translation_pending())
+     return;
+ 
+diff --git a/components/translate/content/renderer/translate_agent.cc b/components/translate/content/renderer/translate_agent.cc
+--- a/components/translate/content/renderer/translate_agent.cc
++++ b/components/translate/content/renderer/translate_agent.cc
+@@ -58,14 +58,6 @@
+ 
+ namespace {
+ 
+-// The delay in milliseconds that we'll wait before checking to see if the
+-// translate library injected in the page is ready.
+-const int kTranslateInitCheckDelayMs = 150;
+-
+-// The maximum number of times we'll check to see if the translate library
+-// injected in the page is ready.
+-const int kMaxTranslateInitCheckAttempts = 5;
+-
+ // The delay we wait in milliseconds before checking whether the translation has
+ // finished.
+ const int kTranslateStatusCheckDelayMs = 400;
+@@ -509,6 +501,8 @@
+                      : kAutoDetectionLanguage;
+   target_lang_ = target_lang;
+ 
++  TranslationInitWait init_wait(base::TimeTicks::Now());
++
+   // Set up v8 isolated world.
+   EnsureIsolatedWorldInitialized(world_id_);
+ 
+@@ -531,7 +525,7 @@
+     return;
+   }
+ 
+-  TranslatePageImpl(0);
++  TranslatePageImpl(init_wait);
+ }
+ 
+ void TranslateAgent::RevertTranslation() {
+@@ -626,8 +620,7 @@
+       AdjustDelay(kTranslateStatusCheckDelayMs));
+ }
+ 
+-void TranslateAgent::TranslatePageImpl(int count) {
+-  DCHECK_LT(count, kMaxTranslateInitCheckAttempts);
++void TranslateAgent::TranslatePageImpl(TranslationInitWait init_wait) {
+   // Executing script may spin a nested run loop that detaches the frame and
+   // deletes |this|.
+   auto weak_this = weak_pointer_factory_.GetWeakPtr();
+@@ -646,17 +639,18 @@
+       return;
+     }
+ 
+-    // The library is not ready, try again later, unless we have tried several
+-    // times unsuccessfully already.
+-    if (++count >= kMaxTranslateInitCheckAttempts) {
++    // Keep the original deadline across retries. Navigation, revert and a
++    // replacement request still cancel this task via weak_method_factory_.
++    const auto delay = init_wait.NextDelay(base::TimeTicks::Now());
++    if (!delay) {
+       NotifyBrowserTranslationFailed(TranslateErrors::TRANSLATION_TIMEOUT);
+       return;
+     }
+     translate_task_runner_->PostDelayedTask(
+         FROM_HERE,
+         base::BindOnce(&TranslateAgent::TranslatePageImpl,
+-                       weak_method_factory_.GetWeakPtr(), count),
+-        AdjustDelay(count * kTranslateInitCheckDelayMs));
++                       weak_method_factory_.GetWeakPtr(), init_wait),
++        AdjustDelay(static_cast<int>(delay->InMilliseconds())));
+     return;
+   }
+   if (!weak_this) {
+diff --git a/components/translate/content/renderer/translate_agent.h b/components/translate/content/renderer/translate_agent.h
+--- a/components/translate/content/renderer/translate_agent.h
++++ b/components/translate/content/renderer/translate_agent.h
+@@ -17,6 +17,7 @@
+ #include "components/language_detection/content/renderer/language_detection_agent.h"
+ #include "components/translate/content/common/translate.mojom.h"
+ #include "components/translate/core/common/translate_errors.h"
++#include "components/translate/core/common/translation_init_wait.h"
+ #include "components/translate/core/language_detection/language_detection_model.h"
+ #include "content/public/renderer/render_frame_observer.h"
+ #include "mojo/public/cpp/bindings/receiver.h"
+@@ -165,9 +166,8 @@
+   // posts a task to check again later.
+   void CheckTranslateStatus();
+ 
+-  // Called by TranslatePage to do the actual translation.  |count| is used to
+-  // limit the number of retries.
+-  void TranslatePageImpl(int count);
++  // Polls readiness until the current request is ready, errors or expires.
++  void TranslatePageImpl(TranslationInitWait init_wait);
+ 
+   // Sends a message to the browser to notify it that the translation failed
+   // with |error|.
+diff --git a/components/translate/core/common/BUILD.gn b/components/translate/core/common/BUILD.gn
+--- a/components/translate/core/common/BUILD.gn
++++ b/components/translate/core/common/BUILD.gn
+@@ -15,6 +15,7 @@
+     "translate_constants.cc",
+     "translate_constants.h",
+     "translate_errors.h",
++    "translation_init_wait.h",
+     "translate_features.cc",
+     "translate_features.h",
+     "translate_language_matcher.cc",
+diff --git a/components/translate/core/common/translation_init_wait.h b/components/translate/core/common/translation_init_wait.h
+new file mode 100644
+--- /dev/null
++++ b/components/translate/core/common/translation_init_wait.h
+@@ -0,0 +1,36 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#ifndef COMPONENTS_TRANSLATE_CORE_COMMON_TRANSLATION_INIT_WAIT_H_
++#define COMPONENTS_TRANSLATE_CORE_COMMON_TRANSLATION_INIT_WAIT_H_
++
++#include <algorithm>
++#include <optional>
++
++#include "base/time/time.h"
++
++namespace translate {
++
++// The downloaded element loads additional resources before libReady becomes
++// true. A monotonic deadline permits slow initialization without unbounded
++// polling. This value is copied only into the current request's cancellable task.
++class TranslationInitWait {
++ public:
++  explicit TranslationInitWait(base::TimeTicks now)
++      : deadline_(now + base::Seconds(15)) {}
++
++  std::optional<base::TimeDelta> NextDelay(base::TimeTicks now) {
++    const base::TimeDelta remaining = deadline_ - now;
++    if (remaining <= base::TimeDelta())
++      return std::nullopt;
++    attempt_ = std::min(attempt_ + 1, 7);
++    return std::min({base::Milliseconds(attempt_ * 150), base::Seconds(1),
++                     remaining});
++  }
++
++ private:
++  const base::TimeTicks deadline_;
++  int attempt_ = 0;
++};
++
++}  // namespace translate
++#endif  // COMPONENTS_TRANSLATE_CORE_COMMON_TRANSLATION_INIT_WAIT_H_

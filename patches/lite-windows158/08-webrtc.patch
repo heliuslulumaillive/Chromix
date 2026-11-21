@@ -1,0 +1,1486 @@
+diff --git a/chrome/browser/media/webrtc/media_capture_devices_dispatcher.cc b/chrome/browser/media/webrtc/media_capture_devices_dispatcher.cc
+--- a/chrome/browser/media/webrtc/media_capture_devices_dispatcher.cc
++++ b/chrome/browser/media/webrtc/media_capture_devices_dispatcher.cc
+@@ -68,6 +68,17 @@
+ using content::BrowserThread;
+ using content::MediaCaptureDevices;
+ 
++namespace {
++bool IsShardXCaptureBlocked(blink::mojom::MediaStreamType type) {
++  const auto* command_line = base::CommandLine::ForCurrentProcess();
++  if (!command_line->HasSwitch("shardx-managed-environment")) return false;
++  return (type == blink::mojom::MediaStreamType::DEVICE_AUDIO_CAPTURE &&
++          command_line->HasSwitch("shardx-block-microphone")) ||
++         (type == blink::mojom::MediaStreamType::DEVICE_VIDEO_CAPTURE &&
++          command_line->HasSwitch("shardx-block-camera"));
++}
++}  // namespace
++
+ MediaCaptureDevicesDispatcher* MediaCaptureDevicesDispatcher::GetInstance() {
+   return base::Singleton<MediaCaptureDevicesDispatcher>::get();
+ }
+@@ -140,6 +151,15 @@
+     content::MediaResponseCallback callback,
+     const extensions::Extension* extension) {
+   CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M161);
++  // Enforce before any extension, stored grant or prompt handler. Screen/tab
++  // capture keeps its independent native permission path.
++  if (IsShardXCaptureBlocked(request.audio_type) ||
++      IsShardXCaptureBlocked(request.video_type)) {
++    std::move(callback).Run(
++        blink::mojom::StreamDevicesSet(),
++        blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED, nullptr);
++    return;
++  }
+ 
+ #if BUILDFLAG(IS_ANDROID)
+   // Kill switch for getDisplayMedia() on browser side to prevent renderer from
+@@ -198,6 +218,7 @@
+     blink::mojom::MediaStreamType type,
+     const extensions::Extension* extension) {
+   CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M161);
++  if (IsShardXCaptureBlocked(type)) return false;
+   for (const auto& handler : media_access_handlers_) {
+     if (handler->SupportsStreamType(render_frame_host, type, extension)) {
+       return handler->CheckMediaAccessPermission(
+diff --git a/chrome/browser/media/webrtc/media_stream_device_permission_context.cc b/chrome/browser/media/webrtc/media_stream_device_permission_context.cc
+--- a/chrome/browser/media/webrtc/media_stream_device_permission_context.cc
++++ b/chrome/browser/media/webrtc/media_stream_device_permission_context.cc
+@@ -81,6 +81,16 @@
+     content::RenderFrameHost* render_frame_host,
+     const GURL& requesting_origin,
+     const GURL& embedding_origin) const {
++  // A managed environment applies to every native Profile, including ones
++  // created after startup. Keep the user's saved per-site preferences intact.
++  const auto* command_line = base::CommandLine::ForCurrentProcess();
++  if (command_line->HasSwitch("shardx-managed-environment") &&
++      command_line->HasSwitch(
++          content_settings_type_ == ContentSettingsType::MEDIASTREAM_MIC
++              ? "shardx-block-microphone" : "shardx-block-camera")) {
++    return CONTENT_SETTING_BLOCK;
++  }
++
+   // TODO(raymes): Merge this policy check into content settings
+   // crbug.com/41014586.
+   const char* policy_name = nullptr;
+diff --git a/third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.cc b/third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.cc
+--- a/third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.cc
++++ b/third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.cc
+@@ -36,6 +36,7 @@
+ #include "base/trace_event/trace_event.h"
+ #include "base/types/pass_key.h"
+ #include "base/unguessable_token.h"
++#include "base/uxr_config.h"
+ #include "build/build_config.h"
+ #include "components/webrtc/thread_wrapper.h"
+ #include "media/base/media_permission.h"
+@@ -1024,14 +1025,25 @@
+ 
+   webrtc::PeerConnectionDependencies dependencies(observer);
+   dependencies.tracer = std::move(tracer);
++  last_allocator_uses_document_loopback_ = false;
+   // |web_frame| may be null in tests, e.g. if
+   // RTCPeerConnectionHandler::InitializeForTest() is used.
+   if (web_frame) {
+     dependencies.allocator = CreatePortAllocator(web_frame);
+   }
+-  dependencies.async_dns_resolver_factory = CreateAsyncDnsResolverFactory();
+-  dependencies.lna_permission_factory =
+-      std::make_unique<LocalNetworkAccessPermissionFactory>(this);
++  if (last_allocator_uses_document_loopback_) {
++    // The allocator observes the native candidate filter, including later
++    // relay/all transitions. TURN/TCP retains the native IPC/proxy path.
++    dependencies.async_dns_resolver_factory =
++        CreateDocumentLoopbackPeerResolverFactory();
++    dependencies.lna_permission_factory = WrapDocumentLoopbackPermissionFactory(
++        document_loopback_context_,
++        std::make_unique<LocalNetworkAccessPermissionFactory>(this));
++  } else {
++    dependencies.async_dns_resolver_factory = CreateAsyncDnsResolverFactory();
++    dependencies.lna_permission_factory =
++        std::make_unique<LocalNetworkAccessPermissionFactory>(this);
++  }
+   auto pc_or_error = GetPcFactory()->CreatePeerConnectionOrError(
+       config, std::move(dependencies));
+   if (pc_or_error.ok()) {
+@@ -1125,8 +1137,44 @@
+     }
+   }
+ 
++  // Restrict the browser policy; never turn disabled transports back on.
++  const std::string uxr_policy =
++      base::UxrConfig::GetInstance().Get("uxr-webrtc-policy");
++  if (uxr_policy == "disable_non_proxied_udp") {
++    port_config.enable_multiple_routes = false;
++    port_config.enable_nonproxied_udp = false;
++    port_config.enable_default_local_candidate = false;
++  } else if (uxr_policy == "default_public_interface_only") {
++    port_config.enable_multiple_routes = false;
++    port_config.enable_default_local_candidate = false;
++  } else if (uxr_policy == "default_public_and_private_interfaces") {
++    port_config.enable_multiple_routes = false;
++  }
++
++  if (uxr_policy == "obfuscate") {
++    allow_mdns_obfuscation = true;
++  }
++
+   std::unique_ptr<webrtc::NetworkManager> network_manager;
+-  if (port_config.enable_multiple_routes) {
++  std::unique_ptr<webrtc::PacketSocketFactory> document_socket_factory;
++  std::unique_ptr<webrtc::LocalNetworkAccessPermissionFactoryInterface>
++      permission_factory =
++          std::make_unique<LocalNetworkAccessPermissionFactory>(this);
++  last_allocator_uses_document_loopback_ =
++      DocumentLoopbackEnabled() && !port_config.enable_nonproxied_udp &&
++      GetExecutionContext() && GetExecutionContext()->IsWindow();
++  if (last_allocator_uses_document_loopback_) {
++    if (!document_loopback_context_) {
++      document_loopback_context_ =
++          base::MakeRefCounted<DocumentLoopbackContext>();
++    }
++    network_manager =
++        CreateDocumentLoopbackNetworkManager(document_loopback_context_);
++    document_socket_factory = CreateDocumentLoopbackSocketFactory(
++        document_loopback_context_, socket_factory_.get());
++    permission_factory = WrapDocumentLoopbackPermissionFactory(
++        document_loopback_context_, std::move(permission_factory));
++  } else if (port_config.enable_multiple_routes) {
+     network_manager = std::make_unique<FilteringNetworkManager>(
+         network_manager_.get(), media_permission, allow_mdns_obfuscation);
+   } else {
+@@ -1136,7 +1184,7 @@
+ 
+   auto port_allocator = std::make_unique<P2PPortAllocator>(
+       std::move(network_manager), socket_factory_.get(), port_config,
+-      std::make_unique<LocalNetworkAccessPermissionFactory>(this));
++      std::move(permission_factory), std::move(document_socket_factory));
+   if (IsValidPortRange(min_port, max_port))
+     port_allocator->SetPortRange(min_port, max_port);
+ 
+@@ -1214,6 +1262,8 @@
+ }
+ 
+ void PeerConnectionDependencyFactory::ContextDestroyed() {
++  if (document_loopback_context_)
++    document_loopback_context_->Invalidate();
+   if (network_manager_) {
+     PostCrossThreadTask(
+         *GetWebRtcNetworkTaskRunner(), FROM_HERE,
+@@ -1225,6 +1275,10 @@
+ void PeerConnectionDependencyFactory::CleanupPeerConnectionFactory() {
+   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+   DVLOG(1) << "PeerConnectionDependencyFactory::CleanupPeerConnectionFactory()";
++  if (document_loopback_context_) {
++    document_loopback_context_->Invalidate();
++    document_loopback_context_ = nullptr;
++  }
+   socket_factory_ = nullptr;
+   // Not obtaining `signaling_thread` using GetWebRtcSignalingTaskRunner()
+   // because that method triggers EnsureInitialized() and we're trying to
+diff --git a/third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h b/third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h
+--- a/third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h
++++ b/third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h
+@@ -59,6 +59,7 @@
+ 
+ class IpcNetworkManager;
+ class IpcPacketSocketFactory;
++class DocumentLoopbackContext;
+ class MdnsResponderAdapter;
+ class P2PSocketDispatcher;
+ class RTCPeerConnectionHandlerClient;
+@@ -239,6 +240,10 @@
+   // uses |p2p_socket_dispatcher_|.
+   std::unique_ptr<IpcNetworkManager> network_manager_;
+   std::unique_ptr<IpcPacketSocketFactory> socket_factory_;
++  scoped_refptr<DocumentLoopbackContext> document_loopback_context_;
++  // Construction is synchronous on the context thread. Reset before the
++  // virtual allocator hook so test overrides keep their original behavior.
++  bool last_allocator_uses_document_loopback_ = false;
+ 
+   Member<WebrtcVideoPerfReporter> webrtc_video_perf_reporter_;
+ 
+diff --git a/third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.cc b/third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.cc
+--- a/third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.cc
++++ b/third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.cc
+@@ -53,6 +53,8 @@
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/task/thread_pool.h"
+ #include "base/time/time.h"
++#include "base/uxr_config.h"
++#include "third_party/blink/renderer/platform/peerconnection/fingerprint_ip.h"
+ #include "build/build_config.h"
+ #include "services/metrics/public/cpp/ukm_builders.h"
+ #include "services/network/public/cpp/connection_allowlist.h"
+@@ -498,6 +500,32 @@
+         configuration->alwaysNegotiateDataChannels();
+   }
+ 
++  const auto& uxr_config = base::UxrConfig::GetInstance();
++  if (uxr_config.Has("uxr-webrtc-fake-srflx") ||
++      uxr_config.Has("uxr-webrtc-fake-srflx-allow-udp")) {
++    exception_state->ThrowDOMException(
++        DOMExceptionCode::kNotSupportedError,
++        "Synthetic STUN candidates are retired. Use fingerprint-webrtc-ip "
++        "for presentation and a real proxy or TURN server for routing.");
++    return web_configuration;
++  }
++  if (uxr_config.Has("uxr-webrtc-ip") && FingerprintWebRtcIp().empty()) {
++    exception_state->ThrowDOMException(
++        DOMExceptionCode::kNotSupportedError,
++        "fingerprint-webrtc-ip requires an IPv4/IPv6 literal; auto must "
++        "finish resolving before renderer startup.");
++    return web_configuration;
++  }
++  const std::string uxr_policy = uxr_config.Get("uxr-webrtc-policy");
++  if (uxr_config.Has("uxr-webrtc-policy") && uxr_policy != "default" &&
++      uxr_policy != "disable_non_proxied_udp" &&
++      uxr_policy != "default_public_interface_only" &&
++      uxr_policy != "default_public_and_private_interfaces" &&
++      uxr_policy != "obfuscate") {
++    exception_state->ThrowDOMException(DOMExceptionCode::kNotSupportedError,
++                                       "Unsupported uxr-webrtc-policy value.");
++  }
++
+   return web_configuration;
+ }
+ 
+@@ -1182,6 +1210,7 @@
+     }
+   }
+ 
++  sdp = RestoreFingerprintLocalSdp(sdp);
+   ExecutionContext* context = ExecutionContext::From(script_state);
+   ParsedSessionDescription parsed_sdp = ParsedSessionDescription::Parse(
+       session_description_init->type().AsString(), sdp);
+@@ -1278,6 +1307,7 @@
+     }
+   }
+ 
++  sdp = RestoreFingerprintLocalSdp(sdp);
+   ParsedSessionDescription parsed_sdp = ParsedSessionDescription::Parse(
+       session_description_init->hasType()
+           ? session_description_init->type().AsString()
+@@ -2570,6 +2600,22 @@
+   tracks_.insert(track->Component(), track);
+ }
+ 
++String RTCPeerConnection::RestoreFingerprintLocalSdp(const String& sdp) const {
++  const std::string ip = FingerprintWebRtcIp();
++  if (ip.empty() || sdp.empty())
++    return sdp;
++  const std::string shown = sdp.Utf8();
++  for (const String* native : {&last_offer_, &last_answer_,
++                               &fingerprint_pending_local_sdp_,
++                               &fingerprint_current_local_sdp_}) {
++    if (!native->empty() && RewriteFingerprintSdp(native->Utf8(), ip) == shown)
++      return *native;
++  }
++  // Caller-edited SDP keeps native validation; never guess which real address
++  // an arbitrary replacement should map to.
++  return sdp;
++}
++
+ void RTCPeerConnection::NoteSdpCreated(const RTCSessionDescriptionInit& desc) {
+   if (desc.type() == V8RTCSdpType::Enum::kOffer) {
+     last_offer_ = desc.sdp();
+@@ -2619,6 +2665,17 @@
+   DCHECK(!closed_);
+   DCHECK(GetExecutionContext()->IsContextThread());
+   DCHECK(platform_candidate);
++  const std::string ip = FingerprintWebRtcIp();
++  if (!ip.empty()) {
++    const std::string original = platform_candidate->Candidate().Utf8();
++    const std::string rewritten = RewriteFingerprintCandidate(original, ip);
++    if (rewritten != original) {
++      platform_candidate = MakeGarbageCollected<RTCIceCandidatePlatform>(
++          String::FromUtf8(rewritten), platform_candidate->SdpMid(),
++          platform_candidate->SdpMLineIndex(), platform_candidate->UsernameFragment(),
++          platform_candidate->Url());
++    }
++  }
+   RTCIceCandidate* ice_candidate = RTCIceCandidate::Create(platform_candidate);
+   MaybeDispatchEvent(RTCPeerConnectionIceEvent::Create(ice_candidate));
+ }
+@@ -2631,8 +2688,13 @@
+                                             const String& error_text) {
+   DCHECK(!closed_);
+   DCHECK(GetExecutionContext()->IsContextThread());
++  const std::string ip = FingerprintWebRtcIp();
++  const String shown_address = ip.empty() || address.IsNull() ? address :
++      String::FromUtf8(RewriteFingerprintAddress(address.Utf8(), ip));
++  const String shown_candidate = ip.empty() || host_candidate.IsNull() ? host_candidate :
++      String::FromUtf8(RewriteFingerprintCandidate(host_candidate.Utf8(), ip));
+   MaybeDispatchEvent(RTCPeerConnectionIceErrorEvent::Create(
+-      address, port, host_candidate, url, error_code, error_text));
++      shown_address, port, shown_candidate, url, error_code, error_text));
+ }
+ 
+ void RTCPeerConnection::DidChangeSessionDescriptions(
+@@ -2642,14 +2704,23 @@
+     RTCSessionDescriptionPlatform* current_remote_description) {
+   DCHECK(!closed_);
+   DCHECK(GetExecutionContext()->IsContextThread());
+-  pending_local_description_ =
+-      pending_local_description
+-          ? RTCSessionDescription::Create(pending_local_description)
+-          : nullptr;
+-  current_local_description_ =
+-      current_local_description
+-          ? RTCSessionDescription::Create(current_local_description)
+-          : nullptr;
++  const std::string ip = FingerprintWebRtcIp();
++  // Keep native values for exact local-description round trips. The copies
++  // returned to script must not replace libwebrtc's actual socket addresses.
++  fingerprint_pending_local_sdp_ = !ip.empty() && pending_local_description
++      ? pending_local_description->Sdp() : String();
++  fingerprint_current_local_sdp_ = !ip.empty() && current_local_description
++      ? current_local_description->Sdp() : String();
++  const auto local_description = [&](RTCSessionDescriptionPlatform* description)
++      -> RTCSessionDescription* {
++    if (!description) return nullptr;
++    if (ip.empty()) return RTCSessionDescription::Create(description);
++    return RTCSessionDescription::Create(
++        MakeGarbageCollected<RTCSessionDescriptionPlatform>(description->GetType(),
++            String::FromUtf8(RewriteFingerprintSdp(description->Sdp().Utf8(), ip))));
++  };
++  pending_local_description_ = local_description(pending_local_description);
++  current_local_description_ = local_description(current_local_description);
+   pending_remote_description_ =
+       pending_remote_description
+           ? RTCSessionDescription::Create(pending_remote_description)
+diff --git a/third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.h b/third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.h
+--- a/third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.h
++++ b/third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.h
+@@ -578,6 +578,9 @@
+   // Internal state [[LastOffer]] and [[LastAnswer]]
+   String last_offer_;
+   String last_answer_;
++  String fingerprint_pending_local_sdp_;
++  String fingerprint_current_local_sdp_;
++  String RestoreFingerprintLocalSdp(const String&) const;
+   int pending_create_offer_count_ = 0;
+   int pending_create_answer_count_ = 0;
+ 
+diff --git a/third_party/blink/renderer/modules/peerconnection/rtc_session_description_request_impl.cc b/third_party/blink/renderer/modules/peerconnection/rtc_session_description_request_impl.cc
+--- a/third_party/blink/renderer/modules/peerconnection/rtc_session_description_request_impl.cc
++++ b/third_party/blink/renderer/modules/peerconnection/rtc_session_description_request_impl.cc
+@@ -40,6 +40,7 @@
+ #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+ #include "third_party/blink/renderer/platform/heap/visitor.h"
+ #include "third_party/blink/renderer/platform/peerconnection/rtc_session_description_platform.h"
++#include "third_party/blink/renderer/platform/peerconnection/fingerprint_ip.h"
+ #include "third_party/blink/renderer/platform/peerconnection/rtc_session_description_request.h"
+ #include "third_party/webrtc/api/rtc_error.h"
+ 
+@@ -85,6 +86,7 @@
+     description->setSdp(description_platform->Sdp());
+ 
+     requester_->NoteSdpCreated(*description);
++    description->setSdp(String::FromUtf8(RewriteFingerprintSdp(description_platform->Sdp().Utf8())));
+     success_callback_->InvokeAndReportException(nullptr, description);
+   }
+   Clear();
+diff --git a/third_party/blink/renderer/modules/peerconnection/rtc_session_description_request_promise_impl.cc b/third_party/blink/renderer/modules/peerconnection/rtc_session_description_request_promise_impl.cc
+--- a/third_party/blink/renderer/modules/peerconnection/rtc_session_description_request_promise_impl.cc
++++ b/third_party/blink/renderer/modules/peerconnection/rtc_session_description_request_promise_impl.cc
+@@ -14,6 +14,7 @@
+ #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+ #include "third_party/blink/renderer/platform/heap/visitor.h"
+ #include "third_party/blink/renderer/platform/peerconnection/rtc_session_description_platform.h"
++#include "third_party/blink/renderer/platform/peerconnection/fingerprint_ip.h"
+ #include "third_party/blink/renderer/platform/peerconnection/rtc_session_description_request.h"
+ #include "third_party/webrtc/api/rtc_error.h"
+ 
+@@ -49,6 +50,7 @@
+         V8RTCSdpType::Create(platform_session_description->GetType()).value());
+     description->setSdp(platform_session_description->Sdp());
+     requester_->NoteSdpCreated(*description);
++    description->setSdp(String::FromUtf8(RewriteFingerprintSdp(platform_session_description->Sdp().Utf8())));
+     resolver_->Resolve(description);
+   } else {
+     // This is needed to have the resolver release its internal resources
+diff --git a/third_party/blink/renderer/modules/peerconnection/rtc_stats_report.cc b/third_party/blink/renderer/modules/peerconnection/rtc_stats_report.cc
+--- a/third_party/blink/renderer/modules/peerconnection/rtc_stats_report.cc
++++ b/third_party/blink/renderer/modules/peerconnection/rtc_stats_report.cc
+@@ -3,6 +3,8 @@
+ // found in the LICENSE file.
+ 
+ #include "third_party/blink/renderer/modules/peerconnection/rtc_stats_report.h"
++
++#include "third_party/blink/renderer/platform/peerconnection/fingerprint_ip.h"
+ 
+ #include <cstdint>
+ #include <memory>
+@@ -535,6 +537,16 @@
+   // Non-standard and obsolete stats.
+   SET_STAT(webrtc_stat.is_remote, v8_stat->setIsRemote);
+   SET_STAT(webrtc_stat.ip, v8_stat->setIp);
++  if (std::string_view(webrtc_stat.type()) == "local-candidate" &&
++      (!webrtc_stat.candidate_type.has_value() || *webrtc_stat.candidate_type != "relay")) {
++    const std::string ip = FingerprintWebRtcIp();
++    if (!ip.empty()) {
++      if (webrtc_stat.address.has_value())
++        v8_stat->setAddress(String::FromUtf8(RewriteFingerprintAddress(*webrtc_stat.address, ip)));
++      if (webrtc_stat.ip.has_value())
++        v8_stat->setIp(String::FromUtf8(RewriteFingerprintAddress(*webrtc_stat.ip, ip)));
++    }
++  }
+   return v8_stat;
+ }
+ 
+diff --git a/third_party/blink/renderer/platform/p2p/port_allocator.cc b/third_party/blink/renderer/platform/p2p/port_allocator.cc
+--- a/third_party/blink/renderer/platform/p2p/port_allocator.cc
++++ b/third_party/blink/renderer/platform/p2p/port_allocator.cc
+@@ -6,29 +6,578 @@
+ 
+ #include <stdint.h>
+ 
++#include <bitset>
++#include <cerrno>
++#include <cstring>
++#include <map>
+ #include <memory>
++#include <span>
+ #include <utility>
++#include <vector>
+ 
+ #include "base/check.h"
++#include "base/compiler_specific.h"
++#include "base/containers/span.h"
++#include "base/feature_list.h"
++#include "base/functional/bind.h"
++#include "base/location.h"
++#include "base/memory/raw_ptr.h"
++#include "base/memory/weak_ptr.h"
++#include "base/sequence_checker.h"
++#include "base/task/single_thread_task_runner.h"
+ #include "third_party/blink/public/platform/platform.h"
++#include "third_party/webrtc/api/async_dns_resolver.h"
+ #include "third_party/webrtc/api/local_network_access_permission.h"
++#include "third_party/webrtc/api/packet_socket_factory.h"
++#include "third_party/webrtc/rtc_base/async_packet_socket.h"
++#include "third_party/webrtc/rtc_base/ip_address.h"
++#include "third_party/webrtc/rtc_base/network/received_packet.h"
++#include "third_party/webrtc/rtc_base/network/sent_packet.h"
++#include "third_party/webrtc/system_wrappers/include/clock.h"
+ #include "third_party/webrtc_overrides/environment.h"
+ 
+ namespace blink {
++
++namespace {
++
++BASE_FEATURE(kDocumentLoopback,
++             "ShardXWebRtcDocumentLoopback",
++             base::FEATURE_ENABLED_BY_DEFAULT);
++
++constexpr size_t kMaximumDocumentDatagram = 65507;
++constexpr size_t kMaximumDocumentPendingBytes = 4 * 1024 * 1024;
++
++bool IsDocumentAddress(const webrtc::SocketAddress& address) {
++  return !address.IsUnresolvedIP() &&
++         (address.ipaddr() == webrtc::GetLoopbackIP(AF_INET) ||
++          address.ipaddr() == webrtc::GetLoopbackIP(AF_INET6));
++}
++
++bool IsMdnsName(const webrtc::SocketAddress& address) {
++  std::string name = address.hostname();
++  while (!name.empty() && name.back() == '.')
++    name.pop_back();
++  for (char& ch : name) {
++    if (ch >= 'A' && ch <= 'Z')
++      ch += 'a' - 'A';
++  }
++  return name == "local" || name.ends_with(".local");
++}
++
++// Never pre-resolve WebRTC names through the browser or system resolver.
++// TURN/TCP and TLS already have a native resolution-failure path that passes
++// the unresolved hostname to the proxy-capable TCP socket factory.
++class DocumentDnsResolver final : public webrtc::AsyncDnsResolverInterface,
++                                  public webrtc::AsyncDnsResolverResult {
++ public:
++  void Start(const webrtc::SocketAddress& address,
++             absl::AnyInvocable<void()> callback) override {
++    Start(address, AF_UNSPEC, std::move(callback));
++  }
++
++  void Start(const webrtc::SocketAddress&,
++             int,
++             absl::AnyInvocable<void()> callback) override {
++    CHECK(!started_);
++    started_ = true;
++    // Preserve asynchronous resolver semantics, including cancellation on
++    // delete.
++    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE, base::BindOnce(
++                       [](base::WeakPtr<DocumentDnsResolver> self,
++                          absl::AnyInvocable<void()> callback) {
++                         if (self)
++                           callback();
++                       },
++                       weak_factory_.GetWeakPtr(), std::move(callback)));
++  }
++
++  const webrtc::AsyncDnsResolverResult& result() const override {
++    return *this;
++  }
++  bool GetResolvedAddress(int, webrtc::SocketAddress*) const override {
++    return false;
++  }
++  int GetError() const override { return EHOSTUNREACH; }
++
++ private:
++  bool started_ = false;
++  base::WeakPtrFactory<DocumentDnsResolver> weak_factory_{this};
++};
++
++class DocumentPeerResolverFactory final
++    : public webrtc::AsyncDnsResolverFactoryInterface {
++ public:
++  std::unique_ptr<webrtc::AsyncDnsResolverInterface> Create() override {
++    return std::make_unique<DocumentDnsResolver>();
++  }
++  std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAndResolve(
++      const webrtc::SocketAddress& address,
++      absl::AnyInvocable<void()> callback) override {
++    auto resolver = Create();
++    resolver->Start(address, std::move(callback));
++    return resolver;
++  }
++  std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAndResolve(
++      const webrtc::SocketAddress& address,
++      int family,
++      absl::AnyInvocable<void()> callback) override {
++    auto resolver = Create();
++    resolver->Start(address, family, std::move(callback));
++    return resolver;
++  }
++};
++
++class DocumentNetworkManager final : public webrtc::NetworkManagerBase {
++ public:
++  explicit DocumentNetworkManager(
++      scoped_refptr<DocumentLoopbackContext> context)
++      : context_(std::move(context)),
++        ipv4_("document-v4",
++              "Document transport",
++              webrtc::GetLoopbackIP(AF_INET),
++              32,
++              webrtc::ADAPTER_TYPE_UNKNOWN),
++        ipv6_("document-v6",
++              "Document transport",
++              webrtc::GetLoopbackIP(AF_INET6),
++              128,
++              webrtc::ADAPTER_TYPE_UNKNOWN) {
++    // These are virtual interfaces. No IpcNetworkManager is queried or started.
++    ipv4_.AddIP(webrtc::GetLoopbackIP(AF_INET));
++    ipv6_.AddIP(webrtc::GetLoopbackIP(AF_INET6));
++    ipv4_.set_id(1);
++    ipv6_.set_id(2);
++    ipv4_.set_default_local_address_provider(this);
++    ipv6_.set_default_local_address_provider(this);
++    set_enumeration_permission(ENUMERATION_ALLOWED);
++  }
++  void StartUpdating() override {
++    ++started_;
++    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE, base::BindOnce(
++                       [](base::WeakPtr<DocumentNetworkManager> self) {
++                         if (self && self->started_)
++                           self->NotifyNetworksChanged();
++                       },
++                       weak_factory_.GetWeakPtr()));
++  }
++  void StopUpdating() override {
++    CHECK_GT(started_, 0);
++    --started_;
++  }
++  std::vector<const webrtc::Network*> GetNetworks() const override {
++    if (!context_->IsAlive())
++      return {};
++    return {&ipv4_, &ipv6_};
++  }
++  std::vector<const webrtc::Network*> GetAnyAddressNetworks() override {
++    // Never supply an OS wildcard route, including allocator fallback paths.
++    return GetNetworks();
++  }
++  bool GetDefaultLocalAddress(int family,
++                              webrtc::IPAddress* address) const override {
++    if (!context_->IsAlive() || (family != AF_INET && family != AF_INET6))
++      return false;
++    *address = webrtc::GetLoopbackIP(family);
++    return true;
++  }
++  webrtc::MdnsResponderInterface* GetMdnsResponder() const override {
++    return nullptr;
++  }
++
++ private:
++  scoped_refptr<DocumentLoopbackContext> context_;
++  webrtc::Network ipv4_;
++  webrtc::Network ipv6_;
++  unsigned started_ = 0;
++  base::WeakPtrFactory<DocumentNetworkManager> weak_factory_{this};
++};
++
++class DocumentSocketFactory final : public webrtc::PacketSocketFactory {
++ public:
++  DocumentSocketFactory(scoped_refptr<DocumentLoopbackContext> context,
++                        webrtc::PacketSocketFactory* native)
++      : context_(std::move(context)), native_(native) {
++    CHECK(native_);
++  }
++  std::unique_ptr<webrtc::AsyncPacketSocket> CreateUdpSocket(
++      const webrtc::Environment& env,
++      const webrtc::SocketAddress& address,
++      uint16_t min_port,
++      uint16_t max_port) override {
++    // There is intentionally no delegation or OS-socket fallback for UDP.
++    return context_->CreateSocket(env, address, min_port, max_port);
++  }
++  std::unique_ptr<webrtc::AsyncListenSocket> CreateServerTcpSocket(
++      const webrtc::Environment&,
++      const webrtc::SocketAddress&,
++      uint16_t,
++      uint16_t,
++      int) override {
++    return nullptr;
++  }
++  std::unique_ptr<webrtc::AsyncPacketSocket> CreateClientTcpSocket(
++      const webrtc::Environment& env,
++      const webrtc::SocketAddress&,
++      const webrtc::SocketAddress& remote,
++      const webrtc::PacketSocketTcpOptions& options) override {
++    if (!context_->IsAlive() || IsMdnsName(remote) ||
++        !context_->ClaimNativeTcpDestination(remote))
++      return nullptr;
++    // TURN/TCP and TLS retain the existing browser IPC/proxy implementation.
++    // The virtual interface is not a real TCP source-address binding.
++    const int family = remote.family() == AF_INET6 ? AF_INET6 : AF_INET;
++    return native_->CreateClientTcpSocket(
++        env, webrtc::SocketAddress(webrtc::GetAnyIP(family), 0), remote,
++        options);
++  }
++  std::unique_ptr<webrtc::AsyncPacketSocket> CreateClientUdpSocket(
++      const webrtc::Environment&,
++      const webrtc::SocketAddress&,
++      const webrtc::SocketAddress&,
++      uint16_t,
++      uint16_t,
++      const webrtc::PacketSocketTcpOptions&) override {
++    return nullptr;
++  }
++  std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAsyncDnsResolver()
++      override {
++    return std::make_unique<DocumentDnsResolver>();
++  }
++
++ private:
++  scoped_refptr<DocumentLoopbackContext> context_;
++  raw_ptr<webrtc::PacketSocketFactory, DanglingUntriaged> native_;
++};
++
++class DocumentPermission final
++    : public webrtc::LocalNetworkAccessPermissionInterface {
++ public:
++  DocumentPermission(
++      scoped_refptr<DocumentLoopbackContext> context,
++      std::unique_ptr<webrtc::LocalNetworkAccessPermissionInterface> native)
++      : context_(std::move(context)), native_(std::move(native)) {}
++  bool ShouldRequestPermission(const webrtc::SocketAddress& address) override {
++    // This exemption is for a registered in-memory endpoint, not an arbitrary
++    // loopback/private address. The socket still enforces the same ownership.
++    return !context_->IsBoundEndpoint(address) &&
++           native_->ShouldRequestPermission(address);
++  }
++  void RequestPermission(
++      const webrtc::SocketAddress& address,
++      absl::AnyInvocable<void(webrtc::LocalNetworkAccessPermissionStatus)>
++          callback) override {
++    if (!context_->IsBoundEndpoint(address)) {
++      native_->RequestPermission(address, std::move(callback));
++      return;
++    }
++    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE,
++        base::BindOnce(
++            [](base::WeakPtr<DocumentPermission> self,
++               webrtc::SocketAddress address,
++               absl::AnyInvocable<void(
++                   webrtc::LocalNetworkAccessPermissionStatus)> callback) {
++              if (self) {
++                callback(
++                    self->context_->IsBoundEndpoint(address)
++                        ? webrtc::LocalNetworkAccessPermissionStatus::kGranted
++                        : webrtc::LocalNetworkAccessPermissionStatus::kDenied);
++              }
++            },
++            weak_factory_.GetWeakPtr(), address, std::move(callback)));
++  }
++
++ private:
++  scoped_refptr<DocumentLoopbackContext> context_;
++  std::unique_ptr<webrtc::LocalNetworkAccessPermissionInterface> native_;
++  base::WeakPtrFactory<DocumentPermission> weak_factory_{this};
++};
++
++class DocumentPermissionFactory final
++    : public webrtc::LocalNetworkAccessPermissionFactoryInterface {
++ public:
++  DocumentPermissionFactory(
++      scoped_refptr<DocumentLoopbackContext> context,
++      std::unique_ptr<webrtc::LocalNetworkAccessPermissionFactoryInterface>
++          native)
++      : context_(std::move(context)), native_(std::move(native)) {}
++  std::unique_ptr<webrtc::LocalNetworkAccessPermissionInterface> Create()
++      override {
++    return std::make_unique<DocumentPermission>(context_, native_->Create());
++  }
++
++ private:
++  scoped_refptr<DocumentLoopbackContext> context_;
++  std::unique_ptr<webrtc::LocalNetworkAccessPermissionFactoryInterface> native_;
++};
++
++}  // namespace
++
++// All State operations run on the WebRTC network thread. The only object shared
++// with the document thread is the atomic revocation bit in the owning context.
++class DocumentLoopbackContext::State {
++ public:
++  class Socket final : public webrtc::AsyncPacketSocket {
++   public:
++    Socket(scoped_refptr<DocumentLoopbackContext> owner,
++           const webrtc::Environment& env,
++           webrtc::SocketAddress local)
++        : owner_(std::move(owner)), env_(env), local_(std::move(local)) {}
++    ~Socket() override { Close(); }
++    webrtc::SocketAddress GetLocalAddress() const override { return local_; }
++    webrtc::SocketAddress GetRemoteAddress() const override { return {}; }
++    webrtc::AsyncPacketSocket::State GetState() const override {
++      return closed_ ? STATE_CLOSED : STATE_BOUND;
++    }
++    int Send(const void*,
++             size_t,
++             const webrtc::AsyncSocketPacketOptions&) override {
++      return Fail(ENOTCONN);
++    }
++    int SendTo(const void* data,
++               size_t size,
++               const webrtc::SocketAddress& destination,
++               const webrtc::AsyncSocketPacketOptions& options) override {
++      if (closed_ || !owner_->IsAlive())
++        return Fail(EBADF);
++      if (size > kMaximumDocumentDatagram || (!data && size))
++        return Fail(EMSGSIZE);
++      auto receiver = owner_->state_->Find(destination);
++      if (!receiver)
++        return Fail(EHOSTUNREACH);
++      if (size >
++          kMaximumDocumentPendingBytes - owner_->state_->pending_bytes_) {
++        owner_->state_->blocked_[{local_.family(), local_.port()}] =
++            weak_factory_.GetWeakPtr();
++        return Fail(EWOULDBLOCK);
++      }
++      std::vector<uint8_t> packet(size);
++      if (size) {
++        // AsyncPacketSocket's API supplies the buffer extent; bound it before
++        // copying and never retain the caller's pointer across the posted task.
++        base::span(packet).copy_from(UNSAFE_BUFFERS(
++            base::span(static_cast<const uint8_t*>(data), size)));
++      }
++      owner_->state_->pending_bytes_ += size;
++      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
++          FROM_HERE,
++          base::BindOnce(
++              [](scoped_refptr<DocumentLoopbackContext> owner,
++                 base::WeakPtr<Socket> sender, base::WeakPtr<Socket> receiver,
++                 webrtc::SocketAddress source, std::vector<uint8_t> packet) {
++                owner->state_->pending_bytes_ -= packet.size();
++                if (owner->IsAlive() && sender && receiver)
++                  receiver->Receive(source, packet);
++                auto blocked = std::move(owner->state_->blocked_);
++                owner->state_->blocked_.clear();
++                for (const auto& [endpoint, waiting] : blocked) {
++                  if (owner->IsAlive() && waiting) {
++                    waiting->SetError(0);
++                    waiting->NotifyReadyToSend(waiting.get());
++                  }
++                }
++              },
++              owner_, weak_factory_.GetWeakPtr(), receiver, local_,
++              std::move(packet)));
++      webrtc::SentPacketInfo sent(options.packet_id,
++                                  env_.clock().CurrentTime().ms(),
++                                  options.info_signaled_after_sent);
++      webrtc::CopySocketInformationToPacketInfo(size, *this, &sent.info);
++      NotifySentPacket(this, sent);
++      return static_cast<int>(size);
++    }
++    int Close() override {
++      if (!closed_) {
++        closed_ = true;
++        weak_factory_.InvalidateWeakPtrs();
++        owner_->state_->endpoints_.erase({local_.family(), local_.port()});
++        owner_->state_->blocked_.erase({local_.family(), local_.port()});
++      }
++      return 0;
++    }
++    int GetOption(webrtc::Socket::Option option, int* value) override {
++      if (!value)
++        return Fail(EINVAL);
++      const auto it = options_.find(option);
++      if (it == options_.end())
++        return Fail(EINVAL);
++      *value = it->second;
++      return 0;
++    }
++    int SetOption(webrtc::Socket::Option option, int value) override {
++      options_[option] = value;
++      return 0;
++    }
++    int GetError() const override { return error_; }
++    void SetError(int error) override { error_ = error; }
++    base::WeakPtr<Socket> GetWeakPtr() { return weak_factory_.GetWeakPtr(); }
++
++   private:
++    int Fail(int error) {
++      error_ = error;
++      return -1;
++    }
++    void Receive(const webrtc::SocketAddress& source,
++                 const std::vector<uint8_t>& bytes) {
++      const webrtc::ReceivedIpPacket packet(std::span<const uint8_t>(bytes),
++                                            source, env_.clock().CurrentTime());
++      NotifyPacketReceived(packet);
++    }
++    scoped_refptr<DocumentLoopbackContext> owner_;
++    webrtc::Environment env_;
++    webrtc::SocketAddress local_;
++    std::map<webrtc::Socket::Option, int> options_;
++    bool closed_ = false;
++    int error_ = 0;
++    base::WeakPtrFactory<Socket> weak_factory_{this};
++  };
++
++  base::WeakPtr<Socket> Find(const webrtc::SocketAddress& address) const {
++    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
++    if (!IsDocumentAddress(address))
++      return {};
++    const auto it = endpoints_.find({address.family(), address.port()});
++    return it == endpoints_.end() ? base::WeakPtr<Socket>() : it->second;
++  }
++
++  uint16_t Allocate(int family, uint16_t min_port, uint16_t max_port) {
++    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
++    const uint32_t first = min_port ? min_port : 49152;
++    const uint32_t last = max_port ? max_port : 65535;
++    auto& used = family == AF_INET ? ipv4_used_ : ipv6_used_;
++    const auto& native = family == AF_INET ? ipv4_native_ : ipv6_native_;
++    for (uint32_t port = first; port <= last; ++port) {
++      if (!used.test(port) && !native.test(port)) {
++        used.set(port);
++        return static_cast<uint16_t>(port);
++      }
++    }
++    return 0;
++  }
++
++  bool ClaimNativeTcpDestination(const webrtc::SocketAddress& address) {
++    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
++    const uint16_t port = address.port();
++    if (!port)
++      return false;
++    if (address.IsUnresolvedIP()) {
++      // Proxy-side resolution can select either address family, including a
++      // localhost alias. Do not let a name escape an existing virtual port's
++      // ownership; reserve both families when native TCP claimed it first.
++      if (ipv4_used_.test(port) || ipv6_used_.test(port))
++        return false;
++      ipv4_native_.set(port);
++      ipv6_native_.set(port);
++      return true;
++    }
++    if (!IsDocumentAddress(address))
++      return true;
++    const auto& used = address.family() == AF_INET ? ipv4_used_ : ipv6_used_;
++    if (used.test(address.port()))
++      return false;
++    auto& native = address.family() == AF_INET ? ipv4_native_ : ipv6_native_;
++    native.set(address.port());
++    return true;
++  }
++
++  std::map<std::pair<int, int>, base::WeakPtr<Socket>> endpoints_;
++  std::map<std::pair<int, int>, base::WeakPtr<Socket>> blocked_;
++  // Never reuse an endpoint within a document. Delayed packets cannot bind to a
++  // replacement socket even when a caller closes and recreates PeerConnections.
++  std::bitset<65536> ipv4_used_;
++  std::bitset<65536> ipv6_used_;
++  std::bitset<65536> ipv4_native_;
++  std::bitset<65536> ipv6_native_;
++  size_t pending_bytes_ = 0;
++  SEQUENCE_CHECKER(sequence_checker_);
++};
++
++DocumentLoopbackContext::DocumentLoopbackContext() = default;
++DocumentLoopbackContext::~DocumentLoopbackContext() = default;
++void DocumentLoopbackContext::Invalidate() {
++  alive_.store(false, std::memory_order_release);
++}
++bool DocumentLoopbackContext::IsAlive() const {
++  return alive_.load(std::memory_order_acquire);
++}
++bool DocumentLoopbackContext::IsBoundEndpoint(
++    const webrtc::SocketAddress& address) const {
++  return IsAlive() && state_ && state_->Find(address);
++}
++bool DocumentLoopbackContext::ClaimNativeTcpDestination(
++    const webrtc::SocketAddress& address) {
++  if (!IsAlive())
++    return false;
++  if (!state_)
++    state_ = std::make_unique<State>();
++  return state_->ClaimNativeTcpDestination(address);
++}
++std::unique_ptr<webrtc::AsyncPacketSocket>
++DocumentLoopbackContext::CreateSocket(const webrtc::Environment& env,
++                                      const webrtc::SocketAddress& address,
++                                      uint16_t min_port,
++                                      uint16_t max_port) {
++  if (!IsAlive() || !IsDocumentAddress(address))
++    return nullptr;
++  if (!state_)
++    state_ = std::make_unique<State>();
++  const uint16_t port = state_->Allocate(address.family(), min_port, max_port);
++  if (!port)
++    return nullptr;
++  auto socket = std::make_unique<State::Socket>(
++      base::WrapRefCounted(this), env,
++      webrtc::SocketAddress(address.ipaddr(), port));
++  state_->endpoints_.emplace(std::make_pair(address.family(), port),
++                             socket->GetWeakPtr());
++  return socket;
++}
++
++bool DocumentLoopbackEnabled() {
++  return base::FeatureList::IsEnabled(kDocumentLoopback);
++}
++std::unique_ptr<webrtc::NetworkManager> CreateDocumentLoopbackNetworkManager(
++    scoped_refptr<DocumentLoopbackContext> context) {
++  return std::make_unique<DocumentNetworkManager>(std::move(context));
++}
++std::unique_ptr<webrtc::PacketSocketFactory>
++CreateDocumentLoopbackSocketFactory(
++    scoped_refptr<DocumentLoopbackContext> context,
++    webrtc::PacketSocketFactory* native_factory) {
++  return std::make_unique<DocumentSocketFactory>(std::move(context),
++                                                 native_factory);
++}
++std::unique_ptr<webrtc::AsyncDnsResolverFactoryInterface>
++CreateDocumentLoopbackPeerResolverFactory() {
++  return std::make_unique<DocumentPeerResolverFactory>();
++}
++std::unique_ptr<webrtc::LocalNetworkAccessPermissionFactoryInterface>
++WrapDocumentLoopbackPermissionFactory(
++    scoped_refptr<DocumentLoopbackContext> context,
++    std::unique_ptr<webrtc::LocalNetworkAccessPermissionFactoryInterface>
++        native) {
++  return std::make_unique<DocumentPermissionFactory>(std::move(context),
++                                                     std::move(native));
++}
+ 
+ P2PPortAllocator::P2PPortAllocator(
+     std::unique_ptr<webrtc::NetworkManager> network_manager,
+     webrtc::PacketSocketFactory* socket_factory,
+     const Config& config,
+     std::unique_ptr<webrtc::LocalNetworkAccessPermissionFactoryInterface>
+-        lna_permission_factory)
++        lna_permission_factory,
++    std::unique_ptr<webrtc::PacketSocketFactory> document_socket_factory)
+     : webrtc::BasicPortAllocator(WebRtcEnvironment(),
+                                  network_manager.get(),
+-                                 socket_factory,
++                                 document_socket_factory
++                                     ? document_socket_factory.get()
++                                     : socket_factory,
+                                  /*turn_customizer=*/nullptr,
+                                  /*relay_port_factory=*/nullptr,
+                                  std::move(lna_permission_factory)),
+       network_manager_(std::move(network_manager)),
++      document_socket_factory_(std::move(document_socket_factory)),
+       config_(config) {
+   DCHECK(network_manager_);
+   DCHECK(socket_factory);
+@@ -44,11 +593,33 @@
+              webrtc::PORTALLOCATOR_DISABLE_STUN |
+              webrtc::PORTALLOCATOR_DISABLE_UDP_RELAY;
+   }
++  if (document_socket_factory_) {
++    CHECK(!config_.enable_nonproxied_udp);
++    // The only host datagrams use the document-owned memory factory. Native
++    // STUN, UDP relay and host TCP remain disabled. TURN/TCP is unchanged.
++    flags = webrtc::PORTALLOCATOR_DISABLE_STUN |
++            webrtc::PORTALLOCATOR_DISABLE_UDP_RELAY |
++            webrtc::PORTALLOCATOR_DISABLE_TCP;
++    if (!(candidate_filter() & webrtc::CF_HOST))
++      flags |= webrtc::PORTALLOCATOR_DISABLE_UDP;
++    SubscribeCandidateFilterChanged(
++        &document_socket_factory_, [this](uint32_t, uint32_t filter) {
++          const uint32_t current = this->flags();
++          set_flags(filter & webrtc::CF_HOST
++                        ? current & ~webrtc::PORTALLOCATOR_DISABLE_UDP
++                        : current | webrtc::PORTALLOCATOR_DISABLE_UDP);
++        });
++  }
+   set_flags(flags);
+   set_allow_tcp_listen(false);
+ }
+ 
+-P2PPortAllocator::~P2PPortAllocator() {}
++P2PPortAllocator::~P2PPortAllocator() {
++  if (document_socket_factory_) {
++    UnsubscribeCandidateFilterChanged(&document_socket_factory_);
++    DiscardCandidatePool();
++  }
++}
+ 
+ void P2PPortAllocator::Initialize() {
+   BasicPortAllocator::Initialize();
+diff --git a/third_party/blink/renderer/platform/p2p/port_allocator.h b/third_party/blink/renderer/platform/p2p/port_allocator.h
+--- a/third_party/blink/renderer/platform/p2p/port_allocator.h
++++ b/third_party/blink/renderer/platform/p2p/port_allocator.h
+@@ -5,16 +5,69 @@
+ #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_P2P_PORT_ALLOCATOR_H_
+ #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_P2P_PORT_ALLOCATOR_H_
+ 
++#include <atomic>
+ #include <memory>
+ 
++#include "base/memory/ref_counted.h"
++#include "base/memory/scoped_refptr.h"
+ #include "third_party/blink/renderer/platform/platform_export.h"
+ #include "third_party/webrtc/p2p/client/basic_port_allocator.h"
+ 
+ namespace webrtc {
++class AsyncDnsResolverFactoryInterface;
++class AsyncPacketSocket;
++class PacketSocketFactory;
+ class LocalNetworkAccessPermissionFactoryInterface;
+-}
++}  // namespace webrtc
+ 
+ namespace blink {
++
++// One instance belongs to one ExecutionContext, never a process-global
++// registry. UDP endpoints in this context are memory queues, not OS sockets.
++// Invalidate() is the only cross-thread operation; queued deliveries recheck
++// revocation when the execution context is destroyed.
++class PLATFORM_EXPORT DocumentLoopbackContext
++    : public base::RefCountedThreadSafe<DocumentLoopbackContext> {
++ public:
++  DocumentLoopbackContext();
++  void Invalidate();
++  bool IsAlive() const;
++  bool IsBoundEndpoint(const webrtc::SocketAddress& address) const;
++  // Keep real TCP destinations disjoint from the virtual UDP namespace. A
++  // permission exemption for an internal endpoint must never authorize OS I/O.
++  bool ClaimNativeTcpDestination(const webrtc::SocketAddress& address);
++  std::unique_ptr<webrtc::AsyncPacketSocket> CreateSocket(
++      const webrtc::Environment& env,
++      const webrtc::SocketAddress& address,
++      uint16_t min_port,
++      uint16_t max_port);
++
++ private:
++  friend class base::RefCountedThreadSafe<DocumentLoopbackContext>;
++  ~DocumentLoopbackContext();
++  class State;
++  std::atomic<bool> alive_{true};
++  std::unique_ptr<State> state_;
++};
++
++PLATFORM_EXPORT bool DocumentLoopbackEnabled();
++PLATFORM_EXPORT std::unique_ptr<webrtc::NetworkManager>
++CreateDocumentLoopbackNetworkManager(
++    scoped_refptr<DocumentLoopbackContext> context);
++PLATFORM_EXPORT std::unique_ptr<webrtc::PacketSocketFactory>
++CreateDocumentLoopbackSocketFactory(
++    scoped_refptr<DocumentLoopbackContext> context,
++    webrtc::PacketSocketFactory* native_factory);
++// Peer ICE hostnames must not turn an internal candidate into a DNS/mDNS query.
++// TURN server resolution retains its separate native socket-factory path.
++PLATFORM_EXPORT std::unique_ptr<webrtc::AsyncDnsResolverFactoryInterface>
++CreateDocumentLoopbackPeerResolverFactory();
++PLATFORM_EXPORT
++std::unique_ptr<webrtc::LocalNetworkAccessPermissionFactoryInterface>
++WrapDocumentLoopbackPermissionFactory(
++    scoped_refptr<DocumentLoopbackContext> context,
++    std::unique_ptr<webrtc::LocalNetworkAccessPermissionFactoryInterface>
++        native);
+ 
+ class PLATFORM_EXPORT P2PPortAllocator : public webrtc::BasicPortAllocator {
+  public:
+@@ -42,7 +95,9 @@
+       webrtc::PacketSocketFactory* socket_factory,
+       const Config& config,
+       std::unique_ptr<webrtc::LocalNetworkAccessPermissionFactoryInterface>
+-          lna_permission_factory);
++          lna_permission_factory,
++      std::unique_ptr<webrtc::PacketSocketFactory> document_socket_factory =
++          nullptr);
+   P2PPortAllocator(const P2PPortAllocator&) = delete;
+   P2PPortAllocator& operator=(const P2PPortAllocator&) = delete;
+   ~P2PPortAllocator() override;
+@@ -52,6 +107,7 @@
+ 
+  private:
+   std::unique_ptr<webrtc::NetworkManager> network_manager_;
++  std::unique_ptr<webrtc::PacketSocketFactory> document_socket_factory_;
+   Config config_;
+ };
+ 
+diff --git a/third_party/blink/renderer/platform/peerconnection/fingerprint_ip.h b/third_party/blink/renderer/platform/peerconnection/fingerprint_ip.h
+new file mode 100644
+--- /dev/null
++++ b/third_party/blink/renderer/platform/peerconnection/fingerprint_ip.h
+@@ -0,0 +1,147 @@
++// Copyright 2026.
++#ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_PEERCONNECTION_FINGERPRINT_IP_H_
++#define THIRD_PARTY_BLINK_RENDERER_PLATFORM_PEERCONNECTION_FINGERPRINT_IP_H_
++
++#include <set>
++#include <string>
++#include <string_view>
++#include <utility>
++#include <vector>
++
++#include "base/uxr_config.h"
++#include "net/base/ip_address.h"
++
++namespace blink {
++
++inline std::string FingerprintWebRtcIp() {
++  const auto& config = base::UxrConfig::GetInstance();
++  if (config.Get("uxr-fingerprint-off") == "true")
++    return "";
++  net::IPAddress address;
++  return address.AssignFromIPLiteral(config.Get("uxr-webrtc-ip"))
++             ? address.ToString() : "";
++}
++
++inline std::string RewriteFingerprintAddress(std::string_view value,
++                                            const std::string& replacement) {
++  if (replacement.empty() || value.empty() || value == "0.0.0.0" || value == "::")
++    return std::string(value);
++  net::IPAddress target;
++  if (!target.AssignFromIPLiteral(replacement))
++    return std::string(value);
++  net::IPAddress original;
++  const bool literal = original.AssignFromIPLiteral(value);
++  if (literal && original.IsZero())
++    return std::string(value);
++  // Canonical localhost endpoints are not a machine address. Keep document
++  // memory-transport candidates usable when the launcher masks the public IP;
++  // do not turn them into invented srflx/public routes. Other literals and
++  // mDNS names retain the existing presentation-only replacement policy.
++  if (literal && (original.ToString() == "127.0.0.1" ||
++                  original.ToString() == "::1"))
++    return std::string(value);
++  if (literal || value.ends_with(".local"))
++    return replacement;
++  return std::string(value);
++}
++
++inline std::vector<std::pair<size_t, size_t>> FingerprintCandidateTokens(
++    const std::string& candidate) {
++  if (candidate.size() > 65536 ||
++      !(candidate.starts_with("candidate:") || candidate.starts_with("a=candidate:")))
++    return {};
++  std::vector<std::pair<size_t, size_t>> tokens;
++  for (size_t at = 0; at < candidate.size();) {
++    const size_t start = candidate.find_first_not_of(" \t", at);
++    if (start == std::string::npos) break;
++    const size_t end = candidate.find_first_of(" \t", start);
++    tokens.emplace_back(start, end == std::string::npos ? candidate.size() - start : end - start);
++    if (end == std::string::npos) break;
++    at = end;
++  }
++  const auto value = [&](size_t index) {
++    return std::string_view(candidate).substr(tokens[index].first, tokens[index].second);
++  };
++  if (tokens.size() < 8 || value(6) != "typ" ||
++      (value(7) != "host" && value(7) != "srflx" && value(7) != "prflx" && value(7) != "relay"))
++    return {};
++  return tokens;
++}
++
++// Rewrite presentation copies only: never manufacture ICE candidates or alter
++// libwebrtc's socket/STUN state. TURN allocation addresses are infrastructure,
++// not the host address; preserve them so relay candidates stay usable.
++inline std::string RewriteFingerprintCandidate(
++    const std::string& candidate, const std::string& replacement) {
++  if (replacement.empty()) return candidate;
++  const auto tokens = FingerprintCandidateTokens(candidate);
++  if (tokens.empty()) return candidate;
++  const auto value = [&](size_t index) {
++    return std::string_view(candidate).substr(tokens[index].first, tokens[index].second);
++  };
++  std::vector<size_t> addresses;
++  if (value(7) != "relay") addresses.push_back(4);
++  for (size_t i = 8; i + 1 < tokens.size(); i += 2)
++    if (value(i) == "raddr") addresses.push_back(i + 1);
++  std::string result = candidate;
++  for (auto it = addresses.rbegin(); it != addresses.rend(); ++it) {
++    const auto [start, count] = tokens[*it];
++    result.replace(start, count, RewriteFingerprintAddress(value(*it), replacement));
++  }
++  return result;
++}
++
++inline std::string RewriteFingerprintSdp(
++    const std::string& sdp, const std::string& replacement = FingerprintWebRtcIp()) {
++  if (replacement.empty())
++    return sdp;
++  // A default c= address may be the TURN allocation. Do not rewrite it while
++  // preserving the corresponding relay candidate (including expanded IPv6).
++  std::set<std::string> relay_addresses;
++  for (size_t start = 0; start < sdp.size();) {
++    const size_t lf = sdp.find('\n', start);
++    const size_t end = lf == std::string::npos ? sdp.size() : lf;
++    std::string line = sdp.substr(start, end - start);
++    if (!line.empty() && line.back() == '\r') line.pop_back();
++    const auto tokens = FingerprintCandidateTokens(line);
++    if (!tokens.empty()) {
++      const auto value = [&](size_t index) {
++        return std::string_view(line).substr(tokens[index].first, tokens[index].second);
++      };
++      net::IPAddress address;
++      if (value(7) == "relay" && address.AssignFromIPLiteral(value(4)))
++        relay_addresses.insert(address.ToString());
++    }
++    if (lf == std::string::npos) break;
++    start = lf + 1;
++  }
++  std::string result;
++  result.reserve(sdp.size());
++  for (size_t start = 0; start < sdp.size();) {
++    const size_t lf = sdp.find('\n', start);
++    const size_t end = lf == std::string::npos ? sdp.size() : lf;
++    const bool cr = end > start && sdp[end - 1] == '\r';
++    std::string line = sdp.substr(start, end - start - (cr ? 1 : 0));
++    if (line.starts_with("a=candidate:")) {
++      line = RewriteFingerprintCandidate(line, replacement);
++    } else if (line.starts_with("c=IN IP4 ") || line.starts_with("c=IN IP6 ")) {
++      net::IPAddress original;
++      const bool relay = original.AssignFromIPLiteral(line.substr(9)) &&
++          relay_addresses.contains(original.ToString());
++      const std::string address = relay ? line.substr(9) :
++          RewriteFingerprintAddress(line.substr(9), replacement);
++      if (address != line.substr(9))
++        line = std::string(replacement.find(':') == std::string::npos ? "c=IN IP4 " : "c=IN IP6 ") + address;
++    }
++    result += line;
++    if (cr) result += '\r';
++    if (lf != std::string::npos) result += '\n';
++    if (lf == std::string::npos) break;
++    start = lf + 1;
++  }
++  return result;
++}
++
++}  // namespace blink
++
++#endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_PEERCONNECTION_FINGERPRINT_IP_H_
+diff --git a/third_party/blink/renderer/platform/peerconnection/rtc_ice_candidate_platform.cc b/third_party/blink/renderer/platform/peerconnection/rtc_ice_candidate_platform.cc
+--- a/third_party/blink/renderer/platform/peerconnection/rtc_ice_candidate_platform.cc
++++ b/third_party/blink/renderer/platform/peerconnection/rtc_ice_candidate_platform.cc
+@@ -95,7 +95,7 @@
+     related_port_ = c.related_address().port();
+   }
+   // url_ is set only when the candidate was gathered locally.
+-  if (type_ == "relay" && priority_ && !url_.IsNull()) {
++  if (type_ == "relay" && priority_ && !url_.empty()) {
+     relay_protocol_ = PriorityToRelayProtocol(*priority_);
+   }
+ }
+diff --git a/third_party/blink/renderer/platform/peerconnection/video_codec_factory.cc b/third_party/blink/renderer/platform/peerconnection/video_codec_factory.cc
+--- a/third_party/blink/renderer/platform/peerconnection/video_codec_factory.cc
++++ b/third_party/blink/renderer/platform/peerconnection/video_codec_factory.cc
+@@ -3,6 +3,8 @@
+ // found in the LICENSE file.
+ 
+ #include "third_party/blink/renderer/platform/peerconnection/video_codec_factory.h"
++
++#include <algorithm>
+ 
+ #include <memory>
+ #include <optional>
+@@ -15,6 +17,7 @@
+ #include "base/memory/scoped_refptr.h"
+ #include "base/strings/string_util.h"
+ #include "build/build_config.h"
++#include "media/base/supported_types.h"
+ #include "media/mojo/clients/mojo_video_encoder_metrics_provider.h"
+ #include "media/video/gpu_video_accelerator_factories.h"
+ #include "third_party/blink/public/platform/platform.h"
+@@ -47,6 +50,20 @@
+ 
+ namespace {
+ 
++bool UxrRtcFormatAllowed(const webrtc::SdpVideoFormat& format) {
++  const auto profile = WebRTCFormatToCodecProfile(format);
++  return !profile || media::IsUxrVideoCodecAllowed(
++                         media::VideoCodecProfileToVideoCodec(*profile));
++}
++
++std::vector<webrtc::SdpVideoFormat> FilterUxrRtcFormats(
++    std::vector<webrtc::SdpVideoFormat> formats) {
++  std::erase_if(formats, [](const webrtc::SdpVideoFormat& format) {
++    return !UxrRtcFormatAllowed(format);
++  });
++  return formats;
++}
++
+ template <typename Factory>
+ bool IsFormatSupported(const Factory* factory,
+                        const webrtc::SdpVideoFormat& format) {
+@@ -112,6 +129,8 @@
+   std::unique_ptr<webrtc::VideoEncoder> Create(
+       const webrtc::Environment& env,
+       const webrtc::SdpVideoFormat& format) override {
++    if (!UxrRtcFormatAllowed(format))
++      return nullptr;
+     if (!WebRTCFormatToCodecProfile(format)) {
+       LOG(ERROR) << "Unsupported SDP format: " << format.name;
+       return nullptr;
+@@ -158,16 +177,18 @@
+   std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const override {
+     std::vector<webrtc::SdpVideoFormat> software_formats =
+         software_encoder_factory_.GetSupportedFormats();
+-    return hardware_encoder_factory_
++    return FilterUxrRtcFormats(hardware_encoder_factory_
+                ? MergeFormats(software_formats,
+                               hardware_encoder_factory_->GetSupportedFormats())
+-               : software_formats;
++               : software_formats);
+   }
+ 
+   webrtc::VideoEncoderFactory::CodecSupport QueryCodecSupport(
+       const webrtc::SdpVideoFormat& format,
+       std::optional<std::string> scalability_mode,
+       std::optional<webrtc::Resolution> resolution) const override {
++    if (!UxrRtcFormatAllowed(format))
++      return {};
+     webrtc::VideoEncoderFactory::CodecSupport codec_support =
+         hardware_encoder_factory_
+             ? hardware_encoder_factory_->QueryCodecSupport(
+@@ -199,6 +220,8 @@
+   std::unique_ptr<webrtc::VideoDecoder> Create(
+       const webrtc::Environment& env,
+       const webrtc::SdpVideoFormat& format) override {
++    if (!UxrRtcFormatAllowed(format))
++      return nullptr;
+     std::unique_ptr<webrtc::VideoDecoder> software_decoder =
+         CreateDecoder(&software_decoder_factory_, env, format);
+ 
+@@ -217,16 +240,18 @@
+   std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const override {
+     std::vector<webrtc::SdpVideoFormat> software_formats =
+         software_decoder_factory_.GetSupportedFormats();
+-    return hardware_decoder_factory_
++    return FilterUxrRtcFormats(hardware_decoder_factory_
+                ? MergeFormats(software_formats,
+                               hardware_decoder_factory_->GetSupportedFormats())
+-               : software_formats;
++               : software_formats);
+   }
+ 
+   webrtc::VideoDecoderFactory::CodecSupport QueryCodecSupport(
+       const webrtc::SdpVideoFormat& format,
+       bool reference_scaling,
+       std::optional<webrtc::Resolution> resolution) const override {
++    if (!UxrRtcFormatAllowed(format))
++      return {};
+     webrtc::VideoDecoderFactory::CodecSupport codec_support =
+         hardware_decoder_factory_
+             ? hardware_decoder_factory_->QueryCodecSupport(
+diff --git a/third_party/webrtc/p2p/base/port.cc b/third_party/webrtc/p2p/base/port.cc
+--- a/third_party/webrtc/p2p/base/port.cc
++++ b/third_party/webrtc/p2p/base/port.cc
+@@ -222,6 +222,11 @@
+     return nullptr;
+ }
+ 
++bool Port::IsValidStunMappedAddress(const SocketAddress& address) {
++  return (address.family() == AF_INET || address.family() == AF_INET6) &&
++         !address.IsUnresolvedIP() && !address.IsAnyIP() && address.port() > 0;
++}
++
+ void Port::AddAddress(const SocketAddress& address,
+                       const SocketAddress& base_address,
+                       const SocketAddress& related_address,
+diff --git a/third_party/webrtc/p2p/base/port.h b/third_party/webrtc/p2p/base/port.h
+--- a/third_party/webrtc/p2p/base/port.h
++++ b/third_party/webrtc/p2p/base/port.h
+@@ -434,6 +434,9 @@
+       absl::AnyInvocable<void(const SentPacketInfo&)> callback) override;
+   void NotifySentPacket(const SentPacketInfo& packet) override;
+ 
++  // A STUN mapping may have a different family when the path uses NAT64.
++  static bool IsValidStunMappedAddress(const SocketAddress& address);
++
+  protected:
+   void UpdateNetworkCost() override;
+ 
+diff --git a/third_party/webrtc/p2p/base/stun_port.cc b/third_party/webrtc/p2p/base/stun_port.cc
+--- a/third_party/webrtc/p2p/base/stun_port.cc
++++ b/third_party/webrtc/p2p/base/stun_port.cc
+@@ -79,11 +79,19 @@
+   void OnResponse(StunMessage* response) override {
+     const StunAddressAttribute* addr_attr =
+         response->GetAddress(STUN_ATTR_MAPPED_ADDRESS);
+-    if (!addr_attr) {
+-      RTC_LOG(LS_ERROR) << "Binding response missing mapped address.";
+-    } else if (addr_attr->family() != STUN_ADDRESS_IPV4 &&
+-               addr_attr->family() != STUN_ADDRESS_IPV6) {
+-      RTC_LOG(LS_ERROR) << "Binding address has bad family";
++    if (!addr_attr ||
++        (addr_attr->family() != STUN_ADDRESS_IPV4 &&
++         addr_attr->family() != STUN_ADDRESS_IPV6) ||
++        !Port::IsValidStunMappedAddress(
++            SocketAddress(addr_attr->ipaddr(), addr_attr->port()))) {
++      port_->OnStunBindingOrResolveRequestFailed(
++          server_addr_, STUN_ERROR_GLOBAL_FAILURE,
++          "STUN binding response has no usable mapped address.");
++      if (port_->bind_request_succeeded_servers_.find(server_addr_) ==
++          port_->bind_request_succeeded_servers_.end()) {
++        return;
++      }
++      // Preserve the native keepalive chain for an established allocation.
+     } else {
+       SocketAddress addr(addr_attr->ipaddr(), addr_attr->port());
+       port_->OnStunBindingRequestSucceeded(this->Elapsed(), server_addr_, addr);
+@@ -577,6 +585,8 @@
+       bind_request_succeeded_servers_.end()) {
+     return;
+   }
++  // A late success replaces the failure; count each server only once.
++  bind_request_failed_servers_.erase(stun_server_addr);
+   bind_request_succeeded_servers_.insert(stun_server_addr);
+   // If socket is shared and `stun_reflected_addr` is equal to local socket
+   // address and mDNS obfuscation is not enabled, or if the same address has
+@@ -612,8 +622,11 @@
+         GetLocalAddress().HostAsSensitiveURIString(), GetLocalAddress().port(),
+         url.str(), error_code, reason));
+   }
++  // Keepalive failures do not undo a successful allocation.
+   if (bind_request_failed_servers_.find(stun_server_addr) !=
+-      bind_request_failed_servers_.end()) {
++          bind_request_failed_servers_.end() ||
++      bind_request_succeeded_servers_.find(stun_server_addr) !=
++          bind_request_succeeded_servers_.end()) {
+     return;
+   }
+   bind_request_failed_servers_.insert(stun_server_addr);

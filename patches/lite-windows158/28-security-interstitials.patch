@@ -1,0 +1,11 @@
+diff --git a/components/security_interstitials/content/mitm_software_blocking_page.cc b/components/security_interstitials/content/mitm_software_blocking_page.cc
+--- a/components/security_interstitials/content/mitm_software_blocking_page.cc
++++ b/components/security_interstitials/content/mitm_software_blocking_page.cc
+@@ -22,7 +22,6 @@
+ using content::NavigationController;
+ using content::NavigationEntry;
+ 
+-namespace {}  // namespace
+ 
+ // static
+ const security_interstitials::SecurityInterstitialPage::TypeID

@@ -1,4 +1,4 @@
-name: ShardX Lite Windows 157
+name: ShardX Lite Windows 158
 on:
   workflow_call:
     secrets:
@@ -24,12 +24,12 @@ on:
     inputs:
       operation:
         type: choice
-        options: [fresh, resume, upstream, upgrade]
+        options: [fresh, resume]
         default: fresh
       source_run:
         type: string
         default: ''
-        description: 'Only a completed security-win157 checkpoint run; never a Windows 155 donor'
+        description: 'Only a completed security-win158 checkpoint run; never a Windows 155 donor'
       source_stage:
         type: string
         default: '0'
@@ -46,22 +46,22 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: security-win157-${{ github.ref }}
+  group: security-win158-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   stage1:
-    uses: ./.github/workflows/security-win157-worker.yml
+    uses: ./.github/workflows/security-win158-worker.yml
     secrets: inherit
     with:
       stage: 1
-      operation: ${{ inputs.operation || 'upstream' }}
+      operation: ${{ inputs.operation || 'fresh' }}
       source_run: ${{ inputs.source_run || '' }}
       source_stage: ${{ fromJSON(inputs.source_stage || '0') }}
       retain_checkpoint: ${{ github.event_name == 'push' || inputs.retain_checkpoint }}
   stage2:
     needs: stage1
     if: ${{ always() && !cancelled() && needs.stage1.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 2 }}
-    uses: ./.github/workflows/security-win157-worker.yml
+    uses: ./.github/workflows/security-win158-worker.yml
     secrets: inherit
     with:
       stage: 2
@@ -71,7 +71,7 @@ jobs:
   stage3:
     needs: stage2
     if: ${{ always() && !cancelled() && needs.stage2.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 3 }}
-    uses: ./.github/workflows/security-win157-worker.yml
+    uses: ./.github/workflows/security-win158-worker.yml
     secrets: inherit
     with:
       stage: 3
@@ -81,7 +81,7 @@ jobs:
   stage4:
     needs: stage3
     if: ${{ always() && !cancelled() && needs.stage3.outputs.resume_needed == 'true' && fromJSON(inputs.max_stages || '4') >= 4 }}
-    uses: ./.github/workflows/security-win157-worker.yml
+    uses: ./.github/workflows/security-win158-worker.yml
     secrets: inherit
     with:
       stage: 4
@@ -98,6 +98,6 @@ jobs:
           DELIVERED: ${{ needs.stage1.outputs.finished == 'true' || needs.stage2.outputs.finished == 'true' || needs.stage3.outputs.finished == 'true' || needs.stage4.outputs.finished == 'true' }}
         run: |
           if [ "$DELIVERED" != true ]; then
-            echo "No accepted candidate delivered. Inspect the preserved Windows 157 checkpoint and failure evidence."
+            echo "No accepted candidate delivered. Inspect the preserved Windows 158 checkpoint and failure evidence."
             exit 1
           fi

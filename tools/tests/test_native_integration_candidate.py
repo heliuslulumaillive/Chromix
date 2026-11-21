@@ -46,7 +46,7 @@ def prepare_fixture_build_record(root, bundle):
     path = bundle / 'google-services-build.json'
     build = json.loads(path.read_text()) if path.exists() else {
         'schema_version': 1, 'build_variant': candidate.SECURITY_VARIANT,
-        'chromium_version': '157.0.8103.78', 'source_commit': 'a' * 40,
+        'chromium_version': '158.0.8127.36', 'source_commit': 'a' * 40,
         'run_id': 50, 'preparation_sha256': 'b' * 64, 'gn_args_sha256': 'c' * 64,
     }
     # A tiny opaque identity fixture, never a real compiled test binary.

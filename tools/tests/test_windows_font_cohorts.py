@@ -29,7 +29,7 @@ class WindowsFontCohortTests(unittest.TestCase):
             self.assertIsNone(rows[name]['after_sha256'])
 
     def test_existing_surface_expectations_remain_frozen(self):
-        patch = ROOT / 'patches/lite-windows157/19-shared-policy.patch'
+        patch = ROOT / 'patches/lite-windows158/19-shared-policy.patch'
         section = next(data for name, created, data in sections(patch.read_text(encoding='utf-8'))
                        if name == 'base/uxr_surface_golden_tests.cc' and created)
         source = ''.join(line[1:] for line in section.splitlines(keepends=True)
@@ -37,7 +37,7 @@ class WindowsFontCohortTests(unittest.TestCase):
         self.build_and_run('surface-goldens-with-windows-cohorts', source + '\nint main(){return RunSurfaceGoldenTests();}\n')
 
     def test_native_fallback_and_signed_sources_have_distinct_entry_points(self):
-        patch = (ROOT / 'patches/lite-windows157/13-fonts.patch').read_text(encoding='utf-8')
+        patch = (ROOT / 'patches/lite-windows158/13-fonts.patch').read_text(encoding='utf-8')
         for fragment in ('GetPrivateFontCollection', 'LoadCountryCatalog(catalog, group, &selection)',
                          'VerifyCatalogAssets(', 'CreateControlledCollection(', 'selection->face_index.get()'):
             self.assertIn(fragment, patch)

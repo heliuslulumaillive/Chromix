@@ -53,18 +53,16 @@ def verify(src, repo, *, core=None, tooling=None, platform=None, profile="legacy
         raise ValueError('Product source preparation is still in progress')
     if profile == 'lite' and final_receipt.is_file():
         saved = json.loads(final_receipt.read_text('utf-8-sig'))
-        if saved.get('patch_kind') == 'lite-windows157-product':
+        if saved.get('patch_kind') == 'lite-windows158-product':
             try:
                 from .lite_patch_stack import load, select as select_product, verify_source
-                from .prepare_google_services import pinned_inverse_rules
             except ImportError:
                 from lite_patch_stack import load, select as select_product, verify_source
-                from prepare_google_services import pinned_inverse_rules
             product = load(repo)
             if saved.get('patch_sha256') != product['stack_sha256'] or core is None or platform != 'windows':
                 raise ValueError('Final product receipt does not match the selected patch stack')
             select_product(repo, src=src, core=core)
-            checked = verify_source(repo, src, inverse_rules=pinned_inverse_rules(core / 'domain_regex.list'))
+            checked = verify_source(repo, src)
             return {'schema_version': 2, 'status': 'verified', 'method': 'exact-final-product-files',
                     'patch_count': len(product['patches']), 'source_files': len(checked),
                     'qualification': 'reviewed product file bytes; upstream provenance is checked separately'}

@@ -16,7 +16,7 @@ class CanvasInputMaskTests(unittest.TestCase):
                'base/uxr_pixel_noise.h','base/uxr_surface_modes.h',
                'base/uxr_graphics_mode_goldens.cc','base/uxr_pixel_semantic_properties.h',
                'base/uxr_mask_first_equivalence.h','base/uxr_mask_first_reference.h'}
-        for patch in (ROOT/'patches/lite-windows157').glob('*.patch'):
+        for patch in (ROOT/'patches/lite-windows158').glob('*.patch'):
             for name,created,data in sections(patch.read_text(encoding='utf-8')):
                 if name not in names and not (name.startswith('base/uxr_') and name.endswith('.h')):continue
                 if not created:raise AssertionError('Expected complete generated helper '+name)
@@ -59,11 +59,12 @@ class CanvasInputMaskTests(unittest.TestCase):
 
     def test_bulk_mask_ranges_match_individual_pixel_updates(self):
         from tools.tests.test_pixel_semantic_preservation import callsite_excerpt
-        manifest=json.loads((ROOT/'build/lite-windows157.json').read_text())
-        entry=next(row for row in manifest['source_files'] if row['path'].endswith('/graphics/image_data_buffer.cc'))
-        source=(ROOT/'build/checkpoint-sources'/(entry['after_sha256']+'.cc')).read_bytes()
-        self.assertEqual(hashlib.sha256(source).hexdigest(),entry['after_sha256'])
-        helpers='\n'.join(callsite_excerpt(source.decode(),name) for name in ('uint64_t UxrInputColumnBits(', 'void UxrSetInputMaskRange('))
+        from tools.lite_patch_stack import load
+        path='third_party/blink/renderer/platform/graphics/image_data_buffer.cc'
+        entry=next(row for row in load(ROOT)['patches'] if path in row['files'])
+        section=next(s for name,_,s in sections((ROOT/entry['path']).read_text('utf-8')) if name==path)
+        source='\n'.join(line[1:] for line in section.splitlines() if line.startswith((' ', '+')) and not line.startswith('+++'))
+        helpers='\n'.join(callsite_excerpt(source,name) for name in ('uint64_t UxrInputColumnBits(', 'void UxrSetInputMaskRange('))
         self.build_and_run('ranges',r'''
 #include "base/containers/span.h"
 #include <algorithm>

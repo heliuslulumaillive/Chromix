@@ -29,13 +29,13 @@ from tools import verify_webrtc_document_loopback_runtime as document_loopback
 
 def product_receipt():
     inputs = lite_patch_stack.input_hashes(ROOT)
-    return {'variant': 'google-services-self-use', 'build_variant': FP157, 'chromium_version': V157,
+    return {'variant': 'google-services-self-use', 'build_variant': FP158, 'chromium_version': V158,
             'patch_kind': lite_patch_stack.KIND, 'patch_sha256': lite_patch_stack.load(ROOT)['stack_sha256'],
             'preparation_sha256': hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest(),
             'preparation_inputs': inputs}
 
-FP157 = 'fingerprint-modes-win157'
-V157 = '157.0.8103.78'
+FP158 = 'fingerprint-modes-win158'
+V158 = '158.0.8127.36'
 
 
 def native_report():
@@ -47,21 +47,21 @@ def write_security_evidence(root, bundle):
     source_path=bundle/'google-services-source.json'
     if not source_path.exists():
         source_path.write_text(json.dumps({'variant':'google-services-self-use',
-            'build_variant':FP157,'chromium_version':V157}))
+            'build_variant':FP158,'chromium_version':V158}))
     build_path=bundle/'google-services-build.json'
     build=json.loads(build_path.read_text()) if build_path.exists() else {
-        'build_variant':FP157,'chromium_version':V157,'source_commit':'a'*40,'run_id':50}
+        'build_variant':FP158,'chromium_version':V158,'source_commit':'a'*40,'run_id':50}
     content='\n'.join(f'{key} = {value}' for key,value in security_build_record.REQUIRED_FLAGS.items())+'\n'
     gn_sha=hashlib.sha256(content.encode()).hexdigest()
-    source={'schema_version':1,'build_variant':'security-win157','payload_build_variant':FP157,
-        'chromium_version':V157,'core_commit':security_build_record.CORE,'windows_commit':security_build_record.WINDOWS,
+    source={'schema_version':1,'build_variant':'security-win158','payload_build_variant':FP158,
+        'chromium_version':V158,'core_commit':security_build_record.CORE,'windows_commit':security_build_record.WINDOWS,
         'source_commit':build['source_commit'],'run_id':str(build['run_id']),
         'recipe_sha256':security_build_record.recipe(ROOT),'source_receipt_sha256':candidate.sha256(source_path),
         'gn':{'sha256':gn_sha,'bytes':len(content.encode()),'content':content,
               'assignments':dict(security_build_record.REQUIRED_FLAGS)}}
     source_record=root/'build-inputs.json';source_record.write_text(json.dumps(source))
     build['gn_args_sha256']=gn_sha;build_path.write_text(json.dumps(build))
-    report={'schema_version':verify_security_runtime.REPORT_SCHEMA,'status':'passed','browser_version':'Chrome/'+V157,
+    report={'schema_version':verify_security_runtime.REPORT_SCHEMA,'status':'passed','browser_version':'Chrome/'+V158,
         'security_preferences_changed':False,'trust_store_changed':False,
         'checks':[{'name':name,'passed':True} for name in sorted(verify_security_runtime.REQUIRED_CHECKS)],
         'binding':{'browser_sha256':candidate.sha256(bundle/'chrome.exe'),'chrome_dll_sha256':candidate.sha256(bundle/'chrome.dll'),
@@ -97,21 +97,21 @@ class SecurityCandidateTests(unittest.TestCase):
 
     def test_version_map_is_closed_and_artifact_names_are_variant_bound(self):
         source = {'repository':'fixture/repo','run_id':1,'artifact_id':2,'head_sha':'a'*40,
-                  'artifact_name':'security-win157-x64'}
-        candidate.validate_source_run(source,build_variant=FP157)
+                  'artifact_name':'security-win158-x64'}
+        candidate.validate_source_run(source,build_variant=FP158)
         for variant in ['google-services','fingerprint-modes-win155','unknown']:
             with self.subTest(variant=variant),self.assertRaises(ValueError):
                 candidate.validate_source_run(source,build_variant=variant)
-        with self.assertRaises(ValueError):candidate.variant_version('fingerprint-modes-win158')
-        self.assertEqual(candidate.variant_version(FP157),V157)
+        with self.assertRaises(ValueError):candidate.variant_version('fingerprint-modes-win157')
+        self.assertEqual(candidate.variant_version(FP158),V158)
 
     def test_writer_accepts_only_exact_pairs(self):
-        for variant,version in [(None,'155.0.8059.39'),('fingerprint-modes-win155','155.0.8059.39'),(FP157,V157)]:
+        for variant,version in [(None,'155.0.8059.39'),('fingerprint-modes-win155','155.0.8059.39'),(FP158,V158)]:
             source={'variant':'google-services-self-use','chromium_version':version}
             if variant:source['build_variant']=variant
             writer.validate_source_pair(source)
-        for variant,version in [(None,V157),('fingerprint-modes-win155',V157),(FP157,'155.0.8059.39'),
-                                (FP157,'156.0.8078.73'),('fingerprint-modes-win158',V157)]:
+        for variant,version in [(None,V158),('fingerprint-modes-win155',V158),(FP158,'155.0.8059.39'),
+                                (FP158,'156.0.8078.73'),('fingerprint-modes-win157',V158)]:
             source={'variant':'google-services-self-use','chromium_version':version}
             if variant:source['build_variant']=variant
             with self.subTest(source=source),self.assertRaises(ValueError):writer.validate_source_pair(source)
@@ -120,9 +120,9 @@ class SecurityCandidateTests(unittest.TestCase):
                 writer.validate_source_pair({'variant':'google-services-self-use',
                     'chromium_version':'155.0.8059.39','build_variant':invalid})
 
-    def test_writer_cli_preserves_157_identity_and_immutable_inventory(self):
+    def test_writer_cli_preserves_158_identity_and_immutable_inventory(self):
         work=self.root/'work';work.mkdir()
-        source={'variant':'google-services-self-use','build_variant':FP157,'chromium_version':V157,
+        source={'variant':'google-services-self-use','build_variant':FP158,'chromium_version':V158,
                 'patch_sha256':'a'*64,'preparation_sha256':'b'*64}
         (work/'google-services-source.json').write_text(json.dumps(source))
         args=self.root/'args.gn';args.write_text('is_debug = false\n')
@@ -133,12 +133,12 @@ class SecurityCandidateTests(unittest.TestCase):
         result=subprocess.run(command,env=env,capture_output=True,text=True,timeout=20)
         self.assertEqual(result.returncode,0,result.stderr)
         receipt=json.loads((self.bundle/'google-services-build.json').read_text())
-        self.assertEqual((receipt['build_variant'],receipt['chromium_version']),(FP157,V157))
+        self.assertEqual((receipt['build_variant'],receipt['chromium_version']),(FP158,V158))
         self.assertEqual(receipt['files']['chrome.exe'],candidate.sha256(self.bundle/'chrome.exe'))
 
     def test_candidate_upload_has_one_flat_dist_root(self):
         import yaml
-        worker=yaml.safe_load((ROOT/'.github/workflows/security-win157-worker.yml').read_text())
+        worker=yaml.safe_load((ROOT/'.github/workflows/security-win158-worker.yml').read_text())
         step=next(s for s in worker['jobs']['build']['steps'] if s.get('id')=='candidate')
         paths=step['with']['path'].splitlines()
         self.assertTrue(paths)
@@ -146,11 +146,11 @@ class SecurityCandidateTests(unittest.TestCase):
         self.assertIn('C:/c/dist/*.json',paths)
 
     def test_fingerprint_receipts_are_valid_for_only_the_declared_variant_and_version(self):
-        for variant in ['fingerprint-modes-win155',FP157]:
+        for variant in ['fingerprint-modes-win155',FP158]:
             with self.subTest(variant=variant):
                 report=write_fingerprint_evidence(self.root,self.bundle,build_variant=variant)
                 candidate.validate_fingerprint_tests(report,self.bundle,build_variant=variant)
-                wrong=FP157 if variant=='fingerprint-modes-win155' else 'fingerprint-modes-win155'
+                wrong=FP158 if variant=='fingerprint-modes-win155' else 'fingerprint-modes-win155'
                 with self.assertRaisesRegex(ValueError,'capabilities'):
                     candidate.validate_fingerprint_tests(report,self.bundle,build_variant=wrong)
         caps=json.loads((self.root/'fingerprint-modes-capabilities.json').read_text())
@@ -159,13 +159,13 @@ class SecurityCandidateTests(unittest.TestCase):
         (self.bundle/'fingerprint-modes-capabilities.json').write_text(json.dumps(caps))
         rebind_fingerprint_fixture(self.root)
         with self.assertRaisesRegex(ValueError,'capabilities'):
-            candidate.validate_fingerprint_tests(report,self.bundle,build_variant=FP157)
+            candidate.validate_fingerprint_tests(report,self.bundle,build_variant=FP158)
 
     def test_native_and_fingerprint_cli_modes_execute_separately(self):
         native=self.root/'native.json';native.write_text(json.dumps(native_report()))
-        report=write_fingerprint_evidence(self.root,self.bundle,build_variant=FP157)
+        report=write_fingerprint_evidence(self.root,self.bundle,build_variant=FP158)
         command=[sys.executable,'-B','-X','utf8',str(ROOT/'tools/verify_google_services_candidate.py'),
-                 '--build-variant',FP157]
+                 '--build-variant',FP158]
         for args in [['--native-tests-json',str(native)],
                      ['--fingerprint-tests-json',str(report),'--bundle',str(self.bundle)]]:
             result=subprocess.run(command+args,capture_output=True,text=True,encoding='utf-8',timeout=30)
@@ -175,29 +175,29 @@ class SecurityCandidateTests(unittest.TestCase):
         self.assertNotEqual(joint.returncode,0)
         self.assertIn('not allowed with argument',joint.stderr)
 
-    def test_157_source_recipe_binds_security_inputs_and_rejects_wrong_pair(self):
+    def test_158_source_recipe_binds_security_inputs_and_rejects_wrong_pair(self):
         receipt=product_receipt()
-        candidate.validate_source_recipe(receipt,copy.deepcopy(receipt),build_variant=FP157)
+        candidate.validate_source_recipe(receipt,copy.deepcopy(receipt),build_variant=FP158)
         for key,value in [('chromium_version','155.0.8059.39'),('build_variant','fingerprint-modes-win155'),
                           ('preparation_sha256','0'*64)]:
             changed=copy.deepcopy(receipt);changed[key]=value
             with self.subTest(key=key),self.assertRaises(ValueError):
-                candidate.validate_source_recipe(changed,copy.deepcopy(changed),build_variant=FP157)
+                candidate.validate_source_recipe(changed,copy.deepcopy(changed),build_variant=FP158)
         for name in ['build/args.security.gn','tools/restored_source_resources.py']:
             changed=copy.deepcopy(receipt);changed['preparation_inputs'].pop(name)
             with self.subTest(name=name),self.assertRaises(ValueError):
-                candidate.validate_source_recipe(changed,copy.deepcopy(changed),build_variant=FP157)
+                candidate.validate_source_recipe(changed,copy.deepcopy(changed),build_variant=FP158)
 
-    def test_complete_157_artifact_uses_exact_runtime_version_and_keeps_native_coverage(self):
+    def test_complete_158_artifact_uses_exact_runtime_version_and_keeps_native_coverage(self):
         receipt=product_receipt()
         digest=receipt['preparation_sha256']
         for path in [self.root/'google-services-source.json',self.bundle/'google-services-source.json']:
             path.write_text(json.dumps(receipt))
-        write_fingerprint_evidence(self.root,self.bundle,build_variant=FP157)
+        write_fingerprint_evidence(self.root,self.bundle,build_variant=FP158)
         (self.root/'native-passkey-unittests.json').write_text(json.dumps(native_report()))
         archive=self.root/'chromix-win-x64.zip';archive.write_bytes(b'synthetic archive; extraction is mocked')
-        source={'repository':'fixture/repo','head_sha':'a'*40,'run_id':50,'artifact_id':51,'artifact_name':'security-win157-x64'}
-        build={'build_variant':FP157,'chromium_version':V157,'repository':source['repository'],
+        source={'repository':'fixture/repo','head_sha':'a'*40,'run_id':50,'artifact_id':51,'artifact_name':'security-win158-x64'}
+        build={'build_variant':FP158,'chromium_version':V158,'repository':source['repository'],
             'patch_kind':lite_patch_stack.KIND,
             'source_commit':source['head_sha'],'run_id':50,'patch_sha256':receipt['patch_sha256'],
             'preparation_sha256':digest,'files':candidate.inventory(self.bundle)}
@@ -221,19 +221,19 @@ class SecurityCandidateTests(unittest.TestCase):
         with mock.patch.object(candidate,'extract_archive',return_value=bundle_report),\
              mock.patch.object(candidate,'runtime_smoke',return_value={}) as smoke,\
              mock.patch.object(candidate,'run_command',side_effect=runtime), chdir(self.root.parent):
-            result={};candidate.verify_candidate(Path(self.root.name),source,Path(self.root.name)/'reports',result,build_variant=FP157)
+            result={};candidate.verify_candidate(Path(self.root.name),source,Path(self.root.name)/'reports',result,build_variant=FP158)
             self.assertEqual(result['status'],'passed')
-            self.assertEqual(smoke.call_args.args[1],V157)
+            self.assertEqual(smoke.call_args.args[1],V158)
             self.assertEqual(set(result['native_passkey_regression_tests']),compiled.REQUIRED_TESTS['passkey'])
             self.assertEqual(result['security_runtime']['status'],'passed')
             self.assertEqual(result['native_integration']['status'],'passed')
             security_bytes=security_path.read_bytes();security_path.unlink()
             with self.assertRaisesRegex(ValueError,'Mandatory'):
-                candidate.verify_candidate(self.root,source,reports,{},build_variant=FP157)
+                candidate.verify_candidate(self.root,source,reports,{},build_variant=FP158)
             security_path.write_bytes(security_bytes)
             build['chromium_version']='155.0.8059.39';build_path.write_text(json.dumps(build))
             with self.assertRaisesRegex(ValueError,'build receipt'):
-                candidate.verify_candidate(self.root,source,reports,{},build_variant=FP157)
+                candidate.verify_candidate(self.root,source,reports,{},build_variant=FP158)
 
     def test_security_report_requires_unique_complete_strict_boolean_checks(self):
         path,record,valid=write_security_evidence(self.root,self.bundle)
@@ -284,11 +284,11 @@ class SecurityCandidateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'packaged source/build'):
             candidate.validate_security_runtime(path,record,self.bundle)
 
-    def test_security_cli_is_157_only_and_stage_gate_precedes_archive(self):
+    def test_security_cli_is_158_only_and_stage_gate_precedes_archive(self):
         path,record,_=write_security_evidence(self.root,self.bundle)
         command=[sys.executable,'-B','-X','utf8',str(ROOT/'tools/verify_google_services_candidate.py'),
                  '--security-tests-json',str(path),'--source-record',str(record),'--bundle',str(self.bundle)]
-        result=subprocess.run(command+['--build-variant',FP157],capture_output=True,text=True,encoding='utf-8',timeout=30)
+        result=subprocess.run(command+['--build-variant',FP158],capture_output=True,text=True,encoding='utf-8',timeout=30)
         self.assertEqual(result.returncode,0,result.stderr)
         wrong=subprocess.run(command+['--build-variant','fingerprint-modes-win155'],capture_output=True,text=True,encoding='utf-8',timeout=30)
         self.assertNotEqual(wrong.returncode,0)

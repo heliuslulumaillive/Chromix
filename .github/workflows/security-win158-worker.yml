@@ -1,4 +1,4 @@
-name: Security Windows 157 worker
+name: Security Windows 158 worker
 on:
   workflow_call:
     secrets:
@@ -101,12 +101,12 @@ jobs:
       - name: Verify document transport acceptance rejects incomplete evidence
         shell: pwsh
         run: python -B -X utf8 -m unittest tools.tests.test_webrtc_document_loopback_acceptance
-      - name: Verify the compact product recipe and upgrade rules
+      - name: Verify the native Chromium policy and same-recipe resume
         shell: pwsh
-        run: python -B -X utf8 -m unittest tools.tests.test_lite_product tools.tests.test_lite_product_migration tools.tests.test_lite_patch_lint tools.tests.test_lite_retirement.RecipeTests tools.tests.test_restoration_rules tools.tests.test_kernel_upgrade_plan tools.tests.test_lite_build_entrypoints tools.tests.test_windows_sdk tools.tests.test_windows_metagen_bindings tools.tests.test_metagen_cache_relocation tools.tests.test_windows157_midl
+        run: python -B -X utf8 -m unittest tools.tests.test_lite_product tools.tests.test_chromium158_base tools.tests.test_lite_patch_lint tools.tests.test_lite_retirement.RecipeTests tools.tests.test_restoration_rules tools.tests.test_lite_build_entrypoints tools.tests.test_windows_sdk tools.tests.test_windows_metagen_bindings
       - name: Check checkpoint and build-record invariants before any large transfer
         shell: pwsh
-        run: python -B -X utf8 -m unittest tools.tests.test_translation_init tools.tests.test_native_history tools.tests.test_native_cookie_source tools.tests.test_native_cookie_runtime tools.tests.test_native_session_runtime tools.tests.test_native_compiled_evidence tools.tests.test_native_integration_candidate tools.tests.test_unaccepted_runtime tools.tests.test_google_services_inputs tools.tests.test_native_browser tools.tests.test_native_environment_controls tools.tests.test_native_browser_acceptance tools.tests.test_native_browser_runtime tools.tests.test_security_build tools.tests.test_security_upstream tools.tests.test_security_candidate tools.tests.test_security_runtime tools.tests.test_security_phases tools.tests.test_security_checkpoint_transfer tools.tests.test_security_migration tools.tests.test_security_handoff tools.tests.test_security_budget_review tools.tests.test_security_run_credentials tools.tests.test_fingerprint_evidence_identity tools.tests.test_security_interstitial_restoration tools.tests.test_enterprise_signal_scope tools.tests.test_windows_etw_resources tools.tests.test_web_package_linkage tools.tests.test_windows_metagen_bindings tools.tests.test_fetch_upstream_cache_arm64
+        run: python -B -X utf8 -m unittest tools.tests.test_translation_init tools.tests.test_native_history tools.tests.test_native_cookie_source tools.tests.test_native_cookie_runtime tools.tests.test_native_session_runtime tools.tests.test_native_compiled_evidence tools.tests.test_native_integration_candidate tools.tests.test_unaccepted_runtime tools.tests.test_google_services_inputs tools.tests.test_native_browser tools.tests.test_native_environment_controls tools.tests.test_native_browser_acceptance tools.tests.test_native_browser_runtime tools.tests.test_security_build tools.tests.test_security_candidate tools.tests.test_security_runtime tools.tests.test_security_phases tools.tests.test_security_checkpoint_transfer tools.tests.test_security_budget_review tools.tests.test_security_run_credentials tools.tests.test_fingerprint_evidence_identity tools.tests.test_security_interstitial_restoration tools.tests.test_enterprise_signal_scope tools.tests.test_windows_etw_resources tools.tests.test_web_package_linkage tools.tests.test_windows_metagen_bindings tools.tests.test_fetch_upstream_cache_arm64
       - name: Admit the donor and download verified source volumes
         id: acquire
         shell: pwsh
@@ -153,7 +153,7 @@ jobs:
         if: ${{ !cancelled() && steps.archive.outcome == 'success' && steps.archive.outputs.finished == 'true' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: security-win157-x64
+          name: security-win158-x64
           path: |
             C:/c/dist/chromix-win-x64.zip
             C:/c/dist/SHA256SUMS
@@ -182,7 +182,7 @@ jobs:
         if: ${{ !cancelled() && failure() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: security-win157-early-evidence-s${{ inputs.stage }}
+          name: security-win158-early-evidence-s${{ inputs.stage }}
           path: C:/security-evidence
           if-no-files-found: warn
           retention-days: 30
@@ -198,7 +198,7 @@ jobs:
         if: ${{ !cancelled() && steps.checkpoint.outputs.checkpoint == 'true' && fromJSON(steps.checkpoint.outputs.parts) >= 1 }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: security-win157-s${{ inputs.stage }}-part1
+          name: security-win158-s${{ inputs.stage }}-part1
           path: C:/security-parts/tree.7z.001
           if-no-files-found: error
           retention-days: 30
@@ -208,7 +208,7 @@ jobs:
         if: ${{ !cancelled() && steps.checkpoint.outputs.checkpoint == 'true' && fromJSON(steps.checkpoint.outputs.parts) >= 2 }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: security-win157-s${{ inputs.stage }}-part2
+          name: security-win158-s${{ inputs.stage }}-part2
           path: C:/security-parts/tree.7z.002
           if-no-files-found: error
           retention-days: 30
@@ -218,7 +218,7 @@ jobs:
         if: ${{ !cancelled() && steps.checkpoint.outputs.checkpoint == 'true' && fromJSON(steps.checkpoint.outputs.parts) >= 3 }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: security-win157-s${{ inputs.stage }}-part3
+          name: security-win158-s${{ inputs.stage }}-part3
           path: C:/security-parts/tree.7z.003
           if-no-files-found: error
           retention-days: 30
@@ -228,7 +228,7 @@ jobs:
         if: ${{ !cancelled() && steps.checkpoint.outputs.checkpoint == 'true' && fromJSON(steps.checkpoint.outputs.parts) >= 4 }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: security-win157-s${{ inputs.stage }}-part4
+          name: security-win158-s${{ inputs.stage }}-part4
           path: C:/security-parts/tree.7z.004
           if-no-files-found: error
           retention-days: 30
@@ -242,7 +242,7 @@ jobs:
               && (fromJSON(steps.checkpoint.outputs.parts) < 4 || steps.part4.outcome == 'success') }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: security-win157-checkpoint-s${{ inputs.stage }}
+          name: security-win158-checkpoint-s${{ inputs.stage }}
           path: C:/security-parts/checkpoint.json
           if-no-files-found: error
           retention-days: 30
@@ -250,7 +250,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: security-win157-evidence-s${{ inputs.stage }}
+          name: security-win158-evidence-s${{ inputs.stage }}
           path: C:/security-evidence
           if-no-files-found: warn
           retention-days: 30
