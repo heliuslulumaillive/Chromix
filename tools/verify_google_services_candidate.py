@@ -220,7 +220,7 @@ def validate_mode_native(report, payload):
         'config-retired-surfaces': ('retired-surfaces', {'configuration_checks'}, '--config-retired-surfaces'),
         'production-helpers-and-config': ('production', {
             'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks',
-            'audio_default_checks', 'voice_compat_checks', 'configuration_checks', 'pixel_semantic_corpus_records',
+            'audio_default_checks', 'configuration_checks', 'pixel_semantic_corpus_records',
             *MASK_FIRST_COUNTS}, None),
     }
     processes, groups = report.get('processes'), report.get('groups')

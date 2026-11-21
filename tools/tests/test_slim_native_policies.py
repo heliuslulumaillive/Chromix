@@ -81,6 +81,17 @@ int main() {
 """
         self.build_and_run('slim-rect-policy', source)
 
+    def test_windows_speech_uses_the_pinned_upstream_backend(self):
+        from tools.lite_patch_stack import load
+        data = load(ROOT)
+        files = {row['path']:row for row in data['source_files']}
+        tts = files['content/browser/speech/tts_win.cc']
+        self.assertIsNotNone(tts['before_sha256'])
+        self.assertEqual(tts['before_sha256'], tts['after_sha256'])
+        self.assertFalse(any(row['path'].endswith('17-speech.patch') for row in data['patches']))
+        for name in ('base/uxr_voice_compat.h', 'base/uxr_voice_compat_tests.cc'):
+            self.assertIsNone(files[name]['after_sha256'])
+
     def test_only_an_explicit_site_quota_changes_the_native_quota(self):
         inputs = (ROOT/'patches/lite-windows157/22-process-and-startup.patch').read_text('utf-8')
         self.assertNotIn('append_default("uxr-storage-quota"', inputs)

@@ -151,7 +151,6 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
             {'checks': 3, 'failures': 0}, {'gpu_checks': 4, 'failures': 0},
             {'hardware_checks': 5, 'failures': 0},
             {'audio_default_checks': 28, 'failures': 0},
-            {'voice_compat_checks': 89, 'failures': 0},
             {'status': 'passed', 'configuration_checks': 6, 'failures': 0},
             {'mask_first_oracle_revision': candidate.MASK_FIRST_ORACLE_REVISION,
              'mask_first_oracle_sha256': candidate.MASK_FIRST_ORACLE_SHA256,
@@ -684,9 +683,9 @@ if (@($results | Where-Object { -not $_.passed }).Count) { exit 1 }
             ('native_inner_failure', lambda n, r, c: n['groups']['production'][1].update(failures=1)),
             ('native_inner_status', lambda n, r, c: n['groups']['legacy'][0].update(status='failed')),
             ('native_missing_font_group', lambda n, r, c: n['groups']['production'].pop(4)),
-            ('native_missing_audio_group', lambda n, r, c: n['groups']['production'].pop(5)),
-            ('native_missing_voice_group', lambda n, r, c: n['groups']['production'].pop(6)),
-            ('native_zero_voice_count', lambda n, r, c: n['groups']['production'][6].update(voice_compat_checks=0)),
+            ('native_missing_audio_group', lambda n, r, c: next(row for row in n['groups']['production'] if 'audio_default_checks' in row).pop('audio_default_checks')),
+            ('native_missing_audio_defaults', lambda n, r, c: next(row for row in n['groups']['production'] if 'audio_default_checks' in row).pop('audio_default_checks')),
+            ('native_zero_audio_count', lambda n, r, c: next(row for row in n['groups']['production'] if 'audio_default_checks' in row).update(audio_default_checks=0)),
             ('runtime_status', lambda n, r, c: r.update(status='failed')),
             ('runtime_baseline', lambda n, r, c: r.update(baseline_only=True)),
             ('runtime_payload', lambda n, r, c: r.update(chrome_dll_sha256='0' * 64)),
@@ -758,9 +757,8 @@ if (@($results | Where-Object { -not $_.passed }).Count) { exit 1 }
             self.assertFalse(result['full_strategy_acceptance'])
             self.assertEqual(result['positive_acceptance']['masked_webgl']['status'], 'not_tested')
             self.assertEqual(result['positive_acceptance']['native_audio']['status'], 'observed_pass')
-            self.assertGreater(result['native_executed_counts']['production.voice_compat_checks'], 0)
             self.assertGreater(result['native_executed_counts']['production.audio_default_checks'], 0)
-            self.assertGreater(result['native_executed_counts']['production.voice_compat_checks'], 0)
+            self.assertGreater(result['native_executed_counts']['production.hardware_checks'], 0)
 
     def test_caps_bundle_and_source_receipt_are_independently_bound(self):
         with tempfile.TemporaryDirectory() as directory:

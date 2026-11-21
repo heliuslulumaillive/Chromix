@@ -1374,19 +1374,19 @@
       "source_run": "44470833537",
       "source_stage": 1,
       "source_recipe_sha256": "382e58c4d0396bf6ee8c835e777c85a69f25f093a777e8cfcd2671a7c0c620c9",
-      "target_recipe_sha256": "46632233f9cc94aa07dccaaa470aad90f9d8e15fabdff1b085aab547d664707b",
+      "target_recipe_sha256": "3fe9a991c655c3be37eace0b8c194107fbe73aa010c5200c764222427711ad40",
       "source_preparation_sha256": "382e58c4d0396bf6ee8c835e777c85a69f25f093a777e8cfcd2671a7c0c620c9",
-      "target_preparation_sha256": "46632233f9cc94aa07dccaaa470aad90f9d8e15fabdff1b085aab547d664707b",
+      "target_preparation_sha256": "3fe9a991c655c3be37eace0b8c194107fbe73aa010c5200c764222427711ad40",
       "source_aggregate_sha256": "8664e2dea19c8cb6eedf6303109f6862877e1450259394a4639fcbfca4e81828",
-      "target_aggregate_sha256": "0541a6d5d2ef1e27ca31cdd5f78051671f9167c35e16f133dff7eb8cbbb8f8ad",
+      "target_aggregate_sha256": "7277dac72875691101c853ec552100cd2cf1307bb8ba880b7a7af6aed6a81ddf",
       "source_patch_kind": "lite-windows157-product",
       "target_patch_kind": "lite-windows157-product",
       "product_source_updates": [
         {
           "path": "base/BUILD.gn",
           "before_sha256": "5ef706f9e269c6d6055d84e75b1d9fb288493acdb57e9a592d3ed14e8293a3c5",
-          "after_sha256": "461e48db244a342e5df4f2b08b8329d457f62d7f8a440ad35b0793b0e2a5550f",
-          "replacement_path": "build/checkpoint-sources/461e48db244a342e5df4f2b08b8329d457f62d7f8a440ad35b0793b0e2a5550f.gn"
+          "after_sha256": "5d3afa5172df7deb02ce344d248ed3c6b672a562c134db1b1d367a4eda91f161",
+          "replacement_path": "build/checkpoint-sources/5d3afa5172df7deb02ce344d248ed3c6b672a562c134db1b1d367a4eda91f161.gn"
         },
         {
           "path": "base/uxr_config.cc",
@@ -1475,12 +1475,24 @@
         {
           "path": "base/uxr_surface_modes_test_main.cc",
           "before_sha256": "760cc1a695f6e76d1f4b000454003080bf8118cf386e3975e44ce063e8e827b5",
-          "after_sha256": "3c4d29c1e234cc384c822f182feccd32b62967add7c7c3a9cc0abfaf3a3fe7dd",
-          "replacement_path": "build/checkpoint-sources/3c4d29c1e234cc384c822f182feccd32b62967add7c7c3a9cc0abfaf3a3fe7dd.cc"
+          "after_sha256": "452502327dd5918dd04eeca1e4a60a2ae3d9f6d0d9a5d95dcab2fc464df71f88",
+          "replacement_path": "build/checkpoint-sources/452502327dd5918dd04eeca1e4a60a2ae3d9f6d0d9a5d95dcab2fc464df71f88.cc"
         },
         {
           "path": "base/uxr_surface_reference_data.h",
           "before_sha256": "45f020bd3b9934b12bc999b9138a74a71c0cf936dad8e57b2f9f1133e2dc9db9",
+          "after_sha256": null,
+          "replacement_path": null
+        },
+        {
+          "path": "base/uxr_voice_compat.h",
+          "before_sha256": "907873c2bedfaa99a7419eba769ab111ede2e990aace7df8f3292e96171ffa93",
+          "after_sha256": null,
+          "replacement_path": null
+        },
+        {
+          "path": "base/uxr_voice_compat_tests.cc",
+          "before_sha256": "08aa249034f8d573963f7e2c00a9120f01064a9e191c7b6d74eebde32c38ac2c",
           "after_sha256": null,
           "replacement_path": null
         },
@@ -1537,6 +1549,12 @@
           "before_sha256": "51d64a02218686f8e4da60bcff49f6c546f1822c4fc447df293e2d156e7c6e2a",
           "after_sha256": "5008fb8d8eb67bb584c99e304eb8f2456c1d8c07b6afeed8214e215df77671f7",
           "replacement_path": "build/checkpoint-sources/5008fb8d8eb67bb584c99e304eb8f2456c1d8c07b6afeed8214e215df77671f7.cc"
+        },
+        {
+          "path": "content/browser/speech/tts_win.cc",
+          "before_sha256": "1de151047997d5f0f69d1194c4b8bf4ab987bba23d1c1cdadc0dd7147b637296",
+          "after_sha256": "0a35a1ba824fc793466a10d107b585b4ced4b6a66474284a4b16346ff86cf9d1",
+          "replacement_path": "build/checkpoint-sources/0a35a1ba824fc793466a10d107b585b4ced4b6a66474284a4b16346ff86cf9d1.cc"
         },
         {
           "path": "net/socket/socks5_client_socket.cc",

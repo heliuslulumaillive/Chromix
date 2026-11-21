@@ -217,7 +217,7 @@ try {
   $native.processes += $helpers
   $native.groups['production'] = @(Read-NativeGroups $helpers @(
       'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks',
-      'audio_default_checks', 'voice_compat_checks',
+      'audio_default_checks',
       'pixel_semantic_corpus_records', 'configuration_checks',
       'mask_first_equivalence_cases', 'mask_first_equivalence_bytes',
       'mask_first_corpus_records', 'mask_first_mutation_controls', 'mask_first_mutation_rejections'))

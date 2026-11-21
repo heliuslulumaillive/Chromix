@@ -398,18 +398,7 @@
     "cloak": "Cloak hardware selection remains supported; its separate web surface modes have been removed.",
     "offset, voices": "Managed surface switches are retired. Both use the native paths."
   },
-  "data_policy": "Runtime data includes the signed font catalog protocol, the retained hardware catalog and Windows native voice compatibility metadata.",
-  "windows_native_voice_compatibility": {
-    "version": 1,
-    "catalog": "Chromium 155 network speech names and languages",
-    "alias_count": 19,
-    "backend": "Windows SAPI",
-    "native_voices_preserved": true,
-    "requires_manager_extension": false,
-    "google_cloud_synthesis": false,
-    "missing_language": "matching primary language, otherwise original platform default",
-    "scope": "Windows native backend inventory and routing; Google names and remote attributes are compatibility declarations."
-  },
+  "data_policy": "The signed font catalog protocol and the active hardware catalog provide the product runtime data.",
   "headless_display_synchronization": {
     "kind": "source_contract_not_runtime_acceptance",
     "overlay": "0014-headless-screen-synchronization",
@@ -444,5 +433,6 @@
   "storage_quota": {
     "default": "native Chromium allocation and estimate",
     "explicit_override": "per-launch MiB for ordinary storage keys"
-  }
+  },
+  "speech": "Native Windows TTS inventory and native backend voice names."
 }

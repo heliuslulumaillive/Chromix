@@ -46,7 +46,7 @@ def test_windows_provenance_selects_the_authenticated_current_product(monkeypatc
     result = audit.provenance()
     assert result['patch_inputs']['selection']['profile'] == 'lite'
     assert result['patch_inputs']['selection']['version'] == '157.0.8103.78'
-    assert len(result['patch_inputs']['patches']) == 26
+    assert len(result['patch_inputs']['patches']) == 25
 
 
 def test_source_target_fallback_uses_the_same_active_windows_profile(tmp_path, monkeypatch):

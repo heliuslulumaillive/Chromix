@@ -58,7 +58,7 @@
   "patches": [
     {
       "path": "patches/lite-windows157/01-build-integration.patch",
-      "sha256": "1d84be9ca553dd73da21783a7a315e0e9da61549c8aa8dc96ac034743034d738",
+      "sha256": "9e09ad5cd220ebafa492cabc6649d46e111328c50f61ba658c7fff50a17bf97d",
       "files": [
         "BUILD.gn",
         "base/BUILD.gn",
@@ -327,15 +327,6 @@
       ]
     },
     {
-      "path": "patches/lite-windows157/17-speech.patch",
-      "sha256": "c69d6cca042fe266cab855f9dcf87587c1c0f0152e551154aad9963828d77020",
-      "files": [
-        "base/uxr_voice_compat.h",
-        "base/uxr_voice_compat_tests.cc",
-        "content/browser/speech/tts_win.cc"
-      ]
-    },
-    {
       "path": "patches/lite-windows157/18-browser-protection.patch",
       "sha256": "3b4177886362d34800e5e81a45c8a3707bee2524e18f5e8085f05dca7fdc0922",
       "files": [
@@ -454,7 +445,7 @@
     },
     {
       "path": "patches/lite-windows157/19-shared-policy.patch",
-      "sha256": "8c2f93676b00f094aca1c05fe5ddf3ba960df06d8d76de1002faa364ee3a4ceb",
+      "sha256": "93b2c7b2e0da49f69c0d598282f323ea3725ba8ecd0605c0b54c2ad3866340e1",
       "files": [
         "base/uxr_cloak_hardware.cc",
         "base/uxr_cloak_hardware.h",
@@ -834,7 +825,7 @@
     {
       "path": "base/BUILD.gn",
       "before_sha256": "2619e16bd05092597a911f7b0f9e51c3363d7a7267527d79150165fb873aa9aa",
-      "after_sha256": "461e48db244a342e5df4f2b08b8329d457f62d7f8a440ad35b0793b0e2a5550f"
+      "after_sha256": "5d3afa5172df7deb02ce344d248ed3c6b672a562c134db1b1d367a4eda91f161"
     },
     {
       "path": "base/uxr_audio_defaults.h",
@@ -959,7 +950,7 @@
     {
       "path": "base/uxr_surface_modes_test_main.cc",
       "before_sha256": null,
-      "after_sha256": "3c4d29c1e234cc384c822f182feccd32b62967add7c7c3a9cc0abfaf3a3fe7dd"
+      "after_sha256": "452502327dd5918dd04eeca1e4a60a2ae3d9f6d0d9a5d95dcab2fc464df71f88"
     },
     {
       "path": "base/uxr_surface_reference_data.h",
@@ -969,12 +960,12 @@
     {
       "path": "base/uxr_voice_compat.h",
       "before_sha256": null,
-      "after_sha256": "907873c2bedfaa99a7419eba769ab111ede2e990aace7df8f3292e96171ffa93"
+      "after_sha256": null
     },
     {
       "path": "base/uxr_voice_compat_tests.cc",
       "before_sha256": null,
-      "after_sha256": "08aa249034f8d573963f7e2c00a9120f01064a9e191c7b6d74eebde32c38ac2c"
+      "after_sha256": null
     },
     {
       "path": "base/uxr_voice_reference_data.h",
@@ -3254,7 +3245,7 @@
     {
       "path": "content/browser/speech/tts_win.cc",
       "before_sha256": "0a35a1ba824fc793466a10d107b585b4ced4b6a66474284a4b16346ff86cf9d1",
-      "after_sha256": "1de151047997d5f0f69d1194c4b8bf4ab987bba23d1c1cdadc0dd7147b637296"
+      "after_sha256": "0a35a1ba824fc793466a10d107b585b4ced4b6a66474284a4b16346ff86cf9d1"
     },
     {
       "path": "content/browser/webauth/webauth_request_security_checker_impl.cc",
@@ -4798,5 +4789,5 @@
     "source_manifest_sha256": "f0cf82f501b4183b26bdcf7c2c9e4eedf314d7817b8eaa1c60b3b26ce4e76bb7",
     "review": "build/windows157-port.json"
   },
-  "stack_sha256": "0541a6d5d2ef1e27ca31cdd5f78051671f9167c35e16f133dff7eb8cbbb8f8ad"
+  "stack_sha256": "7277dac72875691101c853ec552100cd2cf1307bb8ba880b7a7af6aed6a81ddf"
 }

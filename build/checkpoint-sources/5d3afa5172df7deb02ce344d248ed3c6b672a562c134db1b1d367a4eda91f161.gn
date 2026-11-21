@@ -1032,7 +1032,6 @@ component("base") {
     "uxr_config.h",
     "uxr_pixel_noise.h",
     "uxr_surface_modes.h",
-    "uxr_voice_compat.h",
     "uxr_cloak_hardware.cc",
     "uxr_cloak_hardware.h",
     "uxr_graphics_noise.cc",
@@ -6730,7 +6729,6 @@ if (is_win && current_cpu == "x64") {
       "uxr_hardware_golden_tests.cc",
 
       "uxr_audio_defaults_tests.cc",
-      "uxr_voice_compat_tests.cc",
     ]
     deps = [ ":base" ]
   }

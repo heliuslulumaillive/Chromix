@@ -4,7 +4,7 @@
 
 The installed source baseline is `230b7f6` (run `44470833537`, stage 1). The slim target removes the standalone Chromix and Cloak surface modes while retaining the physical GPU and hardware catalog contracts. The Windows product uses its normal proxy broker for authenticated SOCKS5. It uses the native component path for DRM.
 
-Version 2 uses the signed DirectWrite catalog or the native Windows collection for font lookups. It retires font-name masks and unsigned resource directories. Chromium chooses the default site quota and explicit overrides are supported. Multiline bounds share a rectangle policy, including correct zero-size results for detached nodes.
+Version 2 uses the signed DirectWrite catalog or the native Windows collection for font lookups. It retires font-name masks and unsigned resource directories. Windows speech uses its native voice names and backends. Chromium chooses the default site quota and explicit overrides are supported. Multiline bounds share a rectangle policy, including correct zero-size results for detached nodes.
 
 Use the existing hosted Windows workflow with `operation=upgrade`, `source_run=44470833537`, and `source_stage=1`. The checked-in migration binds both source trees and every source replacement. A rebuilt DLL requires its own native and packaged acceptance before installation.
 

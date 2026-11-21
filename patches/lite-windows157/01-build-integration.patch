@@ -14,7 +14,7 @@ diff --git a/BUILD.gn b/BUILD.gn
 diff --git a/base/BUILD.gn b/base/BUILD.gn
 --- a/base/BUILD.gn
 +++ b/base/BUILD.gn
-@@ -1028,6 +1028,22 @@
+@@ -1028,6 +1028,21 @@
      "types/variant_util.h",
      "unguessable_token.cc",
      "unguessable_token.h",
@@ -22,7 +22,6 @@ diff --git a/base/BUILD.gn b/base/BUILD.gn
 +    "uxr_config.h",
 +    "uxr_pixel_noise.h",
 +    "uxr_surface_modes.h",
-+    "uxr_voice_compat.h",
 +    "uxr_cloak_hardware.cc",
 +    "uxr_cloak_hardware.h",
 +    "uxr_graphics_noise.cc",
@@ -37,7 +36,7 @@ diff --git a/base/BUILD.gn b/base/BUILD.gn
      "uuid.cc",
      "uuid.h",
      "value_iterators.cc",
-@@ -6700,6 +6716,26 @@
+@@ -6700,6 +6715,25 @@
    deps = [ "//base/tracing:perfetto_diff_tests" ]
  }
  
@@ -55,7 +54,6 @@ diff --git a/base/BUILD.gn b/base/BUILD.gn
 +      "uxr_hardware_golden_tests.cc",
 +
 +      "uxr_audio_defaults_tests.cc",
-+      "uxr_voice_compat_tests.cc",
 +    ]
 +    deps = [ ":base" ]
 +  }

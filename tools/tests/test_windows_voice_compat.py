@@ -71,7 +71,7 @@ class WindowsVoiceCompatibilityTest(unittest.TestCase):
         self.assertNotIn('load-extension', patch)
         self.assertNotIn('NativeMessagingHosts', patch)
         verifier = (ROOT / 'build/windows/verify-fingerprint-modes.ps1').read_text()
-        self.assertIn("'voice_compat_checks'", verifier)
+        self.assertNotIn("'voice_compat_checks'", verifier)
 
     def test_exact_155_catalog_and_explicit_local_scope(self):
         patch = (ROOT / PATCH).read_text(encoding='utf-8')
@@ -81,10 +81,9 @@ class WindowsVoiceCompatibilityTest(unittest.TestCase):
         self.assertEqual(pairs[0], ('Google Deutsch', 'de-DE'))
         self.assertEqual(pairs[-1], ('Google 國語（臺灣）', 'zh-TW'))
         caps = json.loads((ROOT / 'build/fingerprint-modes-capabilities.json').read_text(encoding='utf-8'))
-        feature = caps['windows_native_voice_compatibility']
-        self.assertFalse(feature['requires_manager_extension'])
-        self.assertFalse(feature['google_cloud_synthesis'])
-        self.assertEqual(feature['backend'], 'Windows SAPI')
+        self.assertNotIn('windows_native_voice_compatibility', caps)
+        self.assertEqual(caps['speech'], 'Native Windows TTS inventory and native backend voice names.')
+
 
 
 if __name__ == '__main__':

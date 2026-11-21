@@ -14601,7 +14601,7 @@ diff --git a/base/uxr_surface_modes_test_main.cc b/base/uxr_surface_modes_test_m
 new file mode 100644
 --- /dev/null
 +++ b/base/uxr_surface_modes_test_main.cc
-@@ -0,0 +1,210 @@
+@@ -0,0 +1,207 @@
 +// Copyright 2026. Native checks use the same production helpers as the browser.
 +#include <cstdio>
 +#include <initializer_list>
@@ -14618,7 +14618,6 @@ new file mode 100644
 +int RunGpuModeGoldenTests();
 +int RunHardwareGoldenTests();
 +int RunAudioDefaultsTests();
-+int RunVoiceCompatibilityTests();
 +
 +namespace {
 +using Config = base::flat_map<std::string, std::string>;
@@ -14799,13 +14798,11 @@ new file mode 100644
 +    const int gpu = RunGpuModeGoldenTests();
 +    const int hardware = RunHardwareGoldenTests();
 +    const int audio_defaults = RunAudioDefaultsTests();
-+    const int voices = RunVoiceCompatibilityTests();
 +    Check(graphics == 0, "graphics production helper goldens");
 +    Check(surfaces == 0, "surface production helper goldens");
 +    Check(gpu == 0, "GPU production policy goldens");
 +    Check(hardware == 0, "hardware production selector goldens");
 +    Check(audio_defaults == 0, "audio render defaults production policy checks");
-+    Check(voices == 0, "Windows voice compatibility routing checks");
 +    NewPolicyChecks();
 +  }
 +  std::printf("{\"status\":\"%s\",\"configuration_checks\":%u,\"failures\":%u}\n",

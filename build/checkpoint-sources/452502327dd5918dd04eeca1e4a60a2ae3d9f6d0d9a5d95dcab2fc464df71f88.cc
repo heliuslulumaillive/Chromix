@@ -14,7 +14,6 @@ int RunSurfaceGoldenTests();
 int RunGpuModeGoldenTests();
 int RunHardwareGoldenTests();
 int RunAudioDefaultsTests();
-int RunVoiceCompatibilityTests();
 
 namespace {
 using Config = base::flat_map<std::string, std::string>;
@@ -195,13 +194,11 @@ int main(int argc, char** argv) {
     const int gpu = RunGpuModeGoldenTests();
     const int hardware = RunHardwareGoldenTests();
     const int audio_defaults = RunAudioDefaultsTests();
-    const int voices = RunVoiceCompatibilityTests();
     Check(graphics == 0, "graphics production helper goldens");
     Check(surfaces == 0, "surface production helper goldens");
     Check(gpu == 0, "GPU production policy goldens");
     Check(hardware == 0, "hardware production selector goldens");
     Check(audio_defaults == 0, "audio render defaults production policy checks");
-    Check(voices == 0, "Windows voice compatibility routing checks");
     NewPolicyChecks();
   }
   std::printf("{\"status\":\"%s\",\"configuration_checks\":%u,\"failures\":%u}\n",
