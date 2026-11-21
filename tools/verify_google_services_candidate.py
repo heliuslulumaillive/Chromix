@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+import math
 import json
 import os
 from pathlib import Path
@@ -52,10 +53,9 @@ MASK_FIRST_COUNTS = {
 }
 FINGERPRINT_RUNTIME_SCENARIOS = {
     'fonts_default9918', 'fonts_default14666',
-    *(f'fonts_pack{120+i}' for i in range(12)),
     'native_off_control', 'all_native', 'legacy_seeded', 'canvas_shardx',
     'shard_surfaces', 'memory_custom', 'hardware_cloak', 'gpu_custom',
-    'webgl_shardx', 'fonts_shard40', 'fonts_shard41', 'fonts_shard42', 'fonts_shard43', 'fonts_native10026', 'fonts_allowlists', 'fonts_empty',
+    'webgl_shardx', 'fonts_native10026',
     'audio_native_macos',
     'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono', 'audio_default_stereo',
     'audio_default_32', 'gpu_masked_custom',
@@ -69,8 +69,7 @@ FINGERPRINT_POSITIVE_SCENARIOS = {
     'shard_media': {'shard_surfaces'}, 'memory_custom': {'memory_custom'}, 'hardware_profile': {'hardware_cloak'},
     'webgl_resource_limits': {'all_native', 'gpu_custom'}, 'webgpu_capabilities': {'gpu_custom', 'hardware_cloak'},
     'hardware_gpu_identity': {'hardware_cloak'}, 'masked_webgl': {'gpu_masked_custom'},
-    'shard_fonts': {'fonts_shard40', 'fonts_shard41', 'fonts_shard42', 'fonts_shard43', *(f'fonts_pack{120+i}' for i in range(12))}, 'native_fonts': {'fonts_native10026', 'fonts_default9918', 'fonts_default14666'},
-    'font_allowlists': {'fonts_allowlists', 'fonts_empty'},
+    'native_fonts': {'fonts_native10026', 'fonts_default9918', 'fonts_default14666'},
     'native_audio': {'audio_native_macos'},
     'audio_defaults': {'audio_defaults_44100', 'audio_defaults_32000'},
     'audio_channels': {'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono',
@@ -83,8 +82,7 @@ FINGERPRINT_EXTRA_SCOPES = {
     'gpu_custom': ('renderbuffer',),
     'canvas_shardx': ('pixel_semantics',), 'webgl_shardx': ('pixel_semantics',),
     **{name: ('headless_screen',) for name in FINGERPRINT_POSITIVE_SCENARIOS['headless_screen']},
-    **{name: ('fonts',) for name in ('fonts_shard40', 'fonts_shard41', 'fonts_shard42', 'fonts_shard43', 'fonts_native10026', 'fonts_allowlists', 'fonts_empty')},
-    **{f'fonts_pack{120+i}': ('fonts',) for i in range(12)},
+    'fonts_native10026': ('fonts',),
     'fonts_default9918': ('fonts',), 'fonts_default14666': ('fonts',),
     **{name: ('audio',) for name in ('audio_native_macos', 'audio_defaults_44100', 'audio_defaults_32000',
                                    'audio_default_mono', 'audio_default_stereo', 'audio_default_32')},
@@ -221,7 +219,7 @@ def validate_mode_native(report, payload):
         'config-legacy': ('legacy', {'configuration_checks'}, '--config-legacy'),
         'config-retired-surfaces': ('retired-surfaces', {'configuration_checks'}, '--config-retired-surfaces'),
         'production-helpers-and-config': ('production', {
-            'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks', 'font_allowlist_checks',
+            'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks',
             'audio_default_checks', 'voice_compat_checks', 'configuration_checks', 'pixel_semantic_corpus_records',
             *MASK_FIRST_COUNTS}, None),
     }
@@ -316,7 +314,7 @@ def validate_positive_coverage(report, checks):
                 or not isinstance(record.get('reason'), str) or not record['reason']
                 or (record.get('optional_candidate') is not None and
                     (record.get('optional_candidate') is not True or
-                     record.get('acceptance_group') not in {'shard_fonts', 'native_fonts', 'font_allowlists'}))):
+                     record.get('acceptance_group') not in {'native_fonts'}))):
             raise ValueError('Unavailable positive condition has no concrete reason')
     full = True
     for group, value in coverage.items():
@@ -565,12 +563,12 @@ def retirement_cases():
     cases=[]
     for prefix in ('fingerprint','uxr'):
         for surface in ('canvas','webgl','fonts','audio','rects','text','sensors','media','offset','voices'):
-            values = ('native','shardx','chromix','cloak') if surface in ('offset','voices') else ('chromix','cloak')
+            values = ('native','shardx','chromix','cloak') if surface in ('offset','voices') else ('shardx','chromix','cloak') if surface == 'fonts' else ('chromix','cloak')
             for value in values:
                 key=f'{prefix}-{surface}-mode'
                 cases.append({'id':f'{prefix}_{surface}_{value}','argument':f'--{key}={value}',
                               'diagnostic':f'Unsupported Lite surface mode: {key}={value}'})
-        for name,value in (('hdr','native'),('widevine-cdm','fixture'),('sapi-voices','false'),('audio-render','native'),('font-policy','native'),('font-whitelist','Arial'),
+        for name,value in (('fonts-mode-seed','42'),('fonts-amount','0'),('fonts-allowlist','Arial'),('fonts-local-allowlist',''),('fonts-experimental-packages','1'),('hdr','native'),('widevine-cdm','fixture'),('sapi-voices','false'),('audio-render','native'),('font-policy','native'),('font-whitelist','Arial'),
                            ('windows-font-metrics','false'),('canvas-bridge','ws://127.0.0.1:65534'),
                            ('canvas-bridge-unsafe','false'),('devtools-runtime-suppression','false'),('keyboard-layout','native')):
             key=f'{prefix}-{name}'
@@ -580,6 +578,8 @@ def retirement_cases():
         key=f'uxr-{name}'
         cases.append({'id':key.replace('-','_'),'argument':f'--{key}=false',
                       'diagnostic':f'Retired Lite kernel switch: {key}'})
+    cases.append({'id':'unsigned_font_resources','argument':'--uxr-fonts-resources-dir=fixture',
+                  'diagnostic':'Signed font catalog is required for resource loading'})
     return cases
 
 
@@ -765,9 +765,6 @@ def validate_mode_runtime(report, payload):
     required.update((scenario, name + '_matches_js')
                     for scenario in ('hardware_cloak', 'memory_custom')
                     for name in ('device-memory', 'sec-ch-device-memory'))
-    if report.get('experimental_font_resources') is True:required.update(('all_native','private_font_resource_'+channel+'_'+family)
-                    for channel in ('windowLocal','workerLocal','query','css')
-                    for family in ('Noto Sans JP','Noto Serif JP','Liberation Sans','Liberation Serif','Liberation Mono'))
     required.update((scenario,name) for scenario in ('fonts_default9918','fonts_default14666')
                     for name in ('windowLocal_native_parity','workerLocal_native_parity','iframeLocal_native_parity','query_native_metadata','css_native_families'))
     shard_probe = next(s for s in scenarios if s['id'] == 'webgl_shardx')['probe'].get('webgl', {})
@@ -814,6 +811,21 @@ def validate_mode_runtime(report, payload):
         required.add(('audio_native_macos',name+'_native_reference_bytes'))
     required.update(validate_pixel_semantics(scenarios, report))
     required.update(validate_headless_screens(scenarios))
+    for name in ('all_native', 'shard_surfaces', 'memory_custom', 'native_off_control'):
+        row = next(s for s in scenarios if s['id'] == name)
+        sample = row.get('extra', {}).get('slim_policy')
+        if not isinstance(sample, dict) or sample.get('version') != 1:
+            raise ValueError('Missing geometry and quota observation: ' + name)
+        first = sample.get('first')
+        if (sample.get('empty') != [[0,0,0,0], [0,0,0,0]] or not isinstance(first, list) or len(first) != 2
+                or any(not isinstance(rects, list) or len(rects) < 2 or
+                       any(not isinstance(rect, list) or len(rect) != 4 or
+                           any(type(v) not in (int,float) or not math.isfinite(v) for v in rect) for rect in rects)
+                       for rects in first) or first != sample.get('repeat') or
+                type(sample.get('quota')) is not int or sample['quota'] <= 0 or
+                (name == 'memory_custom' and sample['quota'] != 64 * 1024**2)):
+            raise ValueError('Invalid geometry or quota observation: ' + name)
+        required.add((name, 'empty_and_multiline_rects_and_storage_quota'))
     required.update(validate_application_inputs(scenarios))
     if not required.issubset(executed):
         raise ValueError('Runtime mode routing coverage is incomplete')

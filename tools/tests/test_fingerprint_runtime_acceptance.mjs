@@ -5,7 +5,7 @@ import vm from "node:vm";
 import zlib from "node:zlib";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { referenceAcceptanceProbe, validateReferenceAcceptance } from "../fingerprint_reference_acceptance.mjs";
+import { referenceAcceptanceProbe, validateReferenceAcceptance, validLayoutPolicyEvidence } from "../fingerprint_reference_acceptance.mjs";
 import { audioAcceptanceProbe, validateAudioAcceptance } from "../fingerprint_audio_acceptance.mjs";
 import { fontAcceptanceProbe, validateFontAcceptance } from "../fingerprint_font_acceptance.mjs";
 import { summarizePositiveAcceptance, verifyResults, scenarios, BASIC_SCENARIOS, POSITIVE_GROUPS } from "../verify_fingerprint_modes_runtime.mjs";
@@ -23,6 +23,15 @@ test("native layout evidence rejects missing, changed, and unstable measurements
   assert.equal(validateReferenceAcceptance(record).checks[0].passed,false);
   offset.pop();
   assert.equal(validateReferenceAcceptance(record).checks[1].passed,false);
+});
+test("multi-rectangle and quota observations reject changed bounds and ignored overrides",()=>{
+  const first=[[[0,0,9,12],[0,12,10,12]],[[0,0,9,12],[0,12,10,12]]];
+  const original={version:1,empty:[[0,0,0,0],[0,0,0,0]],first,repeat:structuredClone(first),quota:64*1024*1024};
+  const check=s=>validLayoutPolicyEvidence({id:"memory_custom",extra:{slim_policy:s}});
+  assert.ok(check(original));
+  for(const change of [s=>s.empty[0][2]=0.5,s=>s.first[1].pop(),s=>s.repeat[0][0][2]++,s=>s.quota++]) {
+    const modified=structuredClone(original);change(modified);assert.equal(check(modified),false);
+  }
 });
 test("a partial report cannot become full by counting an unrelated positive", () => {
   const actual = [{ scenario: "audio_native_macos", name: "match_5000_native_reference_bytes", passed: true, acceptance_group: "native_audio" }];
@@ -47,15 +56,15 @@ test("browser entrypoints serialize without importing Node helpers", () => {
 });
 test("the bounded matrix has distinct scenes and uses basic probes for independent additions", () => {
   const matrix = scenarios();
-  assert.equal(matrix.length, 43);
+  assert.equal(matrix.length, 25);
   assert.equal(new Set(matrix.map(s => s.id)).size, matrix.length);
-  assert.equal(BASIC_SCENARIOS.size, 33);
-  for (let index=0;index<12;index++) {
-    const id="fonts_pack"+(120+index);
-    assert.ok(BASIC_SCENARIOS.has(id));
-    assert.ok(matrix.find(s=>s.id===id)?.flags.includes("--fingerprint-fonts-mode-seed="+(120+index)));
+  assert.equal(BASIC_SCENARIOS.size, 15);
+  for (const [id, seed] of [["fonts_default9918","9918"],["fonts_default14666","14666"],["fonts_native10026","10026"]]) {
+    const flags = matrix.find(s=>s.id===id).flags;
+    assert.ok(BASIC_SCENARIOS.has(id) && flags.includes("--fingerprint="+seed));
+    assert.ok(!flags.some(arg=>/fonts-(?:mode-seed|allowlist|experimental-packages)/.test(arg)));
   }
-  assert.equal(POSITIVE_GROUPS.length, 21);
+  assert.equal(POSITIVE_GROUPS.length, 19);
   assert.ok(matrix.filter(s => BASIC_SCENARIOS.has(s.id)).every(s => s.flags.includes("--fingerprint-canvas-mode=native") || s.flags.includes("--fingerprint=off")));
   assert.equal(BASIC_SCENARIOS.has("canvas_shardx"), false);
   assert.equal(BASIC_SCENARIOS.has("webgl_shardx"), false);
@@ -109,7 +118,7 @@ test("native retirement replacements require real matching observations",async()
   for(const mutate of [r=>delete r.fonts_native10026.extra.fonts,r=>r.fonts_native10026.extra.fonts.workerLocal.entries[0].loaded=false,r=>r.fonts_native10026.extra.fonts.localFonts.records.pop(),r=>r.audio_native_macos.extra.audio.referenceCases[0].sha256='b'.repeat(64),r=>r.audio_native_macos.extra.audio.referenceCases.pop()]){
     const records=fixture();mutate(records);assert.ok(validateNativeSurfaceResults(records).checks.some(row=>!row.passed));
   }
-  const rejected=retirementCases();assert.equal(rejected.length,73);assert.equal(new Set(rejected.map(row=>row.id)).size,73);
+  const rejected=retirementCases();assert.equal(rejected.length,86);assert.equal(new Set(rejected.map(row=>row.id)).size,86);
   for(const surface of ["canvas","webgl","text","rects","sensors","offset","voices"])
     for(const prefix of ["fingerprint","uxr"])
       for(const mode of ["chromix","cloak"])

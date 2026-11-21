@@ -37,10 +37,8 @@
       "flag": "fingerprint-fonts-mode",
       "internal_key": "uxr-fonts-mode",
       "modes": [
-        "native",
-        "shardx"
+        "native"
       ],
-      "seed_flag": "fingerprint-fonts-mode-seed",
       "version": 1
     },
     "media": {
@@ -358,19 +356,6 @@
     "absent": "Keep native defaults and the separately selected Native/ShardX readback mode.",
     "not_provided": "Physical device replacement, arbitrary DSP emulation, capture-track settings rewriting."
   },
-  "font_allowlists": {
-    "general_flag": "fingerprint-fonts-allowlist",
-    "local_flag": "fingerprint-fonts-local-allowlist",
-    "format": "UTF-8 comma-separated actual family names, ASCII case-insensitive, whitespace trimmed; no escaped commas.",
-    "max_bytes": 16384,
-    "max_entries": 256,
-    "max_family_bytes": 256,
-    "general_scope": "Resolved native CSS families, local() and Local Font Access; intersects the selected font strategy.",
-    "local_scope": "Additional restriction for local() and Local Font Access, without changing ordinary CSS family access.",
-    "absent": "No additional restriction; preserve the prior branch.",
-    "explicit_empty": "Deny local families within that list's scope, with safe empty-glyph last resort.",
-    "intentional_difference": "Does not reproduce original nonexistent-name aliases or assert that missing font files exist. Downloaded web fonts remain separate."
-  },
   "webgl_masked_identity": {
     "flags": [
       "fingerprint-webgl-masked-vendor",
@@ -389,12 +374,6 @@
     "Unhandled WebGL enums/formats, HALF_FLOAT, packed/integer pixels and complete HDR equivalence; supported ShardX V2 readback/export paths are described in graphics.webgl."
   ],
   "surface_differences": [
-    {
-      "surface": "fonts/shardx",
-      "policy": "resolved-family-compatible-v1",
-      "change": "Hash/filter the canonical resolved native family rather than caller spelling; src:local and CSS case variants cannot bypass the same family. Local Font Access uses the same family filter. Preserve mandatory last-resort fallback.",
-      "original_preserved": "ShardX FNV/protected-name math and actual-font fallback remain. The former Chromix/Cloak font modes are retired."
-    },
     {
       "surface": "audio/shardx",
       "policy": "bounded-readback-compatible-v1",
@@ -456,5 +435,14 @@
       "media"
     ],
     "requires_new_exact_dll_acceptance": true
+  },
+  "fonts": {
+    "source": "Windows system collection or signed controlled catalog v3",
+    "explicit_family_filters": false,
+    "unsigned_resource_collections": false
+  },
+  "storage_quota": {
+    "default": "native Chromium allocation and estimate",
+    "explicit_override": "per-launch MiB for ordinary storage keys"
   }
 }

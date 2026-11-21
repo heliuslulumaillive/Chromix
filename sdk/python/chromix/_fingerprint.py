@@ -10,7 +10,7 @@ _BRANDS = {"chrome": "Chrome", "google chrome": "Chrome", "edge": "Edge",
 _BOOLEANS = {"--fingerprint-noise", "--fingerprint-allow-3p-cookies"}
 _SURFACE_MODES = {f"{surface}-mode" for surface in
                   ("canvas", "webgl", "audio", "fonts", "rects", "text", "sensors", "media")}
-_RETIRED = {"hdr", "widevine-cdm", "sapi-voices", "voices", "audio-render", "font-policy", "font-whitelist",
+_RETIRED = {"fonts-mode-seed", "fonts-amount", "fonts-allowlist", "fonts-local-allowlist", "fonts-experimental-packages", "hdr", "widevine-cdm", "sapi-voices", "voices", "audio-render", "font-policy", "font-whitelist",
             "windows-font-metrics", "keyboard-layout"}
 _INTEGERS = {
     "--fingerprint-hardware-concurrency": (1, 128),
@@ -86,7 +86,7 @@ def normalize_fingerprint_args(args, *, final=False):
         preference = _preference(key)
         if preference in _RETIRED or re.match(r"^(?:offset|voices)-mode(?:-|$)", preference):
             raise ValueError(f"Retired browser option: {key}")
-        if preference in _SURFACE_MODES and value not in ("native", "shardx"):
+        if preference in _SURFACE_MODES and value != "native" and (preference == "fonts-mode" or value != "shardx"):
             raise ValueError(f"Unsupported surface mode: {key}")
         if preference in _PREFERENCE_BOOLEANS:
             low = value.lower()

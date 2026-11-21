@@ -11,6 +11,7 @@ class PrivateFontPackagesTest(unittest.TestCase):
         assets=Path(os.environ.get('CHROMIX_PRIVATE_FONT_ASSETS',r'G:\Shardxlite\tests\font-packs-candidate-20261114\private-fonts'))
         self.assertTrue((assets/'private-font-packages.json').is_file(),'Prepare verified private font assets before native test')
         self.assertEqual((self.root/'base/uxr_private_font_packages_win.h').read_text('utf-8'),render())
+        (self.root/'base/uxr_private_font_packages_win.h').write_text(render(controlled=False), encoding='utf-8')
         unit=self.root/'private-font-collection.cc';binary=self.root/'private-font-collection.exe'
         bad=self.root/'bad-private-fonts';bad.mkdir();data=json.loads((assets/'private-font-packages.json').read_text('utf-8'))
         for row in [*data['fonts'],*data['licenses']]:

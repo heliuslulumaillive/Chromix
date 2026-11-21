@@ -7,6 +7,9 @@ REMOVED_FILES = tuple('third_party/blink/renderer/platform/canvas_bridge/' + nam
     'BUILD.gn', 'canvas_bridge_client.cc', 'canvas_bridge_client.h',
     'canvas_bridge_codec.cc', 'canvas_bridge_codec.h')) + ('base/uxr_audio_reference_data.h',)
 
+RETIRED_FONT_TABLES = ('base/uxr_surface_reference_data.h', 'base/uxr_font_allowlist.h',
+                       'base/uxr_font_allowlist_tests.cc')
+
 CHECKED_FILES = (
     'base/uxr_config.cc', 'base/uxr_config.h', 'base/uxr_surface_modes_test_main.cc',
     'chrome/app/chrome_main.cc',
@@ -39,7 +42,7 @@ CHECKED_FILES = (
     'third_party/blink/renderer/modules/plugins/dom_plugin_array.cc',
     'third_party/blink/renderer/modules/speech/speech_synthesis.cc',
     'third_party/blink/renderer/modules/keyboard/keyboard_layout.cc',
-    'base/uxr_surface_modes.h', 'base/uxr_surface_reference_data.h',
+    'base/uxr_surface_modes.h',
     'base/uxr_surface_golden_tests.cc',
     'third_party/blink/renderer/modules/webaudio/audio_handler.cc',
     'third_party/blink/renderer/modules/webaudio/offline_audio_context.cc',
@@ -58,7 +61,7 @@ FORBIDDEN_SYMBOLS = re.compile(
 
 def verify_retirement(src: Path):
     errors = []
-    for name in REMOVED_FILES:
+    for name in (*REMOVED_FILES, *RETIRED_FONT_TABLES):
         if (src / name).exists():
             errors.append(name + ': retired implementation still exists')
     for name in CHECKED_FILES:
@@ -88,4 +91,4 @@ def verify_retirement(src: Path):
             errors.append(name + ': synthetic fixture control remains reachable')
     if errors:
         raise ValueError('\n'.join(errors))
-    return list(CHECKED_FILES) + list(REMOVED_FILES)
+    return list(CHECKED_FILES) + list(REMOVED_FILES) + list(RETIRED_FONT_TABLES)

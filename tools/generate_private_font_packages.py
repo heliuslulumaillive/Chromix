@@ -2,14 +2,16 @@
 import base64,hashlib,json,re
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-def render(controlled=True):
+def legacy_asset_table():
  manifest=ROOT/'build/private-font-packages.json';data=json.loads(manifest.read_text('utf-8'));rows=[]
  for font,items in [(True,data['fonts']),(False,data['licenses'])]:
   for item in items:
    if not re.fullmatch(r'[A-Za-z0-9_.-]+',item['file']) or not re.fullmatch(r'[a-f0-9]{64}',item['sha256']):raise ValueError('Unsafe font manifest entry')
    rows.append((item['file'],item['sha256'],item['size'],font))
  rows.append(('private-font-packages.json',hashlib.sha256(manifest.read_bytes()).hexdigest(),manifest.stat().st_size,False))
- entries='inline constexpr Asset kAssets[] = {\n'+''.join('  {L'+json.dumps(name)+','+json.dumps(sha)+','+str(size)+'ULL,'+str(font).lower()+'},\n' for name,sha,size,font in rows)+'};'
+ return 'inline constexpr Asset kAssets[] = {\n'+''.join('  {L'+json.dumps(name)+','+json.dumps(sha)+','+str(size)+'ULL,'+str(font).lower()+'},\n' for name,sha,size,font in rows)+'};'
+
+def render(controlled=True):
  key=json.loads((ROOT/'build/font-catalog-key.json').read_text('utf-8'))
  public=base64.b64decode(key['cngPublicBlob'],validate=True)
  if key['schemaVersion']!=2 or key['algorithm']!='ECDSA-P256-SHA256-P1363' or len(public)!=72 or hashlib.sha256(public).hexdigest()!=key['keyId']:raise ValueError('Invalid catalog trust anchor')
@@ -18,9 +20,11 @@ def render(controlled=True):
   if key.get('domain')!='ShardXFontCatalog-v3':raise ValueError('Controlled catalog requires its own signature domain')
   decoder=(ROOT/'tools/signed_font_catalog_v3_win.h.in').read_text('utf-8').replace('// TRUSTED_CATALOG_PUBLIC_KEY',anchor)
   loader=(ROOT/'tools/catalog_native_view_win.h.in').read_text('utf-8').replace('// SIGNED_CATALOG_V3',decoder)
+  legacy=''
  else:
   loader=(ROOT/'tools/signed_font_catalog_win.h.in').read_text('utf-8').replace('// TRUSTED_CATALOG_PUBLIC_KEY',anchor)
- return (ROOT/'tools/private_font_packages_win.h.in').read_text('utf-8').replace('// FONT_INDEX_FORMAT',(ROOT/'tools/font_face_index_win.h').read_text('utf-8')).replace('// PINNED_ASSETS',entries).replace('// SIGNED_CATALOG_LOADER',loader)
+  legacy=(ROOT/'tools/legacy_private_collection_win.h.in').read_text('utf-8').replace('// PINNED_ASSETS',legacy_asset_table())
+ return (ROOT/'tools/private_font_packages_win.h.in').read_text('utf-8').replace('// FONT_INDEX_FORMAT',(ROOT/'tools/font_face_index_win.h').read_text('utf-8')).replace('// HISTORICAL_PRIVATE_COLLECTION',legacy).replace('// SIGNED_CATALOG_LOADER',loader)
 if __name__=='__main__':
  import argparse
  p=argparse.ArgumentParser();p.add_argument('--write',action='store_true');p.add_argument('--check',action='store_true');a=p.parse_args()

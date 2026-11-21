@@ -159,11 +159,11 @@ diff --git a/third_party/blink/renderer/core/dom/element.cc b/third_party/blink/
   */
 +
 +#include "base/uxr_config.h"
-+#include "base/uxr_surface_math.h"
++#include "third_party/blink/renderer/core/dom/uxr_rect_policy.h"
  
  #include "third_party/blink/renderer/core/dom/element.h"
  
-@@ -3464,8 +3467,28 @@
+@@ -3464,8 +3467,10 @@
    if (element_layout_object->IsBoxModelObject() ||
        element_layout_object->IsBR()) {
      element_layout_object->AbsoluteQuads(quads);
@@ -173,70 +173,60 @@ diff --git a/third_party/blink/renderer/core/dom/element.cc b/third_party/blink/
 +  }
 +}
 +
-+
-+namespace {
-+bool UxrLegacyRects() {
-+  const auto policy = base::UxrConfig::GetInstance().SurfaceModes().rects;
-+  return policy.IsLegacy();
-+}
-+void ApplyUxrRectSize(gfx::RectF& rect) {
-+  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
-+  if (modes.rects.mode != base::UxrSurfaceMode::kShardX ||
-+      modes.noise_disabled || modes.raw)
-+    return;
-+  const auto size = base::uxr_surface_v1::RectSize(
-+      rect.width(), rect.height(), static_cast<uint32_t>(modes.rects.seed),
-+      modes.rects.amount);
-+  rect.set_width(size.first);
-+  rect.set_height(size.second);
-+}
-+}  // namespace
  
  DOMRectList* Element::getClientRects() {
    Vector<gfx::RectF> rects = GetClientRectsNoAdjustment();
-@@ -3477,6 +3500,7 @@
+@@ -3474,9 +3479,11 @@
+   }
+   LayoutObject* element_layout_object = GetLayoutObject();
+   DCHECK(element_layout_object);
++  const auto policy = base::UxrConfig::GetInstance().RectPolicy();
    for (auto& rect : rects) {
      GetDocument().AdjustRectForScrollAndAbsoluteZoom(rect,
                                                       *element_layout_object);
-+    ApplyUxrRectSize(rect);
++    ApplyUxrRectSize(rect, policy);
    }
    return MakeGarbageCollected<DOMRectList>(rects);
  }
-@@ -3532,7 +3556,7 @@
+@@ -3531,8 +3538,11 @@
+     return {};
    }
    Vector<gfx::RectF> result;
++  const bool apply_legacy_noise =
++      RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled() &&
++      base::UxrConfig::GetInstance().RectPolicy().IsLegacy();
    for (auto& quad : quads) {
 -    if (RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
-+    if (UxrLegacyRects() && RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
++    if (apply_legacy_noise) {
        quad.Scale(GetDocument().GetNoiseFactorX(), GetDocument().GetNoiseFactorY());
      }
      result.emplace_back(quad.BoundingBox());
-@@ -3564,7 +3588,7 @@
+@@ -3564,7 +3574,8 @@
    DCHECK(element_layout_object);
    GetDocument().AdjustRectForScrollAndAbsoluteZoom(result,
                                                     *element_layout_object);
 -  if (RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
-+  if (UxrLegacyRects() && RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
++  if (RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled() &&
++      base::UxrConfig::GetInstance().RectPolicy().IsLegacy()) {
      result.Scale(GetDocument().GetNoiseFactorX(), GetDocument().GetNoiseFactorY());
    }
    return result;
-@@ -3580,7 +3604,14 @@
+@@ -3580,7 +3591,13 @@
    // TODO(crbug.com/1499981): This should be removed once synchronized scrolling
    // impact is understood.
    SyncScrollAttemptHeuristic::DidAccessScrollOffset();
 -  return GetBoundingClientRect();
-+  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
-+  if (modes.rects.mode != base::UxrSurfaceMode::kShardX ||
-+      modes.noise_disabled || modes.raw)
++  const auto policy = base::UxrConfig::GetInstance().RectPolicy();
++  if (policy.mode != base::UxrSurfaceMode::kShardX)
 +    return GetBoundingClientRect();
 +  GetDocument().UpdateStyleAndLayoutForNode(this, DocumentUpdateReason::kJavaScript);
 +  auto rect = GetBoundingClientRectNoLifecycleUpdate();
-+  ApplyUxrRectSize(rect);
++  ApplyUxrRectSize(rect, policy);
 +  return DOMRect::FromRectF(rect);
  }
  
  ContainerQueryList* Element::matchContainer(const String& query) {
-@@ -8167,6 +8198,7 @@
+@@ -8167,6 +8184,7 @@
                                    /*reference_target*/ g_null_atom);
  }
  
@@ -253,55 +243,36 @@ diff --git a/third_party/blink/renderer/core/dom/range.cc b/third_party/blink/re
   */
 +
 +#include "base/uxr_config.h"
-+#include "base/uxr_surface_math.h"
++#include "third_party/blink/renderer/core/dom/uxr_rect_policy.h"
  
  #include "third_party/blink/renderer/core/dom/range.h"
  
-@@ -1697,6 +1700,25 @@
+@@ -1697,6 +1700,7 @@
           result_end.ComputeOffsetInContainerNode(), exception_state);
  }
  
 +
-+namespace {
-+bool UxrLegacyRects() {
-+  const auto policy = base::UxrConfig::GetInstance().SurfaceModes().rects;
-+  return policy.IsLegacy();
-+}
-+void ApplyUxrRectSize(gfx::RectF& rect) {
-+  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
-+  if (modes.rects.mode != base::UxrSurfaceMode::kShardX ||
-+      modes.noise_disabled || modes.raw)
-+    return;
-+  const auto size = base::uxr_surface_v1::RectSize(
-+      rect.width(), rect.height(), static_cast<uint32_t>(modes.rects.seed),
-+      modes.rects.amount);
-+  rect.set_width(size.first);
-+  rect.set_height(size.second);
-+}
-+}  // namespace
-+
  DOMRectList* Range::getClientRects() const {
    // TODO(crbug.com/1499981): This should be removed once synchronized scrolling
    // impact is understood.
-@@ -1708,12 +1730,24 @@
+@@ -1708,12 +1712,23 @@
    Vector<gfx::QuadF> quads;
    GetBorderAndTextQuads(quads);
  
 -  if (RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
-+  if (UxrLegacyRects() && RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
++  const auto policy = base::UxrConfig::GetInstance().RectPolicy();
++  if (policy.IsLegacy() && RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
      for (gfx::QuadF& quad : quads) {
        quad.Scale(owner_document_->GetNoiseFactorX(), owner_document_->GetNoiseFactorY());
      }
    }
  
 +
-+  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
-+  if (modes.rects.mode == base::UxrSurfaceMode::kShardX &&
-+      !modes.noise_disabled && !modes.raw) {
++  if (policy.mode == base::UxrSurfaceMode::kShardX) {
 +    Vector<gfx::RectF> rects;
 +    for (const auto& quad : quads) {
 +      auto rect = quad.BoundingBox();
-+      ApplyUxrRectSize(rect);
++      ApplyUxrRectSize(rect, policy);
 +      rects.push_back(rect);
 +    }
 +    return MakeGarbageCollected<DOMRectList>(rects);
@@ -309,15 +280,16 @@ diff --git a/third_party/blink/renderer/core/dom/range.cc b/third_party/blink/re
    return MakeGarbageCollected<DOMRectList>(quads);
  }
  
-@@ -1722,9 +1756,10 @@
+@@ -1722,9 +1737,11 @@
    // impact is understood.
    SyncScrollAttemptHeuristic::DidAccessScrollOffset();
    auto rect = BoundingRect();
 -  if (RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
-+  if (UxrLegacyRects() && RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
++  const auto policy = base::UxrConfig::GetInstance().RectPolicy();
++  if (policy.IsLegacy() && RuntimeEnabledFeatures::FingerprintingClientRectsNoiseEnabled()) {
      rect.Scale(owner_document_->GetNoiseFactorX(), owner_document_->GetNoiseFactorY());
    }
-+  ApplyUxrRectSize(rect);
++  ApplyUxrRectSize(rect, policy);
    return DOMRect::FromRectF(rect);
  }
  
@@ -2618,3 +2590,44 @@ diff --git a/third_party/blink/renderer/platform/widget/widget_base.cc b/third_p
  }
  
  void WidgetBase::UpdateScreenInfo(
+diff --git a/third_party/blink/renderer/core/dom/build.gni b/third_party/blink/renderer/core/dom/build.gni
+--- a/third_party/blink/renderer/core/dom/build.gni
++++ b/third_party/blink/renderer/core/dom/build.gni
+@@ -24,6 +24,7 @@
+   "tree_scope.cc",
+   "tree_scope.h",
+   "user_action_element_traversal.h",
++  "uxr_rect_policy.h",
+ ]
+ 
+ blink_core_sources_dom = [
+diff --git a/third_party/blink/renderer/core/dom/uxr_rect_policy.h b/third_party/blink/renderer/core/dom/uxr_rect_policy.h
+new file mode 100644
+--- /dev/null
++++ b/third_party/blink/renderer/core/dom/uxr_rect_policy.h
+@@ -0,0 +1,25 @@
++// Copyright 2026 The ShardX Authors.
++#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DOM_UXR_RECT_POLICY_H_
++#define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_UXR_RECT_POLICY_H_
++
++#include "base/uxr_surface_math.h"
++#include "base/uxr_surface_modes.h"
++#include "ui/gfx/geometry/rect_f.h"
++
++namespace blink {
++
++inline void ApplyUxrRectSize(gfx::RectF& rect,
++                             const base::UxrSurfacePolicy& policy) {
++  if (policy.mode != base::UxrSurfaceMode::kShardX ||
++      (rect.width() == 0 && rect.height() == 0))
++    return;
++  const auto size = base::uxr_surface_v1::RectSize(
++      rect.width(), rect.height(), static_cast<uint32_t>(policy.seed),
++      policy.amount);
++  rect.set_width(size.first);
++  rect.set_height(size.second);
++}
++
++}  // namespace blink
++
++#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_DOM_UXR_RECT_POLICY_H_

@@ -29,7 +29,6 @@ struct Asset {
   uint64_t size;
   bool font;
 };
-// PINNED_ASSETS
 struct Resources {
   HANDLE directory = INVALID_HANDLE_VALUE;
   std::vector<HANDLE> handles;
@@ -173,64 +172,7 @@ inline HRESULT VerifyAssets(const std::wstring &supplied,
   *result = std::move(files);
   return S_OK;
 }
-inline HRESULT Verify(const std::wstring &supplied,
-                      std::shared_ptr<Resources> *result) {
-  return VerifyAssets(supplied, kAssets, sizeof(kAssets) / sizeof(kAssets[0]), result);
-}
 // SIGNED_CATALOG_LOADER
-inline HRESULT CreateCollection(IDWriteFactory *factory,
-                                const std::shared_ptr<Resources> &resources,
-                                IDWriteFontCollection **output) {
-  if (!factory || !resources || !output)
-    return E_POINTER;
-  *output = nullptr;
-  Microsoft::WRL::ComPtr<IDWriteFactory> original(factory);
-  Microsoft::WRL::ComPtr<IDWriteFactory5> modern;
-  HRESULT hr = original.As(&modern);
-  if (FAILED(hr))
-    return hr;
-  Microsoft::WRL::ComPtr<IDWriteFontSetBuilder1> builder;
-  hr = modern->CreateFontSetBuilder(&builder);
-  if (FAILED(hr))
-    return hr;
-  // Preserve the same native view Chromium normally uses. GetSystemFontSet()
-  // also imports compatibility/remote-backed faces absent from that view;
-  // those can hit the local-file broker's invariant during unique-name lookup.
-  Microsoft::WRL::ComPtr<IDWriteFontCollection> native_collection;
-  hr = original->GetSystemFontCollection(&native_collection);
-  if (FAILED(hr))
-    return hr;
-  Microsoft::WRL::ComPtr<IDWriteFontCollection1> native_collection1;
-  hr = native_collection.As(&native_collection1);
-  if (FAILED(hr))
-    return hr;
-  Microsoft::WRL::ComPtr<IDWriteFontSet> system;
-  hr = native_collection1->GetFontSet(&system);
-  if (FAILED(hr))
-    return hr;
-  hr = builder->AddFontSet(system.Get());
-  if (FAILED(hr))
-    return hr;
-  // Real local font files and all of their faces/variable instances. No global
-  // font registration, font-name substitution or Windows font file changes.
-  for (const auto &path : resources->fonts) {
-    Microsoft::WRL::ComPtr<IDWriteFontFile> file;
-    hr = modern->CreateFontFileReference(path.c_str(), nullptr, &file);
-    if (FAILED(hr))
-      return hr;
-    hr = builder->AddFontFile(file.Get());
-    if (FAILED(hr))
-      return hr;
-  }
-  Microsoft::WRL::ComPtr<IDWriteFontSet> set;
-  hr = builder->CreateFontSet(&set);
-  if (FAILED(hr))
-    return hr;
-  Microsoft::WRL::ComPtr<IDWriteFontCollection1> collection;
-  hr = modern->CreateFontCollectionFromFontSet(set.Get(), &collection);
-  if (FAILED(hr))
-    return hr;
-  return collection.CopyTo(output);
-}
+// HISTORICAL_PRIVATE_COLLECTION
 } // namespace base::uxr_private_fonts_v1
 #endif

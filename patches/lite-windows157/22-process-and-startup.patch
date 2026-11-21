@@ -23,7 +23,7 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
  #include "base/functional/bind.h"
  #include "base/functional/callback_helpers.h"
  #include "base/logging.h"
-@@ -164,6 +174,686 @@
+@@ -164,6 +174,699 @@
  
    base::CommandLine* command_line(base::CommandLine::ForCurrentProcess());
  
@@ -66,6 +66,16 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
 +             "uxr-font-policy",
 +             "fingerprint-font-whitelist",
 +             "uxr-font-whitelist",
++             "fingerprint-fonts-mode-seed",
++             "uxr-fonts-mode-seed",
++             "fingerprint-fonts-amount",
++             "uxr-fonts-amount",
++             "fingerprint-fonts-allowlist",
++             "uxr-fonts-allowlist",
++             "fingerprint-fonts-local-allowlist",
++             "uxr-fonts-local-allowlist",
++             "fingerprint-fonts-experimental-packages",
++             "uxr-fonts-experimental-packages",
 +             "fingerprint-windows-font-metrics",
 +             "uxr-windows-font-metrics",
 +         }) {
@@ -84,12 +94,19 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
 +        if (!command_line->HasSwitch(key))
 +          continue;
 +        const std::string mode = command_line->GetSwitchValueASCII(key);
-+        if (removed || (mode != "native" && mode != "shardx")) {
++        if (removed || (std::string_view(surface) == "fonts" && mode != "native") ||
++            (mode != "native" && mode != "shardx")) {
 +          std::cerr << "Unsupported Lite surface mode: " << key << "=" << mode
 +                    << std::endl;
 +          return 1;
 +        }
 +      }
++    }
++
++    if (command_line->HasSwitch("uxr-fonts-resources-dir") &&
++        !command_line->HasSwitch("uxr-fonts-catalog-dir")) {
++      std::cerr << "Signed font catalog is required for resource loading" << std::endl;
++      return 1;
 +    }
 +
 +    // Reject conflicting caller duplicates; repeated identical values are safe.
@@ -149,8 +166,6 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
 +      {"fingerprint-webgpu-features", "uxr-webgpu-features"},
 +      {"fingerprint-webgl-masked-vendor", "uxr-webgl-masked-vendor"},
 +      {"fingerprint-webgl-masked-renderer", "uxr-webgl-masked-renderer"},
-+      {"fingerprint-fonts-allowlist", "uxr-fonts-allowlist"},
-+      {"fingerprint-fonts-local-allowlist", "uxr-fonts-local-allowlist"},
 +      {"fingerprint-audio-default-sample-rate", "uxr-audio-default-sample-rate"},
 +      {"fingerprint-audio-channel-limit", "uxr-audio-channel-limit"},
 +      {"fingerprint-audio-default-channel-count", "uxr-audio-default-channel-count"},
@@ -400,8 +415,6 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
 +      append_default("uxr-screen-height", mac ? "900" : "1080");
 +      if (!command_line->HasSwitch("uxr-screen-avail-height"))
 +        append_default("uxr-taskbar-height", win ? "48" : mac ? "95" : "0");
-+      if (public_fingerprint)
-+        append_default("uxr-storage-quota", "102400");
 +    }
 +
 +    if (command_line->GetSwitchValueASCII("fingerprint") != "off" &&

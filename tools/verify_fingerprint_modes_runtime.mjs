@@ -9,8 +9,8 @@ import zlib from "node:zlib";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { audioAcceptanceProbe, validateAudioAcceptance } from "./fingerprint_audio_acceptance.mjs";
-import { fontAcceptanceProbe, validateFontAcceptance, nativeFontGlyphMatches, WINDOWS_FONT_PACKAGE_ORACLE } from "./fingerprint_font_acceptance.mjs";
-import { referenceAcceptanceProbe, validateReferenceAcceptance } from "./fingerprint_reference_acceptance.mjs";
+import { fontAcceptanceProbe } from "./fingerprint_font_acceptance.mjs";
+import { referenceAcceptanceProbe, validateReferenceAcceptance, layoutAndQuotaProbe, validLayoutPolicyEvidence } from "./fingerprint_reference_acceptance.mjs";
 import { renderbufferAcceptanceProbe, validateRenderbufferAcceptance } from "./fingerprint_renderbuffer_acceptance.mjs";
 import { pixelSemanticProbe, validatePixelSemantics, validateHeadlessScreens, pngDimensions, PIXEL_SCENARIOS, HEADLESS_SCENARIOS } from "./pixel_semantic_acceptance.mjs";
 import { inputPreservationProbe, validateInputPreservation, INPUT_SCENARIOS } from "./canvas_audio_input_acceptance.mjs";
@@ -502,9 +502,9 @@ async function stopOwned(child, cdp) {
 
 export function scenarios() {
   const surfaces = ["canvas", "webgl", "audio", "fonts", "rects", "text", "sensors", "media"];
-  const make = (id, overrides = {}, extra = []) => {
-    const flags = ["--fingerprint=12345"];
-    for (const surface of surfaces) flags.push(`--fingerprint-${surface}-mode=${overrides[surface] || "native"}`);
+  const make = (id, overrides = {}, extra = [], seed = "12345") => {
+    const flags = ["--fingerprint=" + seed];
+    for (const surface of surfaces) if (overrides[surface] !== "omit") flags.push(`--fingerprint-${surface}-mode=${overrides[surface] || "native"}`);
     for (const field of ["identity", "cpu", "memory", "screen"]) if (overrides[field] !== "omit")
       flags.push(`--fingerprint-${field}-mode=${overrides[field] || "native"}`);
     for (const field of ["gpu", "webgl-capabilities", "webgpu-features", "webgpu-limits"])
@@ -520,24 +520,16 @@ export function scenarios() {
     make("shard_surfaces", { audio: "shardx", rects: "shardx", text: "shardx", sensors: "shardx", media: "shardx" },
       ["--fingerprint-audio-mode-seed=314159", "--fingerprint-rects-mode-seed=314159", "--fingerprint-text-mode-seed=314159",
         "--fingerprint-sensors-mode-seed=314159", "--fingerprint-media-audio-inputs=0", "--fingerprint-media-audio-outputs=0", "--fingerprint-media-video-inputs=0"]),
-    make("memory_custom", { cpu: "custom", memory: "custom" }, ["--fingerprint-hardware-concurrency=4", "--fingerprint-device-memory=2"]),
+    make("memory_custom", { cpu: "custom", memory: "custom" }, ["--fingerprint-hardware-concurrency=4", "--fingerprint-device-memory=2", "--fingerprint-storage-quota=64"]),
     make("hardware_cloak", { canvas: "shardx", audio: "native", text: "native", cpu: "omit", memory: "omit", gpu: "omit", "webgpu-features": "cloak", "webgpu-limits": "cloak" },
       ["--fingerprint-hardware-profile=cloak", "--fingerprint-hardware-vendor=nvidia"]),
     make("gpu_custom", { "webgl-capabilities": "custom", "webgpu-features": "custom" },
       ["--uxr-webgl-max-texture-size=64", "--uxr-webgl-max-cube-map-texture-size=64", "--uxr-webgl-max-renderbuffer-size=64",
         "--uxr-webgl-max-3d-texture-size=16", "--uxr-webgl-max-array-texture-layers=4", "--uxr-webgpu-features=timestamp-query"]),
     make("webgl_shardx", { webgl: "shardx" }, ["--fingerprint-webgl-mode-seed=314159"]),
-    make("fonts_shard40", { fonts: "shardx" }, ["--fingerprint-fonts-mode-seed=40"]),
-    make("fonts_shard41", { fonts: "shardx" }, ["--fingerprint-fonts-mode-seed=41"]),
-    make("fonts_shard42", { fonts: "shardx" }, ["--fingerprint-fonts-mode-seed=42"]),
-    make("fonts_shard43", { fonts: "shardx" }, ["--fingerprint-fonts-mode-seed=43"]),
-    ...Array.from({length:12},(_,index)=>make("fonts_pack"+(120+index),
-      {fonts:"shardx"},["--fingerprint-fonts-mode-seed="+(120+index)])),
-    make("fonts_native10026", { fonts: "native" }, ["--fingerprint-fonts-mode-seed=10026", "--fingerprint-platform=windows"]),
-    make("fonts_default9918", { fonts: "shardx" }, ["--fingerprint-fonts-mode-seed=9918"]),
-    make("fonts_default14666", { fonts: "shardx" }, ["--fingerprint-fonts-mode-seed=14666"]),
-    make("fonts_allowlists", {}, ["--fingerprint-fonts-allowlist=Arial,Consolas", "--fingerprint-fonts-local-allowlist=Arial"]),
-    make("fonts_empty", {}, ["--fingerprint-fonts-allowlist="]),
+    make("fonts_native10026", {fonts:"native"}, ["--fingerprint-platform=windows"], "10026"),
+    make("fonts_default9918", {fonts:"omit"}, [], "9918"),
+    make("fonts_default14666", {fonts:"omit"}, [], "14666"),
     make("audio_native_macos", { audio: "native" }, ["--fingerprint-platform=macos"]),
     make("audio_defaults_44100", {}, ["--fingerprint-audio-default-sample-rate=44100", "--fingerprint-audio-channel-limit=1"]),
     make("audio_defaults_32000", {}, ["--fingerprint-audio-default-sample-rate=32000", "--fingerprint-audio-channel-limit=6"]),
@@ -559,13 +551,12 @@ export const POSITIVE_GROUPS = [
   "legacy_canvas", "shard_canvas", "shard_webgl",
   "shard_audio", "shard_rects", "shard_text", "shard_sensors", "shard_media",
   "memory_custom", "hardware_profile", "webgl_resource_limits", "webgpu_capabilities",
-  "hardware_gpu_identity", "masked_webgl", "shard_fonts", "native_fonts", "font_allowlists",
+  "hardware_gpu_identity", "masked_webgl", "native_fonts",
   "native_audio", "audio_defaults", "audio_channels", "headless_screen",
 ];
 export const BASIC_SCENARIOS = new Set([
   "fonts_default9918", "fonts_default14666",
-  ...Array.from({length:12},(_,index)=>"fonts_pack"+(120+index)),
-  "fonts_shard40", "fonts_shard41", "fonts_shard42", "fonts_shard43", "fonts_native10026", "fonts_allowlists", "fonts_empty",
+  "fonts_native10026",
   "audio_native_macos", "audio_defaults_44100", "audio_defaults_32000",
   "audio_default_mono", "audio_default_stereo", "audio_default_32",
   ...HEADLESS_SCENARIOS,
@@ -587,7 +578,7 @@ export function summarizePositiveAcceptance(checks, notTested) {
   return { positive_acceptance, full_strategy_acceptance, partial: !full_strategy_acceptance };
 }
 
-export function verifyResults(records, baselineOnly = false, oracle = null, options = {}) {
+export function verifyResults(records, baselineOnly = false, oracle = null) {
   const checks = [], notTested = [];
   const check = (scenario, name, passed, detail = null) => checks.push({ scenario, name, passed: passed === true, detail });
   const skip = (scenario, name, reason) => notTested.push({ scenario, name, reason });
@@ -693,6 +684,9 @@ export function verifyResults(records, baselineOnly = false, oracle = null, opti
   } else if (!baselineOnly) check("all_native", "native_off_control_present", false);
   if (!baselineOnly && base) {
     const p = id => byId[id]?.probe;
+    for (const id of ["all_native","shard_surfaces","memory_custom","native_off_control"]) {
+      check(id, "empty_and_multiline_rects_and_storage_quota", validLayoutPolicyEvidence(byId[id]));
+    }
     for (const id of ["legacy_seeded", "canvas_shardx", "hardware_cloak"]) {
       check(id, "application_canvas_input_preserved", equal(bytes(p(id)?.canvas?.full), bytes(p(id)?.canvas?.expected)));
       const diff = difference(bytes(p(id)?.canvas?.rendered), bytes(base.canvas?.rendered));
@@ -774,8 +768,7 @@ export function verifyResults(records, baselineOnly = false, oracle = null, opti
       gpu_custom: ["renderbuffer"],
       canvas_shardx: ["pixel_semantics"], webgl_shardx: ["pixel_semantics"],
       ...Object.fromEntries(HEADLESS_SCENARIOS.map(id=>[id,["headless_screen"]])),
-      ...Object.fromEntries(["fonts_shard40", "fonts_shard41", "fonts_shard42", "fonts_shard43", "fonts_native10026", "fonts_allowlists", "fonts_empty"].map(id => [id, ["fonts"]])),
-      ...Object.fromEntries(Array.from({length:12},(_,index)=>["fonts_pack"+(120+index),["fonts"]])),
+      fonts_native10026: ["fonts"],
       fonts_default9918: ["fonts"], fonts_default14666: ["fonts"],
 
       ...Object.fromEntries(["audio_native_macos", "audio_defaults_44100", "audio_defaults_32000", "audio_default_mono", "audio_default_stereo", "audio_default_32"].map(id => [id, ["audio"]])),
@@ -792,21 +785,6 @@ export function verifyResults(records, baselineOnly = false, oracle = null, opti
       checks.push(...result.checks.filter(row=>row.acceptance_group!=="cloak_audio"));
       notTested.push(...result.not_tested.filter(row=>row.acceptance_group!=="cloak_audio"));
     }
-    const fontResult = validateFontAcceptance(byId, WINDOWS_FONT_PACKAGE_ORACLE);
-    if(options.experimentalFontResources)for(const name of ['Noto Sans JP','Noto Serif JP','Liberation Sans','Liberation Serif','Liberation Mono']) {
-      const fonts=byId.all_native?.extra?.fonts;
-      for(const channel of ['windowLocal','workerLocal'])check('all_native','private_font_resource_'+channel+'_'+name,
-        fonts?.[channel]?.entries?.some(row=>row.family===name&&row.loaded===true&&row.status==='loaded'));
-      check('all_native','private_font_resource_query_'+name,
-        fonts?.localFonts?.records?.some(row=>row.family.toLowerCase()===name.toLowerCase()));
-      const node=fonts?.cssNodes?.find(row=>row.family===name);
-      check('all_native','private_font_resource_css_'+name,
-        node&&fonts?.cssPlatformFonts?.[node.nodeId]?.fonts?.some(row=>nativeFontGlyphMatches(name,row,fonts.localFonts?.records)));
-    }
-    // Retire the removed Cloak-font oracle, replacing it with native parity
-    // evidence rather than treating a missing obsolete scenario as a pass.
-    checks.push(...fontResult.checks.filter(row=>row.acceptance_group!=="cloak_fonts"));
-    notTested.push(...fontResult.not_tested.filter(row=>row.acceptance_group!=="cloak_fonts"));
     const nativeSurfaces=validateNativeSurfaceResults(byId);
     checks.push(...nativeSurfaces.checks);notTested.push(...nativeSurfaces.not_tested);
     for(const id of ["fonts_default9918","fonts_default14666"]){
@@ -944,11 +922,11 @@ export function retirementCases() {
   const cases=[];
   for(const prefix of ["fingerprint","uxr"]){
     for(const surface of ["canvas","webgl","fonts","audio","rects","text","sensors","media","offset","voices"])
-      for(const value of (["offset","voices"].includes(surface) ? ["native","shardx","chromix","cloak"] : ["chromix","cloak"])){
+      for(const value of (["offset","voices"].includes(surface) ? ["native","shardx","chromix","cloak"] : surface==="fonts" ? ["shardx","chromix","cloak"] : ["chromix","cloak"])){
       const key=`${prefix}-${surface}-mode`;
       cases.push({id:`${prefix}_${surface}_${value}`,argument:`--${key}=${value}`,diagnostic:`Unsupported Lite surface mode: ${key}=${value}`});
     }
-    for(const [name,value] of [["hdr","native"],["widevine-cdm","fixture"],["sapi-voices","false"],["audio-render","native"],["font-policy","native"],["font-whitelist","Arial"],["windows-font-metrics","false"],["canvas-bridge","ws://127.0.0.1:65534"],["canvas-bridge-unsafe","false"],["devtools-runtime-suppression","false"],["keyboard-layout","native"]]){
+    for(const [name,value] of [["fonts-mode-seed","42"],["fonts-amount","0"],["fonts-allowlist","Arial"],["fonts-local-allowlist",""],["fonts-experimental-packages","1"],["hdr","native"],["widevine-cdm","fixture"],["sapi-voices","false"],["audio-render","native"],["font-policy","native"],["font-whitelist","Arial"],["windows-font-metrics","false"],["canvas-bridge","ws://127.0.0.1:65534"],["canvas-bridge-unsafe","false"],["devtools-runtime-suppression","false"],["keyboard-layout","native"]]){
       const key=`${prefix}-${name}`;
       cases.push({id:`${prefix}_${name.replaceAll('-','_')}`,argument:`--${key}=${value}`,diagnostic:`Retired Lite kernel switch: ${key}`});
     }
@@ -956,6 +934,8 @@ export function retirementCases() {
   for(const name of ["synthetic-device-tests","webauthn-uvpaa","plugins"]){
     const key=`uxr-${name}`;cases.push({id:key.replaceAll('-','_'),argument:`--${key}=false`,diagnostic:`Retired Lite kernel switch: ${key}`});
   }
+  cases.push({id:"unsigned_font_resources",argument:"--uxr-fonts-resources-dir=fixture",
+    diagnostic:"Signed font catalog is required for resource loading"});
   return cases;
 }
 
@@ -987,7 +967,7 @@ async function main() {
   const args = {};
   for (let i = 2; i < process.argv.length; i++) {
     const key = process.argv[i];
-    if (key === "--baseline-only" || key === "--self-test" || key === "--experimental-font-resources") args[key.slice(2)] = true;
+    if (key === "--baseline-only" || key === "--self-test") args[key.slice(2)] = true;
     else { if (!key.startsWith("--") || !process.argv[i + 1]) throw new Error("Invalid arguments"); args[key.slice(2)] = process.argv[++i]; }
   }
   if (args["self-test"]) {
@@ -1037,7 +1017,7 @@ async function main() {
     capabilities_sha256: await sha256(path.resolve(args.capabilities)), harness_sha256: await sha256(fileURLToPath(import.meta.url)),
     started_at: new Date().toISOString(), node: process.version, transport: "Raw CDP; sensor emulation only, no API replacement or automatic UA/font/media/viewport emulation",
     synthetic_media_only: true, credentials_environment_removed: true, external_pages: false, baseline_only: !!args["baseline-only"], scenarios: [],
-    font_profile_policy: "complete-installations-v3", experimental_font_resources: !!args["experimental-font-resources"],
+    font_profile_policy: "native-or-signed-catalog-v3",
     oracle_sha256: await sha256(oraclePath),
     collector_modules_sha256: Object.fromEntries(await Promise.all(["fingerprint_audio_acceptance.mjs", "fingerprint_font_acceptance.mjs", "fingerprint_reference_acceptance.mjs", "fingerprint_renderbuffer_acceptance.mjs", "pixel_semantic_acceptance.mjs", "canvas_audio_input_acceptance.mjs"]
       .map(async name => [name, await sha256(path.join(toolRoot, name))]))),
@@ -1058,13 +1038,6 @@ async function main() {
       const folder = path.join(runRoot, scenario.id); await fsp.mkdir(folder);
       const profile = path.join(folder, "profile"); await fsp.mkdir(profile);
       const scenarioFlags = [...scenario.flags];
-      if(args["experimental-font-resources"]){
-        const privateFontRoot=path.join(path.dirname(browser),'private-fonts');
-        if(!fs.existsSync(path.join(privateFontRoot,'private-font-packages.json')))
-          throw new Error('Explicit private-font engine fixture resources are missing');
-        scenarioFlags.push('--uxr-fonts-resources-dir='+privateFontRoot);
-      }
-      if(/^fonts_(?:pack\d+|shard4\d)$/.test(scenario.id))scenarioFlags.push('--uxr-fonts-experimental-packages=1');
       const trace = [], record = { id: scenario.id, flags: scenarioFlags, cdp: trace,
 
         probe_level: BASIC_SCENARIOS.has(scenario.id) ? "basic" : "full" };
@@ -1116,6 +1089,9 @@ async function main() {
           basicOnly: BASIC_SCENARIOS.has(scenario.id),
         })})`);
         record.extra = {};
+        if (["all_native","shard_surfaces","memory_custom","native_off_control"].includes(scenario.id)) {
+          record.extra.slim_policy = await evaluate(cdp, sessionId, `(${layoutAndQuotaProbe.toString()})()`, true);
+        }
         if (INPUT_SCENARIOS.includes(scenario.id)) {
           record.extra.input_preservation = await evaluate(cdp, sessionId, `(${inputPreservationProbe.toString()})()`);
         }
@@ -1181,7 +1157,7 @@ async function main() {
       console.log(JSON.stringify({ scenario: record.id, completed: !!record.probe && !record.error, normal_exit: record.cleanup.normalExit }));
       if (!record.cleanup.normalExit) break; // Never multiply an unclosed session.
     }
-    const validation = verifyResults(report.scenarios, !!args["baseline-only"], oracle, {experimentalFontResources:!!args["experimental-font-resources"]});
+    const validation = verifyResults(report.scenarios, !!args["baseline-only"], oracle);
     Object.assign(report, validation);
     if (report.scenarios.length !== matrix.length) validation.failed.push({ name: "complete_scenario_matrix", passed: false });
     report.status = validation.failed.length ? "failed" : args["baseline-only"] ? "baseline_only" : "passed";

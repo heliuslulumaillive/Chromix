@@ -19,7 +19,7 @@ def receipt():
 
 class LiteRetirementRuntimeTests(unittest.TestCase):
     def test_explicit_rejections_are_complete_and_versioned(self):
-        self.assertEqual(candidate.validate_retirement_rejections(receipt()),73)
+        self.assertEqual(candidate.validate_retirement_rejections(receipt()),86)
 
     def test_crashes_timeouts_missing_and_forged_positive_evidence_fail(self):
         mutations=[lambda r:r['cases'].pop(),lambda r:r['cases'][0].update(exit_code=0),

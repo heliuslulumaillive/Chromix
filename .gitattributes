@@ -17,6 +17,7 @@
 *.json    text eol=lf
 *.go      text eol=lf
 tools/private_font_packages_win.h.in text eol=lf
+tools/legacy_private_collection_win.h.in text eol=lf
 tools/signed_font_catalog_win.h.in text eol=lf
 tools/signed_font_catalog_v3_win.h.in text eol=lf
 tools/catalog_native_view_win.h.in text eol=lf

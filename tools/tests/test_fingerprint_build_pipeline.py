@@ -150,7 +150,7 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
                 'shard_canvas_pixels': 7584, 'shard_canvas_crop': 4264, 'pixel_semantic_properties': 1, 'pixel_mask_first_equivalence': 93857}},
             {'checks': 3, 'failures': 0}, {'gpu_checks': 4, 'failures': 0},
             {'hardware_checks': 5, 'failures': 0},
-            {'font_allowlist_checks': 38, 'failures': 0}, {'audio_default_checks': 28, 'failures': 0},
+            {'audio_default_checks': 28, 'failures': 0},
             {'voice_compat_checks': 89, 'failures': 0},
             {'status': 'passed', 'configuration_checks': 6, 'failures': 0},
             {'mask_first_oracle_revision': candidate.MASK_FIRST_ORACLE_REVISION,
@@ -171,12 +171,12 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
     native = {'schema_version': 1, 'status': 'passed', **payload, 'processes': processes, 'groups': groups}
     cases = ['native_off_control', 'all_native', 'legacy_seeded', 'canvas_shardx',
              'shard_surfaces', 'memory_custom', 'hardware_cloak', 'gpu_custom',
-             'webgl_shardx', 'fonts_shard40', 'fonts_shard41', 'fonts_shard42', 'fonts_shard43', 'fonts_native10026', 'fonts_allowlists', 'fonts_empty',
+             'webgl_shardx', 'fonts_native10026',
              'audio_native_macos',
              'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono', 'audio_default_stereo',
              'audio_default_32', 'gpu_masked_custom',
              'headless_custom_dpr2','headless_custom_fractional','headless_explicit_info','headless_force_scale','headless_native_ignored','headless_off_ignored',
-             *(f'fonts_pack{120+i}' for i in range(12)), 'fonts_default9918','fonts_default14666']
+             'fonts_default9918','fonts_default14666']
     common = ['probe_completed', 'normal_owned_browser_shutdown', 'secure_loopback', 'no_internal_probe_errors',
               'window_worker_cpu_memory', 'probe_scope']
     full = ['audio_alias_copy_preserves_unwritten_tail', 'analyser_preserves_unwritten_tails', 'synthetic_media_tracks']
@@ -199,9 +199,6 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
     checks.extend({'scenario':scenario,'name':name,'passed':True}
                   for scenario in ('fonts_default9918','fonts_default14666')
                   for name in ('windowLocal_native_parity','workerLocal_native_parity','iframeLocal_native_parity','query_native_metadata','css_native_families'))
-    checks.extend({'scenario':'all_native','name':'private_font_resource_'+channel+'_'+family,'passed':True}
-                  for channel in ('windowLocal','workerLocal','query','css')
-                  for family in ('Noto Sans JP','Noto Serif JP','Liberation Sans','Liberation Serif','Liberation Mono'))
     for scenario, scopes in candidate.FINGERPRINT_EXTRA_SCOPES.items():
         checks.extend({'scenario': scenario, 'name': scope + '_acceptance_probe_present', 'passed': True} for scope in scopes)
     positive_checks = {
@@ -218,9 +215,9 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
         'webgl_resource_limits': ('gpu_custom', 'webgl_texture_context_limit'),
         'webgpu_capabilities': ('gpu_custom', 'webgpu_compute_readback'),
         'hardware_gpu_identity': ('hardware_cloak', 'webgl_hardware_identity_positive'),
-        'shard_fonts': ('fonts_pack120', 'windowLocal:Agency FB:blocked'),
+
         'native_fonts': ('fonts_native10026', 'windowLocal_native_parity'),
-        'font_allowlists': ('fonts_allowlists', 'windowLocal:Consolas:blocked'),
+
         'native_audio': ('audio_native_macos', 'match_5000_native_reference_bytes'),
         'audio_defaults': ('audio_defaults_44100', 'default_sample_rate'),
         'audio_channels': ('audio_defaults_44100', 'backend_bounded_capacity_and_initial_count'),
@@ -258,6 +255,11 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
     next(s for s in scenarios if s['id'] == 'webgl_shardx')['probe']['webgl'] = {
         kind: {'supported': True} for kind in ('webgl', 'webgl2')}
     for scenario in scenarios:
+        if scenario['id'] in ('all_native', 'shard_surfaces', 'memory_custom', 'native_off_control'):
+            rects = [[[0,0,12,12],[0,12,14,12]],[[0,0,12,12],[0,12,14,12]]]
+            scenario['extra']['slim_policy'] = {'version':1, 'empty':[[0,0,0,0],[0,0,0,0]],
+                'first':rects, 'repeat':rects, 'quota':64*1024**2 if scenario['id']=='memory_custom' else 256*1024**2}
+            checks.append({'scenario':scenario['id'], 'name':'empty_and_multiline_rects_and_storage_quota', 'passed':True})
         if scenario['id'] in candidate.INPUT_PRESERVATION_SCENARIOS:
             parts,inputs=input_preservation_fixture(scenario['id'])
             scenario['probe'].update(parts)
@@ -756,7 +758,7 @@ if (@($results | Where-Object { -not $_.passed }).Count) { exit 1 }
             self.assertFalse(result['full_strategy_acceptance'])
             self.assertEqual(result['positive_acceptance']['masked_webgl']['status'], 'not_tested')
             self.assertEqual(result['positive_acceptance']['native_audio']['status'], 'observed_pass')
-            self.assertGreater(result['native_executed_counts']['production.font_allowlist_checks'], 0)
+            self.assertGreater(result['native_executed_counts']['production.voice_compat_checks'], 0)
             self.assertGreater(result['native_executed_counts']['production.audio_default_checks'], 0)
             self.assertGreater(result['native_executed_counts']['production.voice_compat_checks'], 0)
 

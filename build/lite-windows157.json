@@ -45,13 +45,6 @@
       }
     },
     "domain_rules_sha256": "f59c4316b4ac32f9dfe4f6440c4cf9ad5dab0ab8827769f5dc2587ca07e91f09",
-    "private_font_packages": {
-      "version": 1,
-      "manifest": "build/private-font-packages.json",
-      "manifest_sha256": "53263cba1087f0b942da56219d42544b539708a627f5f9eb8ed3491cceb2507d",
-      "install_to_windows": false,
-      "experimental_only": true
-    },
     "country_font_resources": {
       "version": 3,
       "protocol": "signed-source-controlled-catalog-v3",
@@ -65,7 +58,7 @@
   "patches": [
     {
       "path": "patches/lite-windows157/01-build-integration.patch",
-      "sha256": "6b600cbab14f2d37fd8d3bbf6099a83766c42e88e888fc358e9a8e6605c9c6a9",
+      "sha256": "1d84be9ca553dd73da21783a7a315e0e9da61549c8aa8dc96ac034743034d738",
       "files": [
         "BUILD.gn",
         "base/BUILD.gn",
@@ -262,19 +255,8 @@
     },
     {
       "path": "patches/lite-windows157/13-fonts.patch",
-      "sha256": "4342d3c28402b49f55faa3c6085f4294a8b4b7773dc21ab2e8186001b327f33b",
+      "sha256": "e5d018b450ee171a5917bf1c1e8e6b92841f3d5fa9680428994fffff92acb5c5",
       "files": [
-        "base/uxr_font_allowlist.h",
-        "base/uxr_font_allowlist_tests.cc",
-        "third_party/blink/renderer/core/layout/layout_theme_font_provider_default.cc",
-        "third_party/blink/renderer/modules/font_access/font_access.cc",
-        "third_party/blink/renderer/platform/fonts/font_cache.cc",
-        "third_party/blink/renderer/platform/fonts/font_cache.h",
-        "third_party/blink/renderer/platform/fonts/font_metrics.cc",
-        "third_party/blink/renderer/platform/fonts/mac/font_cache_mac.mm",
-        "third_party/blink/renderer/platform/fonts/skia/font_cache_skia.cc",
-        "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc",
-        "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.h",
         "base/uxr_private_font_packages_win.h",
         "ui/gfx/win/direct_write.h",
         "ui/gfx/win/direct_write.cc",
@@ -472,7 +454,7 @@
     },
     {
       "path": "patches/lite-windows157/19-shared-policy.patch",
-      "sha256": "2d334c8e5d10d57910de6a06bc263f73ec53c351b00a20dcafc6066496c6bf2e",
+      "sha256": "8c2f93676b00f094aca1c05fe5ddf3ba960df06d8d76de1002faa364ee3a4ceb",
       "files": [
         "base/uxr_cloak_hardware.cc",
         "base/uxr_cloak_hardware.h",
@@ -486,7 +468,6 @@
         "base/uxr_surface_math.h",
         "base/uxr_surface_modes.h",
         "base/uxr_surface_modes_test_main.cc",
-        "base/uxr_surface_reference_data.h",
         "components/ungoogled/persona_profile.cc",
         "components/ungoogled/persona_profile.h"
       ]
@@ -500,7 +481,7 @@
     },
     {
       "path": "patches/lite-windows157/21-web-platform-surfaces.patch",
-      "sha256": "0e8a363c6e8cf0687fdfa61c997f220f9669d1b0eee02b60b9eae55a5638973f",
+      "sha256": "8f5c60c27b8bd47e3f7c6e8e85485615233d5efddcfca1315185bc8a83a7d8e7",
       "files": [
         "third_party/blink/common/device_memory/approximated_device_memory.cc",
         "third_party/blink/public/devtools_protocol/domains/CSS.pdl",
@@ -531,12 +512,14 @@
         "third_party/blink/renderer/modules/plugins/dom_plugin_array.cc",
         "third_party/blink/renderer/modules/sensor/accelerometer.cc",
         "third_party/blink/renderer/platform/graphics/mailbox_texture_backing.cc",
-        "third_party/blink/renderer/platform/widget/widget_base.cc"
+        "third_party/blink/renderer/platform/widget/widget_base.cc",
+        "third_party/blink/renderer/core/dom/build.gni",
+        "third_party/blink/renderer/core/dom/uxr_rect_policy.h"
       ]
     },
     {
       "path": "patches/lite-windows157/22-process-and-startup.patch",
-      "sha256": "32bde9d4bc26a27c3cefdc3fc8de5785cad38f4f60e23a0ba144f57bfc3a8ceb",
+      "sha256": "73fc72787ad917948125c3126c4f2e9d11108d8c0cc03b5e7ba4284840aa9cfc",
       "files": [
         "chrome/app/chrome_main.cc",
         "chrome/app/settings_chromium_strings.grdp",
@@ -851,7 +834,7 @@
     {
       "path": "base/BUILD.gn",
       "before_sha256": "2619e16bd05092597a911f7b0f9e51c3363d7a7267527d79150165fb873aa9aa",
-      "after_sha256": "7dd90070e8ee72e159006bbd62568a8100033f0126ffa34e23408a12f4ef33fd"
+      "after_sha256": "461e48db244a342e5df4f2b08b8329d457f62d7f8a440ad35b0793b0e2a5550f"
     },
     {
       "path": "base/uxr_audio_defaults.h",
@@ -876,22 +859,22 @@
     {
       "path": "base/uxr_config.cc",
       "before_sha256": null,
-      "after_sha256": "b600d870705d5b7631fde2114a30cbeb6610952caedd222cde1e162c1a8f81ff"
+      "after_sha256": "ca194fa6979fea954adf9cc54bf6659da70aa09de3b21c8b03ad49d0f4ead81b"
     },
     {
       "path": "base/uxr_config.h",
       "before_sha256": null,
-      "after_sha256": "87c83081f245c888b193aa9eb137218f617c40c47f72cdb9a3d87794ac2a5241"
+      "after_sha256": "0e4f9b07c354b65a8ddbc4eb0e26bddeb95f7524a974e73e101450be610f6315"
     },
     {
       "path": "base/uxr_font_allowlist.h",
       "before_sha256": null,
-      "after_sha256": "5e177fc0d43a7fa659d8c70956a26a4e4d774171743e8ebe83e317416dfaa7ee"
+      "after_sha256": null
     },
     {
       "path": "base/uxr_font_allowlist_tests.cc",
       "before_sha256": null,
-      "after_sha256": "08cff674e6d0d4c3bfad8a46a38c0b7ad5f09dc7e600affdc9ac179915c63263"
+      "after_sha256": null
     },
     {
       "path": "base/uxr_gpu_mode_golden_tests.cc",
@@ -951,7 +934,7 @@
     {
       "path": "base/uxr_private_font_packages_win.h",
       "before_sha256": null,
-      "after_sha256": "247b2e911567dce0f0c05de7a6baecc9503a4ce6998022de6485e239dbb43b8c"
+      "after_sha256": "a0a4a89ea59157d6c39c1ae198d0b762fdd2540c52a8b03eaca313ddfcc890ac"
     },
     {
       "path": "base/uxr_shard_webgl_v2_properties.h",
@@ -961,27 +944,27 @@
     {
       "path": "base/uxr_surface_golden_tests.cc",
       "before_sha256": null,
-      "after_sha256": "59f5d770349427095f14c937a5e77c164cb6afe22870b8af9968d65a99c170c6"
+      "after_sha256": "99f0319ebee001aac522dd7128fce5064403e306392e1a8073950a3eb8b92bf7"
     },
     {
       "path": "base/uxr_surface_math.h",
       "before_sha256": null,
-      "after_sha256": "ef97b8e03cc5035f93c09ac21e86f34c114cccdf09da0e5222c369e1f6b62f1f"
+      "after_sha256": "cde0151f33fde5ecc2466ce6c8f11da1173f8341e65078bdf65efab2b680a458"
     },
     {
       "path": "base/uxr_surface_modes.h",
       "before_sha256": null,
-      "after_sha256": "855d86c756ae019e9f1b5f942f36a7f2da2b8396ceba9a3f1a91df63b60e2f31"
+      "after_sha256": "255033bd6da8bbbdae1347e2de7881b9b81552e1182a38c3fe48faacf3d91aa8"
     },
     {
       "path": "base/uxr_surface_modes_test_main.cc",
       "before_sha256": null,
-      "after_sha256": "450e44522c9c45fb73ca66e1333114c556a110219ef6566a747c5a11427a55fa"
+      "after_sha256": "3c4d29c1e234cc384c822f182feccd32b62967add7c7c3a9cc0abfaf3a3fe7dd"
     },
     {
       "path": "base/uxr_surface_reference_data.h",
       "before_sha256": null,
-      "after_sha256": "8f82cc0346369eb48b204e3ba0c4876f9dc3852cf6843ea4a92118aa542ab801"
+      "after_sha256": null
     },
     {
       "path": "base/uxr_voice_compat.h",
@@ -1006,7 +989,7 @@
     {
       "path": "chrome/app/chrome_main.cc",
       "before_sha256": "9bca15fa0892300b0696f4fab3d4d6559bd62abaab746be00512a674fc2a1d43",
-      "after_sha256": "0bf583ef69d621e576c5417041482a990da906c849817afb6933ffa9f072f7c1"
+      "after_sha256": "d35c61ec0f9fac7563d1b90783f3c175e3b1ca3e12e9460f0af0afab348b5353"
     },
     {
       "path": "chrome/app/etw_events/MSG00001.bin",
@@ -3566,7 +3549,7 @@
     {
       "path": "third_party/blink/renderer/core/dom/element.cc",
       "before_sha256": "3ed8b4f5e690808bf8c3a63ca56325266c5b2ba79292937bd696fc47ff25ab5f",
-      "after_sha256": "42e59d7a89e618f8d609e3831ca256ef285463373326177bad94f1488024ea44"
+      "after_sha256": "1ce84aa6146e63c32e1acffa2c5a84e62e0fa6e230d94fde76c30df46bfa5f81"
     },
     {
       "path": "third_party/blink/renderer/core/dom/element.h",
@@ -3581,7 +3564,7 @@
     {
       "path": "third_party/blink/renderer/core/dom/range.cc",
       "before_sha256": "1957ba5f654a7f8adde807f801ff2d3ea1594fe88aeccdcbe630733e77473117",
-      "after_sha256": "54522a7133cfbc656cf8cb3ec6e1682021a5242de56ce836d6fc2ff46edbceec"
+      "after_sha256": "3534a5f275947e1332778ef5bd7b7ae59cd6be88793ad720aceb4844240e35c1"
     },
     {
       "path": "third_party/blink/renderer/core/execution_context/navigator_base.cc",
@@ -3731,7 +3714,7 @@
     {
       "path": "third_party/blink/renderer/core/layout/layout_theme_font_provider_default.cc",
       "before_sha256": "9ad0222c1b88020879caa047a006656d622101b4b67b8fea0b008786a06df289",
-      "after_sha256": "06d4e778633950fd04de52c1ee900ce86e7553709c41c3aca00fb35ad4f80701"
+      "after_sha256": "9ad0222c1b88020879caa047a006656d622101b4b67b8fea0b008786a06df289"
     },
     {
       "path": "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc",
@@ -3811,7 +3794,7 @@
     {
       "path": "third_party/blink/renderer/modules/font_access/font_access.cc",
       "before_sha256": "203279ea03fcdbed64d51e221c101dc423d640fbb92b3eb7f767b80117b16bb8",
-      "after_sha256": "9fb5562122e5079de956dc2f30be50ce8f5c80a46e8a988cb3372e5faefe37ca"
+      "after_sha256": "203279ea03fcdbed64d51e221c101dc423d640fbb92b3eb7f767b80117b16bb8"
     },
     {
       "path": "third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.cc",
@@ -4106,22 +4089,22 @@
     {
       "path": "third_party/blink/renderer/platform/fonts/font_cache.cc",
       "before_sha256": "4db6ea7af92147888c4ec9b797e431793a37c6623b53c607d39f4f4779a13b46",
-      "after_sha256": "57afc6cfc8b813887df43f94ae92e7cb0da8891c719aa1eda59d7a62504b4164"
+      "after_sha256": "4db6ea7af92147888c4ec9b797e431793a37c6623b53c607d39f4f4779a13b46"
     },
     {
       "path": "third_party/blink/renderer/platform/fonts/font_cache.h",
       "before_sha256": "dc0ac30cc2bf9d119da7cbe09ee08a1736a04097f26a2d31d525cccda5d7be0e",
-      "after_sha256": "41148e096d7fb5b2fca6958c9554e45ed9e568e61b406281bb08ce980f31a77c"
+      "after_sha256": "dc0ac30cc2bf9d119da7cbe09ee08a1736a04097f26a2d31d525cccda5d7be0e"
     },
     {
       "path": "third_party/blink/renderer/platform/fonts/font_metrics.cc",
       "before_sha256": "6bd1064eb60f5ac81f15d8f454d0bc10fa68718bf4590bf788bfe2c8fc62435d",
-      "after_sha256": "14ed13de8cb9678175f1cff8ded6d06899921fd08905faac40a0517aca6b7d97"
+      "after_sha256": "6bd1064eb60f5ac81f15d8f454d0bc10fa68718bf4590bf788bfe2c8fc62435d"
     },
     {
       "path": "third_party/blink/renderer/platform/fonts/mac/font_cache_mac.mm",
       "before_sha256": "22185aeace6f9c95e2d10ab892cef60f09956411123ae38c98aecff6b07a6672",
-      "after_sha256": "47e81174f53b4b71e6119f760dca3e31bc2ce1857b1ff891b37689d167e9bc66"
+      "after_sha256": "22185aeace6f9c95e2d10ab892cef60f09956411123ae38c98aecff6b07a6672"
     },
     {
       "path": "third_party/blink/renderer/platform/fonts/simple_font_data.cc",
@@ -4131,17 +4114,17 @@
     {
       "path": "third_party/blink/renderer/platform/fonts/skia/font_cache_skia.cc",
       "before_sha256": "0cb194205dcc35be816824cb3a6f460b2850e34d17df509434ed2b622b5b898e",
-      "after_sha256": "b12e2d6aa54d6d9d39d878a84248f4ac30c57fb4c8ddd3683f63e99438a69825"
+      "after_sha256": "0cb194205dcc35be816824cb3a6f460b2850e34d17df509434ed2b622b5b898e"
     },
     {
       "path": "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc",
       "before_sha256": "5cbb30edd23af5c6513bf84c268fd6ac721dd02a71e33f1e0e764066a6da7ebd",
-      "after_sha256": "179754fc833597b6d7839be34a244d2e973a2a4e4b517d7046b0d69ef6425f92"
+      "after_sha256": "5cbb30edd23af5c6513bf84c268fd6ac721dd02a71e33f1e0e764066a6da7ebd"
     },
     {
       "path": "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.h",
       "before_sha256": "d43c92167e7ec91badfaf89c017846f8b8e8aceb1e30bb3910ab1f27d1262cea",
-      "after_sha256": "ff76c4ba492352596a94643dcc5a032f25412d47d0ce754af9b77d9e0172702e"
+      "after_sha256": "d43c92167e7ec91badfaf89c017846f8b8e8aceb1e30bb3910ab1f27d1262cea"
     },
     {
       "path": "third_party/blink/renderer/platform/graphics/canvas_fingerprint_context.h",
@@ -4241,7 +4224,7 @@
     {
       "path": "ui/gfx/win/direct_write.cc",
       "before_sha256": "8ef8fd82b4ce653e336ad5cc696503ceb0df0a3bbd86f3759732f3ed45918dad",
-      "after_sha256": "7c6b2ddb70e4a6de31055956eecafd71f0902077e73705d6b53d3626d4dcf917"
+      "after_sha256": "eac9bb39b0949c7dbd996fcbf4e87b63f2da8725bf42073c046b71058b238809"
     },
     {
       "path": "ui/gfx/win/direct_write.h",
@@ -4262,6 +4245,16 @@
       "path": "v8/src/inspector/v8-runtime-agent-impl.h",
       "before_sha256": "0111eb9aeef7f912fb0468fd854cc529d18e8d73f790570ad1e0990906ed008b",
       "after_sha256": "0111eb9aeef7f912fb0468fd854cc529d18e8d73f790570ad1e0990906ed008b"
+    },
+    {
+      "path": "third_party/blink/renderer/core/dom/build.gni",
+      "before_sha256": "ee3243fbdc45542536d4db424c53efeb622de7cedf95710f84dcff02ab8d5308",
+      "after_sha256": "fe59e2b447a7fec6448803ff90ae6b2eea7b3857774abe1269af5c7925626403"
+    },
+    {
+      "path": "third_party/blink/renderer/core/dom/uxr_rect_policy.h",
+      "before_sha256": null,
+      "after_sha256": "06c5b89e353a9a2b1d710733f860ea85fcb3155226373f8d13b7cd00f54e9152"
     }
   ],
   "domain_full_files": [
@@ -4805,5 +4798,5 @@
     "source_manifest_sha256": "f0cf82f501b4183b26bdcf7c2c9e4eedf314d7817b8eaa1c60b3b26ce4e76bb7",
     "review": "build/windows157-port.json"
   },
-  "stack_sha256": "5eeceedbdf27bcf08fd6f84119b4b1fb9b1ee3f047cefc2a6b3f12885727016b"
+  "stack_sha256": "0541a6d5d2ef1e27ca31cdd5f78051671f9167c35e16f133dff7eb8cbbb8f8ad"
 }

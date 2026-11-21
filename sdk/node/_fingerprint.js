@@ -4,7 +4,7 @@ const BRANDS = new Map([["chrome", "Chrome"], ["google chrome", "Chrome"],
   ["edge", "Edge"], ["microsoft edge", "Edge"], ["opera", "Opera"], ["vivaldi", "Vivaldi"]]);
 const BOOLEANS = new Set(["--fingerprint-noise", "--fingerprint-allow-3p-cookies"]);
 const SURFACE_MODES = new Set(["canvas-mode", "webgl-mode", "audio-mode", "fonts-mode", "rects-mode", "text-mode", "sensors-mode", "media-mode"]);
-const RETIRED = new Set(["hdr", "widevine-cdm", "sapi-voices", "voices", "audio-render", "font-policy", "font-whitelist", "windows-font-metrics", "keyboard-layout"]);
+const RETIRED = new Set(["fonts-mode-seed", "fonts-amount", "fonts-allowlist", "fonts-local-allowlist", "fonts-experimental-packages", "hdr", "widevine-cdm", "sapi-voices", "voices", "audio-render", "font-policy", "font-whitelist", "windows-font-metrics", "keyboard-layout"]);
 const INTEGERS = new Map([
   ["--fingerprint-hardware-concurrency", [1n, 128n]],
   ["--fingerprint-screen-width", [1n, 32768n]],
@@ -73,7 +73,7 @@ export function normalizeFingerprintArgs(args = [], { final = false } = {}) {
     const preference = key.startsWith("--fingerprint-") ? key.slice(14) : key.startsWith("--uxr-") ? key.slice(6) : "";
     if (RETIRED.has(preference) || /^(?:offset|voices)-mode(?:-|$)/.test(preference))
       throw new Error("Retired browser option: " + key);
-    if (SURFACE_MODES.has(preference) && !["native", "shardx"].includes(value))
+    if (SURFACE_MODES.has(preference) && value !== "native" && (preference === "fonts-mode" || value !== "shardx"))
       throw new Error("Unsupported surface mode: " + key);
     if (PREFERENCE_BOOLEANS.has(preference)) {
       const low = value.toLowerCase();

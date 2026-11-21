@@ -29,9 +29,9 @@ diff --git a/base/BUILD.gn b/base/BUILD.gn
 +    "uxr_graphics_noise.h",
 +    "uxr_headless_screen.h",
 +    "uxr_surface_math.h",
-+    "uxr_surface_reference_data.h",
++
 +    "uxr_gpu_modes.h",
-+    "uxr_font_allowlist.h",
++
 +    "uxr_private_font_packages_win.h",
 +    "uxr_audio_defaults.h",
      "uuid.cc",
@@ -53,7 +53,7 @@ diff --git a/base/BUILD.gn b/base/BUILD.gn
 +      "uxr_surface_golden_tests.cc",
 +      "uxr_gpu_mode_golden_tests.cc",
 +      "uxr_hardware_golden_tests.cc",
-+      "uxr_font_allowlist_tests.cc",
++
 +      "uxr_audio_defaults_tests.cc",
 +      "uxr_voice_compat_tests.cc",
 +    ]

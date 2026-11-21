@@ -217,7 +217,7 @@ try {
   $native.processes += $helpers
   $native.groups['production'] = @(Read-NativeGroups $helpers @(
       'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks',
-      'font_allowlist_checks', 'audio_default_checks', 'voice_compat_checks',
+      'audio_default_checks', 'voice_compat_checks',
       'pixel_semantic_corpus_records', 'configuration_checks',
       'mask_first_equivalence_cases', 'mask_first_equivalence_bytes',
       'mask_first_corpus_records', 'mask_first_mutation_controls', 'mask_first_mutation_rejections'))
@@ -246,7 +246,7 @@ try {
     throw 'Fingerprint runtime acceptance failed; see runtime evidence'
   }
   $result = Get-Content -LiteralPath $runtimePath -Raw | ConvertFrom-Json
-  $expectedGroups = @('legacy_canvas','shard_canvas','shard_webgl','shard_audio','shard_rects','shard_text','shard_sensors','shard_media','memory_custom','hardware_profile','webgl_resource_limits','webgpu_capabilities','hardware_gpu_identity','masked_webgl','shard_fonts','native_fonts','font_allowlists','native_audio','audio_defaults','audio_channels','headless_screen')
+  $expectedGroups = @('legacy_canvas','shard_canvas','shard_webgl','shard_audio','shard_rects','shard_text','shard_sensors','shard_media','memory_custom','hardware_profile','webgl_resource_limits','webgpu_capabilities','hardware_gpu_identity','masked_webgl','native_fonts','native_audio','audio_defaults','audio_channels','headless_screen')
   if ($result.status -cne 'passed' -or $result.baseline_only -or
       $result.browser_sha256 -cne $main.browser_sha256 -or
       $result.chrome_dll_sha256 -cne $main.chrome_dll_sha256 -or
