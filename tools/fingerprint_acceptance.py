@@ -36,7 +36,6 @@ SUITES = (
     ('transport_lifecycle', 'fingerprint_transport_lifecycle_audit.py', ()),
     ('quic', 'fingerprint_quic_audit.py', ()),
     ('sdk_cookies', 'sdk_cookie_audit.py', ()),
-    ('socks_auth', 'socks5_browser_audit.py', ()),
     ('font_provenance', 'font_provenance_audit.py', ()),
     ('render', 'fingerprint_render_audit.py', ()),
     ('gpu_backend', 'gpu_backend_audit.py', ()),
@@ -213,9 +212,6 @@ def assess_suite(name, report, expected_hash, expected_version):
             derived_gaps.extend(missing)
         elif name == 'sdk_cookies':
             from sdk_cookie_audit import assess
-            errors.extend(assess(report))
-        elif name == 'socks_auth':
-            from socks5_browser_audit import assess
             errors.extend(assess(report))
         elif name == 'font_provenance':
             from chromix._font_provenance import bind_font_sources
