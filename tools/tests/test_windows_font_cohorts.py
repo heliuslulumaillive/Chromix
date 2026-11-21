@@ -60,44 +60,10 @@ int main() {
 '''.replace('SYSTEM_NAMES', core)
         self.build_and_run('windows-font-package-policy', source)
 
-    def test_documented_base_fonts_and_bounded_atomic_cohorts(self):
-        catalog = json.loads((ROOT / 'tools/tests/fixtures/windows-font-cohorts-v1.json').read_text(encoding='utf-8'))
-        core = ',\n'.join(json.dumps(s, ensure_ascii=False) for s in catalog['groups'][0]['names'])
-        source = r'''
-#include "base/uxr_surface_reference_data.h"
-#include <cassert>
-#include <array>
-#include <set>
-#include <string>
-using namespace base::uxr_surface_v1;
-int main() {
- const std::string_view documented_core[] = { CORE_NAMES };
- std::set<std::array<bool,3>> observed;
- for (uint32_t seed=1;seed<=512;++seed) {
-  for (const auto name:documented_core)
-   assert(!ShardWindowsFontHiddenV1(name,seed));
-  assert(!ShardWindowsFontHiddenV1("Segoe UI Light",seed));
-  assert(!ShardWindowsFontHiddenV1("segoe ui light",seed));
-  const auto optional=ShardWindowsFontHiddenV1("Meiryo",seed);
-  assert(optional==ShardWindowsFontHiddenV1("MS Mincho",seed));
-  assert(optional==ShardWindowsFontHiddenV1("Batang",seed));
-  assert(optional==ShardWindowsFontHiddenV1("Dotum",seed));
-  assert(optional==ShardWindowsFontHiddenV1("SimHei",seed));
-  assert(optional==ShardWindowsFontHiddenV1("Microsoft Uighur",seed));
-  const auto applications=ShardWindowsFontHiddenV1("Agency FB",seed);
-  assert(applications==ShardWindowsFontHiddenV1("Lucida Bright",seed));
-  assert(applications==ShardWindowsFontHiddenV1("My Installed Custom Font",seed));
-  observed.insert({false,optional,applications});
- }
- assert(observed.size()==4);
- for (const auto name:{"Segoe UI Light","Meiryo","Agency FB"})
-  assert(!ShardWindowsFontHiddenV1(name,0));
- // The recorded regression seed loses only its illegal core-font deletion.
- assert(!ShardWindowsFontHiddenV1("Segoe UI Light",uint32_t(3329572536739077236ULL)));
- assert(!ShardWindowsFontHiddenV1("",1));
-}
-'''.replace('CORE_NAMES', core)
-        self.build_and_run('windows-font-cohorts', source)
+    def test_retired_v1_cohort_tables_are_absent_from_production(self):
+        patch = (ROOT / 'patches/lite-windows157/19-shared-policy.patch').read_text(encoding='utf-8')
+        self.assertNotIn('ShardWindowsFontHiddenV1', patch)
+        self.assertNotIn('kWindowsBaseFontNamesV1', patch)
 
     def test_existing_surface_expectations_remain_frozen(self):
         patch = ROOT / 'patches/lite-windows157/19-shared-policy.patch'

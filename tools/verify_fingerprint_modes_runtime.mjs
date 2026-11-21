@@ -501,7 +501,7 @@ async function stopOwned(child, cdp) {
 }
 
 export function scenarios() {
-  const surfaces = ["canvas", "webgl", "audio", "fonts", "rects", "text", "offset", "sensors", "media", "voices"];
+  const surfaces = ["canvas", "webgl", "audio", "fonts", "rects", "text", "sensors", "media"];
   const make = (id, overrides = {}, extra = []) => {
     const flags = ["--fingerprint=12345"];
     for (const surface of surfaces) flags.push(`--fingerprint-${surface}-mode=${overrides[surface] || "native"}`);
@@ -517,12 +517,11 @@ export function scenarios() {
     make("all_native"),
     { id: "legacy_seeded", flags: ["--fingerprint=12345", "--fingerprint-pixel-noise=seeded"] },
     make("canvas_shardx", { canvas: "shardx" }, ["--fingerprint-canvas-mode-seed=314159"]),
-    make("webgl_cloak", { webgl: "cloak" }),
     make("shard_surfaces", { audio: "shardx", rects: "shardx", text: "shardx", sensors: "shardx", media: "shardx" },
       ["--fingerprint-audio-mode-seed=314159", "--fingerprint-rects-mode-seed=314159", "--fingerprint-text-mode-seed=314159",
         "--fingerprint-sensors-mode-seed=314159", "--fingerprint-media-audio-inputs=0", "--fingerprint-media-audio-outputs=0", "--fingerprint-media-video-inputs=0"]),
     make("memory_custom", { cpu: "custom", memory: "custom" }, ["--fingerprint-hardware-concurrency=4", "--fingerprint-device-memory=2"]),
-    make("hardware_cloak", { canvas: "cloak", audio: "native", text: "cloak", cpu: "omit", memory: "omit", gpu: "omit", "webgpu-features": "cloak", "webgpu-limits": "cloak" },
+    make("hardware_cloak", { canvas: "shardx", audio: "native", text: "native", cpu: "omit", memory: "omit", gpu: "omit", "webgpu-features": "cloak", "webgpu-limits": "cloak" },
       ["--fingerprint-hardware-profile=cloak", "--fingerprint-hardware-vendor=nvidia"]),
     make("gpu_custom", { "webgl-capabilities": "custom", "webgpu-features": "custom" },
       ["--uxr-webgl-max-texture-size=64", "--uxr-webgl-max-cube-map-texture-size=64", "--uxr-webgl-max-renderbuffer-size=64",
@@ -539,10 +538,6 @@ export function scenarios() {
     make("fonts_default14666", { fonts: "shardx" }, ["--fingerprint-fonts-mode-seed=14666"]),
     make("fonts_allowlists", {}, ["--fingerprint-fonts-allowlist=Arial,Consolas", "--fingerprint-fonts-local-allowlist=Arial"]),
     make("fonts_empty", {}, ["--fingerprint-fonts-allowlist="]),
-    make("cloak_voices", { voices: "cloak" }, ["--fingerprint-platform=windows", "--fingerprint-locale=en-US", "--fingerprint-sapi-voices=true"]),
-    make("cloak_voices_no_local", { voices: "cloak" }, ["--fingerprint-platform=windows", "--fingerprint-locale=en-US", "--fingerprint-sapi-voices=false"]),
-    make("cloak_offset", { offset: "cloak" }),
-    make("cloak_text_positive", { text: "cloak" }, ["--fingerprint-platform=windows"]),
     make("audio_native_macos", { audio: "native" }, ["--fingerprint-platform=macos"]),
     make("audio_defaults_44100", {}, ["--fingerprint-audio-default-sample-rate=44100", "--fingerprint-audio-channel-limit=1"]),
     make("audio_defaults_32000", {}, ["--fingerprint-audio-default-sample-rate=32000", "--fingerprint-audio-channel-limit=6"]),
@@ -561,17 +556,16 @@ export function scenarios() {
   ];
 }
 export const POSITIVE_GROUPS = [
-  "legacy_canvas", "shard_canvas", "cloak_canvas", "shard_webgl", "cloak_webgl",
+  "legacy_canvas", "shard_canvas", "shard_webgl",
   "shard_audio", "shard_rects", "shard_text", "shard_sensors", "shard_media",
   "memory_custom", "hardware_profile", "webgl_resource_limits", "webgpu_capabilities",
   "hardware_gpu_identity", "masked_webgl", "shard_fonts", "native_fonts", "font_allowlists",
-  "cloak_voices", "cloak_offset", "cloak_text", "native_audio", "audio_defaults", "audio_channels", "headless_screen",
+  "native_audio", "audio_defaults", "audio_channels", "headless_screen",
 ];
 export const BASIC_SCENARIOS = new Set([
   "fonts_default9918", "fonts_default14666",
   ...Array.from({length:12},(_,index)=>"fonts_pack"+(120+index)),
   "fonts_shard40", "fonts_shard41", "fonts_shard42", "fonts_shard43", "fonts_native10026", "fonts_allowlists", "fonts_empty",
-  "cloak_voices", "cloak_voices_no_local", "cloak_offset", "cloak_text_positive",
   "audio_native_macos", "audio_defaults_44100", "audio_defaults_32000",
   "audio_default_mono", "audio_default_stereo", "audio_default_32",
   ...HEADLESS_SCENARIOS,
@@ -703,17 +697,13 @@ export function verifyResults(records, baselineOnly = false, oracle = null, opti
       check(id, "application_canvas_input_preserved", equal(bytes(p(id)?.canvas?.full), bytes(p(id)?.canvas?.expected)));
       const diff = difference(bytes(p(id)?.canvas?.rendered), bytes(base.canvas?.rendered));
       check(id, "selected_canvas_noise_reaches_runtime", diff && diff.changed > 0 && diff.alphaChanges === 0 &&
-        diff.maxDelta <= 1 && (id === "legacy_seeded" || diff.changed <= (id === "canvas_shardx" ? 32 : 30)), diff);
+        diff.maxDelta <= 1 && (id === "legacy_seeded" || diff.changed <= 32), diff);
     }
-    for (const id of ["webgl_cloak", "shard_surfaces", "memory_custom", "gpu_custom"])
+    for (const id of ["shard_surfaces", "memory_custom", "gpu_custom"])
       check(id, "canvas_native_independent", equal(bytes(p(id)?.canvas?.full), bytes(base.canvas?.full)));
     for (const kind of ["webgl", "webgl2"]) if (base.webgl?.[kind]?.supported) {
       for (const id of ["canvas_shardx", "shard_surfaces", "memory_custom", "hardware_cloak", "gpu_custom"])
         if (p(id)?.webgl?.[kind]?.supported) check(id, `${kind}_pixels_native_independent`, equal(bytes(p(id).webgl[kind].full), bytes(base.webgl[kind].full)));
-      if (p("webgl_cloak")?.webgl?.[kind]?.supported) {
-        const diff = difference(bytes(p("webgl_cloak").webgl[kind].full), bytes(base.webgl[kind].full));
-        check("webgl_cloak", `${kind}_noise_reaches_runtime`, diff && diff.changed > 0 && diff.changed <= 30 && !diff.alphaChanges && diff.maxDelta <= 1, diff);
-      }
     }
     const custom = p("memory_custom"), hardware = p("hardware_cloak");
     for (const [id, value, cpu, memory] of [["memory_custom", custom, 4, 2], ["hardware_cloak", hardware, 20, 16]]) {
@@ -740,7 +730,7 @@ export function verifyResults(records, baselineOnly = false, oracle = null, opti
     check("shard_surfaces", "media_filter_observable_on_fake_devices", base.media?.after?.length > 0 &&
       Array.isArray(shard?.media?.after) && shard.media.after.length === 0 && Array.isArray(shard.media.repeat) && shard.media.repeat.length === 0);
     check("hardware_cloak", "hardware_profile_keeps_native_audio", equal(bytes(hardware?.audio?.full), bytes(base.audio?.full)));
-    check("hardware_cloak", "unmatched_cloak_text_remains_native", hardware?.layout?.text === base.layout?.text);
+    check("hardware_cloak", "native_text_matches_baseline", hardware?.layout?.text === base.layout?.text);
     for (const kind of ["webgl", "webgl2"]) {
       const reference = base.webgl?.[kind], constrained = p("gpu_custom")?.webgl?.[kind];
       if (!reference?.supported || !constrained?.supported) continue;
@@ -787,7 +777,7 @@ export function verifyResults(records, baselineOnly = false, oracle = null, opti
       ...Object.fromEntries(["fonts_shard40", "fonts_shard41", "fonts_shard42", "fonts_shard43", "fonts_native10026", "fonts_allowlists", "fonts_empty"].map(id => [id, ["fonts"]])),
       ...Object.fromEntries(Array.from({length:12},(_,index)=>["fonts_pack"+(120+index),["fonts"]])),
       fonts_default9918: ["fonts"], fonts_default14666: ["fonts"],
-      ...Object.fromEntries(["cloak_voices", "cloak_voices_no_local", "cloak_offset", "cloak_text_positive"].map(id => [id, ["reference"]])),
+
       ...Object.fromEntries(["audio_native_macos", "audio_defaults_44100", "audio_defaults_32000", "audio_default_mono", "audio_default_stereo", "audio_default_32"].map(id => [id, ["audio"]])),
     };
     for (const [id, scopes] of Object.entries(extraScopes)) for (const scope of scopes) {
@@ -868,7 +858,7 @@ export function verifyResults(records, baselineOnly = false, oracle = null, opti
       } else tagged("gpu_masked_custom", `${kind}_hardware_masked_identity`,
         masked?.maskedIdentity?.vendor === "Test Masked Vendor" && masked.maskedIdentity.renderer === "Test Masked Renderer" &&
         masked.identity?.vendor === "Test Graphics Vendor" && masked.identity.renderer === "Test Graphics Renderer", "masked_webgl");
-      if (!baseline?.supported) skipped("webgl_cloak", `${kind}_positive`, "Native WebGL context unavailable", "cloak_webgl");
+
       if (!baseline?.supported) skipped("gpu_custom", `${kind}_resource_limits`, "Native WebGL context unavailable", "webgl_resource_limits");
       if (!baseline?.identity?.renderer || /swiftshader|llvmpipe|softpipe|lavapipe|software|basic render driver/i.test(baseline.identity.renderer))
         skipped("hardware_cloak", `${kind}_hardware_identity_positive`, "Actual hardware WebGL identity path not available", "hardware_gpu_identity");
@@ -881,7 +871,7 @@ export function verifyResults(records, baselineOnly = false, oracle = null, opti
     const simple = {
       legacy_seeded: { selected_canvas_noise_reaches_runtime: "legacy_canvas" },
       canvas_shardx: { selected_canvas_noise_reaches_runtime: "shard_canvas" },
-      hardware_cloak: { selected_canvas_noise_reaches_runtime: "cloak_canvas", expected_cpu_and_memory: "hardware_profile" },
+      hardware_cloak: { selected_canvas_noise_reaches_runtime: "shard_canvas", expected_cpu_and_memory: "hardware_profile" },
       memory_custom: { expected_cpu_and_memory: "memory_custom", "device-memory_matches_js": "memory_custom", "sec-ch-device-memory_matches_js": "memory_custom" },
       shard_surfaces: { audio_changed: "shard_audio", audio_sign_exponent_high_mantissa_preserved: "shard_audio",
         rect_mode_effect_and_bound: "shard_rects", text_mode_effect_and_bound: "shard_text",
@@ -890,7 +880,7 @@ export function verifyResults(records, baselineOnly = false, oracle = null, opti
     for (const entry of checks) {
       const group = simple[entry.scenario]?.[entry.name];
       if (group) entry.acceptance_group = group;
-      if (entry.scenario === "webgl_cloak" && /_noise_reaches_runtime$/.test(entry.name)) entry.acceptance_group = "cloak_webgl";
+
       if (entry.scenario === "gpu_custom" && /_(context_limit|oversize_rejected)$/.test(entry.name)) entry.acceptance_group = "webgl_resource_limits";
       if (["gpu_custom", "hardware_cloak"].includes(entry.scenario) && entry.name.startsWith("webgpu_"))
         entry.acceptance_group = "webgpu_capabilities";
@@ -953,11 +943,12 @@ export function validateNativeSurfaceResults(recordsById, fontScenario = "fonts_
 export function retirementCases() {
   const cases=[];
   for(const prefix of ["fingerprint","uxr"]){
-    for(const surface of ["fonts","audio","media"])for(const value of ["chromix","cloak"]){
+    for(const surface of ["canvas","webgl","fonts","audio","rects","text","sensors","media","offset","voices"])
+      for(const value of (["offset","voices"].includes(surface) ? ["native","shardx","chromix","cloak"] : ["chromix","cloak"])){
       const key=`${prefix}-${surface}-mode`;
       cases.push({id:`${prefix}_${surface}_${value}`,argument:`--${key}=${value}`,diagnostic:`Unsupported Lite surface mode: ${key}=${value}`});
     }
-    for(const [name,value] of [["audio-render","native"],["font-policy","native"],["font-whitelist","Arial"],["windows-font-metrics","false"],["canvas-bridge","ws://127.0.0.1:65534"],["canvas-bridge-unsafe","false"],["devtools-runtime-suppression","false"],["keyboard-layout","native"]]){
+    for(const [name,value] of [["hdr","native"],["widevine-cdm","fixture"],["sapi-voices","false"],["audio-render","native"],["font-policy","native"],["font-whitelist","Arial"],["windows-font-metrics","false"],["canvas-bridge","ws://127.0.0.1:65534"],["canvas-bridge-unsafe","false"],["devtools-runtime-suppression","false"],["keyboard-layout","native"]]){
       const key=`${prefix}-${name}`;
       cases.push({id:`${prefix}_${name.replaceAll('-','_')}`,argument:`--${key}=${value}`,diagnostic:`Retired Lite kernel switch: ${key}`});
     }
@@ -1051,11 +1042,10 @@ async function main() {
     collector_modules_sha256: Object.fromEntries(await Promise.all(["fingerprint_audio_acceptance.mjs", "fingerprint_font_acceptance.mjs", "fingerprint_reference_acceptance.mjs", "fingerprint_renderbuffer_acceptance.mjs", "pixel_semantic_acceptance.mjs", "canvas_audio_input_acceptance.mjs"]
       .map(async name => [name, await sha256(path.join(toolRoot, name))]))),
     coverage_limits: ["Headless Windows acceptance; not all physical GPUs or driver versions.",
-      "Cloak text/audio positive acceptance requires the pinned native input to meet the unchanged strict guard; ineligible rows remain not_tested.",
       "Pixel semantic checks cover opaque RGBA8 and a bounded WebGL2 PBO/PACK case; no partial-alpha/float16/FBO acceptance in this bounded run.",
       "Headless screenshots verify raster scale and caller precedence, not ordinary headed-window or all-monitor behavior.",
       "No real camera, microphone, account, external STUN, network detection site or recording. Realtime AudioContext opens only its native output backend with zero-valued Worklet output; no audible signal is produced.",
-      "Native font/voice availability and actual hardware adapter identity are environmental prerequisites; see positive_acceptance and partial.",
+      "Native font availability and actual hardware adapter identity are environmental prerequisites; see positive_acceptance and partial.",
       "WebGPU small integer compute and negotiated features/limits do not prove every feature workload or large allocation."] };
   try {
     if(!args["baseline-only"]){
@@ -1075,18 +1065,8 @@ async function main() {
         scenarioFlags.push('--uxr-fonts-resources-dir='+privateFontRoot);
       }
       if(/^fonts_(?:pack\d+|shard4\d)$/.test(scenario.id))scenarioFlags.push('--uxr-fonts-experimental-packages=1');
-      let voiceLocale;
-      if (["cloak_voices", "cloak_voices_no_local"].includes(scenario.id)) {
-        const nativeVoices = report.scenarios.find(r => r.id === "all_native")?.extra?.reference?.voices?.values || [];
-        const choices = Object.entries(oracle.cloakVoicesWindowsByLocale).map(([locale, rows]) => ({
-          locale, score: rows.filter(row => nativeVoices.some(v => v.name === row.name &&
-            v.lang.toLowerCase() === row.lang.toLowerCase())).length,
-        })).sort((a, b) => b.score - a.score);
-        voiceLocale = choices[0].locale;
-        scenarioFlags[scenarioFlags.findIndex(flag => flag.startsWith("--fingerprint-locale="))] = `--fingerprint-locale=${voiceLocale}`;
-      }
       const trace = [], record = { id: scenario.id, flags: scenarioFlags, cdp: trace,
-        ...(voiceLocale ? { voice_oracle_locale: voiceLocale } : {}),
+
         probe_level: BASIC_SCENARIOS.has(scenario.id) ? "basic" : "full" };
       const flags = ["--headless=new", "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", `--user-data-dir=${profile}`,
         "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--disable-sync",
@@ -1164,13 +1144,9 @@ async function main() {
           })})`, true);
           await collectPlatformFonts(cdp, sessionId, record.extra.fonts);
         }
-        if (["all_native", "cloak_offset", "cloak_text_positive", "cloak_voices", "cloak_voices_no_local"].includes(scenario.id)) {
-          record.extra.reference = await evaluate(cdp, sessionId, `(${referenceAcceptanceProbe.toString()})(${JSON.stringify({
-            offset: ["all_native", "cloak_offset"].includes(scenario.id),
-            voices: ["all_native", "cloak_voices", "cloak_voices_no_local"].includes(scenario.id),
-            textRows: ["all_native", "cloak_text_positive"].includes(scenario.id) ? oracle.cloakTextWindows : undefined,
-          })})`, true);
-          await collectPlatformFonts(cdp, sessionId, record.extra.reference);
+        if (scenario.id === "all_native") {
+          record.extra.reference = await evaluate(cdp, sessionId,
+            `(${referenceAcceptanceProbe.toString()})()`, true);
         }
         if (scenario.id === "all_native" || scenario.id === "audio_native_macos" || scenario.id.startsWith("audio_default")) {
           const native = report.scenarios.find(r => r.id === "all_native")?.extra?.audio?.contexts?.find(r => r.id === "default");

@@ -2,7 +2,7 @@ diff --git a/base/uxr_graphics_noise.cc b/base/uxr_graphics_noise.cc
 new file mode 100644
 --- /dev/null
 +++ b/base/uxr_graphics_noise.cc
-@@ -0,0 +1,573 @@
+@@ -0,0 +1,433 @@
 +// Copyright 2026. Independent implementation from byte-verified models.
 +#include "base/uxr_graphics_noise.h"
 +
@@ -11,7 +11,6 @@ new file mode 100644
 +#include <cmath>
 +#include <cstring>
 +#include <limits>
-+#include <string>
 +
 +#include "base/uxr_pixel_noise.h"
 +
@@ -95,36 +94,6 @@ new file mode 100644
 +  const bool changed = pixel[channel] != candidate;
 +  pixel[channel] = static_cast<uint8_t>(candidate);
 +  return changed;
-+}
-+
-+UxrPixelResult ApplyChromix(const UxrSurfacePolicy& policy,
-+                            UxrPixelSurface surface,
-+                            const UxrPixelRegion& region) {
-+  const uint32_t seed = UxrPixelNoiseSeed(policy.seed);
-+  bool changed = false;
-+  for (uint32_t y = 0; y < region.height; ++y) {
-+    const uint32_t absolute_y =
-+        surface == UxrPixelSurface::kWebGLReadback
-+            ? region.canvas_height - 1 -
-+                  (static_cast<uint32_t>(region.origin_y) + y)
-+            : static_cast<uint32_t>(region.origin_y) + y;
-+    for (uint32_t x = 0; x < region.width; ++x) {
-+      auto pixel = Pixel(region, x, y);
-+      if (UxrPreservesInputPixel(region.preserved_inputs, region.width, x, y))
-+        continue;
-+      if (pixel[3] == 0)
-+        continue;
-+      for (uint32_t channel = 0; channel < 3; ++channel) {
-+        const uint32_t index = Channel(region, channel);
-+        const uint8_t value =
-+            UxrNoiseChannel(seed, static_cast<uint32_t>(region.origin_x) + x,
-+                            absolute_y, channel, pixel[index]);
-+        changed |= value != pixel[index];
-+        pixel[index] = value;
-+      }
-+    }
-+  }
-+  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
 +}
 +
 +bool ValidNeighborhood(const UxrPixelNeighborhood& view, size_t pixel_bytes) {
@@ -318,100 +287,6 @@ new file mode 100644
 +  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
 +}
 +
-+UxrPixelResult ApplyShardWebGL(const UxrSurfacePolicy& policy,
-+                               const UxrPixelRegion& region,
-+                               uint32_t sequence) {
-+  Xoshiro128 random(static_cast<uint32_t>(policy.seed) ^ sequence);
-+  bool changed = false;
-+  for (uint32_t y = 0; y < region.height; ++y) {
-+    for (uint32_t x = 0; x < region.width; ++x) {
-+      auto pixel = Pixel(region, x, y);
-+      if (pixel[3] == 0)
-+        continue;
-+      const uint32_t value = random.Next();
-+      for (uint32_t channel = 0; channel < 3; ++channel) {
-+        if (((value >> (channel * 8)) & 255u) == 0) {
-+          pixel[Channel(region, channel)] ^= 1;
-+          changed = true;
-+        }
-+      }
-+    }
-+  }
-+  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
-+}
-+
-+UxrPixelResult ApplyCloak(const UxrSurfacePolicy& policy,
-+                          UxrPixelSurface surface,
-+                          const UxrPixelRegion& region,
-+                          UxrPixelFlavor flavor) {
-+  const bool compatible = flavor == UxrPixelFlavor::kCompatibleV1;
-+  if (!compatible && surface == UxrPixelSurface::kCanvas2D &&
-+      (region.origin_x != 0 || region.origin_y != 0 ||
-+       region.width != region.canvas_width ||
-+       region.height != region.canvas_height)) {
-+    return UxrPixelResult::kUnsupportedRegion;
-+  }
-+  const uint32_t whole_width = compatible ? region.canvas_width : region.width;
-+  const uint32_t whole_height =
-+      compatible ? region.canvas_height : region.height;
-+  if (whole_width < 8 || whole_height < 8)
-+    return UxrPixelResult::kUnchanged;
-+  // Half-transparent arithmetic was not byte-verified for this target.
-+  // Check before modifying anything, including when a later pixel is partial.
-+  if (!compatible) {
-+    for (uint32_t y = 0; y < region.height; ++y) {
-+      for (uint32_t x = 0; x < region.width; ++x) {
-+        const uint8_t alpha = Pixel(region, x, y)[3];
-+        if (alpha != 0 && alpha != 255)
-+          return UxrPixelResult::kUnsupportedAlpha;
-+      }
-+    }
-+  }
-+  const uint64_t pixels = uint64_t{whole_width} * whole_height;
-+  const std::string seed = std::to_string(policy.seed);
-+  const uint32_t position_hash = UxrCloakHashV1(seed + "_pos");
-+  bool changed = false;
-+  for (uint32_t i = 0; i < 10; ++i) {
-+    const uint32_t mixed = (position_hash ^ i) * 0x17385ca9u + 0x47502932u;
-+    const uint64_t position = mixed % pixels;
-+    const uint32_t x = static_cast<uint32_t>(position % whole_width);
-+    const uint32_t y = static_cast<uint32_t>(position / whole_width);
-+    const int64_t local_x = compatible ? int64_t{x} - region.origin_x : x;
-+    const int64_t local_y =
-+        !compatible ? y
-+        : surface == UxrPixelSurface::kWebGLReadback
-+            ? int64_t{whole_height} - 1 - y - region.origin_y
-+            : int64_t{y} - region.origin_y;
-+    if (local_x < 0 || local_y < 0 || local_x >= region.width ||
-+        local_y >= region.height) {
-+      continue;
-+    }
-+    auto pixel = Pixel(region, static_cast<uint32_t>(local_x),
-+                       static_cast<uint32_t>(local_y));
-+    if (UxrPreservesInputPixel(region.preserved_inputs, region.width,
-+                               static_cast<uint32_t>(local_x),
-+                               static_cast<uint32_t>(local_y)))
-+      continue;
-+    if (pixel[3] == 0)
-+      continue;
-+    // Compatible v1 leaves partial-alpha pixels native. Unlike a whole-image
-+    // rejection this remains consistent when an opaque region is cropped.
-+    if (compatible && pixel[3] != 255)
-+      continue;
-+    const uint32_t bits = UxrCloakHashV1(seed + "_" + std::to_string(x) + "_" +
-+                                         std::to_string(y));
-+    // Reference goldens retain the original physical-slot discrepancy.
-+    // The explicit compatible-v1 production flavor uses logical RGB.
-+    for (uint32_t channel = 0; channel < 3; ++channel) {
-+      const uint32_t index = compatible ? Channel(region, channel) : channel;
-+      const uint8_t value = (pixel[index] & 0xfeu) | ((bits >> channel) & 1u);
-+      changed |= value != pixel[index];
-+      pixel[index] = value;
-+    }
-+  }
-+  return changed ? UxrPixelResult::kApplied : UxrPixelResult::kUnchanged;
-+}
-+
 +}  // namespace
 +
 +uint32_t UxrCloakHashV1(std::string_view bytes) {
@@ -464,9 +339,7 @@ new file mode 100644
 +
 +UxrPixelResult UxrApplyGraphicsNoiseV1(const UxrSurfacePolicy& policy,
 +                                       UxrPixelSurface surface,
-+                                       const UxrPixelRegion& region,
-+                                       uint32_t shard_webgl_sequence,
-+                                       UxrPixelFlavor flavor) {
++                                       const UxrPixelRegion& region) {
 +  if (policy.IsLegacy())
 +    return UxrPixelResult::kLegacy;
 +  if (policy.IsNative())
@@ -483,27 +356,14 @@ new file mode 100644
 +  if (policy.mode == UxrSurfaceMode::kShardX &&
 +      !ValidNeighborhood(region.neighborhood, 4))
 +    return UxrPixelResult::kInvalidLayout;
-+  switch (policy.mode) {
-+    case UxrSurfaceMode::kChromix:
-+      return ApplyChromix(policy, surface, region);
-+    case UxrSurfaceMode::kShardX:
-+      if (surface == UxrPixelSurface::kCanvas2D)
-+        return flavor == UxrPixelFlavor::kCompatibleV1 && !region.neighborhood.bytes.empty()
-+                   ? ApplyShardCanvasSemantic(policy, region)
-+                   : ApplyShardCanvas(policy, region);
-+      if (flavor == UxrPixelFlavor::kCompatibleV1)
-+        return ApplyShardWebGLV2(policy, surface, region);
-+      if (surface == UxrPixelSurface::kWebGLExport)
-+        return UxrPixelResult::kUnchanged;
-+      return ApplyShardWebGL(policy, region, shard_webgl_sequence);
-+    case UxrSurfaceMode::kCloak:
-+      return ApplyCloak(policy, surface, region, flavor);
-+    case UxrSurfaceMode::kLegacy:
-+      return UxrPixelResult::kLegacy;
-+    case UxrSurfaceMode::kNative:
-+      return UxrPixelResult::kNative;
++  if (policy.mode != UxrSurfaceMode::kShardX)
++    return UxrPixelResult::kInvalidLayout;
++  if (surface == UxrPixelSurface::kCanvas2D) {
++    return region.neighborhood.bytes.empty()
++        ? ApplyShardCanvas(policy, region)
++        : ApplyShardCanvasSemantic(policy, region);
 +  }
-+  return UxrPixelResult::kInvalidLayout;
++  return ApplyShardWebGLV2(policy, surface, region);
 +}
 +
 +UxrPixelResult UxrApplyShardWebGLFloatV2(
@@ -580,7 +440,7 @@ diff --git a/base/uxr_graphics_noise.h b/base/uxr_graphics_noise.h
 new file mode 100644
 --- /dev/null
 +++ b/base/uxr_graphics_noise.h
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,92 @@
 +// Copyright 2026. Independently reconstructed, versioned pixel algorithms.
 +#ifndef BASE_UXR_GRAPHICS_NOISE_H_
 +#define BASE_UXR_GRAPHICS_NOISE_H_
@@ -596,11 +456,8 @@ new file mode 100644
 +namespace base {
 +
 +inline constexpr uint32_t kUxrGraphicsAlgorithmVersion = 1;
-+inline constexpr bool kUxrCloakCanvasReferenceBankSupported = false;
 +
 +enum class UxrPixelSurface { kCanvas2D, kWebGLReadback, kWebGLExport };
-+// Reference flavor exists for historical byte goldens, not production routing.
-+enum class UxrPixelFlavor { kCompatibleV1, kReferenceV1 };
 +enum class UxrPixelResult {
 +  kApplied,
 +  kUnchanged,
@@ -661,14 +518,10 @@ new file mode 100644
 +
 +// This function performs no allocation of image storage and no GL operations.
 +// Shard Canvas projects full-canvas positions into the requested crop.
-+// Compatible Cloak projects full-canvas points and preserves partial alpha;
-+// its reference flavor is restricted to the original verified full buffers.
 +BASE_EXPORT UxrPixelResult
 +UxrApplyGraphicsNoiseV1(const UxrSurfacePolicy& policy,
 +                        UxrPixelSurface surface,
-+                        const UxrPixelRegion& region,
-+                        uint32_t shard_webgl_sequence = 0,
-+                        UxrPixelFlavor flavor = UxrPixelFlavor::kCompatibleV1);
++                        const UxrPixelRegion& region);
 +
 +// RGBA32F readback uses the same coordinate mask with idempotent mantissa
 +// assignments; this is not an 8-bit quantizer and preserves nonfinite/zero data.
@@ -684,7 +537,7 @@ diff --git a/base/uxr_mask_first_equivalence.h b/base/uxr_mask_first_equivalence
 new file mode 100644
 --- /dev/null
 +++ b/base/uxr_mask_first_equivalence.h
-@@ -0,0 +1,183 @@
+@@ -0,0 +1,189 @@
 +// Native differential acceptance for the mask-before-flatness optimization.
 +// Compares the shipping helper with a separately named frozen 9a06334 oracle.
 +#ifndef BASE_UXR_MASK_FIRST_EQUIVALENCE_H_
@@ -715,8 +568,7 @@ new file mode 100644
 +  int32_t x=0,y=0;
 +  uint64_t seed=32452843;
 +  size_t stride=0;
-+  int surface=0,flavor=0,mode=3;
-+  uint32_t sequence=0;
++  int surface=0,mode=3;
 +  bool floating=false,bgra=false,premultiplied=false;
 +  uint32_t view_w=0,view_h=0;
 +  int32_t view_x=0,view_y=0;
@@ -732,14 +584,21 @@ new file mode 100644
 +  return expected_result==actual_result && expected==actual;
 +}
 +int Run(bool reference,uint8_t* bytes,size_t size,const uint8_t* view,size_t view_size,const Args& a) {
-+  UxrSurfacePolicy policy;policy.mode=static_cast<UxrSurfaceMode>(a.mode);policy.seed=a.seed;
 +  UxrPixelRegion region{span<uint8_t>(bytes,size),a.stride,a.width,a.height,a.canvas_w,a.canvas_h,a.x,a.y,a.bgra,a.premultiplied};
 +  region.neighborhood={span<const uint8_t>(view,view_size),a.view_stride,a.view_w,a.view_h,a.view_x,a.view_y};
-+  if(reference) return static_cast<int>(a.floating?
-+      mask_first_reference::UxrApplyShardWebGLFloatV2(policy,region):
-+      mask_first_reference::UxrApplyGraphicsNoiseV1(policy,static_cast<UxrPixelSurface>(a.surface),region,a.sequence,static_cast<UxrPixelFlavor>(a.flavor)));
-+  return static_cast<int>(a.floating?base::UxrApplyShardWebGLFloatV2(policy,region):
-+      base::UxrApplyGraphicsNoiseV1(policy,static_cast<UxrPixelSurface>(a.surface),region,a.sequence,static_cast<UxrPixelFlavor>(a.flavor)));
++  if (reference) {
++    const mask_first_reference::UxrSurfacePolicy policy{
++        static_cast<mask_first_reference::UxrSurfaceMode>(a.mode), a.seed};
++    return static_cast<int>(a.floating
++        ? mask_first_reference::UxrApplyShardWebGLFloatV2(policy, region)
++        : mask_first_reference::UxrApplyGraphicsNoiseV1(
++              policy, static_cast<UxrPixelSurface>(a.surface), region, 0,
++              mask_first_reference::UxrPixelFlavor::kCompatibleV1));
++  }
++  const UxrSurfacePolicy policy{static_cast<UxrSurfaceMode>(a.mode), a.seed};
++  return static_cast<int>(a.floating
++      ? base::UxrApplyShardWebGLFloatV2(policy, region)
++      : base::UxrApplyGraphicsNoiseV1(policy, static_cast<UxrPixelSurface>(a.surface), region));
 +}
 +int before_run(uint8_t* bytes,size_t size,const uint8_t* view,size_t view_size,const Args& args) {
 +  return Run(true,bytes,size,view,view_size,args);
@@ -797,10 +656,10 @@ new file mode 100644
 +   }
 +  }}
 + }
-+ // Unchanged surface modes, reference flavor, out-of-domain seeds and layouts.
++ // Retained surface modes, out-of-domain seeds and layouts.
 + auto full=Scene(67,33,false,2,255,67*4);Args a;a.width=a.canvas_w=67;a.height=a.canvas_h=33;a.stride=a.view_stride=67*4;a.view_w=67;a.view_h=33;
-+ for(int mode:{0,1,2,3,4})for(int surface:{0,1,2})for(int flavor:{0,1})for(uint64_t seed:{0ull,1ull,0x100000000ull,~0ull}){a.mode=mode;a.surface=surface;a.flavor=flavor;a.seed=seed;Compare(full,full,a,0,"mode-seed");}
-+ a.mode=3;a.flavor=0;a.seed=42;
++ for(int mode:{0,1,3})for(int surface:{0,1,2})for(uint64_t seed:{0ull,1ull,0x100000000ull,~0ull}){a.mode=mode;a.surface=surface;a.seed=seed;Compare(full,full,a,0,"mode-seed");}
++ a.mode=3;a.seed=42;
 + for(int invalid=0;invalid<5;invalid++){Args bad=a;if(invalid==0)bad.width=0;if(invalid==1)bad.height=0;if(invalid==2)bad.stride=1;if(invalid==3)bad.view_stride=1;if(invalid==4)bad.view_h=0xffffffffu;Compare(full,full,bad,0,"invalid");}
 +}
 +
@@ -855,7 +714,7 @@ new file mode 100644
 +  cases=compared=failures=0;checksum=1469598103934665603ull;
 +  corpus_records=mutation_controls=mutation_rejections=0;
 +  Equivalence();Corpus(fixture_root);MutationControls();
-+  if(cases!=93941||compared!=439779036||mutation_controls!=8||mutation_rejections!=8) ++failures;
++  if(cases!=93857||compared!=439036140||mutation_controls!=8||mutation_rejections!=8) ++failures;
 +  std::cout<<"{\"mask_first_oracle_revision\":\""<<kOracleRevision
 +           <<"\",\"mask_first_oracle_sha256\":\""<<kOracleSha256
 +           <<"\",\"mask_first_equivalence_cases\":"<<cases
@@ -872,7 +731,7 @@ diff --git a/base/uxr_mask_first_reference.h b/base/uxr_mask_first_reference.h
 new file mode 100644
 --- /dev/null
 +++ b/base/uxr_mask_first_reference.h
-@@ -0,0 +1,563 @@
+@@ -0,0 +1,571 @@
 +// Test-only oracle: exact pre-optimization helper from commit
 +// 9a06334258ed6039c597360038183f8693347e45, SHA-256
 +// 2bcefcc4b7b8ab34b070b964a4fdd81c643e88052b48fd0c3a75cf18d8965465.
@@ -883,6 +742,14 @@ new file mode 100644
 +#include "base/uxr_graphics_noise.h"
 +
 +namespace base::mask_first_reference {
++enum class UxrSurfaceMode { kLegacy, kNative, kChromix, kShardX, kCloak };
++enum class UxrPixelFlavor { kCompatibleV1, kReferenceV1 };
++struct UxrSurfacePolicy {
++  UxrSurfaceMode mode;
++  uint64_t seed;
++  bool IsLegacy() const { return mode == UxrSurfaceMode::kLegacy; }
++  bool IsNative() const { return mode == UxrSurfaceMode::kNative; }
++};
 +// Preserve the original header's forward declaration in the oracle namespace:
 +// ApplyCloak must not resolve its hash function to the implementation under test.
 +uint32_t UxrCloakHashV1(std::string_view bytes);
@@ -1484,10 +1351,11 @@ diff --git a/base/uxr_pixel_semantic_properties.h b/base/uxr_pixel_semantic_prop
 new file mode 100644
 --- /dev/null
 +++ b/base/uxr_pixel_semantic_properties.h
-@@ -0,0 +1,233 @@
+@@ -0,0 +1,236 @@
 +// Properties of the production implementation; no duplicate noise algorithm.
 +#ifndef BASE_UXR_PIXEL_SEMANTIC_PROPERTIES_H_
 +#define BASE_UXR_PIXEL_SEMANTIC_PROPERTIES_H_
++#include "base/uxr_mask_first_reference.h"
 +#include <algorithm>
 +#include <array>
 +#include <cmath>
@@ -1603,8 +1471,9 @@ new file mode 100644
 +            if (surface == base::UxrPixelSurface::kCanvas2D && alpha==255) {
 +              auto old=original;
 +              base::UxrPixelRegion old_region{old,w*size_t{4},w,h,w,h};
-+              base::UxrApplyGraphicsNoiseV1(policy,surface,old_region,0,
-+                  base::UxrPixelFlavor::kReferenceV1);
++              base::mask_first_reference::UxrApplyGraphicsNoiseV1(
++                  {base::mask_first_reference::UxrSurfaceMode::kShardX, policy.seed},
++                  surface, old_region, 0, base::mask_first_reference::UxrPixelFlavor::kReferenceV1);
 +              old_canvas_changed+=changed_pixels(old,original);
 +              new_canvas_changed+=altered;
 +            }
@@ -1693,8 +1562,9 @@ new file mode 100644
 +      base::UxrSurfacePolicy policy;policy.mode=base::UxrSurfaceMode::kShardX;policy.seed=seed;
 +      auto old=original,now=original;
 +      base::UxrPixelRegion before{old,w*size_t{4},w,h,w,h};
-+      base::UxrApplyGraphicsNoiseV1(policy,base::UxrPixelSurface::kCanvas2D,before,0,
-+                                   base::UxrPixelFlavor::kReferenceV1);
++      base::mask_first_reference::UxrApplyGraphicsNoiseV1(
++                  {base::mask_first_reference::UxrSurfaceMode::kShardX, policy.seed},
++                  base::UxrPixelSurface::kCanvas2D, before, 0, base::mask_first_reference::UxrPixelFlavor::kReferenceV1);
 +      base::UxrPixelRegion after{now,w*size_t{4},w,h,w,h};
 +      after.neighborhood={now,after.row_stride,w,h,0,0};
 +      base::UxrApplyGraphicsNoiseV1(policy,base::UxrPixelSurface::kCanvas2D,after);
@@ -2004,111 +1874,33 @@ diff --git a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc 
 diff --git a/third_party/blink/renderer/core/html/canvas/text_metrics.cc b/third_party/blink/renderer/core/html/canvas/text_metrics.cc
 --- a/third_party/blink/renderer/core/html/canvas/text_metrics.cc
 +++ b/third_party/blink/renderer/core/html/canvas/text_metrics.cc
-@@ -1,6 +1,11 @@
+@@ -1,6 +1,9 @@
  // Copyright 2017 The Chromium Authors
  // Use of this source code is governed by a BSD-style license that can be
  // found in the LICENSE file.
 +
 +#include "base/uxr_config.h"
 +#include "base/uxr_surface_math.h"
-+#include "base/uxr_surface_reference_data.h"
-+#include "build/build_config.h"
  
  #include "third_party/blink/renderer/core/html/canvas/text_metrics.h"
  
-@@ -92,6 +97,84 @@
+@@ -90,6 +93,16 @@
+                          PlainTextPainter& text_painter)
+     : TextMetrics() {
    Update(font, direction, baseline, align, text, text_painter);
- }
- 
++}
 +
-+void TextMetrics::ApplyUxrSurfaceMode(const String& serialized_font) {
++
++void TextMetrics::ApplyUxrSurfaceMode() {
 +  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
 +  if (modes.text.mode == base::UxrSurfaceMode::kShardX &&
 +      !modes.noise_disabled && !modes.raw) {
 +    width_ = base::uxr_surface_v1::TextWidth(
 +        width_, static_cast<uint32_t>(modes.text.seed), modes.text.amount);
-+    return;
 +  }
-+  if (modes.text.mode != base::UxrSurfaceMode::kCloak || modes.raw ||
-+      (!text_.empty() && !(width_ > 0))) {
-+    return;
-+  }
-+  std::string font = serialized_font.Utf8();
-+  const std::string text = text_.Utf8();
-+  const bool mac = base::uxr_surface_v1::AsciiEqual(modes.platform, "macos") ||
-+                   base::uxr_surface_v1::AsciiEqual(modes.platform, "MacIntel");
-+#if BUILDFLAG(IS_MAC)
-+  const bool host_matches = mac;
-+#elif BUILDFLAG(IS_WIN)
-+  const bool host_matches = modes.platform.empty() ||
-+      base::uxr_surface_v1::AsciiEqual(modes.platform, "windows") ||
-+      base::uxr_surface_v1::AsciiEqual(modes.platform, "Win32");
-+#else
-+  const bool host_matches = base::uxr_surface_v1::AsciiEqual(modes.platform, "linux") ||
-+      base::uxr_surface_v1::AsciiEqual(modes.platform, "Linux x86_64");
-+#endif
-+  if (!host_matches || !font_ || !font_->PrimaryFont())
-+    return;
-+  const std::string requested =
-+      font_->GetFontDescription().Family().FamilyName().GetString().Utf8();
-+  const std::string actual =
-+      font_->PrimaryFont()->PlatformData().FontFamilyName().Utf8();
-+  // compatible-v1: no reference correction for generic/aliased/substituted faces.
-+  if (!base::uxr_surface_v1::AsciiEqual(requested, actual))
-+    return;
-+  if (mac && font == "13.7px -apple-system, \"system-ui\", \"Segoe UI\", Roboto, sans-serif")
-+    font = "13.7px -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif";
-+  const auto& rows = mac ? base::uxr_surface_v1::kMacTextReferences
-+                         : base::uxr_surface_v1::kWindowsTextReferences;
-+  for (const auto& row : rows) {
-+    if (row.font != font || row.text != text)
-+      continue;
-+    if (width_ != row.values[0] ||
-+        actual_bounding_box_right_ != row.values[1] ||
-+        actual_bounding_box_ascent_ != row.values[2] ||
-+        actual_bounding_box_descent_ != row.values[3] ||
-+        actual_bounding_box_left_ != row.values[4])
-+      return;
-+    struct GlyphSource { const std::string& family; bool matches = true; };
-+    GlyphSource source{actual};
-+    for (const auto& run : runs_with_offset_) {
-+      run.shape_result_->ForEachGlyph(
-+          0,
-+          [](void* context, unsigned, Glyph, gfx::Vector2dF, float, bool,
-+             CanvasRotationInVertical, const SimpleFontData* data) {
-+            auto& check = *static_cast<GlyphSource*>(context);
-+            if (!data || !base::uxr_surface_v1::AsciiEqual(
-+                    data->PlatformData().FontFamilyName().Utf8(), check.family))
-+              check.matches = false;
-+          }, &source);
-+    }
-+    if (!source.matches)
-+      return;
-+    width_ = row.values[0];
-+    actual_bounding_box_right_ = row.values[1];
-+    actual_bounding_box_ascent_ = row.values[2];
-+    actual_bounding_box_descent_ = row.values[3];
-+    actual_bounding_box_left_ = row.values[4];
-+    font_bounding_box_ascent_ = em_height_ascent_ = row.values[5];
-+    font_bounding_box_descent_ = em_height_descent_ = row.values[6];
-+    baselines_->setHanging(row.values[7]);
-+    baselines_->setIdeographic(row.values[8]);
-+    baselines_->setAlphabetic(0);
-+    return;
-+  }
-+}
-+
- void TextMetrics::Shuffle(const double factor) {
-   // x-direction
-   width_ *= factor;
-@@ -110,6 +193,7 @@
-   baselines_->setIdeographic(baselines_->ideographic() * factor);
  }
  
-+// Text metrics remain derived from the actual shaped and rendered font.
- void TextMetrics::Update(const Font* font,
-                          const TextDirection& direction,
-                          const V8CanvasTextBaseline::Enum baseline,
+ void TextMetrics::Shuffle(const double factor) {
 diff --git a/third_party/blink/renderer/core/html/canvas/text_metrics.h b/third_party/blink/renderer/core/html/canvas/text_metrics.h
 --- a/third_party/blink/renderer/core/html/canvas/text_metrics.h
 +++ b/third_party/blink/renderer/core/html/canvas/text_metrics.h
@@ -2117,7 +1909,7 @@ diff --git a/third_party/blink/renderer/core/html/canvas/text_metrics.h b/third_
  
    void Shuffle(const double factor);
 +  // Called once on the normally shaped result by the measureText entry point.
-+  void ApplyUxrSurfaceMode(const String& serialized_font);
++  void ApplyUxrSurfaceMode();
  
   private:
    void Update(const Font*,
@@ -2568,15 +2360,13 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
  }
  
  String BaseRenderingContext2D::letterSpacing() const {
-@@ -1589,8 +1880,16 @@
+@@ -1589,8 +1880,14 @@
        font, direction, state.GetTextBaseline(), state.GetTextAlign(), text,
        host->GetPlainTextPainter());
  
 +  const auto text_policy =
 +      base::UxrConfig::GetInstance().SurfaceModes().text;
-+  const bool use_legacy_text =
-+      text_policy.IsLegacy() ||
-+      text_policy.mode == base::UxrSurfaceMode::kChromix;
++  const bool use_legacy_text = text_policy.IsLegacy();
 +
    // Scale text metrics if enabled
 -  if (RuntimeEnabledFeatures::FingerprintingCanvasMeasureTextNoiseEnabled()) {
@@ -2586,14 +2376,12 @@ diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_c
      if (HostAsOffscreenCanvas()) {
        if (auto* window = DynamicTo<LocalDOMWindow>(GetTopExecutionContext())) {
          if (window->GetFrame() && window->GetFrame()->GetDocument())
-@@ -1600,6 +1899,10 @@
+@@ -1600,6 +1897,8 @@
        text_metrics->Shuffle(canvas->GetDocument().GetNoiseFactorX());
      }
    }
-+  if (text_policy.mode == base::UxrSurfaceMode::kCloak)
-+    text_metrics->ApplyUxrSurfaceMode(this->font());
-+  else if (text_policy.mode == base::UxrSurfaceMode::kShardX)
-+    text_metrics->ApplyUxrSurfaceMode(String());
++  if (text_policy.mode == base::UxrSurfaceMode::kShardX)
++    text_metrics->ApplyUxrSurfaceMode();
    return text_metrics;
  }
  

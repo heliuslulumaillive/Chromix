@@ -68,28 +68,6 @@ diff --git a/chrome/browser/feedback/report_unsafe_site/screenshot_taker.cc b/ch
    std::move(copy_from_surface_callback)
        .Run(gfx::Rect(view_size), target_size,
             base::BindOnce(&ScreenshotTaker::OnGotScreenshot,
-diff --git a/chrome/browser/ui/views/extensions/extension_view_views.cc b/chrome/browser/ui/views/extensions/extension_view_views.cc
---- a/chrome/browser/ui/views/extensions/extension_view_views.cc
-+++ b/chrome/browser/ui/views/extensions/extension_view_views.cc
-@@ -5,6 +5,7 @@
- #include "chrome/browser/ui/views/extensions/extension_view_views.h"
- 
- #include "base/functional/bind.h"
-+#include "base/trace_event/trace_event.h"
- #include "build/build_config.h"
- #include "chrome/browser/extensions/extension_view_host.h"
- #include "chrome/browser/profiles/profile.h"
-@@ -103,6 +104,10 @@
- void ExtensionViewViews::ResizeDueToAutoResize(
-     content::WebContents* web_contents,
-     const gfx::Size& new_size) {
-+  TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("viz.surface_id_flow"),
-+                      "ExtensionView.AutoResize", "extension",
-+                      host_->extension_id(), "size_dip", new_size.ToString(),
-+                      "visible", GetVisible());
-   // Don't actually do anything with this information until we have been shown.
-   // Size changes will not be honored by lower layers while we are hidden.
-   if (!GetVisible()) {
 diff --git a/components/send_tab_to_self/entry_point_display_reason.cc b/components/send_tab_to_self/entry_point_display_reason.cc
 --- a/components/send_tab_to_self/entry_point_display_reason.cc
 +++ b/components/send_tab_to_self/entry_point_display_reason.cc

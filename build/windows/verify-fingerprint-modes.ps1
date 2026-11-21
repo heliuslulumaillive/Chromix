@@ -137,8 +137,8 @@ function Assert-MaskFirstEquivalence($Records, $GraphicsRecord) {
     throw 'Native mask-first oracle identity does not match the frozen baseline'
   }
   $expected = [ordered]@{
-    mask_first_equivalence_cases = 93941
-    mask_first_equivalence_bytes = 439779036
+    mask_first_equivalence_cases = 93857
+    mask_first_equivalence_bytes = 439036140
     mask_first_corpus_records = 3
     mask_first_mutation_controls = 8
     mask_first_mutation_rejections = 8
@@ -156,7 +156,7 @@ function Assert-MaskFirstEquivalence($Records, $GraphicsRecord) {
     throw 'Native graphics test did not execute mask-first equivalence'
   }
   $count = $GraphicsRecord.groups.pixel_mask_first_equivalence
-  if (($count -isnot [int] -and $count -isnot [long]) -or $count -ne 93941) {
+  if (($count -isnot [int] -and $count -isnot [long]) -or $count -ne 93857) {
     throw 'Native graphics mask-first matrix is incomplete'
   }
 }
@@ -210,9 +210,9 @@ try {
   $legacy = Invoke-OwnedCheck $executable @('--config-legacy') $outPath 'config-legacy' 120
   $native.processes += $legacy
   $native.groups['legacy'] = @(Read-NativeGroups $legacy @('configuration_checks'))
-  $chromix = Invoke-OwnedCheck $executable @('--config-chromix') $outPath 'config-chromix' 120
-  $native.processes += $chromix
-  $native.groups['chromix'] = @(Read-NativeGroups $chromix @('configuration_checks'))
+  $retired = Invoke-OwnedCheck $executable @('--config-retired-surfaces') $outPath 'config-retired-surfaces' 120
+  $native.processes += $retired
+  $native.groups['retired-surfaces'] = @(Read-NativeGroups $retired @('configuration_checks'))
   $helpers = Invoke-OwnedCheck $executable @($fixtureRoot) $outPath 'production-helpers-and-config' 180
   $native.processes += $helpers
   $native.groups['production'] = @(Read-NativeGroups $helpers @(
@@ -246,6 +246,7 @@ try {
     throw 'Fingerprint runtime acceptance failed; see runtime evidence'
   }
   $result = Get-Content -LiteralPath $runtimePath -Raw | ConvertFrom-Json
+  $expectedGroups = @('legacy_canvas','shard_canvas','shard_webgl','shard_audio','shard_rects','shard_text','shard_sensors','shard_media','memory_custom','hardware_profile','webgl_resource_limits','webgpu_capabilities','hardware_gpu_identity','masked_webgl','shard_fonts','native_fonts','font_allowlists','native_audio','audio_defaults','audio_channels','headless_screen')
   if ($result.status -cne 'passed' -or $result.baseline_only -or
       $result.browser_sha256 -cne $main.browser_sha256 -or
       $result.chrome_dll_sha256 -cne $main.chrome_dll_sha256 -or
@@ -254,7 +255,7 @@ try {
       $result.full_strategy_acceptance -isnot [bool] -or $result.partial -isnot [bool] -or
       $result.partial -eq $result.full_strategy_acceptance -or
       -not $result.positive_acceptance -or
-      @($result.positive_acceptance.PSObject.Properties).Count -ne 26 -or
+      @(Compare-Object $expectedGroups @($result.positive_acceptance.PSObject.Properties.Name)).Count -ne 0 -or
       $result.positive_acceptance.headless_screen.status -cne 'observed_pass' -or
       @($result.positive_acceptance.PSObject.Properties | Where-Object {
           $_.Value.status -notin @('observed_pass', 'not_tested')

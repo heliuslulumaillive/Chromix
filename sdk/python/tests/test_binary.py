@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from chromix import _binary as binary, api, widevine  # noqa: E402
+from chromix import _binary as binary, api  # noqa: E402
 
 HOST = "https://fixtures.invalid/release"
 TAG = binary._CHANNELS["stable"]["tag"]
@@ -357,13 +357,12 @@ def test_windows_cache_isolation_without_architecture_fallback(cache, monkeypatc
 
 @pytest.mark.parametrize("machine,plat", [("AMD64", "win-x64"), ("ARM64", "win-arm64")])
 @pytest.mark.parametrize("location", ["explicit", "installed", "cached"])
-def test_windows_launch_executable_and_x64_widevine_compatibility(cache, monkeypatch, machine, plat, location):
+def test_windows_launch_uses_selected_executable_without_local_cdm(cache, monkeypatch, machine, plat, location):
     monkeypatch.setattr(binary.platform, "system", lambda: "Windows")
     monkeypatch.setattr(binary.platform, "machine", lambda: machine)
     monkeypatch.setenv("CLOAKBROWSER_WIDEVINE", "1")
     monkeypatch.delenv("CLOAKBROWSER_WIDEVINE_CDM", raising=False)
     chrome_root = cache / "installed-chrome"
-    monkeypatch.setitem(widevine._CHROME_ROOTS, "win", [str(chrome_root)])
     cdm = {"explicit": cache / "explicit-cdm",
            "installed": chrome_root / "152.0.0.0" / "WidevineCdm",
            "cached": cache / "widevine" / "WidevineCdm"}[location]
@@ -378,7 +377,7 @@ def test_windows_launch_executable_and_x64_widevine_compatibility(cache, monkeyp
     tag = "v154.0.8037.97"
     assert chrome == cache / tag / plat / "chromix/chrome.exe"
     flags = [arg for arg in args if arg.startswith("--uxr-widevine-cdm=")]
-    assert flags == ([f"--uxr-widevine-cdm={cdm}"] if plat == "win-x64" else [])
+    assert flags == []
 
 
 UNSAFE_ENTRIES = {

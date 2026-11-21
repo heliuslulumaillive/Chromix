@@ -14,7 +14,7 @@ diff --git a/BUILD.gn b/BUILD.gn
 diff --git a/base/BUILD.gn b/base/BUILD.gn
 --- a/base/BUILD.gn
 +++ b/base/BUILD.gn
-@@ -1028,6 +1028,23 @@
+@@ -1028,6 +1028,22 @@
      "types/variant_util.h",
      "unguessable_token.cc",
      "unguessable_token.h",
@@ -30,7 +30,6 @@ diff --git a/base/BUILD.gn b/base/BUILD.gn
 +    "uxr_headless_screen.h",
 +    "uxr_surface_math.h",
 +    "uxr_surface_reference_data.h",
-+    "uxr_voice_reference_data.h",
 +    "uxr_gpu_modes.h",
 +    "uxr_font_allowlist.h",
 +    "uxr_private_font_packages_win.h",
@@ -38,7 +37,7 @@ diff --git a/base/BUILD.gn b/base/BUILD.gn
      "uuid.cc",
      "uuid.h",
      "value_iterators.cc",
-@@ -6700,6 +6717,26 @@
+@@ -6700,6 +6716,26 @@
    deps = [ "//base/tracing:perfetto_diff_tests" ]
  }
  
@@ -755,15 +754,12 @@ diff --git a/components/translate/core/common/BUILD.gn b/components/translate/co
 diff --git a/components/ungoogled/BUILD.gn b/components/ungoogled/BUILD.gn
 --- a/components/ungoogled/BUILD.gn
 +++ b/components/ungoogled/BUILD.gn
-@@ -4,6 +4,11 @@
+@@ -4,6 +4,8 @@
  
  component("ungoogled_switches") {
    sources = [
 +    "persona_profile.h",
 +    "persona_profile.cc",
-+    "farble_seed.h",
-+    "farble_seed.cc",
-+    "fingerprint_data.h",
      "ungoogled_switches.h",
      "ungoogled_switches.cc",
    ]
@@ -822,18 +818,16 @@ diff --git a/third_party/blink/renderer/modules/BUILD.gn b/third_party/blink/ren
 diff --git a/third_party/blink/renderer/modules/webgl/BUILD.gn b/third_party/blink/renderer/modules/webgl/BUILD.gn
 --- a/third_party/blink/renderer/modules/webgl/BUILD.gn
 +++ b/third_party/blink/renderer/modules/webgl/BUILD.gn
-@@ -48,6 +48,10 @@
+@@ -48,6 +48,8 @@
      "ext_texture_norm_16.cc",
      "ext_texture_norm_16.h",
      "gl_string_query.h",
-+    "gpu_info.cc",
-+    "gpu_info.h",
 +    "gpu_fingerprint.cc",
 +    "gpu_fingerprint.h",
      "khr_parallel_shader_compile.cc",
      "khr_parallel_shader_compile.h",
      "nv_shader_noperspective_interpolation.cc",
-@@ -196,6 +200,7 @@
+@@ -196,6 +198,7 @@
    public_deps = [ "//device/vr/public/mojom:vr_service_blink" ]
    deps = [
      "//device/vr/buildflags",

@@ -65,7 +65,7 @@
   "patches": [
     {
       "path": "patches/lite-windows157/01-build-integration.patch",
-      "sha256": "21fa8bd361f2528186e86c3b1f534e76093f1c2489745e8ce700a4d78036f481",
+      "sha256": "6b600cbab14f2d37fd8d3bbf6099a83766c42e88e888fc358e9a8e6605c9c6a9",
       "files": [
         "BUILD.gn",
         "base/BUILD.gn",
@@ -170,15 +170,11 @@
     },
     {
       "path": "patches/lite-windows157/07-network-and-proxy.patch",
-      "sha256": "d995d87c2d58fadfcbf4d5d73a0d098ebe97a9a163afc8c42c435ddd3c65b9eb",
+      "sha256": "e116d7892ac1a369df36708dde25c4ac3fb53c696afc5c9b27b506681ef1868d",
       "files": [
         "net/base/port_util.cc",
         "net/base/shardx_environment_controls.h",
-        "net/base/url_util.cc",
-        "net/socket/socks5_client_socket.cc",
-        "net/socket/socks5_client_socket.h",
-        "net/socket/socks5_client_socket_unittest.cc",
-        "net/socket/socks_connect_job.cc"
+        "net/base/url_util.cc"
       ]
     },
     {
@@ -215,13 +211,11 @@
     },
     {
       "path": "patches/lite-windows157/10-webgl.patch",
-      "sha256": "022529d96d8e25f5b1a2e60cf58344a692c00476da422e2ca7f7fd34529d13bb",
+      "sha256": "47e9afcf38337d67eaed6a8566867a91ef9421c6cd9fcd99807627c3cc808741",
       "files": [
         "base/uxr_shard_webgl_v2_properties.h",
         "third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc",
         "third_party/blink/renderer/modules/webgl/gpu_fingerprint.h",
-        "third_party/blink/renderer/modules/webgl/gpu_info.cc",
-        "third_party/blink/renderer/modules/webgl/gpu_info.h",
         "third_party/blink/renderer/modules/webgl/uxr_shard_readback.h",
         "third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc",
         "third_party/blink/renderer/modules/webgl/webgl_debug_shaders.cc",
@@ -231,9 +225,8 @@
     },
     {
       "path": "patches/lite-windows157/11-webgpu.patch",
-      "sha256": "9cdf838744a200d5e62baacf5f2f8c5b8b6d8614cda9ef4ca35c2b3d1786eddd",
+      "sha256": "5fa1d51eb70fc123d922fe1fa660d44b1598fbf75465b851ee373ff9b94049cb",
       "files": [
-        "third_party/blink/renderer/modules/webgpu/gpu.cc",
         "third_party/blink/renderer/modules/webgpu/gpu_adapter.cc",
         "third_party/blink/renderer/modules/webgpu/gpu_adapter_info.cc",
         "third_party/blink/renderer/modules/webgpu/gpu_supported_limits.cc",
@@ -242,7 +235,7 @@
     },
     {
       "path": "patches/lite-windows157/12-canvas-and-pixels.patch",
-      "sha256": "8c97062a6cf110511b8e47f95cd96e509b404187cd72d0707bcd722284c91ad1",
+      "sha256": "b304fa988e801bcc1e0f88348203ba2ead31473b6feb88ad53348e2a0d1c8703",
       "files": [
         "base/uxr_graphics_noise.cc",
         "base/uxr_graphics_noise.h",
@@ -269,7 +262,7 @@
     },
     {
       "path": "patches/lite-windows157/13-fonts.patch",
-      "sha256": "29abd41269164faa02f0cf186f548aa70836d6086c498e0e959f7f2b3ce75265",
+      "sha256": "4342d3c28402b49f55faa3c6085f4294a8b4b7773dc21ab2e8186001b327f33b",
       "files": [
         "base/uxr_font_allowlist.h",
         "base/uxr_font_allowlist_tests.cc",
@@ -279,7 +272,6 @@
         "third_party/blink/renderer/platform/fonts/font_cache.h",
         "third_party/blink/renderer/platform/fonts/font_metrics.cc",
         "third_party/blink/renderer/platform/fonts/mac/font_cache_mac.mm",
-        "third_party/blink/renderer/platform/fonts/simple_font_data.cc",
         "third_party/blink/renderer/platform/fonts/skia/font_cache_skia.cc",
         "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc",
         "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.h",
@@ -310,10 +302,9 @@
     },
     {
       "path": "patches/lite-windows157/15-media.patch",
-      "sha256": "60970fb12caba3e8489f2da06cdf15f186924504bfd110bde4faf8bebef2ba9f",
+      "sha256": "58457c01cf92857f61b78b4ff2157e937babaf5c12c3dd19cd4858d73a1ebcf4",
       "files": [
         "content/browser/renderer_host/media/media_stream_manager.cc",
-        "third_party/blink/renderer/core/css/media_values.cc",
         "third_party/blink/renderer/modules/media_capabilities/media_capabilities.cc",
         "third_party/blink/renderer/modules/media_capabilities/media_capabilities.h",
         "third_party/blink/renderer/modules/mediarecorder/media_recorder.cc",
@@ -325,11 +316,10 @@
     },
     {
       "path": "patches/lite-windows157/16-display.patch",
-      "sha256": "887bf17f89f34a11341aaae167374c65979c06ad740f5bd120bc725e27c5f536",
+      "sha256": "8a5712dd716383dfabf4ba688c101b2702fe67af2bb5983366b54caefeed8763",
       "files": [
         "base/uxr_headless_screen.h",
         "chrome/browser/feedback/report_unsafe_site/screenshot_taker.cc",
-        "chrome/browser/ui/views/extensions/extension_view_views.cc",
         "components/send_tab_to_self/entry_point_display_reason.cc",
         "content/browser/renderer_host/cross_process_frame_connector.cc",
         "content/browser/renderer_host/render_widget_host_impl.cc",
@@ -356,13 +346,11 @@
     },
     {
       "path": "patches/lite-windows157/17-speech.patch",
-      "sha256": "0a56326ca9a8981581864c7712064881ee38f411cd453abb6d9ff8a068c6398b",
+      "sha256": "c69d6cca042fe266cab855f9dcf87587c1c0f0152e551154aad9963828d77020",
       "files": [
         "base/uxr_voice_compat.h",
         "base/uxr_voice_compat_tests.cc",
-        "base/uxr_voice_reference_data.h",
-        "content/browser/speech/tts_win.cc",
-        "third_party/blink/renderer/modules/speech/speech_synthesis.cc"
+        "content/browser/speech/tts_win.cc"
       ]
     },
     {
@@ -484,7 +472,7 @@
     },
     {
       "path": "patches/lite-windows157/19-shared-policy.patch",
-      "sha256": "161bdc3c212acf26f00ac578e3ff54d014cbc6b0fae790ccf40ac8de54654877",
+      "sha256": "2d334c8e5d10d57910de6a06bc263f73ec53c351b00a20dcafc6066496c6bf2e",
       "files": [
         "base/uxr_cloak_hardware.cc",
         "base/uxr_cloak_hardware.h",
@@ -499,25 +487,20 @@
         "base/uxr_surface_modes.h",
         "base/uxr_surface_modes_test_main.cc",
         "base/uxr_surface_reference_data.h",
-        "components/ungoogled/farble_seed.cc",
-        "components/ungoogled/farble_seed.h",
-        "components/ungoogled/fingerprint_data.h",
         "components/ungoogled/persona_profile.cc",
         "components/ungoogled/persona_profile.h"
       ]
     },
     {
       "path": "patches/lite-windows157/20-devtools-and-clock.patch",
-      "sha256": "447e2f3d09366b5ff0324e591a5527eebe6b0b16a5e2c079c4d8d39dfaa29781",
+      "sha256": "0cc50dfb305b0957aabd5bfb6ff394c3cda3a42fa1941d6e24175736bb998ac0",
       "files": [
-        "content/browser/devtools/protocol/input_handler.cc",
-        "content/browser/devtools/protocol/network_handler.cc",
-        "v8/src/inspector/v8-runtime-agent-impl.cc"
+        "content/browser/devtools/protocol/network_handler.cc"
       ]
     },
     {
       "path": "patches/lite-windows157/21-web-platform-surfaces.patch",
-      "sha256": "c30dc31be053677e70aa992898d946dad016b0abc4065e8c793f84771c3cdd6f",
+      "sha256": "0e8a363c6e8cf0687fdfa61c997f220f9669d1b0eee02b60b9eae55a5638973f",
       "files": [
         "third_party/blink/common/device_memory/approximated_device_memory.cc",
         "third_party/blink/public/devtools_protocol/domains/CSS.pdl",
@@ -530,31 +513,22 @@
         "third_party/blink/renderer/core/execution_context/navigator_base.cc",
         "third_party/blink/renderer/core/exported/web_view_impl.cc",
         "third_party/blink/renderer/core/frame/local_dom_window.cc",
-        "third_party/blink/renderer/core/frame/navigator.cc",
         "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc",
         "third_party/blink/renderer/core/frame/navigator_device_memory.cc",
         "third_party/blink/renderer/core/frame/navigator_id.cc",
-        "third_party/blink/renderer/core/frame/navigator_language.cc",
         "third_party/blink/renderer/core/frame/web_frame_widget_impl.cc",
         "third_party/blink/renderer/core/frame/web_frame_widget_impl.h",
         "third_party/blink/renderer/core/frame/web_frame_widget_test.cc",
         "third_party/blink/renderer/core/geolocation/geolocation.cc",
-        "third_party/blink/renderer/core/html/html_element.cc",
-        "third_party/blink/renderer/core/input/pointer_event_manager.cc",
         "third_party/blink/renderer/core/inspector/inspector_css_agent.cc",
         "third_party/blink/renderer/core/inspector/inspector_css_agent.h",
         "third_party/blink/renderer/core/timing/memory_info.h",
         "third_party/blink/renderer/core/timing/performance_resource_timing.cc",
         "third_party/blink/renderer/core/timing/time_clamper.cc",
         "third_party/blink/renderer/modules/battery/battery_manager.cc",
-        "third_party/blink/renderer/modules/buckets/storage_bucket.cc",
         "third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.cc",
         "third_party/blink/renderer/modules/keyboard/keyboard_layout.cc",
-        "third_party/blink/renderer/modules/netinfo/network_information.cc",
-        "third_party/blink/renderer/modules/notifications/notification.cc",
-        "third_party/blink/renderer/modules/permissions/permissions.cc",
         "third_party/blink/renderer/modules/plugins/dom_plugin_array.cc",
-        "third_party/blink/renderer/modules/quota/storage_manager.cc",
         "third_party/blink/renderer/modules/sensor/accelerometer.cc",
         "third_party/blink/renderer/platform/graphics/mailbox_texture_backing.cc",
         "third_party/blink/renderer/platform/widget/widget_base.cc"
@@ -562,7 +536,7 @@
     },
     {
       "path": "patches/lite-windows157/22-process-and-startup.patch",
-      "sha256": "fabac92358e86c2bfad69883fa5201d4e1ae9fee8a4007a1f3232cc766f0cc36",
+      "sha256": "32bde9d4bc26a27c3cefdc3fc8de5785cad38f4f60e23a0ba144f57bfc3a8ceb",
       "files": [
         "chrome/app/chrome_main.cc",
         "chrome/app/settings_chromium_strings.grdp",
@@ -610,14 +584,13 @@
     },
     {
       "path": "patches/lite-windows157/24-google-services-and-browser.patch",
-      "sha256": "029159ce04d7ba87d9edac453fd3dab3a539cd90e2ecf937e28ee81f9536333b",
+      "sha256": "5fcb004111bc4a9cc11baf52cb9260a629e4c149e58c2983dd2483502caa7407",
       "files": [
         "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
         "chrome/browser/chrome_browser_main.cc",
         "chrome/browser/chrome_content_browser_client.cc",
         "chrome/browser/chrome_content_browser_client_navigation_throttles.cc",
         "chrome/browser/component_updater/file_type_policies_component_installer.cc",
-        "chrome/browser/component_updater/widevine_cdm_component_installer.cc",
         "chrome/browser/content_settings/generated_javascript_optimizer_pref.cc",
         "chrome/browser/content_settings/generated_javascript_optimizer_pref.h",
         "chrome/browser/enterprise/connectors/analysis/content_analysis_delegate.cc",
@@ -878,7 +851,7 @@
     {
       "path": "base/BUILD.gn",
       "before_sha256": "2619e16bd05092597a911f7b0f9e51c3363d7a7267527d79150165fb873aa9aa",
-      "after_sha256": "5ef706f9e269c6d6055d84e75b1d9fb288493acdb57e9a592d3ed14e8293a3c5"
+      "after_sha256": "7dd90070e8ee72e159006bbd62568a8100033f0126ffa34e23408a12f4ef33fd"
     },
     {
       "path": "base/uxr_audio_defaults.h",
@@ -903,7 +876,7 @@
     {
       "path": "base/uxr_config.cc",
       "before_sha256": null,
-      "after_sha256": "6e5906b62977cd0b0bf68c687912234ec0c3d87a60cfc917cd08636013f852a4"
+      "after_sha256": "b600d870705d5b7631fde2114a30cbeb6610952caedd222cde1e162c1a8f81ff"
     },
     {
       "path": "base/uxr_config.h",
@@ -933,17 +906,17 @@
     {
       "path": "base/uxr_graphics_mode_goldens.cc",
       "before_sha256": null,
-      "after_sha256": "0a6a3c1029d2a5d6c8ae1450dbcac003d312d3b478c15f4f87d990c9402c2f94"
+      "after_sha256": "0ee8ec6225cc726fc7e8a4e3d5c357b1752a0cbb5b5c03beae6f6616d9e2bab3"
     },
     {
       "path": "base/uxr_graphics_noise.cc",
       "before_sha256": null,
-      "after_sha256": "f7aff2c0d8e6857bea1f442295bae0b52106d4b83e3cb7bfeafcca60494cdead"
+      "after_sha256": "6525a5490f2839d18605d081acffdf91963e41ae35ed4aa893116505b0fd2764"
     },
     {
       "path": "base/uxr_graphics_noise.h",
       "before_sha256": null,
-      "after_sha256": "6dc88616f6796d149f274963f61736d5b804d1164f0be237c1e9fc683cfbc881"
+      "after_sha256": "e88e2acf1ed69446dfa87391899f17924a9be9706267d3b8f6ac7f02fbe7b503"
     },
     {
       "path": "base/uxr_hardware_golden_tests.cc",
@@ -958,12 +931,12 @@
     {
       "path": "base/uxr_mask_first_equivalence.h",
       "before_sha256": null,
-      "after_sha256": "4a2220a7598c05cce01c4f6585619fd3573454ee6aee67920d4b10b4776eac5e"
+      "after_sha256": "7c79872f0949dc5655592071a7889f22077d269272dc3fec6dd4c674e8ca9293"
     },
     {
       "path": "base/uxr_mask_first_reference.h",
       "before_sha256": null,
-      "after_sha256": "c0ab10258a91d53593f9d524c1e2843c288865ce71e54830d6f7b0c22665df75"
+      "after_sha256": "72559520bc2cfbce1c72160b27f96f98380d90d5f5cce1e735511f55691bf2fc"
     },
     {
       "path": "base/uxr_pixel_noise.h",
@@ -973,7 +946,7 @@
     {
       "path": "base/uxr_pixel_semantic_properties.h",
       "before_sha256": null,
-      "after_sha256": "397eeaaa30cc53ecd56d430b219224cc5769262b15d96c193d74b74e7dad0bd9"
+      "after_sha256": "e5c26038176e19d33e2a632797c59fa0ece2c488f1135d0a7449eec56dbd079f"
     },
     {
       "path": "base/uxr_private_font_packages_win.h",
@@ -988,27 +961,27 @@
     {
       "path": "base/uxr_surface_golden_tests.cc",
       "before_sha256": null,
-      "after_sha256": "0379ce3d979ebf3eb72322ab42fb63f1674aafced768a9d45798c94e6c48a909"
+      "after_sha256": "59f5d770349427095f14c937a5e77c164cb6afe22870b8af9968d65a99c170c6"
     },
     {
       "path": "base/uxr_surface_math.h",
       "before_sha256": null,
-      "after_sha256": "9d179c56fe0ae5cf09d4deb9989fb81d14ca4f8517e6265132999eac1e138708"
+      "after_sha256": "ef97b8e03cc5035f93c09ac21e86f34c114cccdf09da0e5222c369e1f6b62f1f"
     },
     {
       "path": "base/uxr_surface_modes.h",
       "before_sha256": null,
-      "after_sha256": "18daf4c9decb53b20258e9f16d5d9b09d196e3599de25d538ab35e602ec42f96"
+      "after_sha256": "855d86c756ae019e9f1b5f942f36a7f2da2b8396ceba9a3f1a91df63b60e2f31"
     },
     {
       "path": "base/uxr_surface_modes_test_main.cc",
       "before_sha256": null,
-      "after_sha256": "760cc1a695f6e76d1f4b000454003080bf8118cf386e3975e44ce063e8e827b5"
+      "after_sha256": "450e44522c9c45fb73ca66e1333114c556a110219ef6566a747c5a11427a55fa"
     },
     {
       "path": "base/uxr_surface_reference_data.h",
       "before_sha256": null,
-      "after_sha256": "45f020bd3b9934b12bc999b9138a74a71c0cf936dad8e57b2f9f1133e2dc9db9"
+      "after_sha256": "8f82cc0346369eb48b204e3ba0c4876f9dc3852cf6843ea4a92118aa542ab801"
     },
     {
       "path": "base/uxr_voice_compat.h",
@@ -1023,7 +996,7 @@
     {
       "path": "base/uxr_voice_reference_data.h",
       "before_sha256": null,
-      "after_sha256": "97e20c3c86d2ae80111de27a58812974ed42ac23445f1ea2b8f4d1d390a413f9"
+      "after_sha256": null
     },
     {
       "path": "chrome/app/BUILD.gn",
@@ -1033,7 +1006,7 @@
     {
       "path": "chrome/app/chrome_main.cc",
       "before_sha256": "9bca15fa0892300b0696f4fab3d4d6559bd62abaab746be00512a674fc2a1d43",
-      "after_sha256": "68df1b36602a26a562bcba321d1ac765efc778ef29e76514a21e987b7d4e828e"
+      "after_sha256": "0bf583ef69d621e576c5417041482a990da906c849817afb6933ffa9f072f7c1"
     },
     {
       "path": "chrome/app/etw_events/MSG00001.bin",
@@ -1108,7 +1081,7 @@
     {
       "path": "chrome/browser/component_updater/widevine_cdm_component_installer.cc",
       "before_sha256": "107dbb7d930c66a5da279e948b027ebc963a5b9b435ff5fcfaff066ed7fe5a33",
-      "after_sha256": "62869c5366c8b3384a827bb3c9f81b12a79f69c77dccf22ffd47813bfcd71da6"
+      "after_sha256": "107dbb7d930c66a5da279e948b027ebc963a5b9b435ff5fcfaff066ed7fe5a33"
     },
     {
       "path": "chrome/browser/content_settings/generated_javascript_optimizer_pref.cc",
@@ -2168,7 +2141,7 @@
     {
       "path": "chrome/browser/ui/views/extensions/extension_view_views.cc",
       "before_sha256": "6351ed0460feb803aa184fe705c9a5173edec5960ed3307bba66e02ba609b9fa",
-      "after_sha256": "27e03aca44986be3e4297c6d4924855d59a13e451fcfc68c42d34cb3788ffa4a"
+      "after_sha256": "6351ed0460feb803aa184fe705c9a5173edec5960ed3307bba66e02ba609b9fa"
     },
     {
       "path": "chrome/browser/ui/views/file_system_access/BUILD.gn",
@@ -3173,22 +3146,22 @@
     {
       "path": "components/ungoogled/BUILD.gn",
       "before_sha256": "83537b1c8254b12dc8c885961935cad9e94bf1f04b2de95573556169e67d0244",
-      "after_sha256": "0c0bb5fa28b0e302871167bb2ac6f5d8efd6a9459c059ce88d2062f96bea0c3e"
+      "after_sha256": "dca4eddf7a6546830d587b1f83fda546448c9b22f128668d1ffad251c9910857"
     },
     {
       "path": "components/ungoogled/farble_seed.cc",
       "before_sha256": null,
-      "after_sha256": "501bb3df649b26ec8894d721b721f32d65a99713c69836ec26b9c54ddda91d21"
+      "after_sha256": null
     },
     {
       "path": "components/ungoogled/farble_seed.h",
       "before_sha256": null,
-      "after_sha256": "fdf00efd9473692b3bf0a487f1a1f1b6000f3cea5794c8ad8cb21e274e433cb4"
+      "after_sha256": null
     },
     {
       "path": "components/ungoogled/fingerprint_data.h",
       "before_sha256": null,
-      "after_sha256": "c38733e14ffb6b3d41d032b6433b424ed98a67cd6619fd7c3cf27d20b49ced6b"
+      "after_sha256": null
     },
     {
       "path": "components/ungoogled/persona_profile.cc",
@@ -3233,7 +3206,7 @@
     {
       "path": "content/browser/devtools/protocol/input_handler.cc",
       "before_sha256": "5008fb8d8eb67bb584c99e304eb8f2456c1d8c07b6afeed8214e215df77671f7",
-      "after_sha256": "51d64a02218686f8e4da60bcff49f6c546f1822c4fc447df293e2d156e7c6e2a"
+      "after_sha256": "5008fb8d8eb67bb584c99e304eb8f2456c1d8c07b6afeed8214e215df77671f7"
     },
     {
       "path": "content/browser/devtools/protocol/network_handler.cc",
@@ -3488,22 +3461,22 @@
     {
       "path": "net/socket/socks5_client_socket.cc",
       "before_sha256": "1c9cce1820cedd40675aae9097bcbd832f7bd18984c7e5abc6ba5a4b07a00f14",
-      "after_sha256": "d53523b372c824e4b99d84d7a6123f90e9bc1c810752ec5f7acf0e4d579f7929"
+      "after_sha256": "1c9cce1820cedd40675aae9097bcbd832f7bd18984c7e5abc6ba5a4b07a00f14"
     },
     {
       "path": "net/socket/socks5_client_socket.h",
       "before_sha256": "8499da6562771d8de8cd782f30324dec2d43cee2aa1b486c5ec568f3e6dacc33",
-      "after_sha256": "cb7294d3d8fc1f0100a0af8897271e3086e3ca18aa9d8d74022aa1203b8b05b4"
+      "after_sha256": "8499da6562771d8de8cd782f30324dec2d43cee2aa1b486c5ec568f3e6dacc33"
     },
     {
       "path": "net/socket/socks5_client_socket_unittest.cc",
       "before_sha256": "0286f01cf81d358144e1d8a1446f1914655afa3410cd0d4d005ca186bb6570fb",
-      "after_sha256": "68def302306bea22cc7c0edc2acaa61765806ae59a4efdc026062591b9cd137d"
+      "after_sha256": "0286f01cf81d358144e1d8a1446f1914655afa3410cd0d4d005ca186bb6570fb"
     },
     {
       "path": "net/socket/socks_connect_job.cc",
       "before_sha256": "51dd1df07f0b04e50db182804d4db0396d1f00da01679cd7d2bebeac1c47bd09",
-      "after_sha256": "0dbab49b134c447f2d71cbfcfa4864f358ab54aceae6ba17cb06b64550ff9914"
+      "after_sha256": "51dd1df07f0b04e50db182804d4db0396d1f00da01679cd7d2bebeac1c47bd09"
     },
     {
       "path": "storage/browser/quota/quota_manager_impl.cc",
@@ -3588,12 +3561,12 @@
     {
       "path": "third_party/blink/renderer/core/css/media_values.cc",
       "before_sha256": "95838cbe56ece8fd7577b9fc903fd1463ae1dea6d699bb510c8ef5d8dce63b66",
-      "after_sha256": "3f3a202b7b1214ee937bf75fc4d5f7420d8fbe7eeb73eea32d647b1c9546dfad"
+      "after_sha256": "95838cbe56ece8fd7577b9fc903fd1463ae1dea6d699bb510c8ef5d8dce63b66"
     },
     {
       "path": "third_party/blink/renderer/core/dom/element.cc",
       "before_sha256": "3ed8b4f5e690808bf8c3a63ca56325266c5b2ba79292937bd696fc47ff25ab5f",
-      "after_sha256": "3d4c4cf39308642980129423d3658d55cf8c67841da72129136567c0a92c6b68"
+      "after_sha256": "42e59d7a89e618f8d609e3831ca256ef285463373326177bad94f1488024ea44"
     },
     {
       "path": "third_party/blink/renderer/core/dom/element.h",
@@ -3608,7 +3581,7 @@
     {
       "path": "third_party/blink/renderer/core/dom/range.cc",
       "before_sha256": "1957ba5f654a7f8adde807f801ff2d3ea1594fe88aeccdcbe630733e77473117",
-      "after_sha256": "90e43a90f1b378262316a211d2f36e7f44374b230c8f4d8dd9e9f376f5ffa6ee"
+      "after_sha256": "54522a7133cfbc656cf8cb3ec6e1682021a5242de56ce836d6fc2ff46edbceec"
     },
     {
       "path": "third_party/blink/renderer/core/execution_context/navigator_base.cc",
@@ -3628,7 +3601,7 @@
     {
       "path": "third_party/blink/renderer/core/frame/navigator.cc",
       "before_sha256": "ef3503300560c2e74bd850789507e5c4b47f23468c449a3912c4aae14b2f236e",
-      "after_sha256": "381cb0e7f851d216a2382123333e6b224ad8831491937621bd25bbca4c47efa5"
+      "after_sha256": "ef3503300560c2e74bd850789507e5c4b47f23468c449a3912c4aae14b2f236e"
     },
     {
       "path": "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc",
@@ -3648,7 +3621,7 @@
     {
       "path": "third_party/blink/renderer/core/frame/navigator_language.cc",
       "before_sha256": "1bfb5cbc05b4f98745bee378f78bd8a5cc5d35ed6be908764559bb9d0affe988",
-      "after_sha256": "32a5560ee276a4bf08fcec7ad1aede869b8f03b448843722e5ed40641b554601"
+      "after_sha256": "1bfb5cbc05b4f98745bee378f78bd8a5cc5d35ed6be908764559bb9d0affe988"
     },
     {
       "path": "third_party/blink/renderer/core/frame/remote_frame.cc",
@@ -3678,7 +3651,7 @@
     {
       "path": "third_party/blink/renderer/core/frame/web_frame_widget_impl.cc",
       "before_sha256": "52c6f92a1f61546898af31fcfe3833bf88a21c08c2fee0065214ec0d28014cf7",
-      "after_sha256": "416b7e8df19ad06ce1a59bb26cd5ced294a35e7b16ea94a847e20eb5a64213ed"
+      "after_sha256": "e85ed598f9a8ede3e42de4d7fbe56e28054e929db387e6a983f3678b81f0dab8"
     },
     {
       "path": "third_party/blink/renderer/core/frame/web_frame_widget_impl.h",
@@ -3723,22 +3696,22 @@
     {
       "path": "third_party/blink/renderer/core/html/canvas/text_metrics.cc",
       "before_sha256": "8f9dcbb079c5bc9bf858a7a8486af35ec06a32b5bf16fd4fddc7c4372597b77e",
-      "after_sha256": "8ab471f0eef48ddc45707e6cc3706bfedb31e36f4431c10ca1df95526248ea39"
+      "after_sha256": "f0aced985e0c91f3ba656077cda8f7f1489d77443fa0c1f8e87b650d2297ce73"
     },
     {
       "path": "third_party/blink/renderer/core/html/canvas/text_metrics.h",
       "before_sha256": "eac8ccccfa6c669a0a53dddf1eab8d8e1bb4899592cc9f466e2d75e6f0cfd335",
-      "after_sha256": "cd68947933ef70130059b9e35666b2a30afdc735e4fad685a3b9c61eb41019b0"
+      "after_sha256": "2ee8d885dc57c5c4bdba6169945dbd0fc6626bf666269b6dace497258c7d358f"
     },
     {
       "path": "third_party/blink/renderer/core/html/html_element.cc",
       "before_sha256": "4621f7a6743c90fcc02821e2d0bec7cf27b945a158d6cc3df84ed45345639601",
-      "after_sha256": "cbcd037133acd672920ca71a58569d828601bd2989f4fee709a726172ee232ec"
+      "after_sha256": "4621f7a6743c90fcc02821e2d0bec7cf27b945a158d6cc3df84ed45345639601"
     },
     {
       "path": "third_party/blink/renderer/core/input/pointer_event_manager.cc",
       "before_sha256": "b13fc0e5a7cc0933e261b39cc567985a52f0fe5123eaff1b6d97e72f2293a8a0",
-      "after_sha256": "6660d85c0ce6f9cb3401bec407789ec9b502ac9c58d4071850f444fbbfe9c114"
+      "after_sha256": "b13fc0e5a7cc0933e261b39cc567985a52f0fe5123eaff1b6d97e72f2293a8a0"
     },
     {
       "path": "third_party/blink/renderer/core/inspector/inspector_css_agent.cc",
@@ -3803,12 +3776,12 @@
     {
       "path": "third_party/blink/renderer/modules/buckets/storage_bucket.cc",
       "before_sha256": "28d9b4858591500829179b4dfbf22b1549107b2dbb355ceac536b35c5d825618",
-      "after_sha256": "30d1c16501cb5a218a5dc4f496f6cc5dc66e3dcc8f6bef26880004c2f3270030"
+      "after_sha256": "28d9b4858591500829179b4dfbf22b1549107b2dbb355ceac536b35c5d825618"
     },
     {
       "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
       "before_sha256": "faab662a1e148d22b15aa38d5486625f4dd28f676c8aad27abf2a418a383de54",
-      "after_sha256": "788d52e632da8a3e01241d342efe7e367046c3d1bb25e05f148b2f502f9cb161"
+      "after_sha256": "99dc85785305bd383350c448c0c780dcc7436fd7587ef613508f1d71be7d01fd"
     },
     {
       "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h",
@@ -3883,12 +3856,12 @@
     {
       "path": "third_party/blink/renderer/modules/netinfo/network_information.cc",
       "before_sha256": "2912d785f4a29374c04c670e5eaa3901cbdbc931ac23dea6c4905b0e0ca875bc",
-      "after_sha256": "3fa2fec8862ead496f2b6153b024c53c3f2c25605b661eb0370b27fda330739a"
+      "after_sha256": "2912d785f4a29374c04c670e5eaa3901cbdbc931ac23dea6c4905b0e0ca875bc"
     },
     {
       "path": "third_party/blink/renderer/modules/notifications/notification.cc",
       "before_sha256": "94572838a190f3391f6c0f8b613b2c25a2df48e376961872b59bdf2fcdf46e28",
-      "after_sha256": "bb194381cd897e32c0f4d1b0fd82935507a12071fc63812063bbcb605d8f38c8"
+      "after_sha256": "94572838a190f3391f6c0f8b613b2c25a2df48e376961872b59bdf2fcdf46e28"
     },
     {
       "path": "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.cc",
@@ -3928,7 +3901,7 @@
     {
       "path": "third_party/blink/renderer/modules/permissions/permissions.cc",
       "before_sha256": "a0011c530f24a2f26f5337e5a625d11922aed9c53cb6dd35096e2371c1d4e807",
-      "after_sha256": "468e92a0708804d94fa314eb134cc34b0ae50306561548d20e51db6109f1ac61"
+      "after_sha256": "a0011c530f24a2f26f5337e5a625d11922aed9c53cb6dd35096e2371c1d4e807"
     },
     {
       "path": "third_party/blink/renderer/modules/plugins/dom_plugin_array.cc",
@@ -3938,7 +3911,7 @@
     {
       "path": "third_party/blink/renderer/modules/quota/storage_manager.cc",
       "before_sha256": "5289cebb75c1eeb36d5c284c5ab7ed6f861e6fdc90a12c5f9513a5bb60aa371a",
-      "after_sha256": "8a38b816f44c7bee6b012c4fa87c7c8fa542e1ddb82d8138c521f9ea285bd68f"
+      "after_sha256": "5289cebb75c1eeb36d5c284c5ab7ed6f861e6fdc90a12c5f9513a5bb60aa371a"
     },
     {
       "path": "third_party/blink/renderer/modules/screen_details/screen_detailed.cc",
@@ -3963,7 +3936,7 @@
     {
       "path": "third_party/blink/renderer/modules/speech/speech_synthesis.cc",
       "before_sha256": "45010311b4a0f2cd53b58196deff36410ff58d22b2eeda7270ad13c1b0cd8aeb",
-      "after_sha256": "a2681d7e43523be0b7b5c4d72185ed2d779c6a6761557964a8f126fbba219477"
+      "after_sha256": "45010311b4a0f2cd53b58196deff36410ff58d22b2eeda7270ad13c1b0cd8aeb"
     },
     {
       "path": "third_party/blink/renderer/modules/webaudio/audio_buffer.cc",
@@ -4018,7 +3991,7 @@
     {
       "path": "third_party/blink/renderer/modules/webgl/BUILD.gn",
       "before_sha256": "7b7331a0593d02f933cf7b5cd3d0a09d1121547e555e7fdd8b64a47eec56fa7f",
-      "after_sha256": "06703a73943b132a0f27e7e84fac7b731a738b0d589494ad3ce27361615a2ac5"
+      "after_sha256": "cd03c6c0de43ae57bbae01f0932dd454c0ac4034686bef4f726ef68b79a67992"
     },
     {
       "path": "third_party/blink/renderer/modules/webgl/gpu_fingerprint.cc",
@@ -4033,12 +4006,12 @@
     {
       "path": "third_party/blink/renderer/modules/webgl/gpu_info.cc",
       "before_sha256": null,
-      "after_sha256": "22dc23d39a12890f05e08240f80fe88f6d5920cf7f49efcabaf8839c972bbeec"
+      "after_sha256": null
     },
     {
       "path": "third_party/blink/renderer/modules/webgl/gpu_info.h",
       "before_sha256": null,
-      "after_sha256": "9d8f94f90d9ae7bacbe33ae3ef799fc89d5186a26eb72f9708a9f62ce3b5dfdb"
+      "after_sha256": null
     },
     {
       "path": "third_party/blink/renderer/modules/webgl/uxr_shard_readback.h",
@@ -4063,7 +4036,7 @@
     {
       "path": "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
       "before_sha256": "949c5c5107fd029aa67965c41167e2aa50d758706bb90eed04ab23e8914c316f",
-      "after_sha256": "501803e7ae4aaff1f1f6584e653b712f3d92f89aa67ec5f87b98ba571fa07ac1"
+      "after_sha256": "fb913e5857a95bdae70b9db3d482abf528ff0251e9c59e5a23e2f574c8ba0946"
     },
     {
       "path": "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h",
@@ -4078,7 +4051,7 @@
     {
       "path": "third_party/blink/renderer/modules/webgpu/gpu.cc",
       "before_sha256": "9b1a5e84a67c56472fad5f9b13132ac2bd26fc22f8eed0d3fbc4e4b15947287e",
-      "after_sha256": "0b1c143f9637ec529fdff0b6f3a431bce8a4b0a92207667ee824b059408ccb4a"
+      "after_sha256": "9b1a5e84a67c56472fad5f9b13132ac2bd26fc22f8eed0d3fbc4e4b15947287e"
     },
     {
       "path": "third_party/blink/renderer/modules/webgpu/gpu_adapter.cc",
@@ -4153,7 +4126,7 @@
     {
       "path": "third_party/blink/renderer/platform/fonts/simple_font_data.cc",
       "before_sha256": "9c986ecb53e232243d0d28ad8b9c45e0835a3e62cfded1f359e01f7a9284adc4",
-      "after_sha256": "74d432f0f49a495b1fcfc23d47743b7f95c8fa0e08aabf71b013b8d96b5fa528"
+      "after_sha256": "9c986ecb53e232243d0d28ad8b9c45e0835a3e62cfded1f359e01f7a9284adc4"
     },
     {
       "path": "third_party/blink/renderer/platform/fonts/skia/font_cache_skia.cc",
@@ -4283,7 +4256,7 @@
     {
       "path": "v8/src/inspector/v8-runtime-agent-impl.cc",
       "before_sha256": "f277421c9e3ec7f211a1f6919756854b9f3f5fe40425d8a4aec17412dccd891f",
-      "after_sha256": "95f6b8b7b68ce8c021f5006683caa67071e642bdfb17b11356b3c7437f8a5ddc"
+      "after_sha256": "f277421c9e3ec7f211a1f6919756854b9f3f5fe40425d8a4aec17412dccd891f"
     },
     {
       "path": "v8/src/inspector/v8-runtime-agent-impl.h",
@@ -4832,5 +4805,5 @@
     "source_manifest_sha256": "f0cf82f501b4183b26bdcf7c2c9e4eedf314d7817b8eaa1c60b3b26ce4e76bb7",
     "review": "build/windows157-port.json"
   },
-  "stack_sha256": "8664e2dea19c8cb6eedf6303109f6862877e1450259394a4639fcbfca4e81828"
+  "stack_sha256": "5eeceedbdf27bcf08fd6f84119b4b1fb9b1ee3f047cefc2a6b3f12885727016b"
 }

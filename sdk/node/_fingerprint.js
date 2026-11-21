@@ -2,8 +2,9 @@
 const OFF = new Set(["off", "false", "0", "disable", "disabled"]);
 const BRANDS = new Map([["chrome", "Chrome"], ["google chrome", "Chrome"],
   ["edge", "Edge"], ["microsoft edge", "Edge"], ["opera", "Opera"], ["vivaldi", "Vivaldi"]]);
-const BOOLEANS = new Set(["--fingerprint-noise", "--fingerprint-sapi-voices",
-  "--fingerprint-allow-3p-cookies", "--fingerprint-windows-font-metrics"]);
+const BOOLEANS = new Set(["--fingerprint-noise", "--fingerprint-allow-3p-cookies"]);
+const SURFACE_MODES = new Set(["canvas-mode", "webgl-mode", "audio-mode", "fonts-mode", "rects-mode", "text-mode", "sensors-mode", "media-mode"]);
+const RETIRED = new Set(["hdr", "widevine-cdm", "sapi-voices", "voices", "audio-render", "font-policy", "font-whitelist", "windows-font-metrics", "keyboard-layout"]);
 const INTEGERS = new Map([
   ["--fingerprint-hardware-concurrency", [1n, 128n]],
   ["--fingerprint-screen-width", [1n, 32768n]],
@@ -17,13 +18,10 @@ const PREFERENCE_INTEGERS = new Map([["max-touch-points", [0n, 16n]], ["timer-re
 const PREFERENCE_ENUMS = new Map(Object.entries({
   "gpu-backend": ["native", "compatibility"],
   "pixel-noise": ["native", "seeded"],
-  "font-policy": ["native", "restricted"],
-  "audio-render": ["native", "isolated"],
   "color-scheme": ["dark", "light"],
   "preferred-contrast": ["more", "less", "no-preference"],
   "forced-colors": ["active", "none", "true", "false", "1", "0"],
-  pointer: ["fine", "coarse", "none"], hover: ["hover", "none"], hdr: ["native"],
-  "keyboard-layout": ["native", "us", "en-US"],
+  pointer: ["fine", "coarse", "none"], hover: ["hover", "none"],
 }));
 const CODECS = new Set(["codec-h264", "codec-vp8", "codec-vp9", "codec-av1", "codec-hevc"]);
 
@@ -44,15 +42,6 @@ function validatePreferences(args, final) {
   if ((pointer === "none" && touch > 0) || (pointer === "coarse" && touch === 0) ||
       (pointer === "none" && hover === "hover"))
     throw new Error("inconsistent pointer, hover and max-touch-points");
-  const keyboard = value("keyboard-layout");
-  if (keyboard !== undefined && keyboard !== "native" && switches.get("--uxr-synthetic-device-tests") !== "true")
-    throw new Error("keyboard-layout overrides require synthetic device tests; use native for real input");
-  if (value("font-policy") === "restricted") {
-    const families = value("font-whitelist") || "", entries = families.split(",");
-    if (!families || Buffer.byteLength(families, "utf8") > 4096 || entries.length > 256 ||
-        entries.some((entry) => !entry.replace(/^[ \t]+|[ \t]+$/g, "")) || /[\x00-\x08\x0a-\x1f\x7f]/.test(families))
-      throw new Error("restricted font-policy requires 1 to 256 comma-separated installed font families");
-  }
   if (final && value("pixel-noise") === "seeded" && !fingerprintOff(args) &&
       switches.get("--fingerprint-noise") !== "false" && !switches.has("--uxr-disable-fingerprint-noise")) {
     let seed = switches.get("--uxr-canvas-seed");
@@ -66,15 +55,7 @@ function validatePreferences(args, final) {
       throw new Error("seeded pixel-noise requires a nonzero uint64 canvas seed");
     }
   }
-  if (final && value("audio-render") === "isolated" && !fingerprintOff(args)) {
-    const seed = value("audio-seed") ?? switches.get("--uxr-fingerprint-seed");
-    if (seed === undefined) {
-      if (!switches.has("--fingerprint"))
-        throw new Error("isolated audio requires --fingerprint or a nonzero audio seed");
-    } else if (!/^[0-9]+$/.test(seed) || BigInt(seed) < 1n || BigInt(seed) >= (1n << 64n)) {
-      throw new Error("isolated audio requires a nonzero uint64 seed");
-    }
-  }
+
 }
 
 export function fingerprintOff(args) {
@@ -90,6 +71,10 @@ export function normalizeFingerprintArgs(args = [], { final = false } = {}) {
     const key = separator < 0 ? arg : arg.slice(0, separator);
     const value = separator < 0 ? "" : arg.slice(separator + 1);
     const preference = key.startsWith("--fingerprint-") ? key.slice(14) : key.startsWith("--uxr-") ? key.slice(6) : "";
+    if (RETIRED.has(preference) || /^(?:offset|voices)-mode(?:-|$)/.test(preference))
+      throw new Error("Retired browser option: " + key);
+    if (SURFACE_MODES.has(preference) && !["native", "shardx"].includes(value))
+      throw new Error("Unsupported surface mode: " + key);
     if (PREFERENCE_BOOLEANS.has(preference)) {
       const low = value.toLowerCase();
       if (OFF.has(low)) return `${key}=false`;

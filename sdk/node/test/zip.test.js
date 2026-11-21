@@ -290,7 +290,7 @@ for (const failure of ["", "http"]) {
 }
 
 for (const [arch, plat] of [["x64", "win-x64"], ["arm64", "win-arm64"]]) {
-  test(`Windows launch executable and x64 Widevine compatibility: ${plat}`, async (t) => {
+  test(`Windows launch uses the selected executable without local CDM preload: ${plat}`, async (t) => {
     mockPlatform(t, "win32", arch);
     const cdm = join(cache, "widevine", "WidevineCdm");
     mkdirSync(join(cdm, "_platform_specific", "win_x64"), { recursive: true });
@@ -308,8 +308,7 @@ for (const [arch, plat] of [["x64", "win-x64"], ["arm64", "win-arm64"]]) {
     const tag = "v154.0.8037.97";
     const launch = await api.buildLaunchOptions({ ...options, stealthArgs: false });
     assert.equal(launch.executablePath, join(cache, tag, plat, "chromix", "chrome.exe"));
-    assert.deepEqual(launch.args.filter((arg) => arg.startsWith("--uxr-widevine-cdm=")),
-      arch === "x64" ? [`--uxr-widevine-cdm=${cdm}`] : []);
+    assert.ok(!launch.args.some(arg => arg.startsWith("--uxr-widevine-cdm=")));
   });
 }
 

@@ -1,7 +1,7 @@
 // Share the packaged Python validator instead of maintaining two divergent schemas.
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { nativeSocksEnv } from './_socks_auth.js';
+import { hasRetiredProxyAuth, withoutRetiredProxyAuth } from './_socks_auth.js';
 
 function start(python, command) {
   return spawn(python, ['-X', 'utf8', '-m', 'chromix._device_launch', command],
@@ -139,8 +139,7 @@ export async function launchMeasured(chromium, binary, options) {
   let browser, context, server;
   try {
     const launch = { executablePath: binary, headless, args: prepared.args, chromiumSandbox: true };
-    const env = nativeSocksEnv(undefined, null);
-    if (env) launch.env = env;
+    if (hasRetiredProxyAuth(process.env)) launch.env = withoutRetiredProxyAuth(process.env);
     if (options.userDataDir) {
       context = await chromium.launchPersistentContext(options.userDataDir,
         { ...launch, viewport: null, serviceWorkers: 'allow' });

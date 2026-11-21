@@ -505,17 +505,10 @@ test("font directory reaches launch args and isolated Fontconfig paths", async (
   const { linuxFontEnv } = await import("../_fonts.js");
   const fontsDir = fileURLToPath(new URL("../../../assets/fonts", import.meta.url));
   const launch = await fixtureApi.buildLaunchOptions({ fontsDir, launchOptions: { env: { FIXTURE: "yes" } } });
-  assert.ok(launch.args.some((a) => a.startsWith("--uxr-font-whitelist=") && a.includes("Arial")));
+  assert.ok(!launch.args.some(arg => arg.includes("font-whitelist")));
   assert.equal(launch.env.FIXTURE, "yes");
-  const override = await fixtureApi.buildLaunchOptions({ fontsDir, args: ["--uxr-font-whitelist=Custom"] });
-  assert.deepEqual(override.args.filter((a) => a.startsWith("--uxr-font-whitelist=")), ["--uxr-font-whitelist=Custom"]);
-  const restricted = await fixtureApi.buildLaunchOptions({ fontsDir, args: ["--fingerprint-font-policy=restricted"] });
-  assert.ok(restricted.args.some(a => a.startsWith("--uxr-font-whitelist=") && a.includes("Arial")));
-  const publicOverride = await fixtureApi.buildLaunchOptions({ fontsDir, args: [
-    "--fingerprint-font-policy=restricted", "--fingerprint-font-whitelist=Custom",
-  ] });
-  assert.ok(publicOverride.args.includes("--fingerprint-font-whitelist=Custom"));
-  assert.ok(!publicOverride.args.some(a => a.startsWith("--uxr-font-whitelist=")));
+  for (const flag of ["--uxr-font-whitelist=Custom","--fingerprint-font-policy=restricted"])
+    await assert.rejects(fixtureApi.buildLaunchOptions({ fontsDir, args:[flag] }), /Retired/);
   if (process.platform === "linux") {
     const first = linuxFontEnv("unused", join(root, "one & two")).FONTCONFIG_FILE;
     const before = readFileSync(first, "utf8");

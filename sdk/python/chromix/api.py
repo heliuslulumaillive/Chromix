@@ -32,13 +32,13 @@ from ._binary import (
     _ASSETS, _CACHE, _binary_path, _bundle_complete, _download, _host,
     _resolve_release, _version_parts, resolve_platform,
 )
-from ._fonts import apply_font_env, font_dir_whitelist_arg
-from ._socks_auth import native_socks_config, apply_native_socks_auth
+from ._fonts import apply_font_env
+from ._socks_auth import browser_proxy
 from ._persona import ensure_persona_geometry
 from ._fingerprint import normalize_fingerprint_args
 from ._network import (
     extract_proxy_url as _extract_proxy_url, geoip_http as _geoip_http,
-    network_args as _network_args, split_proxy as _split_proxy,
+    network_args as _network_args,
     lookup_proxy as _lookup_proxy, resolve_webrtc_args as _resolve_webrtc_args,
 )
 from .humanize import HumanConfig, HumanConfigOverrides, HumanPreset, resolve_human_config
@@ -278,7 +278,7 @@ def maybe_resolve_geoip(geoip: bool,
 
 def _resolve_proxy_config(proxy: str | ProxySettings | None) -> tuple[dict, list[str]]:
     """Normalize URL credentials into Playwright's separate auth fields."""
-    config = _split_proxy(proxy)
+    config = browser_proxy(proxy)
     return ({"proxy": config} if config else {}), []
 
 
@@ -293,30 +293,14 @@ _ua_warned = False
 def _prepare(headless, proxy, args, stealth_args, timezone, locale, geoip,
              extension_paths, start_maximized, browser_version=None,
              release_channel=None, fonts_dir=None):
-    if fonts_dir and not any(isinstance(arg, str) and arg.partition("=")[0] in
-            ("--uxr-font-whitelist", "--fingerprint-font-whitelist") for arg in args or []):
-        whitelist = font_dir_whitelist_arg(fonts_dir)
-        if whitelist:
-            args = [whitelist] + list(args or [])
-        else:
-            sys.stderr.write(f"[chromix] fonts_dir={fonts_dir}: no parseable fonts found\n")
     args = _network_args(args, proxy)
     proxy_kwargs, proxy_extra = _resolve_proxy_config(proxy)
-    native_socks_config(proxy, args)  # validate before GeoIP, driver or download
     lookup_proxy = _lookup_proxy(args, proxy) if geoip else proxy
     timezone, locale, exit_ip = maybe_resolve_geoip(geoip, lookup_proxy, timezone, locale, args)
     args = _resolve_webrtc_args(args, lookup_proxy, exit_ip=exit_ip, geoip=geoip,
                                lookup=_geoip_http)
     binary = ensure_binary(browser_version=browser_version,
                            release_channel=release_channel)
-    # Widevine / DRM: enabled automatically when a CDM is present (same policy
-    # as CloakBrowser). Opt out with CLOAKBROWSER_WIDEVINE=0.
-    if os.environ.get("CLOAKBROWSER_WIDEVINE", "1") not in ("0", "false", "False") and \
-            not (args and any(a.startswith("--uxr-widevine-cdm") for a in args)):
-        from .widevine import find_cdm, widevine_flag
-        cdm = find_cdm()
-        if cdm:
-            args = list(args or []) + [widevine_flag(cdm)]
     chrome_args = build_args(stealth_args, (args or []) + proxy_extra,
                              timezone=timezone, locale=locale, headless=headless,
                              extension_paths=extension_paths,
@@ -424,7 +408,6 @@ def launch(headless: bool = True,
         headless, proxy, args, stealth_args, timezone, locale, geoip,
         extension_paths, start_maximized=not _suppress_maximize,
         browser_version=browser_version, release_channel=release_channel, fonts_dir=fonts_dir)
-    apply_native_socks_auth(proxy_kwargs, kwargs, chrome_args)
     apply_font_env(binary, kwargs, fonts_dir=fonts_dir)
 
     pw = sync_playwright().start()
@@ -467,7 +450,6 @@ async def launch_async(headless: bool = True,
         headless, proxy, args, stealth_args, timezone, locale, geoip,
         extension_paths, start_maximized=True,
         browser_version=browser_version, release_channel=release_channel, fonts_dir=fonts_dir)
-    apply_native_socks_auth(proxy_kwargs, kwargs, chrome_args)
     apply_font_env(binary, kwargs, fonts_dir=fonts_dir)
     pw = await async_playwright().start()
     try:
@@ -520,6 +502,8 @@ def _split_context_kwargs(viewport, locale, color_scheme, user_agent, kwargs,
         sys.stderr.write("[chromix] warning: user_agent emulation desyncs "
                          "UA Client Hints; prefer the engine persona (--uxr-ua-*)\n")
     ctx_kwargs = dict(kwargs)
+    if ctx_kwargs.get("proxy") is not None:
+        ctx_kwargs["proxy"] = browser_proxy(ctx_kwargs["proxy"])
     if viewport is not _VIEWPORT_UNSET:
         ctx_kwargs["viewport"] = viewport
     elif ("viewport" not in ctx_kwargs and "no_viewport" not in ctx_kwargs):
@@ -624,7 +608,6 @@ def launch_persistent_context(user_data_dir: str | os.PathLike,
     ctx_kwargs = _split_context_kwargs(viewport, locale, color_scheme, user_agent, kwargs,
                                        geometry=geometry, headless=headless)
     launch_kwargs = {"env": ctx_kwargs.pop("env")} if "env" in ctx_kwargs else {}
-    apply_native_socks_auth(proxy_kwargs, launch_kwargs, chrome_args)
     apply_font_env(binary, launch_kwargs, fonts_dir=fonts_dir)
     pw = sync_playwright().start()
     try:
@@ -677,7 +660,6 @@ async def launch_context_async(**kw: Any) -> Any:
     launch_kwargs = dict(proxy_kwargs)
     if "env" in ctx_kwargs:
         launch_kwargs["env"] = ctx_kwargs.pop("env")
-    apply_native_socks_auth(launch_kwargs, launch_kwargs, chrome_args)
     apply_font_env(binary, launch_kwargs, fonts_dir=fonts_dir)
     pw = await async_playwright().start()
     try:
@@ -738,7 +720,6 @@ async def launch_persistent_context_async(**kw: Any) -> Any:
                                            "browser_version", "release_channel")},
                                        geometry=geometry, headless=headless)
     launch_kwargs = {"env": ctx_kwargs.pop("env")} if "env" in ctx_kwargs else {}
-    apply_native_socks_auth(proxy_kwargs, launch_kwargs, chrome_args)
     apply_font_env(binary, launch_kwargs, fonts_dir=fonts_dir)
     pw = await async_playwright().start()
     try:

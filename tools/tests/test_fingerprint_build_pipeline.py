@@ -144,10 +144,10 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
                'chrome_dll_sha256': candidate.sha256(bundle / 'chrome.dll')}
     groups = {
         'legacy': [{'status': 'passed', 'configuration_checks': 6, 'failures': 0}],
-        'chromix': [{'status': 'passed', 'configuration_checks': 4, 'failures': 0}],
+        'retired-surfaces': [{'status': 'passed', 'configuration_checks': 40, 'failures': 0}],
         'production': [
-            {'graphics_cases': 93943, 'pixel_semantic_corpus_records': 1, 'failures': 0, 'groups': {
-                'fixture_pixels': 2, 'pixel_semantic_properties': 1, 'pixel_mask_first_equivalence': 93941}},
+            {'graphics_cases': 93859, 'pixel_semantic_corpus_records': 1, 'failures': 0, 'groups': {
+                'shard_canvas_pixels': 7584, 'shard_canvas_crop': 4264, 'pixel_semantic_properties': 1, 'pixel_mask_first_equivalence': 93857}},
             {'checks': 3, 'failures': 0}, {'gpu_checks': 4, 'failures': 0},
             {'hardware_checks': 5, 'failures': 0},
             {'font_allowlist_checks': 38, 'failures': 0}, {'audio_default_checks': 28, 'failures': 0},
@@ -161,7 +161,7 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
     processes = []
     for label, group, arguments in (
             ('config-legacy', 'legacy', ['--config-legacy']),
-            ('config-chromix', 'chromix', ['--config-chromix']),
+            ('config-retired-surfaces', 'retired-surfaces', ['--config-retired-surfaces']),
             ('production-helpers-and-config', 'production', ['D:/a/Chromix/Chromix/tools/tests/fixtures'])):
         stdout = '\n'.join(json.dumps(value) for value in groups[group]) + '\n'
         processes.append({'label': label, 'executable_sha256': 'a' * 64, 'arguments': arguments,
@@ -170,9 +170,9 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
                           'stdout_file': 'C:/evidence/' + label + '.stdout.log'})
     native = {'schema_version': 1, 'status': 'passed', **payload, 'processes': processes, 'groups': groups}
     cases = ['native_off_control', 'all_native', 'legacy_seeded', 'canvas_shardx',
-             'webgl_cloak', 'shard_surfaces', 'memory_custom', 'hardware_cloak', 'gpu_custom',
+             'shard_surfaces', 'memory_custom', 'hardware_cloak', 'gpu_custom',
              'webgl_shardx', 'fonts_shard40', 'fonts_shard41', 'fonts_shard42', 'fonts_shard43', 'fonts_native10026', 'fonts_allowlists', 'fonts_empty',
-             'cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive', 'audio_native_macos',
+             'audio_native_macos',
              'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono', 'audio_default_stereo',
              'audio_default_32', 'gpu_masked_custom',
              'headless_custom_dpr2','headless_custom_fractional','headless_explicit_info','headless_force_scale','headless_native_ignored','headless_off_ignored',
@@ -187,15 +187,13 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
         'webgl_shardx': [kind + '_v2_' + name for kind in ('webgl', 'webgl2')
                          for name in ('sparse_positive', 'repeat', 'absolute_crop', 'export_matches_readback')],
         'all_native': ['native_cpu_matches_off_control', 'native_memory_matches_off_control',
-                       'native_ua_matches_off_control', 'native_screen_matches_off_control'],
+                       'native_ua_matches_off_control', 'native_screen_matches_off_control', 'offset_120_native_control', 'offset_50_native_control'],
         'legacy_seeded': ['selected_canvas_noise_reaches_runtime'],
         'canvas_shardx': ['selected_canvas_noise_reaches_runtime'],
         'shard_surfaces': ['audio_changed', 'rect_mode_effect_and_bound', 'text_mode_effect_and_bound',
                            'media_filter_observable_on_fake_devices'],
         'memory_custom': ['expected_cpu_and_memory', 'device-memory_matches_js', 'sec-ch-device-memory_matches_js'],
         'hardware_cloak': ['expected_cpu_and_memory', 'device-memory_matches_js', 'sec-ch-device-memory_matches_js'],
-        'cloak_offset': ['offset_120_native_control', 'offset_120_captured_oracle',
-                         'offset_50_native_control', 'offset_50_captured_oracle'],
     }
     checks.extend({'scenario': case, 'name': name, 'passed': True} for case, names in specific.items() for name in names)
     checks.extend({'scenario':scenario,'name':name,'passed':True}
@@ -209,9 +207,7 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
     positive_checks = {
         'legacy_canvas': ('legacy_seeded', 'selected_canvas_noise_reaches_runtime'),
         'shard_canvas': ('canvas_shardx', 'selected_canvas_noise_reaches_runtime'),
-        'cloak_canvas': ('hardware_cloak', 'selected_canvas_noise_reaches_runtime'),
         'shard_webgl': ('webgl_shardx', 'webgl_v2_sparse_positive'),
-        'cloak_webgl': ('webgl_cloak', 'webgl_noise_reaches_runtime'),
         'shard_audio': ('shard_surfaces', 'audio_changed'),
         'shard_rects': ('shard_surfaces', 'rect_mode_effect_and_bound'),
         'shard_text': ('shard_surfaces', 'text_mode_effect_and_bound'),
@@ -225,9 +221,6 @@ def write_fingerprint_evidence(root, bundle, *, build_variant=FP):
         'shard_fonts': ('fonts_pack120', 'windowLocal:Agency FB:blocked'),
         'native_fonts': ('fonts_native10026', 'windowLocal_native_parity'),
         'font_allowlists': ('fonts_allowlists', 'windowLocal:Consolas:blocked'),
-        'cloak_voices': ('cloak_voices', 'native_voice_intersection_and_metadata'),
-        'cloak_offset': ('cloak_offset', 'offset_120_captured_oracle'),
-        'cloak_text': ('cloak_text_positive', 'text_reference_100_eligible_replacement'),
         'native_audio': ('audio_native_macos', 'match_5000_native_reference_bytes'),
         'audio_defaults': ('audio_defaults_44100', 'default_sample_rate'),
         'audio_channels': ('audio_defaults_44100', 'backend_bounded_capacity_and_initial_count'),
@@ -404,7 +397,7 @@ class FingerprintEvidenceTest(unittest.TestCase):
             native = json.loads((root/'modes-native.json').read_text())
             payload = {name: candidate.sha256(bundle/name) for name in ('chrome.exe','chrome.dll')}
             self.assertEqual(candidate.validate_mode_native(native, payload)[
-                'production.groups.pixel_mask_first_equivalence'], 93941)
+                'production.groups.pixel_mask_first_equivalence'], 93857)
             mutations = []
             for name, count in candidate.MASK_FIRST_COUNTS.items():
                 for value in (None, 0, True, str(count), count - 1, count + 1):
@@ -421,7 +414,7 @@ class FingerprintEvidenceTest(unittest.TestCase):
                     else: equivalent[name] = value
                     self._refresh_native_stdout(changed)
                     with self.assertRaises(ValueError): candidate.validate_mode_native(changed, payload)
-            for value in (None, 0, 93940, True, '93941'):
+            for value in (None, 0, 93856, True, '93857'):
                 changed = copy.deepcopy(native)
                 group = changed['groups']['production'][0]['groups']
                 if value is None: group.pop('pixel_mask_first_equivalence')
@@ -441,7 +434,7 @@ class FingerprintEvidenceTest(unittest.TestCase):
         record = {'mask_first_oracle_revision': candidate.MASK_FIRST_ORACLE_REVISION,
                   'mask_first_oracle_sha256': candidate.MASK_FIRST_ORACLE_SHA256,
                   **candidate.MASK_FIRST_COUNTS, 'failures': 0}
-        graphics = {'graphics_cases': 93943, 'groups': {'pixel_mask_first_equivalence': 93941}}
+        graphics = {'graphics_cases': 93859, 'groups': {'pixel_mask_first_equivalence': 93857}}
         cases = [{'name': 'valid', 'records': [record], 'graphics': graphics, 'expected': True}]
         for field, count in candidate.MASK_FIRST_COUNTS.items():
             for value in (None, 0, True, str(count), count - 1, count + 1):
@@ -460,7 +453,7 @@ class FingerprintEvidenceTest(unittest.TestCase):
             else: changed[field] = value
             cases.append({'name': field + '-' + repr(value), 'records': [changed],
                           'graphics': graphics, 'expected': False})
-        for value in (None, 0, 93940, True, '93941'):
+        for value in (None, 0, 93856, True, '93857'):
             changed = copy.deepcopy(graphics)
             if value is None: changed['groups'].pop('pixel_mask_first_equivalence')
             else: changed['groups']['pixel_mask_first_equivalence'] = value
@@ -734,7 +727,7 @@ if (@($results | Where-Object { -not $_.passed }).Count) { exit 1 }
                 capabilities = json.loads((root / 'fingerprint-modes-capabilities.json').read_text())
                 mutate(native, runtime, capabilities)
                 for process in native['processes']:
-                    group = {'config-legacy': 'legacy', 'config-chromix': 'chromix',
+                    group = {'config-legacy': 'legacy', 'config-retired-surfaces': 'retired-surfaces',
                              'production-helpers-and-config': 'production'}[process['label']]
                     output = '\n'.join(json.dumps(value) for value in native['groups'][group]) + '\n'
                     process.update(stdout=output, stdout_sha256=hashlib.sha256(output.encode()).hexdigest())

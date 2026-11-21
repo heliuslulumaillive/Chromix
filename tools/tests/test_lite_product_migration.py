@@ -78,6 +78,40 @@ class ProductSourceMigrationTests(unittest.TestCase):
         before = self.snapshot()
         migration.verify_donor_sources(self.repo, self.src, self.rule)
         self.assertEqual(self.snapshot(), before)
+
+    def test_product_only_deletion_checks_the_donor_and_restores_on_failure(self):
+        path = self.src / 'retired.cc'
+        payload = b'old product-only source\n'
+        path.write_bytes(payload)
+        self.product['source_files'].append({
+            'path': path.name, 'before_sha256': None, 'after_sha256': None})
+        self.updates.append({'path': path.name, 'before_sha256': digest(payload),
+                             'after_sha256': None, 'replacement_path': None})
+        before = self.snapshot()
+        with patch.object(stack, 'verify_source', side_effect=ValueError('failed final verify')):
+            with self.assertRaisesRegex(ValueError, 'failed final verify'):
+                migration.apply_source_updates(self.repo, self.src, self.rule)
+        self.assertEqual(self.snapshot(), before)
+        path.write_bytes(b'not the reviewed source')
+        tampered = self.snapshot()
+        with self.assertRaisesRegex(ValueError, 'reviewed final bytes'):
+            migration.apply_source_updates(self.repo, self.src, self.rule)
+        self.assertEqual(self.snapshot(), tampered)
+        path.write_bytes(payload)
+        migration.apply_source_updates(self.repo, self.src, self.rule)
+        self.assertFalse(path.exists())
+        self.assertEqual(self.snapshot()['out/Default/obj/retained.obj'], before['out/Default/obj/retained.obj'])
+
+    def test_deletion_cannot_remove_upstream_sources_or_untracked_paths(self):
+        for name in ('timezone.cc', 'out/Default/obj/retained.obj'):
+            with self.subTest(name=name):
+                rule = copy.deepcopy(self.rule)
+                rule['product_source_updates'] = [{'path': name, 'before_sha256': digest(self.original[name]),
+                                                   'after_sha256': None, 'replacement_path': None}]
+                before = self.snapshot()
+                with self.assertRaises(ValueError):
+                    migration.apply_source_updates(self.repo, self.src, rule)
+                self.assertEqual(self.snapshot(), before)
         self.assertEqual(migration.apply_source_updates(self.repo, self.src, self.rule),
                          ['timezone.cc', 'locale.cc'])
         after = self.snapshot()

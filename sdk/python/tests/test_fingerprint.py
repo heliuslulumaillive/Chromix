@@ -133,9 +133,9 @@ def test_equivalent_proxy_endpoints_keep_high_level_credentials(raw, configured)
 
 @pytest.mark.parametrize('prefix', ['--fingerprint-', '--uxr-'])
 @pytest.mark.parametrize('flag', ['timer-resolution=7', 'timer-resolution=0', 'max-touch-points=16',
-    'gpu-backend=native', 'audio-render=isolated', 'audio-seed=18446744073709551615',
+    'gpu-backend=native',  'audio-seed=18446744073709551615',
     'pointer=fine', 'hover=none', 'color-scheme=dark', 'forced-colors=active',
-    'preferred-contrast=less', 'keyboard-layout=native', 'codec-h264=disabled',
+    'preferred-contrast=less',  'codec-h264=disabled',
     'codec-av1=native', 'codec-vp9=supported,smooth,power-efficient'])
 def test_backend_options_have_matching_public_and_native_syntax(prefix, flag):
     args = [prefix + flag]
@@ -159,15 +159,18 @@ def test_effective_aliases_mixed_input_and_synthetic_keyboard():
     for pair in [('none', '1'), ('coarse', '0')]:
         with pytest.raises(ValueError, match='inconsistent'):
             normalize_fingerprint_args(['--uxr-pointer=' + pair[0], '--fingerprint-max-touch-points=' + pair[1]])
-    assert normalize_fingerprint_args(['--uxr-synthetic-device-tests=true', '--fingerprint-keyboard-layout=us'])
+    with pytest.raises(ValueError, match='Retired'):
+        normalize_fingerprint_args(['--uxr-synthetic-device-tests=true', '--fingerprint-keyboard-layout=us'])
 
 
-def test_font_pool_unicode_spaces_and_empty_entries():
-    flags = ['--fingerprint-font-policy=restricted', '--fingerprint-font-whitelist=Arial Narrow, ＭＳ ゴシック']
-    assert normalize_fingerprint_args(flags) == flags
-    for families in ('', ',Arial', 'Arial,', 'Arial, ,Serif', 'Arial\nInjected', 'A,' * 256 + 'Z'):
-        with pytest.raises(ValueError, match='font-policy'):
-            normalize_fingerprint_args([flags[0], '--fingerprint-font-whitelist=' + families])
+@pytest.mark.parametrize("prefix", ["--fingerprint-", "--uxr-"])
+def test_retired_surface_options_are_rejected(prefix):
+    for key in ["font-policy=native","font-whitelist=Arial","voices-mode=native","offset-mode=cloak",
+                "canvas-mode=chromix","webgl-mode=cloak","audio-render=isolated"]:
+        with pytest.raises(ValueError):
+            normalize_fingerprint_args([prefix+key])
+    for key in ["canvas-mode=shardx","webgl-mode=native","webgpu-identity-mode=cloak"]:
+        assert normalize_fingerprint_args([prefix+key]) == [prefix+key]
 
 
 @pytest.mark.parametrize('prefix', ['--fingerprint-', '--uxr-'])
@@ -177,8 +180,7 @@ def test_pixel_noise_modes_preserve_backend_and_fonts(prefix, mode):
     flag = prefix + 'pixel-noise=' + mode
     assert normalize_fingerprint_args([flag]) == [flag]
     for backend in ('native', 'compatibility'):
-        args = ['--fingerprint=42', flag, prefix + 'gpu-backend=' + backend,
-                '--fingerprint-font-policy=restricted', '--fingerprint-font-whitelist=Arial Narrow, ＭＳ ゴシック']
+        args = ['--fingerprint=42', flag, prefix + 'gpu-backend=' + backend]
         assert build_args(False, args) == args
         synthetic = args + ['--uxr-synthetic-device-tests=true']
         assert build_args(False, synthetic) == synthetic
@@ -321,15 +323,11 @@ def test_pixel_noise_alias_priority_and_default_passthrough():
         build_args(False, ['--fingerprint-pixel-noise=seeded', '--fingerprint-noise=false', '--fingerprint-noise=true'])
 
 
-def test_audio_seed_dependency_is_checked_after_launch_defaults():
+def test_retired_isolated_audio_is_rejected_even_with_seed():
     from chromix.api import build_args
-    mode = ['--fingerprint-audio-render=isolated']
-    assert normalize_fingerprint_args(mode) == mode
-    with pytest.raises(ValueError, match='seed'):
-        build_args(False, mode)
-    assert '--fingerprint-audio-render=isolated' in build_args(True, mode)
-    assert build_args(False, mode + ['--fingerprint=42'])
-    assert build_args(False, mode + ['--fingerprint-audio-seed=42'])
+    for seed in ([], ["--fingerprint=42"], ["--fingerprint-audio-seed=42"]):
+        with pytest.raises(ValueError, match="Retired"):
+            build_args(False, ["--fingerprint-audio-render=isolated", *seed])
     assert '--ignore-gpu-blocklist' not in build_args(True, [], headless=False)
     assert '--ignore-gpu-blocklist' in build_args(True, ['--ignore-gpu-blocklist'])
 

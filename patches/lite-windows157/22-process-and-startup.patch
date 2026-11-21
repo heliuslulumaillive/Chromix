@@ -1,7 +1,7 @@
 diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
 --- a/chrome/app/chrome_main.cc
 +++ b/chrome/app/chrome_main.cc
-@@ -7,11 +7,19 @@
+@@ -7,11 +7,21 @@
  #include <stdint.h>
  
  #include <iostream>
@@ -9,6 +9,8 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
  #include <memory>
  #include <optional>
  
++#include <string_view>
++
  #include "base/command_line.h"
 +#include "base/uxr_cloak_hardware.h"
  #include "base/environment.h"
@@ -21,7 +23,7 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
  #include "base/functional/bind.h"
  #include "base/functional/callback_helpers.h"
  #include "base/logging.h"
-@@ -164,6 +172,705 @@
+@@ -164,6 +174,686 @@
  
    base::CommandLine* command_line(base::CommandLine::ForCurrentProcess());
  
@@ -45,6 +47,19 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
 +             "uxr-keyboard-layout",
 +             "uxr-webauthn-uvpaa",
 +             "uxr-plugins",
++             "fingerprint-offset-mode-seed",
++             "uxr-offset-mode-seed",
++             "fingerprint-voices-mode-seed",
++             "uxr-voices-mode-seed",
++             "fingerprint-sapi-voices",
++             "uxr-sapi-voices",
++             "fingerprint-hdr",
++             "uxr-hdr",
++             "fingerprint-widevine-cdm",
++             "uxr-widevine-cdm",
++             "uxr-voices",
++             "uxr-voices-mode-sapi",
++             "uxr-voices-mode-locale",
 +             "fingerprint-audio-render",
 +             "uxr-audio-render",
 +             "fingerprint-font-policy",
@@ -60,14 +75,18 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
 +      }
 +    }
 +
-+    for (const char* surface : {"fonts", "audio", "media"}) {
++    for (const char* surface : {"canvas", "webgl", "fonts", "audio", "rects",
++                                "text", "sensors", "media", "offset", "voices"}) {
++      const bool removed = std::string_view(surface) == "offset" ||
++                           std::string_view(surface) == "voices";
 +      for (const char* prefix : {"fingerprint-", "uxr-"}) {
 +        const std::string key = std::string(prefix) + surface + "-mode";
 +        if (!command_line->HasSwitch(key))
 +          continue;
 +        const std::string mode = command_line->GetSwitchValueASCII(key);
-+        if (mode != "native" && mode != "shardx") {
-+          std::cerr << "Unsupported Lite surface mode: " << key << "=" << mode << std::endl;
++        if (removed || (mode != "native" && mode != "shardx")) {
++          std::cerr << "Unsupported Lite surface mode: " << key << "=" << mode
++                    << std::endl;
 +          return 1;
 +        }
 +      }
@@ -97,7 +116,7 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
 +      command_line->AppendSwitchNative(key, value);
 +    }
 +    // Canonicalize public booleans identically for direct and SDK launches.
-+    for (const char* key : {"fingerprint-noise", "fingerprint-sapi-voices",
++    for (const char* key : {"fingerprint-noise",
 +                            "fingerprint-allow-3p-cookies", "fingerprint-windows-font-metrics",
 +                            "fingerprint-reduced-motion", "fingerprint-reduced-transparency",
 +                            "fingerprint-inverted-colors", "uxr-reduced-motion",
@@ -151,7 +170,6 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
 +      {"fingerprint-forced-colors",       "uxr-forced-colors"},
 +      {"fingerprint-pointer",             "uxr-pointer"},
 +      {"fingerprint-hover",               "uxr-hover"},
-+      {"fingerprint-hdr",                 "uxr-hdr"},
 +      {"fingerprint-gpu-vendor",          "uxr-webgl-vendor"},
 +      {"fingerprint-gpu-renderer",         "uxr-webgl-renderer"},
 +      {"disable-gpu-fingerprint",           "uxr-disable-gpu-fingerprint"},
@@ -185,7 +203,7 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
 +    // existing switch contract; never enable synthetic-device-tests here.
 +    bool has_surface_mode = false;
 +    for (const char* surface : {"canvas", "webgl", "audio", "fonts", "rects",
-+                                "text", "offset", "sensors", "media", "voices"}) {
++                                "text", "sensors", "media"}) {
 +      for (const char* suffix : {"-mode", "-mode-seed", "-amount"}) {
 +        const std::string tail = std::string(surface) + suffix;
 +        const std::string public_key = "fingerprint-" + tail;
@@ -205,30 +223,6 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
 +      if (command_line->HasSwitch("fingerprint-noise"))
 +        set_switch("uxr-mode-noise",
 +                   command_line->GetSwitchValueASCII("fingerprint-noise"));
-+      std::string mode_platform = base::ToLowerASCII(
-+          command_line->GetSwitchValueASCII("fingerprint-platform"));
-+      if (mode_platform == "win32")
-+        mode_platform = "windows";
-+      else if (mode_platform == "macintel")
-+        mode_platform = "macos";
-+      else if (mode_platform == "linux x86_64")
-+        mode_platform = "linux";
-+      if (mode_platform.empty()) {
-+#if BUILDFLAG(IS_WIN)
-+        mode_platform = "windows";
-+#elif BUILDFLAG(IS_MAC)
-+        mode_platform = "macos";
-+#else
-+        mode_platform = "linux";
-+#endif
-+      }
-+      set_switch("uxr-mode-platform", mode_platform);
-+      if (command_line->HasSwitch("fingerprint-sapi-voices"))
-+        set_switch("uxr-voices-mode-sapi",
-+                   command_line->GetSwitchValueASCII("fingerprint-sapi-voices"));
-+      if (command_line->HasSwitch("fingerprint-locale"))
-+        set_switch("uxr-voices-mode-locale",
-+                   command_line->GetSwitchValueASCII("fingerprint-locale"));
 +    }
 +    for (const char* field : {"identity", "cpu", "memory", "screen"}) {
 +      const std::string public_key = std::string("fingerprint-") + field + "-mode";
@@ -408,8 +402,6 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
 +        append_default("uxr-taskbar-height", win ? "48" : mac ? "95" : "0");
 +      if (public_fingerprint)
 +        append_default("uxr-storage-quota", "102400");
-+      if (public_fingerprint && win && !command_line->HasSwitch("fingerprint-sapi-voices"))
-+        append_default("uxr-voices", "true");
 +    }
 +
 +    if (command_line->GetSwitchValueASCII("fingerprint") != "off" &&
@@ -535,15 +527,6 @@ diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
 +        command_line->GetSwitchValueASCII("fingerprint-noise") == "false") {
 +      // Disable perturbation, not persona selection. All seeds stay intact.
 +      set_switch("uxr-disable-fingerprint-noise", "");
-+    }
-+
-+    if (command_line->HasSwitch("fingerprint-sapi-voices")) {
-+      const std::string value = base::ToLowerASCII(
-+          command_line->GetSwitchValueASCII("fingerprint-sapi-voices"));
-+      if (value == "false" || value == "0" || value == "off")
-+        command_line->RemoveSwitch("uxr-voices");
-+      else
-+        set_switch("uxr-voices", "true");
 +    }
 +
 +    if (command_line->HasSwitch("fingerprint") &&

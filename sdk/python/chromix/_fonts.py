@@ -191,15 +191,15 @@ def apply_font_env(executable: str | os.PathLike,
     """
     # Keep the font-table parser importable as a standalone, stdlib-only module.
     # Launch-specific credential handling is only needed when assembling env.
-    from ._socks_auth import has_native_socks_env, without_native_socks_env
+    from ._socks_auth import has_retired_proxy_auth, without_retired_proxy_auth
 
     font_env = linux_font_env(executable, fonts_dir)
     user_env = launch_kwargs.get("env")
-    if not font_env and user_env is None and not has_native_socks_env(os.environ):
+    if has_retired_proxy_auth(user_env):
+        raise ValueError("The native SOCKS5 authentication environment option is retired")
+    if not font_env and user_env is None and not has_retired_proxy_auth(os.environ):
         return
-    # Do not reintroduce credentials scrubbed by the launch auth assembler.
-    # Its explicitly configured, endpoint-bound env still wins below.
-    merged = without_native_socks_env(os.environ)
+    merged = without_retired_proxy_auth(os.environ)
     merged.update(font_env)
     if user_env:
         merged.update(user_env)

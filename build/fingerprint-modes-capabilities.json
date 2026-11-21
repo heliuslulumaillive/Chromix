@@ -28,9 +28,7 @@
       "internal_key": "uxr-canvas-mode",
       "modes": [
         "native",
-        "chromix",
-        "shardx",
-        "cloak"
+        "shardx"
       ],
       "seed_flag": "fingerprint-canvas-mode-seed",
       "version": 1
@@ -55,23 +53,11 @@
       "seed_flag": "fingerprint-media-mode-seed",
       "version": 1
     },
-    "offset": {
-      "flag": "fingerprint-offset-mode",
-      "internal_key": "uxr-offset-mode",
-      "modes": [
-        "native",
-        "chromix",
-        "cloak"
-      ],
-      "seed_flag": "fingerprint-offset-mode-seed",
-      "version": 1
-    },
     "rects": {
       "flag": "fingerprint-rects-mode",
       "internal_key": "uxr-rects-mode",
       "modes": [
         "native",
-        "chromix",
         "shardx"
       ],
       "seed_flag": "fingerprint-rects-mode-seed",
@@ -82,7 +68,6 @@
       "internal_key": "uxr-sensors-mode",
       "modes": [
         "native",
-        "chromix",
         "shardx"
       ],
       "seed_flag": "fingerprint-sensors-mode-seed",
@@ -93,22 +78,9 @@
       "internal_key": "uxr-text-mode",
       "modes": [
         "native",
-        "chromix",
-        "shardx",
-        "cloak"
+        "shardx"
       ],
       "seed_flag": "fingerprint-text-mode-seed",
-      "version": 1
-    },
-    "voices": {
-      "flag": "fingerprint-voices-mode",
-      "internal_key": "uxr-voices-mode",
-      "modes": [
-        "native",
-        "chromix",
-        "cloak"
-      ],
-      "seed_flag": "fingerprint-voices-mode-seed",
       "version": 1
     },
     "webgl": {
@@ -116,9 +88,7 @@
       "internal_key": "uxr-webgl-mode",
       "modes": [
         "native",
-        "chromix",
-        "shardx",
-        "cloak"
+        "shardx"
       ],
       "seed_flag": "fingerprint-webgl-mode-seed",
       "version": 1
@@ -164,8 +134,6 @@
   },
   "seed_rules": {
     "environment": "Existing nonzero uint64 decimal environment seed is never rewritten.",
-    "chromix": "Existing 64-bit behavior retained.",
-    "cloak": "Canonical decimal uint64 text.",
     "shardx_explicit": "1..UINT32_MAX; larger explicit mode seed is rejected.",
     "shardx_inherited": "Version 1 uses the existing UxrPixelNoiseSeed fold; uint32 inputs unchanged, folded zero becomes one.",
     "companions_without_mode": "New mode-seed/amount keys require an explicit corresponding mode."
@@ -256,9 +224,7 @@
     "canvas": {
       "modes": [
         "native",
-        "chromix",
-        "shardx",
-        "cloak"
+        "shardx"
       ],
       "independent_from": [
         "webgl",
@@ -275,23 +241,7 @@
       ],
       "storage": "Owned completed RGBA8/BGRA8 output; original drawing pixels are not mutated",
       "other_formats": "Native fallback; float16/HDR algorithms are not implemented",
-      "chromix": "Existing uint64 seed fold and absolute-coordinate RGB +/-1 algorithm",
-      "shardx": "Production compatible-v1: independent-seed absolute-coordinate sparse RGB low-bit candidates and canonical 2x2 flat-cell preservation, shared by cropped readback and export; alpha guard retained. Reference/helper flavor retains the historical xoshiro128** 32-assignment model.",
-      "cloak": {
-        "core": "Byte-verified hash and ten sparse LSB candidates",
-        "intentional_differences": [
-          "Logical RGB bit ordering on both RGBA and BGRA, correcting the original export R/B discrepancy",
-          "Choose on the complete canvas and project into cropped readback",
-          "Preserve every partial-alpha pixel rather than infer an unverified original arithmetic branch"
-        ],
-        "reference_bank": {
-          "supported": false,
-          "status": "deliberately_disabled_by_compatible_policy",
-          "reason": "Observed original reference matching can replace different real colors with identical stored images/pixels",
-          "original_mechanism_research": "Separate 68-record bank, unique matcher, and false/raw distinctions documented in the research",
-          "claims_full_original_cloak": false
-        }
-      },
+      "shardx": "Production compatible-v1: independent-seed absolute-coordinate sparse RGB low-bit candidates and canonical 2x2 flat-cell preservation, shared by cropped readback and export; alpha guard retained.",
       "native_fallback_conditions": [
         "Unavailable snapshot or unsuccessful actual read",
         "Unsupported storage format",
@@ -301,9 +251,7 @@
     "webgl": {
       "modes": [
         "native",
-        "chromix",
-        "shardx",
-        "cloak"
+        "shardx"
       ],
       "variant": "completion-safe-pack-safe-compatible-v1",
       "production_seed_sequence": "Absolute-coordinate keyed ShardX V2 mask; no process or read counter",
@@ -318,7 +266,6 @@
       ],
       "errors": "Never consume the page GL error queue; failed/incomplete staging does not alter the caller buffer",
       "shardx_export": "Owned RGBA8/BGRA8 export uses the same coordinate mask and canonical flat-cell decision, with bottom/top orientation and premultiplied-alpha handling",
-      "cloak_export": "Logical RGB and top-left full-canvas coordinates agree with the corresponding supported GL readback",
       "legacy_scope_expanded": false,
       "flat_region_guard": "Canonical coordinate-anchored 2x2 cells with a same-surface 1px halo at crop boundaries; only assigned RGB low bits are ignored",
       "context_loss": "Retain DrawingBuffer and GLES transport through PACK restoration; exit after synchronous loss, never write back a PBO after loss"
@@ -331,8 +278,6 @@
       "bridge": "External Canvas Bridge, its network client, drawing-record hooks, remote pixel/text substitutions and unsafe sandbox switch are removed"
     },
     "seeds": {
-      "chromix": "Nonzero uint64, old fold unchanged",
-      "cloak": "Nonzero uint64 serialized as canonical decimal ASCII",
       "shardx": "Effective uint32; explicit values outside 1..UINT32_MAX rejected by the common parser; environment-seed folding is a separately documented launcher v1 rule"
     },
     "semantic_revision": 1
@@ -453,14 +398,8 @@
     {
       "surface": "audio/shardx",
       "policy": "bounded-readback-compatible-v1",
-      "change": "Analyser transforms only the native written prefix, preserving caller suffix. AudioBuffer copyFrom first performs the native overlap-safe copy then transforms only the copied destination prefix, avoiding source-alias writes into caller tails. copyTo only transforms its native destination write range; getChannelData retains the measured shared-PCM fixed-point rule.",
+      "change": "Offline rendering processes completed output once. Channel views and later copies retain native PCM semantics. Analyser readbacks affect only the prefix written by the native analyser.",
       "original_preserved": "ShardX float mantissa and byte LSB formulas/salts remain unchanged. The former graph-isolation and Cloak PCM-replacement paths are retired."
-    },
-    {
-      "surface": "text/cloak",
-      "policy": "verified-glyph-metrics-compatible-v1",
-      "change": "Exact font/text key plus matching host/persona, requested/resolved family, every shaped glyph's family, native width and actual glyph bounding metrics required before reference font/baseline correction.",
-      "limits": "Generic/substituted/mixed fallback faces and mismatched geometry retain the shaped native result. Font file identity/version is not established by the vendor tables; this is a bounded coherence guard, not proof of identical source fonts."
     },
     {
       "surface": "sensors/shardx",
@@ -473,27 +412,14 @@
       "policy": "bounded-enumeration-compatible-v1",
       "change": "Three independent0..32 caps on browser-filtered enumeration entries; missing cap means unlimited. Preserve native IDs, labels, permission filtering, aliases and capability indices. Never add fake devices.",
       "limits": "Enumeration entries include native default/communications aliases. This does not disable capture by an already known native ID or alter actual capture backends/devicechange."
-    },
-    {
-      "surface": "voices/cloak",
-      "policy": "inventory-intersection-compatible-v1",
-      "change": "Reference pool/locale supplies candidate order. Select only existing native entries by exact name and ASCII-case-insensitive language; move original VoicePtr entries, preserving URI, localService and default fields. SAPI=false removes actual local entries, including entries that the reference table labels remote.",
-      "limits": "The intersection can be empty. No missing Mac/Google/SAPI engine or voice is fabricated; actual synthesis remains native and is not exercised by these metadata tests."
     }
   ],
-  "surface_activation_scope": {
-    "text_cloak": "false preserves references; raw bypasses; strict glyph guard additionally applies.",
-    "offset_cloak": "Explicit mode is the v1 opt-in; false/raw bypass; fixed >50 and hash%81-30 algorithm; no amplitude scaling."
-  },
-  "voice_scope": "Native inventory intersection and ordering only; preserves original URI/local/default fields and native synthesis/backend. Full reference-list assembly remains a research/golden input, not the production returned inventory.",
   "unsupported_modes": {
-    "rects/cloak": "No confirmed independent Cloak DOMRect numeric mechanism.",
-    "offset/shardx": "No distinct observed offset strategy.",
-    "sensors/cloak": "No recovered numeric sensor strategy.",
-    "media/cloak": "Original empty-list fake input has no capture backend; deliberately omitted rather than add a no-op mode.",
-    "voices/shardx": "No separately established strategy in the audited target."
+    "chromix": "Retired on all surfaces.",
+    "cloak": "Cloak hardware selection remains supported; its separate web surface modes have been removed.",
+    "offset, voices": "Managed surface switches are retired. Both use the native paths."
   },
-  "data_policy": "Active resources contain numeric/string metadata for current text, voice, GPU and ShardX behavior; retired Cloak font pools and complete-PCM audio replacement data are removed.",
+  "data_policy": "Runtime data includes the signed font catalog protocol, the retained hardware catalog and Windows native voice compatibility metadata.",
   "windows_native_voice_compatibility": {
     "version": 1,
     "catalog": "Chromium 155 network speech names and languages",
@@ -503,7 +429,7 @@
     "requires_manager_extension": false,
     "google_cloud_synthesis": false,
     "missing_language": "matching primary language, otherwise original platform default",
-    "scope": "Windows native backend inventory and routing; Google names and remote attributes are compatibility declarations. Existing renderer voice filters remain effective."
+    "scope": "Windows native backend inventory and routing; Google names and remote attributes are compatibility declarations."
   },
   "headless_display_synchronization": {
     "kind": "source_contract_not_runtime_acceptance",

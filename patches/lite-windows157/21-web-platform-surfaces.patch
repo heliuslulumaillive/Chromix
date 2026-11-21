@@ -177,7 +177,7 @@ diff --git a/third_party/blink/renderer/core/dom/element.cc b/third_party/blink/
 +namespace {
 +bool UxrLegacyRects() {
 +  const auto policy = base::UxrConfig::GetInstance().SurfaceModes().rects;
-+  return policy.IsLegacy() || policy.mode == base::UxrSurfaceMode::kChromix;
++  return policy.IsLegacy();
 +}
 +void ApplyUxrRectSize(gfx::RectF& rect) {
 +  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
@@ -265,7 +265,7 @@ diff --git a/third_party/blink/renderer/core/dom/range.cc b/third_party/blink/re
 +namespace {
 +bool UxrLegacyRects() {
 +  const auto policy = base::UxrConfig::GetInstance().SurfaceModes().rects;
-+  return policy.IsLegacy() || policy.mode == base::UxrSurfaceMode::kChromix;
++  return policy.IsLegacy();
 +}
 +void ApplyUxrRectSize(gfx::RectF& rect) {
 +  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
@@ -513,29 +513,6 @@ diff --git a/third_party/blink/renderer/core/frame/local_dom_window.cc b/third_p
    Page* page = frame->GetPage();
    if (!page) {
      return 0;
-diff --git a/third_party/blink/renderer/core/frame/navigator.cc b/third_party/blink/renderer/core/frame/navigator.cc
---- a/third_party/blink/renderer/core/frame/navigator.cc
-+++ b/third_party/blink/renderer/core/frame/navigator.cc
-@@ -23,6 +23,7 @@
- 
- #include "third_party/blink/renderer/core/frame/navigator.h"
- 
-+#include "base/uxr_config.h"
- #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
- #include "third_party/blink/renderer/core/dom/document.h"
- #include "third_party/blink/renderer/core/execution_context/navigator_base.h"
-@@ -79,9 +80,10 @@
- }
- 
- bool Navigator::webdriver() const {
-+  if (base::UxrConfig::GetInstance().Get("uxr-fingerprint-off") != "true")
-+    return false;
-   if (RuntimeEnabledFeatures::AutomationControlledEnabled())
-     return true;
--
-   bool automation_enabled = false;
-   probe::ApplyAutomationOverride(GetExecutionContext(), automation_enabled);
-   return automation_enabled;
 diff --git a/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc b/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
 --- a/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
 +++ b/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
@@ -630,18 +607,6 @@ diff --git a/third_party/blink/renderer/core/frame/navigator_id.cc b/third_party
  #if BUILDFLAG(IS_MAC)
    // Match Safari and Mozilla on Mac x86.
    return "MacIntel";
-diff --git a/third_party/blink/renderer/core/frame/navigator_language.cc b/third_party/blink/renderer/core/frame/navigator_language.cc
---- a/third_party/blink/renderer/core/frame/navigator_language.cc
-+++ b/third_party/blink/renderer/core/frame/navigator_language.cc
-@@ -66,6 +66,8 @@
- }
- 
- void NavigatorLanguage::EnsureUpdatedLanguage() {
-+  // Persona languages arrive through browser preferences; retain reduction and
-+  // DevTools overrides without changing the process locale from a getter.
-   String accept_languages_override;
-   probe::ApplyAcceptLanguageOverride(execution_context_,
-                                      &accept_languages_override);
 diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc
 --- a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc
 +++ b/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc
@@ -774,7 +739,7 @@ diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/th
    gfx::Rect new_compositor_viewport_pixel_rect =
        visual_properties.compositor_viewport_pixel_rect;
    gfx::Size new_size;
-@@ -2128,29 +2206,53 @@
+@@ -2128,29 +2206,47 @@
          device_scale_factor_for_testing_ / non_testing_device_scale_factor_);
    }
  
@@ -806,13 +771,7 @@ diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/th
        new_compositor_viewport_pixel_rect = gfx::Rect(gfx::ScaleToCeiledSize(
            widget_base_->BlinkSpaceToFlooredDIPs(size_.value_or(gfx::Size())),
            visual_properties.screen_infos.current().device_scale_factor));
-+      TRACE_EVENT_INSTANT(
-+          TRACE_DISABLED_BY_DEFAULT("viz.surface_id_flow"),
-+          "AutoResize.VisualProperties", "embedder_px",
-+          visual_properties.compositor_viewport_pixel_rect.size().ToString(),
-+          "content_px", new_compositor_viewport_pixel_rect.size().ToString(),
-+          "emulated", DeviceEmulator() != nullptr);
-+    }
+     }
 +
 +    if (DeviceEmulator() && widget_base_ && !widget_base_->WillBeDestroyed()) {
 +      const gfx::Rect& compositor_rect =
@@ -821,7 +780,7 @@ diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/th
 +      DeviceEmulator()->UpdateVisualProperties(visual_properties,
 +                                               compositor_rect);
 +      return IsScreenUpdateCurrent(initial_sequence + 2);
-     }
++    }
    }
  
    SetViewportSegments(visual_properties.root_widget_viewport_segments);
@@ -836,7 +795,7 @@ diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/th
  
    // Store this even when auto-resizing, it is the size of the full viewport
    // used for clipping, and this value is propagated down the Widget
-@@ -2171,6 +2273,9 @@
+@@ -2171,6 +2267,9 @@
            visual_properties.browser_controls_params);
      }
  
@@ -846,7 +805,7 @@ diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/th
      LocalRootImpl()->GetFrame()->UpdateWindowControlsOverlay(
          visual_properties.window_controls_overlay_rect);
  
-@@ -2187,8 +2292,12 @@
+@@ -2187,8 +2286,12 @@
        View()->Resize(widget_base_->VisibleViewportSize());
      }
  
@@ -859,7 +818,7 @@ diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/th
  }
  
  bool WebFrameWidgetImpl::DidChangeFullscreenState(
-@@ -2451,8 +2560,14 @@
+@@ -2451,8 +2554,14 @@
    // Remote viewports are only applicable to local frames with remote ancestors.
    DCHECK(ForSubframe() || !LocalRootImpl()->GetFrame()->IsOutermostMainFrame());
  
@@ -875,7 +834,7 @@ diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/th
    ApplyViewportIntersection(std::move(intersection_state));
  }
  
-@@ -2497,10 +2612,11 @@
+@@ -2497,10 +2606,11 @@
  }
  
  void WebFrameWidgetImpl::DisableDeviceEmulation() {
@@ -890,19 +849,16 @@ diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/th
  }
  
  void WebFrameWidgetImpl::SetIsInertForSubFrame(bool inert) {
-@@ -2609,7 +2725,10 @@
+@@ -2609,7 +2719,7 @@
    // |size| from the compositor's viewport size.
    gfx::Rect size_with_dsf = gfx::Rect(gfx::ScaleToCeiledSize(
        gfx::Rect(size_in_dips).size(),
 -      widget_base_->GetScreenInfo().device_scale_factor));
 +      GetOriginalScreenInfo().device_scale_factor));
-+  TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("viz.surface_id_flow"),
-+                      "AutoResize.AfterLayout", "layout_px", size.ToString(),
-+                      "compositor_px", size_with_dsf.size().ToString());
    widget_base_->LayerTreeHost()->RequestNewLocalSurfaceId();
    widget_base_->UpdateCompositorViewportRect(size_with_dsf);
  }
-@@ -2758,6 +2877,7 @@
+@@ -2758,6 +2868,7 @@
                              ->widget_base_.get()
                        : nullptr);
  
@@ -910,7 +866,7 @@ diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/th
    probe::DidInitializeFrameWidget(local_root_->GetFrame());
    local_root_->GetFrame()->NotifyFrameWidgetCreated();
  
-@@ -3723,14 +3843,32 @@
+@@ -3723,14 +3834,32 @@
        new_local_surface_id, compositor_viewport_pixel_rect, new_screen_infos);
  }
  
@@ -943,7 +899,7 @@ diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/th
    widget_base_->UpdateSurfaceAndCompositorRect(new_local_surface_id,
                                                 compositor_viewport_pixel_rect);
  }
-@@ -3741,11 +3879,44 @@
+@@ -3741,11 +3870,44 @@
  }
  
  const display::ScreenInfo& WebFrameWidgetImpl::GetScreenInfo() {
@@ -990,7 +946,7 @@ diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/th
  }
  
  const display::ScreenInfo& WebFrameWidgetImpl::GetOriginalScreenInfo() {
-@@ -5329,12 +5500,19 @@
+@@ -5329,12 +5491,19 @@
      const display::ScreenInfos& screen_infos,
      const gfx::Size& widget_size_in_dips,
      const gfx::Size& visible_viewport_size) {
@@ -1014,7 +970,7 @@ diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/th
  }
  
  float WebFrameWidgetImpl::GetCompositingScaleFactor() {
-@@ -5515,14 +5693,40 @@
+@@ -5515,14 +5684,40 @@
  #endif  // BUILDFLAG(IS_WIN)
  
  void WebFrameWidgetImpl::OrientationChanged() {
@@ -1059,7 +1015,7 @@ diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/th
  
    if (ShouldAutoDetermineCompositingToLCDTextSetting()) {
      // This causes compositing state to be modified which dirties the
-@@ -5542,49 +5746,74 @@
+@@ -5542,49 +5737,74 @@
    if (previous_original_screen_infos.current().device_scale_factor !=
        original_screen_infos.current().device_scale_factor) {
      View()->CancelPagePopup();
@@ -1948,103 +1904,6 @@ diff --git a/third_party/blink/renderer/core/geolocation/geolocation.cc b/third_
    geolocation_->QueryNextPosition(
        blink::BindOnce(&Geolocation::OnPositionUpdated, WrapPersistent(this)));
  }
-diff --git a/third_party/blink/renderer/core/html/html_element.cc b/third_party/blink/renderer/core/html/html_element.cc
---- a/third_party/blink/renderer/core/html/html_element.cc
-+++ b/third_party/blink/renderer/core/html/html_element.cc
-@@ -22,6 +22,10 @@
-  * Boston, MA 02110-1301, USA.
-  *
-  */
-+
-+#include "base/uxr_config.h"
-+#include "base/uxr_surface_math.h"
-+#include "base/strings/string_number_conversions.h"
- 
- #include "third_party/blink/renderer/core/html/html_element.h"
- 
-@@ -4439,6 +4443,20 @@
-   if (const auto* layout_object = GetLayoutBoxModelObject()) {
-     result = AdjustedOffsetForZoom(layout_object->OffsetWidth());
-   }
-+
-+  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
-+  if (modes.offset.mode == base::UxrSurfaceMode::kCloak &&
-+      !modes.noise_disabled && !modes.raw && result > 50) {
-+    if (const auto* style = GetComputedStyle()) {
-+      const std::string input = base::NumberToString(modes.offset.seed) +
-+          "|offsetWidth|" +
-+          style->GetFontDescription().Family().FamilyName().GetString().Utf8();
-+      const int delta = static_cast<int>(static_cast<uint32_t>(
-+          base::uxr_surface_v1::OffsetHash(input)) % 81u) - 30;
-+      if (result <= std::numeric_limits<int>::max() - std::max(delta, 0))
-+        result += delta;
-+    }
-+  }
-   return result;
- }
- 
-@@ -4449,6 +4467,20 @@
-   int result = 0;
-   if (const auto* layout_object = GetLayoutBoxModelObject()) {
-     result = AdjustedOffsetForZoom(layout_object->OffsetHeight());
-+  }
-+
-+  const auto modes = base::UxrConfig::GetInstance().SurfaceModes();
-+  if (modes.offset.mode == base::UxrSurfaceMode::kCloak &&
-+      !modes.noise_disabled && !modes.raw && result > 50) {
-+    if (const auto* style = GetComputedStyle()) {
-+      const std::string input = base::NumberToString(modes.offset.seed) +
-+          "|offsetHeight|" +
-+          style->GetFontDescription().Family().FamilyName().GetString().Utf8();
-+      const int delta = static_cast<int>(static_cast<uint32_t>(
-+          base::uxr_surface_v1::OffsetHash(input)) % 81u) - 30;
-+      if (result <= std::numeric_limits<int>::max() - std::max(delta, 0))
-+        result += delta;
-+    }
-   }
-   return result;
- }
-diff --git a/third_party/blink/renderer/core/input/pointer_event_manager.cc b/third_party/blink/renderer/core/input/pointer_event_manager.cc
---- a/third_party/blink/renderer/core/input/pointer_event_manager.cc
-+++ b/third_party/blink/renderer/core/input/pointer_event_manager.cc
-@@ -4,6 +4,7 @@
- 
- #include "third_party/blink/renderer/core/input/pointer_event_manager.h"
- 
-+#include "base/uxr_config.h"
- #include "base/metrics/field_trial_params.h"
- #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom-blink.h"
- #include "third_party/blink/public/mojom/input/input_handler.mojom-blink.h"
-@@ -976,6 +977,14 @@
-   Vector<WebPointerEvent> pointer_coalesced_events;
-   for (const WebMouseEvent& e : coalesced_events)
-     pointer_coalesced_events.push_back(WebPointerEvent(event_type, e));
-+  // UXR: real pointermove always carries >=1 coalesced sample; CDP-synthesized moves
-+  // arrive with an empty coalesced batch, which getCoalescedEvents() exposes as an
-+  // automation tell. Synthesize one sample (the event itself) so the batch is non-empty.
-+  if (base::UxrConfig::GetInstance().Get("uxr-fingerprint-off") != "true" &&
-+      pointer_coalesced_events.empty() &&
-+      event_type == WebInputEvent::Type::kPointerMove) {
-+    pointer_coalesced_events.push_back(web_pointer_event);
-+  }
-   Vector<WebPointerEvent> pointer_predicted_events;
-   for (const WebMouseEvent& e : predicted_events)
-     pointer_predicted_events.push_back(WebPointerEvent(event_type, e));
-@@ -1116,6 +1125,14 @@
-   Vector<WebPointerEvent> pointer_coalesced_events;
-   for (const WebMouseEvent& e : coalesced_events)
-     pointer_coalesced_events.push_back(WebPointerEvent(event_type, e));
-+  // UXR: real pointermove always carries >=1 coalesced sample; CDP-synthesized moves
-+  // arrive with an empty coalesced batch, which getCoalescedEvents() exposes as an
-+  // automation tell. Synthesize one sample (the event itself) so the batch is non-empty.
-+  if (base::UxrConfig::GetInstance().Get("uxr-fingerprint-off") != "true" &&
-+      pointer_coalesced_events.empty() &&
-+      event_type == WebInputEvent::Type::kPointerMove) {
-+    pointer_coalesced_events.push_back(web_pointer_event);
-+  }
-   Vector<WebPointerEvent> pointer_predicted_events;
-   for (const WebMouseEvent& e : predicted_events)
-     pointer_predicted_events.push_back(WebPointerEvent(event_type, e));
 diff --git a/third_party/blink/renderer/core/inspector/inspector_css_agent.cc b/third_party/blink/renderer/core/inspector/inspector_css_agent.cc
 --- a/third_party/blink/renderer/core/inspector/inspector_css_agent.cc
 +++ b/third_party/blink/renderer/core/inspector/inspector_css_agent.cc
@@ -2516,17 +2375,6 @@ diff --git a/third_party/blink/renderer/modules/battery/battery_manager.cc b/thi
  
    if (battery_property_->GetState() == BatteryProperty::kPending) {
      battery_property_->Resolve(this);
-diff --git a/third_party/blink/renderer/modules/buckets/storage_bucket.cc b/third_party/blink/renderer/modules/buckets/storage_bucket.cc
---- a/third_party/blink/renderer/modules/buckets/storage_bucket.cc
-+++ b/third_party/blink/renderer/modules/buckets/storage_bucket.cc
-@@ -266,6 +266,7 @@
-     return;
-   }
- 
-+  // Keep this bucket's own browser quota; it need not match the origin quota.
-   StorageEstimate* estimate = StorageEstimate::Create();
-   estimate->setUsage(current_usage);
-   estimate->setQuota(current_quota);
 diff --git a/third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.cc b/third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.cc
 --- a/third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.cc
 +++ b/third_party/blink/renderer/modules/global_privacy_control/navigator_global_privacy_control.cc
@@ -2577,39 +2425,6 @@ diff --git a/third_party/blink/renderer/modules/keyboard/keyboard_layout.cc b/th
      case mojom::blink::GetKeyboardLayoutMapStatus::kFail:
        layout_map_property_->Reject(MakeGarbageCollected<DOMException>(
            DOMExceptionCode::kInvalidStateError,
-diff --git a/third_party/blink/renderer/modules/netinfo/network_information.cc b/third_party/blink/renderer/modules/netinfo/network_information.cc
---- a/third_party/blink/renderer/modules/netinfo/network_information.cc
-+++ b/third_party/blink/renderer/modules/netinfo/network_information.cc
-@@ -83,6 +83,7 @@
-   return !!connection_observer_handle_;
- }
- 
-+// Keep getters and change events on the same native notifier state.
- V8ConnectionType NetworkInformation::type() const {
-   if (RuntimeEnabledFeatures::NetInfoConstantTypeEnabled()) {
-     return V8ConnectionType(V8ConnectionType::Enum::kUnknown);
-diff --git a/third_party/blink/renderer/modules/notifications/notification.cc b/third_party/blink/renderer/modules/notifications/notification.cc
---- a/third_party/blink/renderer/modules/notifications/notification.cc
-+++ b/third_party/blink/renderer/modules/notifications/notification.cc
-@@ -433,6 +433,7 @@
-     }
-   }
- 
-+  // Use the same browser permission authority as requestPermission().
-   mojom::blink::PermissionStatus status =
-       NotificationManager::From(context)->GetPermissionStatus();
- 
-diff --git a/third_party/blink/renderer/modules/permissions/permissions.cc b/third_party/blink/renderer/modules/permissions/permissions.cc
---- a/third_party/blink/renderer/modules/permissions/permissions.cc
-+++ b/third_party/blink/renderer/modules/permissions/permissions.cc
-@@ -276,6 +276,7 @@
-       resolver->GetExecutionContext()->IsContextDestroyed())
-     return;
- 
-+  // Preserve the browser result used by requests and permission observers.
-   PermissionStatusListener* listener = GetOrCreatePermissionStatusListener(
-       std::move(result), std::move(descriptor));
-   if (listener)
 diff --git a/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc b/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
 --- a/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
 +++ b/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
@@ -2630,17 +2445,6 @@ diff --git a/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc b/th
  #if BUILDFLAG(IS_ANDROID)
    // TODO(crbug.com/556858610, crbug.com/556857897): Other desktop platforms
    // dynamically check whether PDF viewing is handled by an extension or
-diff --git a/third_party/blink/renderer/modules/quota/storage_manager.cc b/third_party/blink/renderer/modules/quota/storage_manager.cc
---- a/third_party/blink/renderer/modules/quota/storage_manager.cc
-+++ b/third_party/blink/renderer/modules/quota/storage_manager.cc
-@@ -68,6 +68,7 @@
-     return;
-   }
- 
-+  // Quota and usage must reflect the browser's storage accounting and limits.
-   StorageEstimate* estimate = StorageEstimate::Create();
-   estimate->setUsage(usage_in_bytes);
-   estimate->setQuota(quota_in_bytes);
 diff --git a/third_party/blink/renderer/modules/sensor/accelerometer.cc b/third_party/blink/renderer/modules/sensor/accelerometer.cc
 --- a/third_party/blink/renderer/modules/sensor/accelerometer.cc
 +++ b/third_party/blink/renderer/modules/sensor/accelerometer.cc

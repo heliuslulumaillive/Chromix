@@ -168,6 +168,8 @@ def input_hashes(repo):
     names.update(row['repository_path'] for row in data['runtime']['restore_pruned_resources'].values())
     names.update('tools/tests/fixtures/pixel-semantics-v1/' + name
                  for name in ('cases.tsv', 'pixels.bin', 'provenance.json'))
+    names.update('tools/tests/fixtures/graphics-modes-v1/' + name
+                 for name in ('cases.tsv', 'pixels.bin', 'provenance.json'))
     payload = owned(repo, 'build/windows/lite-tarball-files')
     names.update(p.relative_to(repo).as_posix() for p in payload.rglob('*') if p.is_file())
     return {name: digest(owned(repo, name).read_bytes()) for name in sorted(names)}

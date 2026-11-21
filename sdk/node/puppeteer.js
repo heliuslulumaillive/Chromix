@@ -2,8 +2,8 @@
 import { buildLaunchOptions as buildSharedLaunchOptions, buildContextOptions,
   humanizeBrowser, resolveHumanConfig } from "./index.js";
 import { profileSeed } from "./_profile.js";
-import { splitProxy, lookupProxy } from "./_network.js";
-import { nativeSocksConfig, hasNativeSocksEnv } from "./_socks_auth.js";
+import { lookupProxy } from "./_network.js";
+import { browserProxy, hasRetiredProxyAuth } from "./_socks_auth.js";
 
 export { ensureBinary, binaryInfo, clearCache, checkForUpdate, VERSION,
   CHROMIUM_VERSION, CHROMIUM_BUILD_VERSION } from "./index.js";
@@ -24,8 +24,8 @@ async function loadPuppeteer() {
 
 function validate(options) {
   if (options.humanize) resolveHumanConfig(options.humanPreset, options.humanConfig);
-  if (hasNativeSocksEnv(options.launchOptions?.env))
-    throw new Error("Use proxy for native SOCKS5 credentials, not a raw authentication environment variable");
+  if (hasRetiredProxyAuth(options.launchOptions?.env))
+    throw new Error("The native SOCKS5 authentication environment option is retired");
   if (Object.hasOwn(options, "devicePool"))
     throw new Error("Puppeteer devicePool admission is not implemented; use the measured Playwright entry point");
   const contextKeys = Object.keys(options.contextOptions ?? {});
@@ -49,19 +49,18 @@ function validate(options) {
     throw new TypeError("args must be an array of strings");
   if (args.some(arg => /^--user-data-dir(?:=|$)/.test(arg)))
     throw new Error("Use userDataDir, not a raw --user-data-dir, to bind the persistent seed");
-  const proxy = splitProxy(options.launchOptions?.proxy ?? options.proxy);
+  const proxy = browserProxy(options.launchOptions?.proxy ?? options.proxy);
   // Check raw route conflicts even when no GeoIP lookup is requested.
   lookupProxy(args, proxy);
-  const nativeProxy = nativeSocksConfig(proxy, args);
-  if (proxy && (proxy.username !== undefined || proxy.password !== undefined) && !nativeProxy.auth)
+  if (proxy && (proxy.username !== undefined || proxy.password !== undefined))
     throw new Error("Puppeteer proxy credentials require a native auth route; page.authenticate is not a browser-wide proxy-auth backend");
-  if (nativeProxy.proxy && !/^(?:https?|socks[45]):/.test(nativeProxy.proxy.server))
+  if (proxy && !/^(?:https?|socks[45]):/.test(proxy.server))
     throw new Error("Use a Chromium-supported http, https, socks4 or socks5 proxy scheme");
   for (const key of ["chromiumSandbox", "downloadsPath", "firefoxUserPrefs", "tracesDir"]) {
     if (Object.hasOwn(options.launchOptions ?? {}, key))
       throw new Error(`${key} is a Playwright launch option, not a Puppeteer launch option`);
   }
-  return nativeProxy.proxy;
+  return proxy;
 }
 
 export async function buildLaunchOptions(options = {}) {

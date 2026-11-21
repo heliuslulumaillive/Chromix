@@ -2,25 +2,14 @@
   "schema": 1,
   "oracle": "Historical browser captures. No production helper or reimplemented random algorithm was used to produce expected bytes.",
   "packing": "Unique native input buffers plus sparse differences between native and captured output; expected full buffers are reconstructed by the runner.",
-  "scope": "Pure pixel algorithm and layout transport. This does not validate live Blink routing, WebGL completion gates, counters before rejected calls, or GPU drivers.",
-  "compatible_expectations": "Logical BGRA and crop/GL-origin expectations are byte-order/rectangle transforms of captured RGBA output, not regenerated pixel algorithms. Stable Shard expectations reuse recorded sequence-zero output.",
-  "fixture_correction": "Chromix read-size-* w/h are the requested rectangle, while graphics-probe.mjs creates a 64x64 backing canvas. The first run incorrectly used the read rectangle as the backing height; 24 comparisons failed. Corrected metadata only, no algorithm or capture bytes changed.",
+  "scope": "Captured Canvas output and crop projections. WebGL V2 has separate compiled properties, runtime checks and a frozen differential corpus.",
+  "compatible_expectations": "Canvas inputs and expected bytes are selected and repacked directly from the original 157 fixture.",
   "counts": {
     "shard_canvas_pixels": 7584,
-    "shard_canvas_crop": 4264,
-    "shard_webgl_pixels": 204,
-    "shard_compatible_stable": 6,
-    "shard_webgl_heldout": 32,
-    "cloak_raw": 84,
-    "cloak_png_bgra": 84,
-    "cloak_compatible_logical": 84,
-    "cloak_compatible_gl_origin": 84,
-    "cloak_compatible_crop": 132,
-    "chromix_legacy_pixels": 60,
-    "pack_safe_transport": 2
+    "shard_canvas_crop": 4264
   },
-  "cases": 12620,
-  "packed_bytes": 6549051,
+  "cases": 11848,
+  "packed_bytes": 5962705,
   "source_files": {
     "research/shardx-canvas-rea/dynamic/native-model-validation-combined.json": {
       "sha256": "8d1a2c2d04b4f322f548c50c1ca3a505754f62230897f6b39f8c84a7b07f5ace",
@@ -240,6 +229,16 @@
     }
   },
   "files": {
+    "pixels.bin": {
+      "bytes": 5962705,
+      "sha256": "0e6177f3a2ba76e352bfa38ff1e3a7528d48800b5ff6c6ec4736a3e9cf23ad83"
+    },
+    "cases.tsv": {
+      "bytes": 1231150,
+      "sha256": "c48e107cc05bf48f67795ec8ad233b3b044922e3ddd6f744e82b6fbf9e320ba4"
+    }
+  },
+  "parent_files": {
     "pixels.bin": {
       "bytes": 6549051,
       "sha256": "03ce25014366e5014f8adfff07bba01c922f868d3a47155f6515b1d7fe060a34"

@@ -110,8 +110,8 @@ int main(){
  constexpr unsigned w=128,h=64;
  std::vector<unsigned char> input(w*h*4);
  for(unsigned p=0;p<w*h;++p){input[p*4]=(p*17+31)&255;input[p*4+1]=(p*37+66)&255;input[p*4+2]=(p*13+123)&255;input[p*4+3]=255;}
- for(auto mode:{base::UxrSurfaceMode::kChromix,base::UxrSurfaceMode::kShardX,base::UxrSurfaceMode::kCloak}){
-  base::UxrSurfacePolicy policy;policy.mode=mode;policy.seed=314159;
+ {
+  base::UxrSurfacePolicy policy;policy.mode=base::UxrSurfaceMode::kShardX;policy.seed=314159;
   auto plain=input,masked=input;
   base::UxrPixelRegion full{plain,w*4,w,h,w,h};
   full.neighborhood={input,w*4,w,h,0,0};

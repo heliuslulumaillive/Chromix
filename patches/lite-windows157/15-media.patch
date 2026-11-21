@@ -25,18 +25,6 @@ diff --git a/content/browser/renderer_host/media/media_stream_manager.cc b/conte
    const bool is_display_capture =
        request->video_type() == MediaStreamType::DISPLAY_VIDEO_CAPTURE ||
        request->video_type() ==
-diff --git a/third_party/blink/renderer/core/css/media_values.cc b/third_party/blink/renderer/core/css/media_values.cc
---- a/third_party/blink/renderer/core/css/media_values.cc
-+++ b/third_party/blink/renderer/core/css/media_values.cc
-@@ -196,6 +196,8 @@
-   return frame->DevicePixelRatio();
- }
- 
-+// HDR and gamut use the actual ScreenInfo. Launch preferences are applied
-+// to WebPreferences before publishing settings, never substituted in getters.
- bool MediaValues::CalculateDeviceSupportsHDR(LocalFrame* frame) {
-   DCHECK(frame);
-   DCHECK(frame->GetPage());
 diff --git a/third_party/blink/renderer/modules/media_capabilities/media_capabilities.cc b/third_party/blink/renderer/modules/media_capabilities/media_capabilities.cc
 --- a/third_party/blink/renderer/modules/media_capabilities/media_capabilities.cc
 +++ b/third_party/blink/renderer/modules/media_capabilities/media_capabilities.cc

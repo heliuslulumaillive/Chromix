@@ -14,9 +14,9 @@ for (const mode of ["off", "false", "0", "disable", "disabled", "OFF", "FALSE"])
 
 for (const prefix of ['--fingerprint-', '--uxr-']) {
   for (const flag of ['timer-resolution=7', 'timer-resolution=0', 'max-touch-points=16',
-    'gpu-backend=native', 'audio-render=isolated', 'audio-seed=18446744073709551615',
+    'gpu-backend=native', 'audio-seed=18446744073709551615',
     'pointer=fine', 'hover=none', 'color-scheme=dark', 'forced-colors=active',
-    'preferred-contrast=less', 'keyboard-layout=native', 'codec-h264=disabled',
+    'preferred-contrast=less', 'codec-h264=disabled',
     'codec-av1=native', 'codec-vp9=supported,smooth,power-efficient']) {
     test(`backend option syntax ${prefix}${flag}`, () => {
       assert.deepEqual(normalizeFingerprintArgs([prefix + flag]), [prefix + flag]);
@@ -36,14 +36,17 @@ test('effective aliases, mixed pointer and synthetic keyboard', () => {
   assert.deepEqual(normalizeFingerprintArgs(valid), valid);
   for (const [pointer, touch] of [['none', '1'], ['coarse', '0']])
     assert.throws(() => normalizeFingerprintArgs([`--uxr-pointer=${pointer}`, `--fingerprint-max-touch-points=${touch}`]), /inconsistent/);
-  assert.ok(normalizeFingerprintArgs(['--uxr-synthetic-device-tests=true', '--fingerprint-keyboard-layout=us']));
+  assert.throws(()=>normalizeFingerprintArgs(['--uxr-synthetic-device-tests=true', '--fingerprint-keyboard-layout=us']), /Retired/);
 });
 
-test('restricted font pool preserves Unicode and spaces and rejects empty entries', () => {
-  const flags = ['--fingerprint-font-policy=restricted', '--fingerprint-font-whitelist=Arial Narrow, ＭＳ ゴシック'];
-  assert.deepEqual(normalizeFingerprintArgs(flags), flags);
-  for (const families of ['', ',Arial', 'Arial,', 'Arial, ,Serif', 'Arial\nInjected', 'A,'.repeat(256) + 'Z'])
-    assert.throws(() => normalizeFingerprintArgs([flags[0], `--fingerprint-font-whitelist=${families}`]), /font-policy/);
+test('retired browser surface modes and list options are rejected', () => {
+  for(const prefix of ['--fingerprint-','--uxr-']){
+    for(const key of ['font-policy=native','font-whitelist=Arial','voices-mode=native','offset-mode=cloak',
+                      'canvas-mode=chromix','webgl-mode=cloak','audio-render=isolated'])
+      assert.throws(()=>normalizeFingerprintArgs([prefix+key]));
+    for(const key of ['canvas-mode=shardx','webgl-mode=native','webgpu-identity-mode=cloak'])
+      assert.deepEqual(normalizeFingerprintArgs([prefix+key]),[prefix+key]);
+  }
 });
 
 for (const prefix of ['--fingerprint-', '--uxr-']) {
@@ -52,8 +55,7 @@ for (const prefix of ['--fingerprint-', '--uxr-']) {
       const flag = `${prefix}pixel-noise=${mode}`;
       assert.deepEqual(normalizeFingerprintArgs([flag]), [flag]);
       for (const backend of ['native', 'compatibility']) {
-        const args = ['--fingerprint=42', flag, `${prefix}gpu-backend=${backend}`,
-          '--fingerprint-font-policy=restricted', '--fingerprint-font-whitelist=Arial Narrow, ＭＳ ゴシック'];
+        const args = ['--fingerprint=42', flag, `${prefix}gpu-backend=${backend}`];
         assert.deepEqual(buildArgs({stealthArgs:false, extraArgs:args}), args);
         const synthetic = [...args, '--uxr-synthetic-device-tests=true'];
         assert.deepEqual(buildArgs({stealthArgs:false, extraArgs:synthetic}), synthetic);
@@ -203,13 +205,9 @@ test('pixel noise alias priority and default passthrough', () => {
     '--fingerprint-noise=false', '--fingerprint-noise=true']}), /seeded pixel-noise requires/);
 });
 
-test('audio seed dependency is checked after launch defaults', () => {
-  const mode = ['--fingerprint-audio-render=isolated'];
-  assert.deepEqual(normalizeFingerprintArgs(mode), mode);
-  assert.throws(() => buildArgs({stealthArgs:false, extraArgs:mode}), /seed/);
-  assert.ok(buildArgs({extraArgs:mode}).includes(mode[0]));
-  assert.ok(buildArgs({stealthArgs:false, extraArgs:[...mode, '--fingerprint=42']}));
-  assert.ok(buildArgs({stealthArgs:false, extraArgs:[...mode, '--fingerprint-audio-seed=42']}));
+test('retired isolated audio is rejected even when a valid seed is present', () => {
+  for(const seed of [[],['--fingerprint=42'],['--fingerprint-audio-seed=42']])
+    assert.throws(()=>buildArgs({stealthArgs:false,extraArgs:['--fingerprint-audio-render=isolated',...seed]}));
   assert.ok(!buildArgs({headless:false}).includes('--ignore-gpu-blocklist'));
   assert.ok(buildArgs({extraArgs:['--ignore-gpu-blocklist']}).includes('--ignore-gpu-blocklist'));
 });

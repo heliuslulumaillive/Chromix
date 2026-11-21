@@ -61,3 +61,4 @@ tools/google-services-requirements.txt text eol=lf
 /tools/tests/fixtures/windows157-domain-regex.list text eol=lf
 *.tar.gz  binary
 *.zip     binary
+/tools/tests/fixtures/graphics-modes-v1/cases.tsv text eol=lf

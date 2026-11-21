@@ -12,83 +12,17 @@ import { summarizePositiveAcceptance, verifyResults, scenarios, BASIC_SCENARIOS,
 
 const oracle = JSON.parse(fs.readFileSync(new URL("./fixtures/fingerprint-runtime-v1/positive-oracles.json", import.meta.url)));
 const clone = value => JSON.parse(JSON.stringify(value));
-function referenceFixture() {
-  const original = { version: 1, text: [], offset: [], cssPlatformFonts: {} };
-  const changed = { version: 1, text: [], cssPlatformFonts: {} };
-  for (const row of oracle.cloakTextWindows) {
-    const nodeId = `reference-text-${row.index}`;
-    const metrics = { ...row.expected };
-    delete metrics.emHeightAscent; delete metrics.emHeightDescent;
-    original.text.push({ index: row.index, nodeId, font: row.font,
-      metrics: { ...metrics, fontBoundingBoxAscent: metrics.fontBoundingBoxAscent + 1 } });
-    changed.text.push({ index: row.index, nodeId, font: row.font, metrics, repeat: { ...metrics } });
-    original.cssPlatformFonts[nodeId] = { fonts: [{ familyName: row.family, glyphCount: row.text.length, isCustomFont: false }] };
-    changed.cssPlatformFonts[nodeId] = clone(original.cssPlatformFonts[nodeId]);
-  }
-  for (const [width, height] of [[120, 80], [50, 50]]) {
-    const first = { offsetWidth: width, offsetHeight: height, clientWidth: width, clientHeight: height,
-      rectWidth: width, rectHeight: height };
-    original.offset.push({ width, height, first, repeat: { ...first } });
-  }
-  const offset = clone(original.offset);
-  offset[0].first.offsetWidth += 40; offset[0].first.offsetHeight -= 28;
-  offset[0].repeat = { ...offset[0].first };
-  const local = oracle.cloakVoicesWindowsByLocale["zh-CN"].filter(v => v.localService).map((v, index) => ({
-    ...v, voiceURI: v.name, default: index === 0,
-  }));
-  original.voices = { supported: true, settled: true, values: local };
-  const voice = values => ({ supported: true, settled: true, values, events: 1, emptyWaitCompleted: values.length === 0 });
-  return {
-    all_native: { extra: { reference: original } },
-    cloak_text_positive: { extra: { reference: changed } },
-    cloak_offset: { extra: { reference: { offset } } },
-    cloak_voices: { flags: ["--fingerprint-locale=zh-CN"], voice_oracle_locale: "zh-CN",
-      extra: { reference: { voices: voice(clone(local)) } } },
-    cloak_voices_no_local: { flags: ["--fingerprint-locale=zh-CN"], voice_oracle_locale: "zh-CN",
-      extra: { reference: { voices: voice([]) } } },
-  };
-}
-test("captured reference positives require observable output, real glyph family, exact locale and local filtering", () => {
-  const value = validateReferenceAcceptance(referenceFixture(), oracle);
-  assert.ok(value.checks.length > 10);
-  assert.ok(value.checks.every(c => c.passed));
-  assert.deepEqual(Object.values(value.positive_acceptance).map(v => v.status), ["observed_pass", "observed_pass", "observed_pass"]);
-});
-test("a stable no-op cannot pass an eligible text reference", () => {
-  const record = referenceFixture();
-  const row = record.cloak_text_positive.extra.reference.text[0];
-  row.metrics.fontBoundingBoxAscent += 1; row.repeat = { ...row.metrics };
-  assert.equal(validateReferenceAcceptance(record, oracle).positive_acceptance.cloak_text.status, "failed");
-});
-test("unexposed internal text fields do not fabricate an observable replacement", () => {
-  const record = referenceFixture();
-  record.all_native.extra.reference.text = clone(record.cloak_text_positive.extra.reference.text);
-  const result = validateReferenceAcceptance(record, oracle);
-  assert.equal(result.positive_acceptance.cloak_text.status, "not_tested");
-  assert.equal(result.positive_acceptance.cloak_text.eligible_count, 0);
-});
-test("different native glyph families cannot make a strict text row eligible", () => {
-  const record = referenceFixture();
-  for (const value of Object.values(record.all_native.extra.reference.cssPlatformFonts)) value.fonts[0].familyName = "Native fallback";
-  const result = validateReferenceAcceptance(record, oracle);
-  assert.equal(result.positive_acceptance.cloak_text.status, "not_tested");
-});
-test("empty voice snapshots, mismatched capture locale and missing targets cannot pass", () => {
-  let record = referenceFixture();
-  record.all_native.extra.reference.voices.values = [];
-  assert.equal(validateReferenceAcceptance(record, oracle).positive_acceptance.cloak_voices.status, "not_tested");
-  record = referenceFixture(); record.cloak_voices.voice_oracle_locale = "unsupported";
-  assert.equal(validateReferenceAcceptance(record, oracle).positive_acceptance.cloak_voices.status, "failed");
-  record = referenceFixture(); record.cloak_voices_no_local.extra.reference.voices.values =
-    clone(record.all_native.extra.reference.voices.values);
-  assert.equal(validateReferenceAcceptance(record, oracle).positive_acceptance.cloak_voices.status, "failed");
-  record = referenceFixture(); record.cloak_voices_no_local.extra.reference.voices.events = 0;
-  assert.equal(validateReferenceAcceptance(record, oracle).positive_acceptance.cloak_voices.status, "failed");
-});
-test("offset bounds and actual unchanged layout are required", () => {
-  const record = referenceFixture();
-  record.cloak_offset.extra.reference.offset[1].first.offsetWidth++;
-  assert.equal(validateReferenceAcceptance(record, oracle).positive_acceptance.cloak_offset.status, "failed");
+test("native layout evidence rejects missing, changed, and unstable measurements", () => {
+  const offset = [[120,80],[50,50]].map(([width,height]) => {
+    const first = [width,height,width,height,width,height];
+    return {width,height,first,repeat:[...first]};
+  });
+  const record = {all_native:{extra:{reference:{offset}}}};
+  assert.ok(validateReferenceAcceptance(record).checks.every(check=>check.passed));
+  offset[0].repeat[0]++;
+  assert.equal(validateReferenceAcceptance(record).checks[0].passed,false);
+  offset.pop();
+  assert.equal(validateReferenceAcceptance(record).checks[1].passed,false);
 });
 test("a partial report cannot become full by counting an unrelated positive", () => {
   const actual = [{ scenario: "audio_native_macos", name: "match_5000_native_reference_bytes", passed: true, acceptance_group: "native_audio" }];
@@ -99,11 +33,6 @@ test("a partial report cannot become full by counting an unrelated positive", ()
   assert.equal(result.partial, true);
   actual[0].passed = false;
   assert.equal(summarizePositiveAcceptance(actual, missing).positive_acceptance.native_audio.status, "failed");
-});
-test("optional text candidates do not erase a genuine distinguishable hit", () => {
-  const actual = [{ scenario: "cloak_text_positive", name: "text_reference_100_eligible_replacement", passed: true, acceptance_group: "cloak_text" }];
-  const missing = [{ scenario: "cloak_text_positive", name: "text_reference_233", reason: "Different font", acceptance_group: "cloak_text", optional_candidate: true }];
-  assert.equal(summarizePositiveAcceptance(actual, missing).positive_acceptance.cloak_text.status, "observed_pass");
 });
 test("empty font/audio evidence is explicitly untested, never a positive", () => {
   for (const value of [validateAudioAcceptance({}, oracle), validateFontAcceptance({})]) {
@@ -118,15 +47,15 @@ test("browser entrypoints serialize without importing Node helpers", () => {
 });
 test("the bounded matrix has distinct scenes and uses basic probes for independent additions", () => {
   const matrix = scenarios();
-  assert.equal(matrix.length, 48);
+  assert.equal(matrix.length, 43);
   assert.equal(new Set(matrix.map(s => s.id)).size, matrix.length);
-  assert.equal(BASIC_SCENARIOS.size, 37);
+  assert.equal(BASIC_SCENARIOS.size, 33);
   for (let index=0;index<12;index++) {
     const id="fonts_pack"+(120+index);
     assert.ok(BASIC_SCENARIOS.has(id));
     assert.ok(matrix.find(s=>s.id===id)?.flags.includes("--fingerprint-fonts-mode-seed="+(120+index)));
   }
-  assert.equal(POSITIVE_GROUPS.length, 26);
+  assert.equal(POSITIVE_GROUPS.length, 21);
   assert.ok(matrix.filter(s => BASIC_SCENARIOS.has(s.id)).every(s => s.flags.includes("--fingerprint-canvas-mode=native") || s.flags.includes("--fingerprint=off")));
   assert.equal(BASIC_SCENARIOS.has("canvas_shardx"), false);
   assert.equal(BASIC_SCENARIOS.has("webgl_shardx"), false);
@@ -180,7 +109,11 @@ test("native retirement replacements require real matching observations",async()
   for(const mutate of [r=>delete r.fonts_native10026.extra.fonts,r=>r.fonts_native10026.extra.fonts.workerLocal.entries[0].loaded=false,r=>r.fonts_native10026.extra.fonts.localFonts.records.pop(),r=>r.audio_native_macos.extra.audio.referenceCases[0].sha256='b'.repeat(64),r=>r.audio_native_macos.extra.audio.referenceCases.pop()]){
     const records=fixture();mutate(records);assert.ok(validateNativeSurfaceResults(records).checks.some(row=>!row.passed));
   }
-  const rejected=retirementCases();assert.equal(rejected.length,31);assert.equal(new Set(rejected.map(row=>row.id)).size,31);
+  const rejected=retirementCases();assert.equal(rejected.length,73);assert.equal(new Set(rejected.map(row=>row.id)).size,73);
+  for(const surface of ["canvas","webgl","text","rects","sensors","offset","voices"])
+    for(const prefix of ["fingerprint","uxr"])
+      for(const mode of ["chromix","cloak"])
+        assert.ok(rejected.some(row=>row.argument==="--"+prefix+"-"+surface+"-mode="+mode));
   assert.ok(rejected.some(row=>row.argument==='--uxr-canvas-bridge-unsafe=false'));
   assert.ok(scenarios().every(row=>!row.flags.some(flag=>/^--(?:fingerprint|uxr)-(?:fonts|audio|media)-mode=(?:chromix|cloak)$/.test(flag))));
 });

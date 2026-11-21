@@ -14,8 +14,8 @@ const failures=r=>r.checks.filter(c=>!c.passed);
 test('new checks retain full Canvas/WebGL scenarios and all former positive groups',()=>{
  for(const id of PIXEL_SCENARIOS)assert.equal(BASIC_SCENARIOS.has(id),false,id);
  for(const id of HEADLESS_SCENARIOS)assert.equal(BASIC_SCENARIOS.has(id),true,id);
- assert.equal(scenarios().length,48);assert.equal(POSITIVE_GROUPS.length,26);
- assert.ok(POSITIVE_GROUPS.includes('shard_audio'));assert.ok(POSITIVE_GROUPS.includes('cloak_voices'));
+ assert.equal(scenarios().length,43);assert.equal(POSITIVE_GROUPS.length,21);
+ assert.ok(POSITIVE_GROUPS.includes('shard_audio'));assert.ok(!POSITIVE_GROUPS.includes('cloak_voices'));
 });
 test('nonempty invented receipt exercises every pixel and headless obligation',()=>{
  const a=validatePixelSemantics(fresh(),decodePNG),b=validateHeadlessScreens(fresh());

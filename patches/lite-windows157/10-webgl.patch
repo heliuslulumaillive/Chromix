@@ -372,152 +372,6 @@ new file mode 100644
 +}  // namespace blink
 +
 +#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_GPU_FINGERPRINT_H_
-diff --git a/third_party/blink/renderer/modules/webgl/gpu_info.cc b/third_party/blink/renderer/modules/webgl/gpu_info.cc
-new file mode 100644
---- /dev/null
-+++ b/third_party/blink/renderer/modules/webgl/gpu_info.cc
-@@ -0,0 +1,100 @@
-+#include "third_party/blink/renderer/modules/webgl/gpu_info.h"
-+
-+#include "base/strings/stringprintf.h"
-+#include "components/ungoogled/fingerprint_data.h"
-+
-+namespace blink {
-+
-+using ungoogled::fingerprint::GpuModelInfo;
-+using ungoogled::fingerprint::kGpuModelCount;
-+using ungoogled::fingerprint::kGpuModels;
-+using ungoogled::fingerprint::kLinuxGpuSuffix;
-+using ungoogled::fingerprint::kLinuxVendorString;
-+using ungoogled::fingerprint::kMacosGpuModelCount;
-+using ungoogled::fingerprint::kMacosGpuModels;
-+using ungoogled::fingerprint::kWindowsGpuSuffix;
-+using ungoogled::fingerprint::kWindowsVendorString;
-+
-+// Generate full Windows GPU info on demand
-+GpuInfo GetWindowsGpuInfo(size_t index) {
-+  if (index >= kGpuModelCount) {
-+    // Default to last one (RTX 4090) if out of bounds
-+    index = kGpuModelCount - 1;
-+  }
-+
-+  const GpuModelInfo& model = kGpuModels[index];
-+  GpuInfo info;
-+  info.model_name = model.model_name;
-+  info.device_id = model.device_id;
-+
-+  // Build the Windows renderer string
-+  std::string device_id_part = (model.device_id && model.device_id[0]) ?
-+    " (" + std::string(model.device_id) + ")" : "";
-+
-+  info.renderer_string = "ANGLE (" + std::string(kWindowsVendorString) +
-+                         ", NVIDIA " + info.model_name +
-+                         device_id_part + " " + kWindowsGpuSuffix + ")";
-+
-+  return info;
-+}
-+
-+// All Windows GPU info list - generated from kGpuModels
-+std::vector<GpuInfo> GetAllWindowsGpuInfo() {
-+  std::vector<GpuInfo> result;
-+  result.reserve(kGpuModelCount);
-+
-+  for (size_t i = 0; i < kGpuModelCount; ++i) {
-+    result.push_back(GetWindowsGpuInfo(i));
-+  }
-+
-+  return result;
-+}
-+
-+// Lazy-initialized list of Windows GPU info
-+const std::vector<GpuInfo>& GetWindowsGpuInfoList() {
-+  static const std::vector<GpuInfo>* windows_gpu_info = nullptr;
-+  if (!windows_gpu_info) {
-+    windows_gpu_info = new std::vector<GpuInfo>(GetAllWindowsGpuInfo());
-+  }
-+  return *windows_gpu_info;
-+}
-+
-+// Implementation of the functions declared in the header
-+size_t GetGpuCount() {
-+  return kGpuModelCount;
-+}
-+
-+const GpuInfo& GetGpuInfo(size_t index) {
-+  // Use the Windows GPU info list
-+  const std::vector<GpuInfo>& windows_list = GetWindowsGpuInfoList();
-+
-+  // Ensure index is in bounds
-+  if (index >= windows_list.size()) {
-+    return windows_list.back();
-+  }
-+
-+  return windows_list[index];
-+}
-+
-+// Helper function to get a macOS GPU model string
-+std::string GetMacosGpuString(size_t index) {
-+  if (index >= kMacosGpuModelCount) {
-+    // Default to M3 if out of bounds
-+    index = kMacosGpuModelCount - 1;  // Index of M3 in the array
-+  }
-+
-+  return base::StringPrintf("ANGLE (Apple, ANGLE Metal Renderer: Apple %s, Unspecified Version)",
-+                         kMacosGpuModels[index]);
-+}
-+
-+// Helper function to get a Linux GPU renderer string
-+std::string GetLinuxGpuString(const std::string& model_name) {
-+  // Note the difference: no device ID and no space before /PCIe
-+  // Also using the Linux-specific vendor string
-+  return base::StringPrintf("ANGLE (%s, NVIDIA %s%s)",
-+                         kLinuxVendorString,
-+                         model_name.c_str(),
-+                         kLinuxGpuSuffix);
-+}
-+
-+}  // namespace blink
-diff --git a/third_party/blink/renderer/modules/webgl/gpu_info.h b/third_party/blink/renderer/modules/webgl/gpu_info.h
-new file mode 100644
---- /dev/null
-+++ b/third_party/blink/renderer/modules/webgl/gpu_info.h
-@@ -0,0 +1,36 @@
-+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_GPU_INFO_H_
-+#define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_GPU_INFO_H_
-+
-+#include <string>
-+#include <vector>
-+
-+namespace blink {
-+
-+// Structure to hold GPU information
-+struct GpuInfo {
-+  std::string model_name;
-+  std::string device_id;
-+  std::string renderer_string;
-+};
-+
-+// Returns the number of available GPUs in our database
-+size_t GetGpuCount();
-+
-+// Returns GPU info for a given index
-+const GpuInfo& GetGpuInfo(size_t index);
-+
-+// Helper function to get a macOS GPU model string
-+std::string GetMacosGpuString(size_t index);
-+
-+// Helper function to get a Linux GPU renderer string
-+std::string GetLinuxGpuString(const std::string& model_name);
-+
-+// Generate Windows GPU info for a specific index
-+GpuInfo GetWindowsGpuInfo(size_t index);
-+
-+// Access to all Windows GPU info
-+const std::vector<GpuInfo>& GetWindowsGpuInfoList();
-+
-+}  // namespace blink
-+
-+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_GPU_INFO_H_
 diff --git a/third_party/blink/renderer/modules/webgl/uxr_shard_readback.h b/third_party/blink/renderer/modules/webgl/uxr_shard_readback.h
 new file mode 100644
 --- /dev/null
@@ -1064,7 +918,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_debug_shaders.cc b/t
 diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
 --- a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
 +++ b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
-@@ -27,24 +27,36 @@
+@@ -27,24 +27,35 @@
  
  #include <inttypes.h>
  
@@ -1096,12 +950,11 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
  #include "base/trace_event/memory_dump_manager.h"
  #include "base/trace_event/trace_event.h"
  #include "build/build_config.h"
-+#include "components/ungoogled/farble_seed.h"
 +#include "components/ungoogled/persona_profile.h"
  #include "components/viz/common/gpu/raster_context_provider.h"
  #include "components/viz/common/resources/shared_image_format_utils.h"
  #include "device/vr/buildflags/buildflags.h"
-@@ -106,6 +118,7 @@
+@@ -106,6 +117,7 @@
  #include "third_party/blink/renderer/modules/webgl/ext_shader_texture_lod.h"
  #include "third_party/blink/renderer/modules/webgl/ext_texture_filter_anisotropic.h"
  #include "third_party/blink/renderer/modules/webgl/gl_string_query.h"
@@ -1109,7 +962,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
  #include "third_party/blink/renderer/modules/webgl/oes_element_index_uint.h"
  #include "third_party/blink/renderer/modules/webgl/oes_standard_derivatives.h"
  #include "third_party/blink/renderer/modules/webgl/oes_texture_float.h"
-@@ -160,6 +173,7 @@
+@@ -160,6 +172,7 @@
  #include "third_party/blink/renderer/platform/heap/member.h"
  #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
  #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
@@ -1117,7 +970,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
  #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
  #include "third_party/blink/renderer/platform/wtf/functional.h"
  #include "third_party/blink/renderer/platform/wtf/text/format.h"
-@@ -205,6 +219,165 @@
+@@ -205,6 +218,165 @@
  unsigned WebGLRenderingContextBase::max_active_webgl_contexts_on_worker_ = 0;
  
  namespace {
@@ -1283,7 +1136,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
  
  enum class WebGLANGLEImplementation {
    // These values are persisted to logs. Entries should not be renumbered and
-@@ -1437,6 +1610,7 @@
+@@ -1437,6 +1609,7 @@
    DCHECK(!isContextLost());
    DCHECK(GetDrawingBuffer());
  
@@ -1291,7 +1144,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
    marked_canvas_dirty_ = false;
    must_paint_to_canvas_ = false;
    active_texture_unit_ = 0;
-@@ -1480,25 +1654,35 @@
+@@ -1480,25 +1653,35 @@
  
    max_texture_size_ = 0;
    ContextGL()->GetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size_);
@@ -1327,7 +1180,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
  
    // These two values from EXT_draw_buffers are lazily queried.
    max_draw_buffers_ = 0;
-@@ -2679,6 +2863,7 @@
+@@ -2679,6 +2862,7 @@
      return;
    }
  
@@ -1335,7 +1188,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
    if (target == GL_TEXTURE_2D) {
      texture_units_[active_texture_unit_].texture2d_binding_ = texture;
    } else if (target == GL_TEXTURE_CUBE_MAP) {
-@@ -2922,6 +3107,7 @@
+@@ -2922,6 +3106,7 @@
      SynthesizeGLError(GL_INVALID_FRAMEBUFFER_OPERATION, "clear", reason);
      return;
    }
@@ -1343,7 +1196,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
  
    if (!mask) {
      // Use OnErrorMessage because it's both rate-limited and obeys the
-@@ -2973,6 +3159,8 @@
+@@ -2973,6 +3158,8 @@
    ContextGL()->ClearColor(r, g, b, a);
  }
  
@@ -1352,7 +1205,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
  void WebGLRenderingContextBase::clearDepth(GLfloat depth) {
    if (isContextLost())
      return;
-@@ -3168,19 +3356,23 @@
+@@ -3168,19 +3355,23 @@
  }
  
  WebGLFramebuffer* WebGLRenderingContextBase::createFramebuffer() {
@@ -1380,7 +1233,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
  }
  
  void WebGLRenderingContextBase::SetBoundVertexArrayObject(
-@@ -3196,7 +3388,8 @@
+@@ -3196,7 +3387,8 @@
      return nullptr;
    }
  
@@ -1390,7 +1243,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
  }
  
  void WebGLRenderingContextBase::cullFace(GLenum mode) {
-@@ -3857,6 +4050,17 @@
+@@ -3857,6 +4049,17 @@
      return false;
    if (disabled_extensions_.Contains(String(tracker->ExtensionName())))
      return false;
@@ -1408,7 +1261,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
    return true;
  }
  
-@@ -4011,17 +4215,74 @@
+@@ -4011,17 +4214,74 @@
    if (isContextLost())
      return ScriptValue::CreateNull(script_state->GetIsolate());
    const int kIntZero = 0;
@@ -1488,7 +1341,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
      case GL_ARRAY_BUFFER_BINDING:
        return WebGLAny(script_state, bound_array_buffer_.Get());
      case GL_BLEND:
-@@ -4041,7 +4302,7 @@
+@@ -4041,7 +4301,7 @@
      case GL_BLEND_SRC_RGB:
        return GetUnsignedIntParameter(script_state, pname);
      case GL_BLUE_BITS:
@@ -1497,7 +1350,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
      case GL_COLOR_CLEAR_VALUE:
        return GetWebGLFloatArrayParameter(script_state, pname);
      case GL_COLOR_WRITEMASK:
-@@ -4058,7 +4319,11 @@
+@@ -4058,7 +4318,11 @@
      case GL_DEPTH_BITS:
        if (!framebuffer_binding_ && !CreationAttributes().depth)
          return WebGLAny(script_state, kIntZero);
@@ -1510,7 +1363,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
      case GL_DEPTH_CLEAR_VALUE:
        return GetFloatParameter(script_state, pname);
      case GL_DEPTH_FUNC:
-@@ -4081,7 +4346,7 @@
+@@ -4081,7 +4345,7 @@
      case GL_GENERATE_MIPMAP_HINT:
        return GetUnsignedIntParameter(script_state, pname);
      case GL_GREEN_BITS:
@@ -1519,7 +1372,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
      case GL_IMPLEMENTATION_COLOR_READ_FORMAT:
        return GetIntParameter(script_state, pname);
      case GL_IMPLEMENTATION_COLOR_READ_TYPE:
-@@ -4089,27 +4354,53 @@
+@@ -4089,27 +4353,53 @@
      case GL_LINE_WIDTH:
        return GetFloatParameter(script_state, pname);
      case GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS:
@@ -1586,7 +1439,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
      case GL_PACK_ALIGNMENT:
        return GetIntParameter(script_state, pname);
      case GL_POLYGON_OFFSET_FACTOR:
-@@ -4119,15 +4410,26 @@
+@@ -4119,15 +4409,26 @@
      case GL_POLYGON_OFFSET_UNITS:
        return GetFloatParameter(script_state, pname);
      case GL_RED_BITS:
@@ -1616,7 +1469,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
      case GL_SAMPLE_COVERAGE:
        return GetBooleanParameter(script_state, pname);
      case GL_SAMPLE_COVERAGE_INVERT:
-@@ -4135,7 +4437,7 @@
+@@ -4135,7 +4436,7 @@
      case GL_SAMPLE_COVERAGE_VALUE:
        return GetFloatParameter(script_state, pname);
      case GL_SAMPLES:
@@ -1625,7 +1478,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
      case GL_SCISSOR_BOX:
        return GetWebGLIntArrayParameter(script_state, pname);
      case GL_SCISSOR_TEST:
-@@ -4143,9 +4445,7 @@
+@@ -4143,9 +4444,7 @@
      case GL_SHADING_LANGUAGE_VERSION:
        return WebGLAny(
            script_state,
@@ -1636,7 +1489,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
      case GL_STENCIL_BACK_FAIL:
        return GetUnsignedIntParameter(script_state, pname);
      case GL_STENCIL_BACK_FUNC:
-@@ -4163,7 +4463,11 @@
+@@ -4163,7 +4462,11 @@
      case GL_STENCIL_BITS:
        if (!framebuffer_binding_ && !CreationAttributes().stencil)
          return WebGLAny(script_state, kIntZero);
@@ -1649,7 +1502,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
      case GL_STENCIL_CLEAR_VALUE:
        return GetIntParameter(script_state, pname);
      case GL_STENCIL_FAIL:
-@@ -4183,7 +4487,7 @@
+@@ -4183,7 +4486,7 @@
      case GL_STENCIL_WRITEMASK:
        return GetUnsignedIntParameter(script_state, pname);
      case GL_SUBPIXEL_BITS:
@@ -1658,7 +1511,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
      case GL_TEXTURE_BINDING_2D:
        return WebGLAny(
            script_state,
-@@ -4200,13 +4504,22 @@
+@@ -4200,13 +4503,22 @@
        return WebGLAny(script_state, unpack_premultiply_alpha_);
      case GC3D_UNPACK_COLORSPACE_CONVERSION_WEBGL:
        return WebGLAny(script_state, unpack_colorspace_conversion_);
@@ -1686,7 +1539,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
      case GL_VIEWPORT:
        return GetWebGLIntArrayParameter(script_state, pname);
      case GL_FRAGMENT_SHADER_DERIVATIVE_HINT_OES:  // OES_standard_derivatives
-@@ -4219,10 +4532,14 @@
+@@ -4219,10 +4531,14 @@
        return ScriptValue::CreateNull(script_state->GetIsolate());
      case WebGLDebugRendererInfo::kUnmaskedRendererWebgl:
        if (ExtensionEnabled(kWebGLDebugRendererInfoName)) {
@@ -1705,7 +1558,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
        }
        SynthesizeGLError(
            GL_INVALID_ENUM, "getParameter",
-@@ -4230,10 +4547,14 @@
+@@ -4230,10 +4546,14 @@
        return ScriptValue::CreateNull(script_state->GetIsolate());
      case WebGLDebugRendererInfo::kUnmaskedVendorWebgl:
        if (ExtensionEnabled(kWebGLDebugRendererInfoName)) {
@@ -1724,7 +1577,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
        }
        SynthesizeGLError(
            GL_INVALID_ENUM, "getParameter",
-@@ -4251,8 +4572,14 @@
+@@ -4251,8 +4571,14 @@
        return ScriptValue::CreateNull(script_state->GetIsolate());
      case GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT:  // EXT_texture_filter_anisotropic
        if (ExtensionEnabled(kEXTTextureFilterAnisotropicName)) {
@@ -1741,7 +1594,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
        }
        SynthesizeGLError(
            GL_INVALID_ENUM, "getParameter",
-@@ -4529,6 +4856,7 @@
+@@ -4529,6 +4855,7 @@
        return nullptr;
    }
  
@@ -1749,7 +1602,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
    GLint range[2] = {0, 0};
    GLint precision = 0;
    ContextGL()->GetShaderPrecisionFormat(shader_type, precision_type, range,
-@@ -4869,7 +5197,9 @@
+@@ -4869,7 +5196,9 @@
        ObjectOrZero(program), name.Utf8().c_str());
    if (uniform_location == -1)
      return nullptr;
@@ -1760,7 +1613,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
  }
  
  ScriptValue WebGLRenderingContextBase::getVertexAttrib(
-@@ -5374,9 +5704,129 @@
+@@ -5374,9 +5703,129 @@
      return;
  
    {
@@ -1892,7 +1745,7 @@ diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_ba
      }
      ContextGL()->ReadPixels(x, y, width, height, format, type, data);
    }
-@@ -5459,6 +5909,14 @@
+@@ -5459,6 +5908,14 @@
    }
    if (!ValidateSize(function_name, width, height))
      return;

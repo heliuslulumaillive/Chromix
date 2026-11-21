@@ -18,33 +18,27 @@
 // Puppeteer has a separate, native-driver entry point at ./puppeteer.
 import { randomBytes } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { existsSync, rmSync, readdirSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { profileSeed } from "./_profile.js";
 import {
   VERSION as BROWSER_VERSION, ASSETS, CACHE, hostFor, resolvePlatform, ensureNative,
   binaryPath, bundleComplete, resolveRelease, newerVersion,
 } from "./_binary.js";
-import { fontLaunchEnv, fontDirWhitelistArg } from "./_fonts.js";
+import { fontLaunchEnv } from "./_fonts.js";
 import { ensurePersonaGeometry } from "./_persona.js";
 import { normalizeFingerprintArgs } from "./_fingerprint.js";
 import { extractProxyUrl, geoipHttp, networkArgs, splitProxy, lookupProxy as proxyForLookup,
   resolveWebrtcArgs } from "./_network.js";
 import { launchMeasured, measuredOptions } from "./_device_pool.js";
-import { nativeSocksConfig, nativeSocksEnv, hasNativeSocksEnv } from "./_socks_auth.js";
+import { browserProxy, hasRetiredProxyAuth } from "./_socks_auth.js";
 export { exportCookies, importCookies, encryptCookies, decryptCookies } from "./cookies.js";
 
 // One geometry pick per options object, shared by buildLaunchOptions and
 // buildContextOptions (launchPersistentContext calls them separately).
 const _personaGeoCache = new WeakMap();
 function personaGeometryFor(options) {
-  let rawArgs = options.launchOptions?.args ?? options.args ?? [];
-  if (options.fontsDir && !rawArgs.some(arg => typeof arg === "string" &&
-      ["--uxr-font-whitelist", "--fingerprint-font-whitelist"].includes(arg.split("=", 1)[0]))) {
-    const whitelist = fontDirWhitelistArg(options.fontsDir);
-    if (whitelist) rawArgs = [whitelist, ...rawArgs];
-    else console.warn(`[chromix] fontsDir=${options.fontsDir}: no parseable fonts found`);
-  }
+  const rawArgs = options.launchOptions?.args ?? options.args ?? [];
   const args = normalizeFingerprintArgs(rawArgs);
   const key = JSON.stringify([args, options.stealthArgs]);
   let entry = _personaGeoCache.get(options);
@@ -178,52 +172,6 @@ export async function maybeResolveGeoip(geoip, proxy, timezone, locale, args) {
 }
 
 // ---------------------------------------------------------------------------
-// Widevine CDM location — enabled automatically when a CDM is present (same
-// policy as CloakBrowser); opt out with CLOAKBROWSER_WIDEVINE=0. The Linux deb
-// fetch lives in the Python CLI (`python -m chromix widevine`).
-// ---------------------------------------------------------------------------
-
-const WIDEVINE_LAYOUT = {
-  "win-x64": ["win_x64", "widevinecdm.dll"],
-  "linux-x64": ["linux_x64", "libwidevinecdm.so"],
-  "mac-arm64": ["mac_arm64", "libwidevinecdm.dylib"],
-  "mac-x64": ["mac_x64", "libwidevinecdm.dylib"],
-};
-
-function validCdmDir(dir, plat) {
-  const [subdir, lib] = WIDEVINE_LAYOUT[plat] || [];
-  if (!subdir) return false;
-  return existsSync(join(dir, "manifest.json")) &&
-         existsSync(join(dir, "_platform_specific", subdir, lib));
-}
-
-export function findWidevineCdm() {
-  const plat = resolvePlatform();
-  if (!plat) return null;
-  const p = process.env.CLOAKBROWSER_WIDEVINE_CDM;
-  if (p) {
-    if (validCdmDir(p, plat)) return p;
-    console.warn(`[chromix] CLOAKBROWSER_WIDEVINE_CDM=${p} is not a valid CDM dir; ignoring`);
-  }
-  const roots = {
-    "win-x64": ["C:\\Program Files\\Google\\Chrome\\Application",
-                "C:\\Program Files (x86)\\Google\\Chrome\\Application"],
-    "mac-arm64": ["/Applications/Google Chrome.app/Contents/Versions"],
-    "mac-x64": ["/Applications/Google Chrome.app/Contents/Versions"],
-  }[plat] || [];
-  let best = null;
-  for (const root of roots) {
-    if (!existsSync(root)) continue;
-    for (const entry of readdirSync(root)) {
-      if (!/^\d/.test(entry)) continue;
-      const cdm = join(root, entry, "WidevineCdm");
-      if (validCdmDir(cdm, plat) && (!best || entry > best.ver)) best = { dir: cdm, ver: entry };
-    }
-  }
-  return best?.dir || null;
-}
-
-// ---------------------------------------------------------------------------
 // Launch options assembly
 // ---------------------------------------------------------------------------
 
@@ -246,8 +194,7 @@ export function buildContextOptions(options = {}) {
   // Context-level locale/timezoneId would route through CDP emulation — strip
   // them and route through the binary flags instead (same policy as CloakBrowser).
   const { locale, timezoneId, ...ctx } = options.contextOptions || {};
-  if (nativeSocksConfig(ctx.proxy).auth)
-    throw new Error("Authenticated SOCKS5 is browser-launch-scoped; set the top-level proxy, not contextOptions.proxy");
+  browserProxy(ctx.proxy);
   if (locale !== undefined || timezoneId !== undefined)
     console.warn("[chromix] contextOptions.locale/timezoneId ignored — use top-level locale/timezone (binary flag)");
   // Explicit synthetic viewport wins over the UI-strip template. Keep screen
@@ -275,13 +222,11 @@ export async function buildLaunchOptions(options = {}) {
   if (Object.hasOwn(options, "devicePool"))
     throw new Error("devicePool requires launchContext or launchPersistentContext for runtime verification");
   const headless = effectiveHeadless(options);
-  const proxy = splitProxy(launchProxy(options));
+  const proxy = browserProxy(launchProxy(options));
   const persona = personaGeometryFor(options);
-  const nativeProxy = nativeSocksConfig(proxy, persona.args);
-  if (nativeSocksConfig(options.contextOptions?.proxy).auth)
-    throw new Error("Authenticated SOCKS5 is browser-launch-scoped; set the top-level proxy, not contextOptions.proxy");
-  if (hasNativeSocksEnv(options.launchOptions?.env))
-    throw new Error("Use proxy for native SOCKS5 credentials, not a raw authentication environment variable");
+  browserProxy(options.contextOptions?.proxy);
+  if (hasRetiredProxyAuth(options.launchOptions?.env))
+    throw new Error("The native SOCKS5 authentication environment option is retired");
   const lookupProxy = splitProxy(options.geoip
     ? proxyForLookup(persona.args, geoipProxy(options)) : geoipProxy(options));
   let args = networkArgs(persona.args, proxy || lookupProxy);
@@ -291,11 +236,6 @@ export async function buildLaunchOptions(options = {}) {
   const binary = options.launchOptions?.executablePath ?? await ensureBinary(options);
   if (typeof binary !== "string" || !existsSync(binary))
     throw new Error("executablePath must name an existing browser executable");
-  // Widevine / DRM: auto-enable when a CDM is present; CLOAKBROWSER_WIDEVINE=0 opts out.
-  if (process.env.CLOAKBROWSER_WIDEVINE !== "0" && !(args || []).some((a) => a.startsWith("--uxr-widevine-cdm"))) {
-    const cdm = findWidevineCdm();
-    if (cdm) args = [...(args || []), `--uxr-widevine-cdm=${cdm}`];
-  }
   // Headed windows use the same outer geometry as the persona.
   if (!headless && persona.geometry && !(args || []).some((a) => a.startsWith("--window-size"))) {
     args = [`--window-size=${persona.geometry.outerWidth},${persona.geometry.outerHeight}`, ...(args || [])];
@@ -319,15 +259,13 @@ export async function buildLaunchOptions(options = {}) {
     });
   }
   chromeArgs = normalizeFingerprintArgs(chromeArgs, { final: true });
-  const fontEnv = fontLaunchEnv(binary, options.launchOptions?.env, options.fontsDir);
-  const env = nativeSocksEnv(fontEnv, nativeProxy.auth);
-  if (nativeProxy.auth) chromeArgs = chromeArgs.filter(arg => !/^--proxy-server(?:=|$)/.test(arg));
+  const env = fontLaunchEnv(binary, options.launchOptions?.env, options.fontsDir);
   return {
     executablePath: binary,
     headless,
     ignoreDefaultArgs: ["--enable-automation"],
     ...options.launchOptions,
-    ...(nativeProxy.proxy ? { proxy: nativeProxy.proxy } : {}),
+    ...(proxy ? { proxy } : {}),
     args: chromeArgs,
     ...(env ? { env } : {}),
   };

@@ -7,8 +7,11 @@ import re
 OFF_VALUES = frozenset(("off", "false", "0", "disable", "disabled"))
 _BRANDS = {"chrome": "Chrome", "google chrome": "Chrome", "edge": "Edge",
            "microsoft edge": "Edge", "opera": "Opera", "vivaldi": "Vivaldi"}
-_BOOLEANS = {"--fingerprint-noise", "--fingerprint-sapi-voices",
-             "--fingerprint-allow-3p-cookies", "--fingerprint-windows-font-metrics"}
+_BOOLEANS = {"--fingerprint-noise", "--fingerprint-allow-3p-cookies"}
+_SURFACE_MODES = {f"{surface}-mode" for surface in
+                  ("canvas", "webgl", "audio", "fonts", "rects", "text", "sensors", "media")}
+_RETIRED = {"hdr", "widevine-cdm", "sapi-voices", "voices", "audio-render", "font-policy", "font-whitelist",
+            "windows-font-metrics", "keyboard-layout"}
 _INTEGERS = {
     "--fingerprint-hardware-concurrency": (1, 128),
     "--fingerprint-screen-width": (1, 32768),
@@ -22,15 +25,11 @@ _PREFERENCE_INTEGERS = {"max-touch-points": (0, 16), "timer-resolution": (0, 100
 _PREFERENCE_ENUMS = {
     "gpu-backend": {"native", "compatibility"},
     "pixel-noise": {"native", "seeded"},
-    "font-policy": {"native", "restricted"},
-    "audio-render": {"native", "isolated"},
     "color-scheme": {"dark", "light"},
     "preferred-contrast": {"more", "less", "no-preference"},
     "forced-colors": {"active", "none", "true", "false", "1", "0"},
     "pointer": {"fine", "coarse", "none"},
     "hover": {"hover", "none"},
-    "hdr": {"native"},
-    "keyboard-layout": {"native", "us", "en-US"},
 }
 _CODECS = {"codec-h264", "codec-vp8", "codec-vp9", "codec-av1", "codec-hevc"}
 
@@ -60,16 +59,6 @@ def _validate_preferences(args, *, final=False):
             or (pointer == "coarse" and touch == 0)
             or (pointer == "none" and hover == "hover")):
         raise ValueError("inconsistent pointer, hover and max-touch-points")
-    keyboard = value("keyboard-layout")
-    if keyboard not in (None, "native") and switches.get("--uxr-synthetic-device-tests") != "true":
-        raise ValueError("keyboard-layout overrides require synthetic device tests; use native for real input")
-    if value("font-policy") == "restricted":
-        families = value("font-whitelist") or ""
-        entries = families.split(",")
-        if (not families or len(families.encode("utf-8")) > 4096 or len(entries) > 256
-                or any(not entry.strip(" \t") for entry in entries)
-                or re.search(r"[\x00-\x08\x0a-\x1f\x7f]", families)):
-            raise ValueError("restricted font-policy requires 1 to 256 comma-separated installed font families")
     if (final and value("pixel-noise") == "seeded" and not fingerprint_off(args)
             and switches.get("--fingerprint-noise") != "false"
             and "--uxr-disable-fingerprint-noise" not in switches):
@@ -81,13 +70,6 @@ def _validate_preferences(args, *, final=False):
             seed = switches["--fingerprint"] or switches.get("--uxr-fingerprint-seed") or None
         if seed is not None and (not re.fullmatch(r"[0-9]+", seed) or not 1 <= int(seed) < (1 << 64)):
             raise ValueError("seeded pixel-noise requires a nonzero uint64 canvas seed")
-    if final and value("audio-render") == "isolated" and not fingerprint_off(args):
-        seed = value("audio-seed") or switches.get("--uxr-fingerprint-seed")
-        if seed is None:
-            if "--fingerprint" not in switches:
-                raise ValueError("isolated audio requires --fingerprint or a nonzero audio seed")
-        elif not re.fullmatch(r"[0-9]+", seed) or not 1 <= int(seed) < (1 << 64):
-            raise ValueError("isolated audio requires a nonzero uint64 seed")
 
 
 def fingerprint_off(args):
@@ -102,6 +84,10 @@ def normalize_fingerprint_args(args, *, final=False):
             raise ValueError("browser arguments must be strings without NUL")
         key, equal, value = arg.partition("=")
         preference = _preference(key)
+        if preference in _RETIRED or re.match(r"^(?:offset|voices)-mode(?:-|$)", preference):
+            raise ValueError(f"Retired browser option: {key}")
+        if preference in _SURFACE_MODES and value not in ("native", "shardx"):
+            raise ValueError(f"Unsupported surface mode: {key}")
         if preference in _PREFERENCE_BOOLEANS:
             low = value.lower()
             if low in OFF_VALUES:

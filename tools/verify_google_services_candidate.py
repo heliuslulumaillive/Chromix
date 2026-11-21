@@ -44,8 +44,8 @@ RETIREMENT_MANIFEST_INPUT = 'patches/lite-win156/retirement-manifest.json'
 MASK_FIRST_ORACLE_REVISION = '9a06334258ed6039c597360038183f8693347e45'
 MASK_FIRST_ORACLE_SHA256 = '2bcefcc4b7b8ab34b070b964a4fdd81c643e88052b48fd0c3a75cf18d8965465'
 MASK_FIRST_COUNTS = {
-    'mask_first_equivalence_cases': 93941,
-    'mask_first_equivalence_bytes': 439779036,
+    'mask_first_equivalence_cases': 93857,
+    'mask_first_equivalence_bytes': 439036140,
     'mask_first_corpus_records': 3,
     'mask_first_mutation_controls': 8,
     'mask_first_mutation_rejections': 8,
@@ -54,25 +54,24 @@ FINGERPRINT_RUNTIME_SCENARIOS = {
     'fonts_default9918', 'fonts_default14666',
     *(f'fonts_pack{120+i}' for i in range(12)),
     'native_off_control', 'all_native', 'legacy_seeded', 'canvas_shardx',
-    'webgl_cloak', 'shard_surfaces', 'memory_custom', 'hardware_cloak', 'gpu_custom',
+    'shard_surfaces', 'memory_custom', 'hardware_cloak', 'gpu_custom',
     'webgl_shardx', 'fonts_shard40', 'fonts_shard41', 'fonts_shard42', 'fonts_shard43', 'fonts_native10026', 'fonts_allowlists', 'fonts_empty',
-    'cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive', 'audio_native_macos',
+    'audio_native_macos',
     'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono', 'audio_default_stereo',
     'audio_default_32', 'gpu_masked_custom',
     'headless_custom_dpr2', 'headless_custom_fractional', 'headless_explicit_info',
     'headless_force_scale', 'headless_native_ignored', 'headless_off_ignored',
 }
 FINGERPRINT_POSITIVE_SCENARIOS = {
-    'legacy_canvas': {'legacy_seeded'}, 'shard_canvas': {'canvas_shardx'}, 'cloak_canvas': {'hardware_cloak'},
-    'shard_webgl': {'webgl_shardx'}, 'cloak_webgl': {'webgl_cloak'}, 'shard_audio': {'shard_surfaces'},
+    'legacy_canvas': {'legacy_seeded'}, 'shard_canvas': {'canvas_shardx', 'hardware_cloak'},
+    'shard_webgl': {'webgl_shardx'}, 'shard_audio': {'shard_surfaces'},
     'shard_rects': {'shard_surfaces'}, 'shard_text': {'shard_surfaces'}, 'shard_sensors': {'shard_surfaces'},
     'shard_media': {'shard_surfaces'}, 'memory_custom': {'memory_custom'}, 'hardware_profile': {'hardware_cloak'},
     'webgl_resource_limits': {'all_native', 'gpu_custom'}, 'webgpu_capabilities': {'gpu_custom', 'hardware_cloak'},
     'hardware_gpu_identity': {'hardware_cloak'}, 'masked_webgl': {'gpu_masked_custom'},
     'shard_fonts': {'fonts_shard40', 'fonts_shard41', 'fonts_shard42', 'fonts_shard43', *(f'fonts_pack{120+i}' for i in range(12))}, 'native_fonts': {'fonts_native10026', 'fonts_default9918', 'fonts_default14666'},
     'font_allowlists': {'fonts_allowlists', 'fonts_empty'},
-    'cloak_voices': {'cloak_voices', 'cloak_voices_no_local'}, 'cloak_offset': {'cloak_offset'},
-    'cloak_text': {'cloak_text_positive'}, 'native_audio': {'audio_native_macos'},
+    'native_audio': {'audio_native_macos'},
     'audio_defaults': {'audio_defaults_44100', 'audio_defaults_32000'},
     'audio_channels': {'audio_defaults_44100', 'audio_defaults_32000', 'audio_default_mono',
                        'audio_default_stereo', 'audio_default_32'},
@@ -87,7 +86,6 @@ FINGERPRINT_EXTRA_SCOPES = {
     **{name: ('fonts',) for name in ('fonts_shard40', 'fonts_shard41', 'fonts_shard42', 'fonts_shard43', 'fonts_native10026', 'fonts_allowlists', 'fonts_empty')},
     **{f'fonts_pack{120+i}': ('fonts',) for i in range(12)},
     'fonts_default9918': ('fonts',), 'fonts_default14666': ('fonts',),
-    **{name: ('reference',) for name in ('cloak_voices', 'cloak_voices_no_local', 'cloak_offset', 'cloak_text_positive')},
     **{name: ('audio',) for name in ('audio_native_macos', 'audio_defaults_44100', 'audio_defaults_32000',
                                    'audio_default_mono', 'audio_default_stereo', 'audio_default_32')},
 }
@@ -221,7 +219,7 @@ def validate_source_recipe(inner, outer, repo=REPO, *, build_variant=GOOGLE_VARI
 def validate_mode_native(report, payload):
     expected = {
         'config-legacy': ('legacy', {'configuration_checks'}, '--config-legacy'),
-        'config-chromix': ('chromix', {'configuration_checks'}, '--config-chromix'),
+        'config-retired-surfaces': ('retired-surfaces', {'configuration_checks'}, '--config-retired-surfaces'),
         'production-helpers-and-config': ('production', {
             'graphics_cases', 'checks', 'gpu_checks', 'hardware_checks', 'font_allowlist_checks',
             'audio_default_checks', 'voice_compat_checks', 'configuration_checks', 'pixel_semantic_corpus_records',
@@ -232,7 +230,7 @@ def validate_mode_native(report, payload):
             or report.get('browser_sha256') != payload['chrome.exe']
             or report.get('chrome_dll_sha256') != payload['chrome.dll']
             or not isinstance(processes, list) or len(processes) != len(expected)
-            or not isinstance(groups, dict) or set(groups) != {'legacy', 'chromix', 'production'}):
+            or not isinstance(groups, dict) or set(groups) != {'legacy', 'retired-surfaces', 'production'}):
         raise ValueError('Native mode evidence is incomplete or bound to another payload')
     seen, binaries, counts = set(), set(), {}
     for process in processes:
@@ -276,6 +274,8 @@ def validate_mode_native(report, payload):
             if type(count) is not int or count <= 0:
                 raise ValueError('Native pixel semantic properties did not execute')
             counts['production.groups.pixel_semantic_properties'] = count
+            if nested.get('shard_canvas_pixels') != 7584 or nested.get('shard_canvas_crop') != 4264:
+                raise ValueError('Captured Canvas full-frame or crop coverage is incomplete')
             equivalents = [record for record in records if 'mask_first_equivalence_cases' in record]
             if len(equivalents) != 1:
                 raise ValueError('Native mask-first equivalence evidence is missing or duplicated')
@@ -316,7 +316,7 @@ def validate_positive_coverage(report, checks):
                 or not isinstance(record.get('reason'), str) or not record['reason']
                 or (record.get('optional_candidate') is not None and
                     (record.get('optional_candidate') is not True or
-                     record.get('acceptance_group') not in {'cloak_text', 'shard_fonts', 'native_fonts', 'font_allowlists'}))):
+                     record.get('acceptance_group') not in {'shard_fonts', 'native_fonts', 'font_allowlists'}))):
             raise ValueError('Unavailable positive condition has no concrete reason')
     full = True
     for group, value in coverage.items():
@@ -564,12 +564,13 @@ def validate_headless_screens(scenarios):
 def retirement_cases():
     cases=[]
     for prefix in ('fingerprint','uxr'):
-        for surface in ('fonts','audio','media'):
-            for value in ('chromix','cloak'):
+        for surface in ('canvas','webgl','fonts','audio','rects','text','sensors','media','offset','voices'):
+            values = ('native','shardx','chromix','cloak') if surface in ('offset','voices') else ('chromix','cloak')
+            for value in values:
                 key=f'{prefix}-{surface}-mode'
                 cases.append({'id':f'{prefix}_{surface}_{value}','argument':f'--{key}={value}',
                               'diagnostic':f'Unsupported Lite surface mode: {key}={value}'})
-        for name,value in (('audio-render','native'),('font-policy','native'),('font-whitelist','Arial'),
+        for name,value in (('hdr','native'),('widevine-cdm','fixture'),('sapi-voices','false'),('audio-render','native'),('font-policy','native'),('font-whitelist','Arial'),
                            ('windows-font-metrics','false'),('canvas-bridge','ws://127.0.0.1:65534'),
                            ('canvas-bridge-unsafe','false'),('devtools-runtime-suppression','false'),('keyboard-layout','native')):
             key=f'{prefix}-{name}'
@@ -684,7 +685,7 @@ def validate_application_inputs(scenarios):
         required.add((identity, 'application_canvas_input_preserved'))
         rendered = data(canvas.get('rendered'), 16384)
         changed = [i for i, (a, b) in enumerate(zip(rendered, native_canvas)) if a != b]
-        limit = 16384 if identity == 'legacy_seeded' else 32 if identity == 'canvas_shardx' else 30
+        limit = 16384 if identity == 'legacy_seeded' else 32
         if not changed or len(changed) > limit or any(i % 4 == 3 or abs(rendered[i] - native_canvas[i]) > 1 for i in changed):
             raise ValueError('Rendering Canvas noise changed its bounds or became a no-op')
     native_audio = data(native_probe.get('audio', {}).get('rendered'), 20000)
@@ -759,8 +760,7 @@ def validate_mode_runtime(report, payload):
         ('shard_surfaces', 'audio_changed'), ('shard_surfaces', 'rect_mode_effect_and_bound'),
         ('shard_surfaces', 'text_mode_effect_and_bound'), ('shard_surfaces', 'media_filter_observable_on_fake_devices'),
         ('hardware_cloak', 'expected_cpu_and_memory'), ('memory_custom', 'expected_cpu_and_memory'),
-        ('cloak_offset', 'offset_120_native_control'), ('cloak_offset', 'offset_120_captured_oracle'),
-        ('cloak_offset', 'offset_50_native_control'), ('cloak_offset', 'offset_50_captured_oracle'),
+        ('all_native', 'offset_120_native_control'), ('all_native', 'offset_50_native_control'),
     }
     required.update((scenario, name + '_matches_js')
                     for scenario in ('hardware_cloak', 'memory_custom')
