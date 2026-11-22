@@ -45,6 +45,38 @@ function Checked([scriptblock]$Command) {
   & $Command
   if ($LASTEXITCODE -ne 0) { throw "Checked command failed: $LASTEXITCODE" }
 }
+function Select-WindowsRustCompiler(
+  [string]$SourceRoot,
+  [string]$WindowsSha256 = 'd95b555f69bdd5e4e65be8dea8354a32881908b10a3d4e8744049453a96b859c',
+  [string]$LinuxSha256 = '5774dc62fa6c73adbfd3778107cfc25284486822f904782bb68ca9887e8f936c'
+) {
+  $toolchain = Join-Path $SourceRoot 'third_party\rust-toolchain'
+  $native = Join-Path $toolchain 'bin\rustc.exe'
+  $shadow = Join-Path $toolchain 'bin\rustc'
+  $stored = Join-Path $toolchain 'rustc.linux-x64'
+  foreach ($path in @($native,$shadow,$stored)) { Assert-Plain $path }
+
+  # These are the driver bytes from the pinned Windows Rust package and the
+  # original Chromium 158 source archive. Windows CreateProcess tries a bare
+  # filename before appending .exe when Chromium's stdlib action starts rustc.
+  $windowsHash = (Get-FileHash -LiteralPath $native -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($windowsHash -cne $WindowsSha256) {
+    throw 'Unexpected Windows Rust compiler'
+  }
+  $active = Test-Path -LiteralPath $shadow
+  $saved = Test-Path -LiteralPath $stored
+  if ($active -and $saved) { throw 'Ambiguous Linux Rust compiler copies' }
+  $linuxHash = $null
+  if ($active -or $saved) {
+    $original = if ($active) { $shadow } else { $stored }
+    $linuxHash = (Get-FileHash -LiteralPath $original -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($linuxHash -cne $LinuxSha256) {
+      throw 'Unexpected extensionless Rust compiler'
+    }
+    if ($active) { Move-Item -LiteralPath $shadow -Destination $stored -ErrorAction Stop }
+  }
+  return @{windows_compiler_sha256=$windowsHash;archived_linux_compiler_sha256=$linuxHash}
+}
 function Write-MetagenHostArgs([string]$SourceRoot,[string]$OutputPath) {
   $library = Join-Path $SourceRoot 'third_party\llvm-build\Release+Asserts\bin\libclang.dll'
   $bindings = Join-Path $SourceRoot 'third_party\llvm-libclang\bindings\python'
@@ -459,6 +491,7 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
     'Configure' {
       if ($state.sdk_ready -ne $true) { throw 'Native SDK preparation was not completed' }
       Set-CompilerEnvironment
+      Json (Join-Path $evidence 'rust-host.json') (Select-WindowsRustCompiler $src)
       $null = New-Item -ItemType Directory -Path $out -Force
       $metagenHost = Join-Path $evidence 'metagen-host.gn'
       Write-MetagenHostArgs $src $metagenHost
@@ -487,6 +520,8 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         '--src',$src,'--out',$out,'--ninja',$ninja,'--chromium-version',$version,'--download')
       Invoke-Owned 'record-gn-before-compile' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_build_record.py'),
         '--repo',$repo,'--work',$work,'--output',(Join-Path $evidence 'build-inputs.json'))
+      Invoke-Owned 'rust-stdlib' @($ninja,'-C',$out,'obj/build/rust/std/libstd.rlib',
+        'win_clang_x64_for_rust_host_build_tools/obj/build/rust/std/libstd.rlib')
       Invoke-Owned 'pending-actions' @($ninja,'-C',$out,'-n','chrome','native_passkey_unittests','uxr_surface_modes_tests')
       $state.ninja = $ninja
       $state.gn = $gn

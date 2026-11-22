@@ -1,6 +1,7 @@
 """Exercise the real PowerShell phase guards without invoking the hosted build."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -22,7 +23,7 @@ $ErrorActionPreference = 'Stop'
 $tokens = $null; $parseErrors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile($env:PHASE_TEST_SOURCE,[ref]$tokens,[ref]$parseErrors)
 if ($parseErrors.Count) { throw ($parseErrors.Message -join '; ') }
-$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Get-OwnedCommandStatus','Get-NinjaFailureSummary','Get-OwnedFailureSummary','Write-OwnedFailureAnnotation','Invoke-Owned','Invoke-VerificationPlan','Read-State','Assert-Plain','Write-MetagenHostArgs')
+$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Get-OwnedCommandStatus','Get-NinjaFailureSummary','Get-OwnedFailureSummary','Write-OwnedFailureAnnotation','Invoke-Owned','Invoke-VerificationPlan','Read-State','Assert-Plain','Write-MetagenHostArgs','Select-WindowsRustCompiler')
 $definitions = $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in $allowed}, $false)
 if (@($definitions).Count -ne $allowed.Count) { throw 'Guard function inventory mismatch' }
 . ([scriptblock]::Create(($definitions.Extent.Text -join "`n")))
@@ -43,6 +44,7 @@ try {
       $result=Read-State
     }
     'disk' { $result=Get-CheckpointDiskBudget $request }
+    'rust-host' { $result=Select-WindowsRustCompiler $request.src $request.windows $request.linux }
     'metagen-pair' { Write-MetagenHostArgs $request.src $request.output; $result=@{accepted=$true} }
     'command-status' { $result=@{status=(Get-OwnedCommandStatus $request.exit_code $request.receipt)} }
     'ninja-failures' { $result=Get-NinjaFailureSummary $request.path }
@@ -112,6 +114,35 @@ class PhaseGuardTests(unittest.TestCase):
                               capture_output=True, text=True, encoding='utf-8', env=env, timeout=30)
         self.assertEqual(proc.returncode, 0, proc.stderr)
         return json.loads(proc.stdout)
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows CreateProcess resolution')
+    def test_rust_stdlib_action_can_launch_the_bare_compiler_after_restore(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            src = Path(temporary)
+            toolchain = src / 'third_party/rust-toolchain'
+            bare = toolchain / 'bin/rustc'
+            native = bare.with_suffix('.exe')
+            parked = toolchain / 'rustc.linux-x64'
+            bare.parent.mkdir(parents=True)
+            shutil.copyfile(Path(os.environ['SystemRoot']) / 'System32/hostname.exe', native)
+            linux = b'\x7fELF foreign driver fixture'
+            bare.write_bytes(linux)
+            request = {'src': str(src), 'windows': hashlib.sha256(native.read_bytes()).hexdigest(),
+                       'linux': hashlib.sha256(linux).hexdigest()}
+            with self.assertRaises(OSError) as failure:
+                subprocess.check_output([str(bare)])
+            self.assertEqual(failure.exception.winerror, 193)
+            for key in ('windows', 'linux'):
+                self.assertFalse(self.run_guard('rust-host', {**request, key: '0' * 64})['accepted'])
+                self.assertEqual(bare.read_bytes(), linux)
+                self.assertFalse(parked.exists())
+            for _ in range(2):
+                receipt = self.run_guard('rust-host', request)
+                self.assertEqual(receipt['windows_compiler_sha256'], request['windows'])
+                self.assertEqual(receipt['archived_linux_compiler_sha256'], request['linux'])
+                self.assertEqual(parked.read_bytes(), linux)
+                self.assertFalse(bare.exists())
+                self.assertEqual(subprocess.check_output([str(bare)]), subprocess.check_output([str(native)]))
 
     def test_metagen_configuration_selects_the_native_windows_pair(self):
         with tempfile.TemporaryDirectory() as temporary:
