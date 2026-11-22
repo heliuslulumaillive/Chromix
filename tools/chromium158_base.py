@@ -4,6 +4,7 @@ import configparser
 import hashlib
 import json
 from pathlib import Path
+import subprocess
 
 try:
     from .google_services_inputs import owned, write_if_changed
@@ -14,13 +15,22 @@ except ImportError:
 
 POLICY = 'build/chromium158-base.json'
 ARCHIVE = 'build/chromium158-source.ini'
+LINUX_SYSROOTS = (
+    'build/linux/debian_bullseye_amd64-sysroot',
+    'build/linux/debian_bullseye_i386-sysroot',
+    'third_party/llvm-build-tools/debian_bullseye_amd64_sysroot',
+    'third_party/llvm-build-tools/debian_bullseye_arm_sysroot',
+    'third_party/llvm-build-tools/debian_bullseye_arm64_sysroot',
+    'third_party/llvm-build-tools/debian_bullseye_i386_sysroot',
+    'third_party/llvm-build-tools/debian_trixie_riscv64_sysroot',
+)
 
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def render(repo, work, core, windows):
+def source_policy(repo):
     policy = json.loads(owned(repo, POLICY).read_bytes())
     config = json.loads(owned(repo, 'build/lite-windows158.json').read_bytes())
     if digest(owned(repo, POLICY).read_bytes()) != config['chromium_base_sha256']:
@@ -33,8 +43,37 @@ def render(repo, work, core, windows):
     archive = download['chromium']
     filename = 'chromium-' + version + '.tar.xz'
     if (archive['url'] != 'https://commondatastorage.googleapis.com/chromium-browser-official/' + filename
-            or archive['download_filename'] != filename or archive['sha256'] != policy['original_source_archive_sha256']):
+            or archive['download_filename'] != filename or archive['sha256'] != policy['original_source_archive_sha256']
+            or archive['strip_leading_dirs'] != 'chromium-' + version):
         raise ValueError('Incorrect release archive input')
+    return policy, archive
+
+
+def unpack_windows_source(repo, work, tar):
+    policy, spec = source_policy(repo)
+    archive = owned(work, 'download_cache/' + spec['download_filename'])
+    destination = owned(work, 'src')
+    if not destination.is_dir() or any(destination.iterdir()):
+        raise ValueError('The original Chromium archive requires an empty source directory')
+    with archive.open('rb') as source:
+        if hashlib.file_digest(source, 'sha256').hexdigest() != spec['sha256']:
+            raise ValueError('Original Chromium archive digest mismatch')
+    # These Linux target sysroots contain multi-hop POSIX links. The Windows
+    # build uses the host SDK and keeps all Chromium source/tooling around them.
+    prefix = spec['strip_leading_dirs']
+    excludes = ['--exclude=' + prefix + '/' + name for name in LINUX_SYSROOTS]
+    subprocess.run([str(tar), '-x', *excludes, '--strip-components', '1', '-C',
+                    str(destination), '-f', str(archive), prefix], check=True)
+    version_file = owned(destination, 'chrome/VERSION').read_text('ascii')
+    fields = dict(line.split('=', 1) for line in version_file.splitlines())
+    if '.'.join(fields[key] for key in ('MAJOR','MINOR','BUILD','PATCH')) != policy['chromium_version']:
+        raise ValueError('Unpacked source version differs from the pinned release')
+    return {'archive_sha256': spec['sha256'], 'excluded_linux_sysroots': list(LINUX_SYSROOTS)}
+
+
+def render(repo, work, core, windows):
+    policy, _ = source_policy(repo)
+    version = policy['chromium_version']
     pristine = set(policy['use_chromium_files'])
     if len(pristine) != len(policy['use_chromium_files']):
         raise ValueError('Duplicate native source policy path')
@@ -118,9 +157,13 @@ if __name__ == '__main__':
         parser.add_argument('--'+key, type=Path, required=True)
     parser.add_argument('--core', type=Path)
     parser.add_argument('--windows', type=Path)
-    parser.add_argument('--verify-base', action='store_true')
+    operation = parser.add_mutually_exclusive_group()
+    operation.add_argument('--unpack-with', type=Path, metavar='BSDTAR')
+    operation.add_argument('--verify-base', action='store_true')
     args = parser.parse_args()
-    if args.verify_base:
+    if args.unpack_with:
+        print(json.dumps(unpack_windows_source(args.repo, args.work, args.unpack_with)))
+    elif args.verify_base:
         print(json.dumps(verify_base(args.repo, args.work)))
     elif not (args.core and args.windows):
         parser.error('Selection requires both pinned tooling directories')

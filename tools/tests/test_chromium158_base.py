@@ -1,6 +1,9 @@
 import json
+import io
+import os
 from pathlib import Path
 import shutil
+import tarfile
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -18,6 +21,51 @@ def save(path, data):
 
 
 class NativeChromiumBaseTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == 'nt', 'Uses the same Windows system tar as the runner')
+    def test_original_archive_excludes_only_linux_sysroots(self):
+        tar = Path(os.environ['SystemRoot']) / 'System32/tar.exe'
+        name = 'chromium-158.0.8127.36'
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            work = root / 'work'
+            (work/'src').mkdir(parents=True)
+            archive = work / 'download_cache' / (name + '.tar.xz')
+            archive.parent.mkdir()
+            contents = {'chrome/VERSION':b'MAJOR=158\nMINOR=0\nBUILD=8127\nPATCH=36\n',
+                        'build/linux/sysroot_scripts/keep.py':b'keep',
+                        'third_party/llvm-build-tools/keep/host.txt':b'host'}
+            contents.update({directory + '/usr/lib/example.so':b'linux' for directory in native.LINUX_SYSROOTS})
+            with tarfile.open(archive,'w:xz') as out:
+                for path, data in contents.items():
+                    item = tarfile.TarInfo(name + '/' + path)
+                    item.size = len(data)
+                    out.addfile(item, io.BytesIO(data))
+            digest = native.digest(archive.read_bytes())
+            policy = json.loads((ROOT/native.POLICY).read_bytes())
+            config = json.loads((ROOT/'build/lite-windows158.json').read_bytes())
+            original = policy['original_source_archive_sha256']
+            policy['original_source_archive_sha256'] = digest
+            packed = json.dumps(policy).encode()
+            config['chromium_base_sha256'] = native.digest(packed)
+            save(root/native.POLICY, packed)
+            save(root/'build/lite-windows158.json', json.dumps(config).encode())
+            save(root/native.ARCHIVE, (ROOT/native.ARCHIVE).read_bytes().replace(original.encode(),digest.encode()))
+            result = native.unpack_windows_source(root,work,tar)
+            self.assertEqual(result['archive_sha256'],digest)
+            for path, data in contents.items():
+                if data == b'linux':
+                    self.assertFalse((work/'src'/path).exists())
+                else:
+                    self.assertEqual((work/'src'/path).read_bytes(),data)
+            for directory in native.LINUX_SYSROOTS:
+                self.assertFalse((work/'src'/directory).exists())
+            other = root / 'damaged'
+            (other/'src').mkdir(parents=True)
+            save(other/'download_cache'/archive.name,b'damaged')
+            with self.assertRaisesRegex(ValueError,'digest mismatch'):
+                native.unpack_windows_source(root,other,tar)
+            self.assertEqual(list((other/'src').iterdir()),[])
+
     def test_active_native_inputs_and_functional_contract(self):
         product = lite_patch_stack.load(ROOT)
         policy = json.loads((ROOT / native.POLICY).read_bytes())

@@ -506,11 +506,17 @@ if (-not (Test-Marker ".chromix-source-unpacked" $Revisions.ChromiumVersion)) {
     "-c", $DownloadCache, "-i", $sourceDownloads
   )
   Write-Host "==> unpacking Chromium source"
-  Invoke-Checked $Python @(
-    (Join-Path $Ungoogled "utils\downloads.py"), "unpack",
-    "-c", $DownloadCache, "-i", $sourceDownloads,
-    "--7z-path", "_use_registry", $Src
-  )
+  if ($NativeLite) {
+    $systemTar = Join-Path ([Environment]::SystemDirectory) 'tar.exe'
+    Invoke-Checked $Python @('-B','-X','utf8',(Join-Path $Repo 'tools\chromium158_base.py'),
+      '--repo',$Repo,'--work',$Root,'--unpack-with',$systemTar)
+  } else {
+    Invoke-Checked $Python @(
+      (Join-Path $Ungoogled "utils\downloads.py"), "unpack",
+      "-c", $DownloadCache, "-i", $sourceDownloads,
+      "--7z-path", "_use_registry", $Src
+    )
+  }
   Write-Host "==> retrieving native Windows toolchain dependencies"
   Invoke-Checked $Python @(
     (Join-Path $Ungoogled "utils\downloads.py"), "retrieve",
