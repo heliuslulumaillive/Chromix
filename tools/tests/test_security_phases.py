@@ -127,9 +127,15 @@ class PhaseGuardTests(unittest.TestCase):
             self.assertFalse(output.exists())
             dll.write_bytes(b'path selection fixture')
             self.assertTrue(self.run_guard('metagen-pair', request)['accepted'])
-            self.assertEqual(output.read_text(encoding='utf-8').splitlines(), [
-                f'v8_metagen_libclang_so = "{dll.as_posix()}"',
-                f'v8_metagen_libclang_bindings_dir = "{bindings.as_posix()}"'])
+            lines = output.read_text(encoding='utf-8').splitlines()
+            self.assertEqual(len(lines), 2)
+            expected = {'v8_metagen_libclang_so': dll, 'v8_metagen_libclang_bindings_dir': bindings}
+            actual = dict(line.split(' = ', 1) for line in lines)
+            self.assertEqual(actual.keys(), expected.keys())
+            for key, path in expected.items():
+                emitted = Path(json.loads(actual[key]))
+                self.assertTrue(emitted.is_absolute())
+                self.assertEqual(emitted.resolve(strict=True), path.resolve(strict=True))
 
     def test_all_real_guards_admit_only_exact_next_phase(self):
         for i, phase in enumerate(PHASES):
