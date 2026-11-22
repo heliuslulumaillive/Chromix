@@ -4,6 +4,8 @@
 
 This branch ports the Lite 157 slim V2 features from `a60db89` onto the original Chromium source archive. The [download pin](build/chromium158-source.ini) binds the complete release archive. The [base policy](build/chromium158-base.json) selects the required ungoogled core and Windows patch sections, and keeps the three native binary resources plus four preferences source files during pruning. The [158 product manifest](build/lite-windows158.json) lists the remaining product changes and their verified source identities.
 
+Windows source preparation preserves Unicode names and materializes internal archive aliases from their verified targets. The pinned Windows LLVM package supplies `third_party/llvm-build/Release+Asserts`. The Windows SDK supplies the system libraries. The `win64.pgo.txt` file in the original source selects the profile used by the phase 2 PGO build.
+
 Use the project's hosted Windows workflow with `operation=fresh` for the first 158 build. The existing dispatch entry `security-win156.yml` calls the 158 worker on this branch. Use `resume` with a matching native 158 checkpoint to continue a previous build. The native browser, Cookie, session, security, graphics, font and Windows Passkey suites still run against the produced artifact before DLL admission.
 
 ## Historical 157.0.8103.78 slim source candidate

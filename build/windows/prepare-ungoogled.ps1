@@ -507,9 +507,9 @@ if (-not (Test-Marker ".chromix-source-unpacked" $Revisions.ChromiumVersion)) {
   )
   Write-Host "==> unpacking Chromium source"
   if ($NativeLite) {
-    $systemTar = Join-Path ([Environment]::SystemDirectory) 'tar.exe'
+    $sevenzip = (Get-Command 7z.exe -ErrorAction Stop).Source
     Invoke-Checked $Python @('-B','-X','utf8',(Join-Path $Repo 'tools\chromium158_base.py'),
-      '--repo',$Repo,'--work',$Root,'--unpack-with',$systemTar)
+      '--repo',$Repo,'--work',$Root,'--unpack-with',$sevenzip)
   } else {
     Invoke-Checked $Python @(
       (Join-Path $Ungoogled "utils\downloads.py"), "unpack",

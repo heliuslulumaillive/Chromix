@@ -3,13 +3,17 @@ import argparse
 import configparser
 import hashlib
 import json
+import os
 from pathlib import Path
-import subprocess
+import re
+import tempfile
 
 try:
+    from .archive_windows_files import unpack_xz
     from .google_services_inputs import owned, write_if_changed
     from .restoration_rules import patch_series, sections
 except ImportError:
+    from archive_windows_files import unpack_xz
     from google_services_inputs import owned, write_if_changed
     from restoration_rules import patch_series, sections
 
@@ -24,6 +28,9 @@ LINUX_SYSROOTS = (
     'third_party/llvm-build-tools/debian_bullseye_i386_sysroot',
     'third_party/llvm-build-tools/debian_trixie_riscv64_sysroot',
 )
+# The full source archive ships Linux clang here. Windows downloads populate
+# this entire directory with the pinned Windows LLVM distribution.
+WINDOWS_LLVM_ROOT = 'third_party/llvm-build/Release+Asserts'
 
 
 def digest(data):
@@ -46,29 +53,59 @@ def source_policy(repo):
             or archive['download_filename'] != filename or archive['sha256'] != policy['original_source_archive_sha256']
             or archive['strip_leading_dirs'] != 'chromium-' + version):
         raise ValueError('Incorrect release archive input')
-    return policy, archive
+    return policy, download
 
 
-def unpack_windows_source(repo, work, tar):
-    policy, spec = source_policy(repo)
+def install_win64_profile(src, cache, spec):
+    name = owned(src, 'chrome/build/win64.pgo.txt').read_text('ascii').strip()
+    if (not re.fullmatch(r'chrome-win64-[0-9a-f-]+\.profdata', name)
+            or spec['download_filename'] != name or spec['output_path'] != 'chrome/build/pgo_profiles'
+            or not re.fullmatch(r'[0-9a-f]{64}', spec['sha256'])
+            or not re.fullmatch('https://storage\\.googleapis\\.com/chromium-optimization-profiles/pgo_profiles/'
+                                + re.escape(name) + r'\?generation=[0-9]+', spec['url'])):
+        raise ValueError('PGO input does not match this Chromium Windows release')
+    dest = owned(src, spec['output_path'] + '/' + name)
+    if dest.is_file():
+        with dest.open('rb') as current:
+            if hashlib.file_digest(current,'sha256').hexdigest() == spec['sha256']:
+                return spec['sha256']
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp = None
+    try:
+        with owned(cache, name).open('rb') as profile, tempfile.NamedTemporaryFile(
+                dir=dest.parent, prefix='.win64-pgo-', delete=False) as out:
+            tmp = Path(out.name)
+            checksum = hashlib.sha256()
+            while chunk := profile.read(1024 * 1024):
+                checksum.update(chunk)
+                out.write(chunk)
+        if checksum.hexdigest() != spec['sha256']:
+            raise ValueError('Windows PGO profile digest mismatch')
+        os.replace(tmp, dest)
+    finally:
+        if tmp is not None:
+            tmp.unlink(missing_ok=True)
+    return spec['sha256']
+
+
+def unpack_windows_source(repo, work, sevenzip):
+    policy, downloads = source_policy(repo)
+    spec = downloads['chromium']
     archive = owned(work, 'download_cache/' + spec['download_filename'])
     destination = owned(work, 'src')
-    if not destination.is_dir() or any(destination.iterdir()):
-        raise ValueError('The original Chromium archive requires an empty source directory')
     with archive.open('rb') as source:
         if hashlib.file_digest(source, 'sha256').hexdigest() != spec['sha256']:
             raise ValueError('Original Chromium archive digest mismatch')
-    # These Linux target sysroots contain multi-hop POSIX links. The Windows
-    # build uses the host SDK and keeps all Chromium source/tooling around them.
-    prefix = spec['strip_leading_dirs']
-    excludes = ['--exclude=' + prefix + '/' + name for name in LINUX_SYSROOTS]
-    subprocess.run([str(tar), '-x', *excludes, '--strip-components', '1', '-C',
-                    str(destination), '-f', str(archive), prefix], check=True)
+    result = unpack_xz(sevenzip, archive, destination, spec['strip_leading_dirs'],
+                       (*LINUX_SYSROOTS, WINDOWS_LLVM_ROOT))
     version_file = owned(destination, 'chrome/VERSION').read_text('ascii')
     fields = dict(line.split('=', 1) for line in version_file.splitlines())
     if '.'.join(fields[key] for key in ('MAJOR','MINOR','BUILD','PATCH')) != policy['chromium_version']:
         raise ValueError('Unpacked source version differs from the pinned release')
-    return {'archive_sha256': spec['sha256'], 'excluded_linux_sysroots': list(LINUX_SYSROOTS)}
+    pgo = install_win64_profile(destination, owned(work, 'download_cache'), downloads['win64-pgo'])
+    return {**result, 'archive_sha256': spec['sha256'], 'win64_pgo_sha256': pgo,
+            'excluded_linux_sysroots': list(LINUX_SYSROOTS),
+            'windows_toolchain_destination': WINDOWS_LLVM_ROOT}
 
 
 def render(repo, work, core, windows):
@@ -158,7 +195,7 @@ if __name__ == '__main__':
     parser.add_argument('--core', type=Path)
     parser.add_argument('--windows', type=Path)
     operation = parser.add_mutually_exclusive_group()
-    operation.add_argument('--unpack-with', type=Path, metavar='BSDTAR')
+    operation.add_argument('--unpack-with', type=Path, metavar='7ZIP')
     operation.add_argument('--verify-base', action='store_true')
     args = parser.parse_args()
     if args.unpack_with:

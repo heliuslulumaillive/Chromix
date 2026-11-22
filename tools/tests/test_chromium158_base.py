@@ -1,3 +1,4 @@
+import configparser
 import json
 import io
 import os
@@ -21,9 +22,9 @@ def save(path, data):
 
 
 class NativeChromiumBaseTests(unittest.TestCase):
-    @unittest.skipUnless(os.name == 'nt', 'Uses the same Windows system tar as the runner')
-    def test_original_archive_excludes_only_linux_sysroots(self):
-        tar = Path(os.environ['SystemRoot']) / 'System32/tar.exe'
+    @unittest.skipUnless(os.name == 'nt', 'Uses the same Windows archive decoder as the runner')
+    def test_full_archive_preserves_unicode_and_internal_aliases_without_linux_toolchains(self):
+        sevenzip = shutil.which('7z.exe') or str(Path(os.environ['ProgramFiles']) / '7-Zip/7z.exe')
         name = 'chromium-158.0.8127.36'
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -31,11 +32,23 @@ class NativeChromiumBaseTests(unittest.TestCase):
             (work/'src').mkdir(parents=True)
             archive = work / 'download_cache' / (name + '.tar.xz')
             archive.parent.mkdir()
+            settings = configparser.ConfigParser(interpolation=None)
+            settings.read(ROOT/native.ARCHIVE, encoding='utf-8')
+            pgo = settings['win64-pgo']
+            profile = b'fixture for the Windows profile'
+            save(archive.parent/pgo['download_filename'], profile)
             contents = {'chrome/VERSION':b'MAJOR=158\nMINOR=0\nBUILD=8127\nPATCH=36\n',
+                        'chrome/build/win64.pgo.txt':(pgo['download_filename']+'\n').encode(),
                         'build/linux/sysroot_scripts/keep.py':b'keep',
-                        'third_party/llvm-build-tools/keep/host.txt':b'host'}
+                        'third_party/llvm-build-tools/keep/host.txt':b'host',
+                        'third_party/test/' + chr(0x1f30b) + '.def':b'EXPORTS',
+                        native.WINDOWS_LLVM_ROOT+'/bin/clang':b'linux'}
             contents.update({directory + '/usr/lib/example.so':b'linux' for directory in native.LINUX_SYSROOTS})
-            with tarfile.open(archive,'w:xz') as out:
+            with tarfile.open(archive,'w:xz',format=tarfile.PAX_FORMAT) as out:
+                for alias, target in [('tools/alias','../third_party/test'), ('tools/file','../chrome/VERSION'),
+                                      ('tools/also-file','file')]:
+                    member=tarfile.TarInfo(name + '/' + alias)
+                    member.type=tarfile.SYMTYPE;member.linkname=target;out.addfile(member)
                 for path, data in contents.items():
                     item = tarfile.TarInfo(name + '/' + path)
                     item.size = len(data)
@@ -49,21 +62,38 @@ class NativeChromiumBaseTests(unittest.TestCase):
             config['chromium_base_sha256'] = native.digest(packed)
             save(root/native.POLICY, packed)
             save(root/'build/lite-windows158.json', json.dumps(config).encode())
-            save(root/native.ARCHIVE, (ROOT/native.ARCHIVE).read_bytes().replace(original.encode(),digest.encode()))
-            result = native.unpack_windows_source(root,work,tar)
+            ini = (ROOT/native.ARCHIVE).read_bytes().replace(original.encode(),digest.encode())
+            save(root/native.ARCHIVE, ini.replace(pgo['sha256'].encode(), native.digest(profile).encode()))
+            result = native.unpack_windows_source(root,work,sevenzip)
             self.assertEqual(result['archive_sha256'],digest)
+            self.assertEqual(result['materialized_aliases'],3)
+            self.assertEqual(result['win64_pgo_sha256'],native.digest(profile))
+            installed = work/'src/chrome/build/pgo_profiles'/pgo['download_filename']
+            self.assertEqual(installed.read_bytes(),profile)
+            mtime = installed.stat().st_mtime_ns
+            spec = native.source_policy(root)[1]['win64-pgo']
+            self.assertEqual(native.install_win64_profile(work/'src',archive.parent,spec),native.digest(profile))
+            self.assertEqual(installed.stat().st_mtime_ns,mtime)
+            installed.unlink()
+            save(archive.parent/pgo['download_filename'], b'corrupt')
+            with self.assertRaisesRegex(ValueError, 'PGO profile digest mismatch'):
+                native.install_win64_profile(work/'src',archive.parent,spec)
+            self.assertFalse(installed.exists())
+            self.assertEqual((work/'src/tools/alias'/(chr(0x1f30b)+'.def')).read_bytes(),b'EXPORTS')
+            self.assertFalse((work/'src/tools/file').is_symlink())
+            self.assertEqual((work/'src/tools/also-file').read_bytes(),contents['chrome/VERSION'])
             for path, data in contents.items():
                 if data == b'linux':
                     self.assertFalse((work/'src'/path).exists())
                 else:
                     self.assertEqual((work/'src'/path).read_bytes(),data)
-            for directory in native.LINUX_SYSROOTS:
+            for directory in (*native.LINUX_SYSROOTS, native.WINDOWS_LLVM_ROOT):
                 self.assertFalse((work/'src'/directory).exists())
             other = root / 'damaged'
             (other/'src').mkdir(parents=True)
             save(other/'download_cache'/archive.name,b'damaged')
             with self.assertRaisesRegex(ValueError,'digest mismatch'):
-                native.unpack_windows_source(root,other,tar)
+                native.unpack_windows_source(root,other,sevenzip)
             self.assertEqual(list((other/'src').iterdir()),[])
 
     def test_active_native_inputs_and_functional_contract(self):
@@ -71,6 +101,8 @@ class NativeChromiumBaseTests(unittest.TestCase):
         policy = json.loads((ROOT / native.POLICY).read_bytes())
         resources = policy['preserve_resources']
         rows = {row['path']: row for row in product['source_files']}
+        for directory in (*native.LINUX_SYSROOTS, native.WINDOWS_LLVM_ROOT):
+            self.assertFalse(any(name == directory or name.startswith(directory+'/') for name in rows), directory)
         self.assertEqual(set(resources), RESOURCES)
         self.assertEqual(product['runtime']['restore_pruned_resources'], {})
         for path, spec in resources.items():
