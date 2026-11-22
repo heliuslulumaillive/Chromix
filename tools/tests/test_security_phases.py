@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 $tokens = $null; $parseErrors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile($env:PHASE_TEST_SOURCE,[ref]$tokens,[ref]$parseErrors)
 if ($parseErrors.Count) { throw ($parseErrors.Message -join '; ') }
-$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Get-OwnedCommandStatus','Get-NinjaFailureSummary','Get-OwnedFailureSummary','Write-OwnedFailureAnnotation','Invoke-Owned','Invoke-VerificationPlan','Read-State')
+$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Get-OwnedCommandStatus','Get-NinjaFailureSummary','Get-OwnedFailureSummary','Write-OwnedFailureAnnotation','Invoke-Owned','Invoke-VerificationPlan','Read-State','Assert-Plain','Write-MetagenHostArgs')
 $definitions = $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in $allowed}, $false)
 if (@($definitions).Count -ne $allowed.Count) { throw 'Guard function inventory mismatch' }
 . ([scriptblock]::Create(($definitions.Extent.Text -join "`n")))
@@ -43,6 +43,7 @@ try {
       $result=Read-State
     }
     'disk' { $result=Get-CheckpointDiskBudget $request }
+    'metagen-pair' { Write-MetagenHostArgs $request.src $request.output; $result=@{accepted=$true} }
     'command-status' { $result=@{status=(Get-OwnedCommandStatus $request.exit_code $request.receipt)} }
     'ninja-failures' { $result=Get-NinjaFailureSummary $request.path }
     'owned-failure' { $result=Get-OwnedFailureSummary $request.label $request.exit_code $request.receipt $request.path }
@@ -111,6 +112,24 @@ class PhaseGuardTests(unittest.TestCase):
                               capture_output=True, text=True, encoding='utf-8', env=env, timeout=30)
         self.assertEqual(proc.returncode, 0, proc.stderr)
         return json.loads(proc.stdout)
+
+    def test_metagen_configuration_selects_the_native_windows_pair(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            src = Path(temporary) / 'source tree'
+            dll = src / 'third_party/llvm-build/Release+Asserts/bin/libclang.dll'
+            bindings = src / 'third_party/llvm-libclang/bindings/python'
+            dll.parent.mkdir(parents=True)
+            bindings.mkdir(parents=True)
+            output = Path(temporary) / 'metagen-host.gn'
+            request = {'src': str(src), 'output': str(output)}
+            missing = self.run_guard('metagen-pair', request)
+            self.assertFalse(missing['accepted'])
+            self.assertFalse(output.exists())
+            dll.write_bytes(b'path selection fixture')
+            self.assertTrue(self.run_guard('metagen-pair', request)['accepted'])
+            self.assertEqual(output.read_text(encoding='utf-8').splitlines(), [
+                f'v8_metagen_libclang_so = "{dll.as_posix()}"',
+                f'v8_metagen_libclang_bindings_dir = "{bindings.as_posix()}"'])
 
     def test_all_real_guards_admit_only_exact_next_phase(self):
         for i, phase in enumerate(PHASES):

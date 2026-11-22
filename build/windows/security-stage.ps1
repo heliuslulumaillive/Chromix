@@ -45,6 +45,23 @@ function Checked([scriptblock]$Command) {
   & $Command
   if ($LASTEXITCODE -ne 0) { throw "Checked command failed: $LASTEXITCODE" }
 }
+function Write-MetagenHostArgs([string]$SourceRoot,[string]$OutputPath) {
+  $library = Join-Path $SourceRoot 'third_party\llvm-build\Release+Asserts\bin\libclang.dll'
+  $bindings = Join-Path $SourceRoot 'third_party\llvm-libclang\bindings\python'
+  Assert-Plain $library
+  Assert-Plain $bindings
+  if (-not (Test-Path -LiteralPath $library -PathType Leaf) -or -not (Test-Path -LiteralPath $bindings -PathType Container)) {
+    throw 'The Windows LLVM shared library and metagen bindings location are required'
+  }
+  # V8 requires both absolute GN arguments to select native libclang. The
+  # metagen preflight provisions the matching Python bytes and probes the
+  # library actually selected by Ninja before any browser compilation.
+  $pair = @(
+    ('v8_metagen_libclang_so = "' + [IO.Path]::GetFullPath($library).Replace('\','/') + '"')
+    ('v8_metagen_libclang_bindings_dir = "' + [IO.Path]::GetFullPath($bindings).Replace('\','/') + '"')
+  )
+  [IO.File]::WriteAllText($OutputPath, ($pair -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
+}
 foreach ($path in @($root,$work,$src,$out,$evidence,$parts,$restore,$upstreamCache)) { Assert-Plain $path }
 $null = New-Item -ItemType Directory -Path $evidence -Force
 
@@ -443,10 +460,12 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       if ($state.sdk_ready -ne $true) { throw 'Native SDK preparation was not completed' }
       Set-CompilerEnvironment
       $null = New-Item -ItemType Directory -Path $out -Force
+      $metagenHost = Join-Path $evidence 'metagen-host.gn'
+      Write-MetagenHostArgs $src $metagenHost
       $merge = @($python,'-B','-X','utf8',(Join-Path $repo 'tools\merge_gn_args.py'),(Join-Path $out 'args.gn'))
       $merge += @(
         (Join-Path $work 'tooling\ungoogled-chromium\flags.gn'),(Join-Path $work 'tooling\ungoogled-chromium-windows\flags.windows.gn'),
-        (Join-Path $repo 'build\args.windows.gn'),(Join-Path $repo 'build\args.security.gn'))
+        (Join-Path $repo 'build\args.windows.gn'),(Join-Path $repo 'build\args.security.gn'),$metagenHost)
       Invoke-Owned 'merge-gn' $merge
       Invoke-Owned 'record-gn-before-tools' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_build_record.py'),
         '--repo',$repo,'--work',$work,'--output',(Join-Path $evidence 'build-inputs-before-gn.json'))
