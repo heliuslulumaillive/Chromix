@@ -430,6 +430,11 @@ class WorkflowPhaseTests(unittest.TestCase):
         checkpoint = acquisition.split("if ($Operation -eq 'resume') {", 1)[1].split('      } else {', 1)[0]
         self.assertLess(checkpoint.index("'checkpoint-preflight'"), checkpoint.index('Clear-HostedToolSpace'))
         self.assertLess(checkpoint.index('Clear-HostedToolSpace'), checkpoint.index('Get-CheckpointDiskBudget'))
+        recovery = checkpoint.index('Clear-HostedToolSpace -ForLargerCheckpoint')
+        measurement = '$diskBudget.available_bytes = (Get-PSDrive C).Free'
+        self.assertLess(checkpoint.index(measurement), recovery)
+        self.assertLess(recovery, checkpoint.rindex(measurement))
+        self.assertLess(checkpoint.rindex(measurement), checkpoint.index('Insufficient free disk space'))
         self.assertLess(checkpoint.index('required_free_bytes'), checkpoint.index("'checkpoint-download'"))
         extraction = text.split("    'Extract' {", 1)[1].split("    'Prepare' {", 1)[0]
         self.assertLess(extraction.index("'checkpoint-archive-list'"), extraction.index('requiredExtractionSpace'))

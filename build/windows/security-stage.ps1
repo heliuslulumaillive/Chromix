@@ -126,10 +126,17 @@ function Get-CheckpointDiskBudget([System.Collections.IDictionary]$Manifest) {
   return @{ compressed_bytes=$transferBytes; uncompressed_bytes=$treeBytes; tree_size_known=$knownTree;
     required_free_bytes=($transferBytes + $treeBytes + 24GB) }
 }
-function Clear-HostedToolSpace {
+function Clear-HostedToolSpace([switch]$ForLargerCheckpoint) {
   # This allowlist is only reached behind the hosted-runner guard; never use
   # pipeline output or user input to construct recursive removal targets.
-  foreach ($literal in @('C:\Android','C:\Program Files\Android','C:\ghcup','C:\Miniconda3','C:\Program Files\LLVM')) {
+  $targets = if ($ForLargerCheckpoint) {
+    # Both directories are preinstalled by windows-2022. Neither toolchain
+    # is used by the Windows x64 Chromium build or its native tests.
+    @('C:\Julia','C:\mingw32')
+  } else {
+    @('C:\Android','C:\Program Files\Android','C:\ghcup','C:\Miniconda3','C:\Program Files\LLVM')
+  }
+  foreach ($literal in $targets) {
     if (Test-Path -LiteralPath $literal) {
       Assert-Plain $literal
       $resolved = (Resolve-Path -LiteralPath $literal).Path.TrimEnd('\')
@@ -439,6 +446,11 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         $admitted = Get-Content -LiteralPath $preflight -Raw | ConvertFrom-Json -AsHashtable
         $diskBudget = Get-CheckpointDiskBudget $admitted.manifest
         $diskBudget.available_bytes = (Get-PSDrive C).Free
+        if ($diskBudget.available_bytes -lt $diskBudget.required_free_bytes) {
+          $diskBudget.available_before_extra_cleanup_bytes = $diskBudget.available_bytes
+          Clear-HostedToolSpace -ForLargerCheckpoint
+          $diskBudget.available_bytes = (Get-PSDrive C).Free
+        }
         Json (Join-Path $evidence 'download-disk-budget.json') $diskBudget
         if ($diskBudget.available_bytes -lt $diskBudget.required_free_bytes) { throw 'Insufficient free disk space for checkpoint transfer, known source size and build reserve' }
         Invoke-Owned 'checkpoint-download' (@($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_checkpoint.py'),'restore') + $checkpointArgs + @('--destination',$restore,'--preflight-file',$preflight)) -GitHubReadToken
