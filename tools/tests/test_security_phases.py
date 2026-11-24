@@ -23,7 +23,7 @@ $ErrorActionPreference = 'Stop'
 $tokens = $null; $parseErrors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile($env:PHASE_TEST_SOURCE,[ref]$tokens,[ref]$parseErrors)
 if ($parseErrors.Count) { throw ($parseErrors.Message -join '; ') }
-$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Get-OwnedCommandStatus','Get-NinjaFailureSummary','Get-OwnedFailureSummary','Write-OwnedFailureAnnotation','Invoke-Owned','Invoke-VerificationPlan','Read-State','Assert-Plain','Write-MetagenHostArgs','Select-WindowsRustCompiler')
+$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Select-CheckpointTransferRoot','Get-OwnedCommandStatus','Get-NinjaFailureSummary','Get-OwnedFailureSummary','Write-OwnedFailureAnnotation','Invoke-Owned','Invoke-VerificationPlan','Read-State','Assert-Plain','Write-MetagenHostArgs','Select-WindowsRustCompiler')
 $definitions = $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in $allowed}, $false)
 if (@($definitions).Count -ne $allowed.Count) { throw 'Guard function inventory mismatch' }
 . ([scriptblock]::Create(($definitions.Extent.Text -join "`n")))
@@ -44,6 +44,11 @@ try {
       $result=Read-State
     }
     'disk' { $result=Get-CheckpointDiskBudget $request }
+    'transfer-root' {
+      $budget=Get-CheckpointDiskBudget $request.manifest $request.artifacts
+      $budget.available_bytes=$request.free
+      $result=@{root=(Select-CheckpointTransferRoot $budget $request.build $request.transfer)}
+    }
     'rust-host' { $result=Select-WindowsRustCompiler $request.src $request.windows $request.linux }
     'metagen-pair' { Write-MetagenHostArgs $request.src $request.output; $result=@{accepted=$true} }
     'command-status' { $result=@{status=(Get-OwnedCommandStatus $request.exit_code $request.receipt)} }
@@ -383,6 +388,30 @@ class PhaseGuardTests(unittest.TestCase):
             self.assertFalse(self.run_guard('disk', bad)['accepted'])
 
 
+    def test_split_checkpoint_requires_separate_fixed_volumes_and_space_for_each_phase(self):
+        parts = [8 * 1024**3, 8 * 1024**3, 1113514308]
+        request = {
+            'manifest': {'tree_bytes': 59706136911, 'parts': [{'bytes': n} for n in parts]},
+            'artifacts': [{'size_in_bytes': n + 248} for n in parts],
+            'free': 96056221696, 'build': {'DriveLetter': 'C', 'UniqueId': 'system'},
+            'transfer': {'DriveLetter': 'D', 'UniqueId': 'scratch', 'DriveType': 'Fixed',
+                         'FileSystem': 'NTFS', 'SizeRemaining': sum(parts) + 1024**2}}
+        self.assertEqual(self.run_guard('transfer-root', request)['root'], r'D:\security-restore')
+        self.assertEqual(self.run_guard('transfer-root', {**request, 'free': 110 * 1024**3,
+                                                          'transfer': None})['root'], r'C:\security-restore')
+        for change in ({'UniqueId': 'system'}, {'UniqueId': ''}, {'DriveType': 'Network'},
+                       {'FileSystem': 'FAT32'}, {'DriveLetter': 'F'}, {'SizeRemaining': sum(parts) - 1}):
+            with self.subTest(change=change):
+                bad = {**request, 'transfer': {**request['transfer'], **change}}
+                self.assertIsNone(self.run_guard('transfer-root', bad)['root'])
+        for change in ({'free': 59706136911 + 24 * 1024**3 - 1},
+                       {'free': sum(parts) + 24 * 1024**3 - 1,
+                        'manifest': {'parts': request['manifest']['parts']}},
+                       {'free': 24 * 1024**3 + sum(parts), 'manifest': {**request['manifest'], 'tree_bytes': 1000}}):
+            with self.subTest(change=change):
+                self.assertIsNone(self.run_guard('transfer-root', {**request, **change})['root'])
+
+
 class WorkflowPhaseTests(unittest.TestCase):
     def setUp(self):
         self.worker = yaml.load(WORKER.read_text(encoding='utf-8'), Loader=yaml.BaseLoader)
@@ -437,6 +466,11 @@ class WorkflowPhaseTests(unittest.TestCase):
         self.assertLess(checkpoint.rindex(measurement), checkpoint.index('Insufficient free disk space'))
         self.assertLess(checkpoint.index('required_free_bytes'), checkpoint.index("'checkpoint-download'"))
         extraction = text.split("    'Extract' {", 1)[1].split("    'Prepare' {", 1)[0]
+        self.assertLess(checkpoint.index('$state.checkpoint_transfer_root = $restore'),
+                        checkpoint.index("'checkpoint-download'"))
+        self.assertLess(extraction.index('$restore = $state.checkpoint_transfer_root'),
+                        extraction.index("'checkpoint-archive-list'"))
+        self.assertIn(r"$restore -cnotin @('C:\security-restore','D:\security-restore')", extraction)
         self.assertLess(extraction.index("'checkpoint-archive-list'"), extraction.index('requiredExtractionSpace'))
         self.assertLess(extraction.index('Insufficient free disk space'), extraction.index("'checkpoint-extract'"))
         self.assertIn("'--output',$layoutPath", extraction)

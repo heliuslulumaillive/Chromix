@@ -114,7 +114,7 @@ function Get-StageContinuation([System.Collections.IDictionary]$State,[bool]$Can
   $resume = -not $finished -and $State.status -ceq 'budget-stop' -and $State.resume_safe -eq $true -and $ManifestDelivered
   return @{ finished=$finished; resume_needed=$resume; checkpoint_ready=$ManifestDelivered; retention_failed=($finished -and $RetainCheckpoint -and -not $ManifestDelivered) }
 }
-function Get-CheckpointDiskBudget([System.Collections.IDictionary]$Manifest) {
+function Get-CheckpointDiskBudget([System.Collections.IDictionary]$Manifest,[object[]]$VolumeArtifacts=@()) {
   [long]$transferBytes = 0
   foreach ($part in @($Manifest.parts)) {
     if ([long]$part.bytes -le 0) { throw 'Invalid transfer volume size' }
@@ -123,8 +123,30 @@ function Get-CheckpointDiskBudget([System.Collections.IDictionary]$Manifest) {
   $knownTree = $Manifest.Contains('tree_bytes')
   [long]$treeBytes = if ($knownTree) { $Manifest.tree_bytes } else { 0 }
   if ($transferBytes -le 0 -or $knownTree -and $treeBytes -le 0) { throw 'Invalid checkpoint disk budget' }
+  [long]$downloadBytes = 0
+  foreach ($artifact in $VolumeArtifacts) {
+    if ([long]$artifact.size_in_bytes -le 0) { throw 'Invalid checkpoint artifact size' }
+    $downloadBytes += [long]$artifact.size_in_bytes
+  }
+  if ($VolumeArtifacts.Count -and $VolumeArtifacts.Count -ne @($Manifest.parts).Count) { throw 'Incomplete checkpoint artifact sizes' }
+  # gh may temporarily spool the signed ZIP downloads. They are on C: and
+  # are released before the tree is extracted. Keep the full build reserve.
   return @{ compressed_bytes=$transferBytes; uncompressed_bytes=$treeBytes; tree_size_known=$knownTree;
-    required_free_bytes=($transferBytes + $treeBytes + 24GB) }
+    required_free_bytes=($transferBytes + $treeBytes + 24GB);
+    download_artifact_bytes=$downloadBytes; split_build_required_bytes=([Math]::Max($treeBytes,$downloadBytes) + 24GB);
+    split_transfer_required_bytes=($transferBytes + 1MB) }
+}
+function Select-CheckpointTransferRoot([System.Collections.IDictionary]$Budget,$BuildVolume,$TransferVolume) {
+  if ($Budget.available_bytes -ge $Budget.required_free_bytes) { return 'C:\security-restore' }
+  if (-not $Budget.tree_size_known -or -not $Budget.download_artifact_bytes -or
+      @($BuildVolume).Count -ne 1 -or @($TransferVolume).Count -ne 1 -or
+      -not $BuildVolume.UniqueId -or -not $TransferVolume.UniqueId -or
+      $BuildVolume.UniqueId -ieq $TransferVolume.UniqueId -or
+      $BuildVolume.DriveLetter -ine 'C' -or $TransferVolume.DriveLetter -ine 'D' -or
+      $TransferVolume.DriveType -ine 'Fixed' -or $TransferVolume.FileSystem -notin @('NTFS','ReFS')) { return }
+  # D: holds the verified 7z volumes, their ownership and manifest receipts.
+  if ($Budget.available_bytes -ge $Budget.split_build_required_bytes -and
+      [long]$TransferVolume.SizeRemaining -ge $Budget.split_transfer_required_bytes) { return 'D:\security-restore' }
 }
 function Clear-HostedToolSpace([switch]$ForLargerCheckpoint) {
   # This allowlist is only reached behind the hosted-runner guard; never use
@@ -444,16 +466,45 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         Clear-HostedToolSpace
         Confirm-HostedCompilerPrerequisites
         $admitted = Get-Content -LiteralPath $preflight -Raw | ConvertFrom-Json -AsHashtable
-        $diskBudget = Get-CheckpointDiskBudget $admitted.manifest
+        $diskBudget = Get-CheckpointDiskBudget $admitted.manifest $admitted.volume_artifacts
         $diskBudget.available_bytes = (Get-PSDrive C).Free
+        $buildVolume = $null
+        $transferVolume = $null
         if ($diskBudget.available_bytes -lt $diskBudget.required_free_bytes) {
+          $buildVolume = Get-Volume -DriveLetter C -ErrorAction SilentlyContinue
+          $transferVolume = Get-Volume -DriveLetter D -ErrorAction SilentlyContinue
+        }
+        $diskBudget.secondary_available_bytes = [long]$transferVolume.SizeRemaining
+        $diskBudget.secondary_filesystem = [string]$transferVolume.FileSystem
+        $diskBudget.secondary_volume_distinct = [bool]($buildVolume.UniqueId -and $transferVolume.UniqueId -and $buildVolume.UniqueId -ine $transferVolume.UniqueId)
+        $restore = Select-CheckpointTransferRoot $diskBudget $buildVolume $transferVolume
+        if (-not $restore) {
           $diskBudget.available_before_extra_cleanup_bytes = $diskBudget.available_bytes
           Clear-HostedToolSpace -ForLargerCheckpoint
           $diskBudget.available_bytes = (Get-PSDrive C).Free
+          $restore = Select-CheckpointTransferRoot $diskBudget $buildVolume $transferVolume
         }
+        $diskBudget.transfer_root = $restore
         Json (Join-Path $evidence 'download-disk-budget.json') $diskBudget
-        if ($diskBudget.available_bytes -lt $diskBudget.required_free_bytes) { throw 'Insufficient free disk space for checkpoint transfer, known source size and build reserve' }
-        Invoke-Owned 'checkpoint-download' (@($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_checkpoint.py'),'restore') + $checkpointArgs + @('--destination',$restore,'--preflight-file',$preflight)) -GitHubReadToken
+        if (-not $restore) { throw 'Insufficient free disk space for checkpoint transfer, known source size and build reserve' }
+        Assert-Plain $restore
+        $state.checkpoint_transfer_root = $restore
+        Save-State
+        $priorTemp = $env:TEMP
+        $priorTmp = $env:TMP
+        try {
+          if ($restore -ceq 'D:\security-restore') {
+            $downloadTemp = 'C:\security-transfer-temp'
+            Assert-Plain $downloadTemp
+            $null = New-Item -ItemType Directory -Path $downloadTemp -Force
+            $env:TEMP = $downloadTemp
+            $env:TMP = $downloadTemp
+          }
+          Invoke-Owned 'checkpoint-download' (@($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_checkpoint.py'),'restore') + $checkpointArgs + @('--destination',$restore,'--preflight-file',$preflight)) -GitHubReadToken
+        } finally {
+          $env:TEMP = $priorTemp
+          $env:TMP = $priorTmp
+        }
       } else {
         if ($SourceRun -or $SourceStage -ne 0) { throw 'A fresh native source cannot adopt a checkpoint donor' }
         Clear-HostedToolSpace
@@ -462,6 +513,9 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
     }
     'Extract' {
       if ($Operation -eq 'resume') {
+        $restore = $state.checkpoint_transfer_root
+        if ($restore -cnotin @('C:\security-restore','D:\security-restore')) { throw 'Unexpected checkpoint transfer root' }
+        Assert-Plain $restore
         $layoutPath = Join-Path $evidence 'checkpoint-archive-layout.json'
         Invoke-Owned 'checkpoint-archive-list' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_checkpoint.py'),'verify-archive','--archive',(Join-Path $restore 'tree.7z.001'),'--sevenzip',$seven,'--output',$layoutPath)
         $layout = Get-Content -LiteralPath $layoutPath -Raw | ConvertFrom-Json
@@ -477,7 +531,7 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         $null = New-Item -ItemType Directory -Path $origin -Force
         Copy-Item -LiteralPath (Join-Path $restore 'checkpoint.json') -Destination (Join-Path $origin "checkpoint-$SourceRun-s$SourceStage.json")
         Assert-Plain $restore
-        if ((Resolve-Path -LiteralPath $restore).Path -cne 'C:\security-restore') { throw 'Unexpected restore cleanup path' }
+        if ((Resolve-Path -LiteralPath $restore).Path -cne $restore) { throw 'Unexpected restore cleanup path' }
         Remove-Item -LiteralPath $restore -Recurse -Force
       } else {
         $null = New-Item -ItemType Directory -Path $work -Force
