@@ -11,13 +11,19 @@ import subprocess
 import tempfile
 
 if __package__:
+    from . import restored_source_resources
     from .google_services_inputs import owned
+    from .platform_pins import load_pins
+    from .verify_browser_services158 import verify as verify_browser_services
     from .verify_history_retention_source import verify as verify_history
     from .verify_native_browser_source import body, compact, verify_shell
     from .verify_native_cookie_source import verify_implementation as verify_cookie_implementation
     from .verify_translation_init_source import verify as verify_translation
 else:
+    import restored_source_resources
     from google_services_inputs import owned
+    from platform_pins import load_pins
+    from verify_browser_services158 import verify as verify_browser_services
     from verify_history_retention_source import verify as verify_history
     from verify_native_browser_source import body, compact, verify_shell
     from verify_native_cookie_source import verify_implementation as verify_cookie_implementation
@@ -58,6 +64,11 @@ def verify_signin(src: Path) -> list[str]:
 def verify(repo: Path, baseline: Path, patch_bin: Path) -> dict:
     manifest_path = owned(repo, 'build/windows158-browser-feature-port.json')
     manifest = json.loads(manifest_path.read_bytes())
+    pins = load_pins(repo, 'windows')
+    for field, pin in [('chromiumVersion', 'ChromiumVersion'), ('coreCommit', 'UngoogledCommit'),
+                       ('windowsCommit', 'UngoogledWindowsCommit')]:
+        if manifest[field] != pins[pin]:
+            raise ValueError('Feature manifest differs from Windows upstream pin: ' + field)
     release = json.loads(owned(repo, 'build/lite-windows157.json').read_bytes())
     release_digests = {p['path']: p['sha256'] for p in release['patches']}
     for name, expected in release_digests.items():
@@ -72,6 +83,9 @@ def verify(repo: Path, baseline: Path, patch_bin: Path) -> dict:
     for group in groups:
         if release_digests.get(group['releasePatch']) != group['releaseSha256']:
             raise ValueError('Unexpected release lineage: ' + group['path'])
+        release_group = next(p for p in release['patches'] if p['path'] == group['releasePatch'])
+        if not {f['path'] for f in group['files']}.issubset(release_group['files']):
+            raise ValueError('Staged features include a file outside the original group: ' + group['path'])
     for row in connections['files']:
         if release_digests.get(row['from']) != row['releaseSha256']:
             raise ValueError('Unexpected connection source: ' + row['path'])
@@ -79,6 +93,22 @@ def verify(repo: Path, baseline: Path, patch_bin: Path) -> dict:
     options = ['-p1', '--batch', '--fuzz=0', '--binary', '--get=0', '--no-backup-if-mismatch', '--reject-file=-']
     with tempfile.TemporaryDirectory(prefix='shardx-158-browser-features-') as tmp:
         tree = Path(tmp)
+        support = manifest['supportFiles']
+        resources = manifest['restore_pruned_resources']
+        text_paths = {row['path'] for row in file_rows}
+        if text_paths.intersection(support) or (text_paths | set(support)).intersection(resources):
+            raise ValueError('Source, reference files and pruned resources must have distinct paths')
+        for name, expected in support.items():
+            data = source_bytes(baseline, name)
+            if data is None or digest(data) != expected:
+                raise ValueError('Wrong upstream dependency: ' + name)
+            dest = owned(tree, name)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(data)
+        for name in resources:
+            if owned(baseline, name).exists():
+                raise ValueError('Expected a pruned upstream resource: ' + name)
+        restored_source_resources.restore(tree, repo, manifest)
         for row in file_rows:
             data = source_bytes(baseline, row['path'])
             if digest(data) != row['before']:
@@ -106,7 +136,9 @@ def verify(repo: Path, baseline: Path, patch_bin: Path) -> dict:
             'translation': verify_translation(tree),
             'windowsShellAndAvatar': verify_shell(tree, account_overlay=True),
             'signinAndHistorySync': verify_signin(tree),
+            **verify_browser_services(tree),
         }
+        resource_paths = restored_source_resources.verify(tree, repo, manifest)
         for data in reversed(inputs):
             subprocess.run([str(patch_bin), *options, '--reverse'], input=data, cwd=tree,
                            check=True, stdout=subprocess.DEVNULL)
@@ -114,6 +146,9 @@ def verify(repo: Path, baseline: Path, patch_bin: Path) -> dict:
             if digest(source_bytes(tree, row['path'])) != row['before']:
                 raise ValueError('Reverse replay did not recover upstream: ' + row['path'])
     return {'status': 'source-verified', 'releaseSource': manifest['releaseSource'], 'chromiumVersion': manifest['chromiumVersion'],
+            'windowsTag': pins['UngoogledWindowsVersion'], 'coreCommit': pins['UngoogledCommit'],
+            'windowsCommit': pins['UngoogledWindowsCommit'], 'unchangedSupportFiles': len(support),
+            'verifiedResources': resource_paths,
             'manifestSha256': digest(manifest_path.read_bytes()), 'releaseInputsVerified': len(release_digests),
             'featureGroups': len(groups), 'connectionFiles': len(connections['files']), 'forwardAndReverseFiles': len(file_rows),
             'sourceChecks': checks, 'compiled': False, 'runtimeAcceptance': 'pending'}

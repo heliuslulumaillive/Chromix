@@ -27,10 +27,18 @@ class NativeCookieSourceTests(unittest.TestCase):
         path = self.src / name; text = path.read_text(encoding='utf-8')
         self.assertIn(old, text)
         path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
-        with self.assertRaises(ValueError): gate.verify(self.src, ROOT)
+        with self.assertRaises(ValueError):
+            gate.verify_implementation(self.src)
 
     def test_all_native_sites_and_one_shot_contract(self):
-        self.assertEqual(len(gate.verify(self.src, ROOT)), 15)
+        self.assertEqual(len(gate.verify_implementation(self.src)), 15)
+
+    def test_release_metadata_and_version_must_still_agree(self):
+        release = json.loads((ROOT / 'build/lite-windows157.json').read_bytes())['runtime']
+        self.assertEqual(len(gate.verify(self.src, ROOT, config=release)), 15)
+        release['chromium_version'] = '158.0.8127.36'
+        with self.assertRaisesRegex(ValueError, 'capability contract is invalid'):
+            gate.verify(self.src, ROOT, config=release)
 
     def test_eager_import_cannot_be_replaced_with_navigation_only_start(self):
         self.mutate(gate.TARGETS[3], 'bool ServiceIsCreatedWithBrowserContext() const override { return true; }',

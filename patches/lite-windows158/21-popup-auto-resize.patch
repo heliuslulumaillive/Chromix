@@ -1,0 +1,130 @@
+diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc b/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc
+--- a/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc
++++ b/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc
+@@ -2140,15 +2140,24 @@
+       View()->CancelPagePopup();
+     }
+ 
+-    if (DeviceEmulator() && widget_base_ && !widget_base_->WillBeDestroyed()) {
+-      DeviceEmulator()->UpdateVisualProperties(visual_properties);
+-      return;
+-    }
+-
+-    if (AutoResizeMode()) {
++    const bool auto_resize = AutoResizeMode();
++    if (auto_resize) {
+       new_compositor_viewport_pixel_rect = gfx::Rect(gfx::ScaleToCeiledSize(
+           widget_base_->BlinkSpaceToFlooredDIPs(size_.value_or(gfx::Size())),
+           visual_properties.screen_infos.current().device_scale_factor));
++      TRACE_EVENT_INSTANT(
++          TRACE_DISABLED_BY_DEFAULT("viz.surface_id_flow"),
++          "AutoResize.VisualProperties", "embedder_px",
++          visual_properties.compositor_viewport_pixel_rect.size().ToString(),
++          "content_px", new_compositor_viewport_pixel_rect.size().ToString(),
++          "emulated", DeviceEmulator() != nullptr);
++    }
++    if (DeviceEmulator() && widget_base_ && !widget_base_->WillBeDestroyed()) {
++      const gfx::Rect& compositor_rect =
++          auto_resize ? new_compositor_viewport_pixel_rect
++                      : visual_properties.compositor_viewport_pixel_rect;
++      DeviceEmulator()->UpdateVisualProperties(visual_properties, compositor_rect);
++      return;
+     }
+   }
+ 
+@@ -2615,7 +2624,10 @@
+   // |size| from the compositor's viewport size.
+   gfx::Rect size_with_dsf = gfx::Rect(gfx::ScaleToCeiledSize(
+       gfx::Rect(size_in_dips).size(),
+-      widget_base_->GetScreenInfo().device_scale_factor));
++      GetOriginalScreenInfo().device_scale_factor));
++  TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("viz.surface_id_flow"),
++                      "AutoResize.AfterLayout", "layout_px", size.ToString(),
++                      "compositor_px", size_with_dsf.size().ToString());
+   widget_base_->LayerTreeHost()->RequestNewLocalSurfaceId();
+   widget_base_->UpdateCompositorViewportRect(size_with_dsf);
+ }
+@@ -5376,12 +5388,19 @@
+     const display::ScreenInfos& screen_infos,
+     const gfx::Size& widget_size_in_dips,
+     const gfx::Size& visible_viewport_size) {
+-  // Emulation happens on regular main frames which don't use auto-resize mode.
+-  DCHECK(!AutoResizeMode());
+-
++  ScreenMetricsEmulator* emulator = DeviceEmulator();
++  const uint64_t generation = emulator ? emulator->VisualPropertiesGeneration() : 0;
+   UpdateScreenInfo(screen_infos);
++  if (!widget_base_ || widget_base_->WillBeDestroyed() ||
++      emulator != DeviceEmulator() ||
++      (emulator && emulator->VisualPropertiesGeneration() != generation)) {
++    return;
++  }
+   widget_base_->SetVisibleViewportSize(visible_viewport_size);
+-  Resize(widget_base_->DIPsToCeiledBlinkSpace(widget_size_in_dips));
++  // Layout owns an auto-resizing widget's bounds, including during emulation.
++  if (!AutoResizeMode()) {
++    Resize(widget_base_->DIPsToCeiledBlinkSpace(widget_size_in_dips));
++  }
+ }
+ 
+ float WebFrameWidgetImpl::GetCompositingScaleFactor() {
+diff --git a/third_party/blink/renderer/core/frame/web_frame_widget_test.cc b/third_party/blink/renderer/core/frame/web_frame_widget_test.cc
+--- a/third_party/blink/renderer/core/frame/web_frame_widget_test.cc
++++ b/third_party/blink/renderer/core/frame/web_frame_widget_test.cc
+@@ -20,6 +20,7 @@
+ #include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
+ #include "testing/gmock/include/gmock/gmock.h"
+ #include "third_party/blink/public/common/features.h"
++#include "third_party/blink/public/common/widget/device_emulation_params.h"
+ #include "third_party/blink/public/common/input/synthetic_web_input_event_builders.h"
+ #include "third_party/blink/public/mojom/page/widget.mojom-shared.h"
+ #include "third_party/blink/public/web/web_plugin_params.h"
+@@ -143,6 +144,48 @@
+                   .MainFrameViewWidget()
+                   ->LayerTreeHostForTesting()
+                   ->new_local_surface_id_request_for_testing());
++}
++
++TEST_F(WebFrameWidgetSimTest, EmulatedAutoResizePreservesMeasuredViewport) {
++  LoadURL("about:blank");
++  auto* widget = WebView().MainFrameViewWidget();
++  DeviceEmulationParams params;
++  params.screen_size = gfx::Size(1920, 1080);
++  params.device_scale_factor = 1.25f;
++  mojom::blink::FrameWidget& frame_widget = *widget;
++  frame_widget.EnableDeviceEmulation(
++      params, mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
++
++  VisualProperties properties;
++  properties.screen_infos = display::ScreenInfos(display::ScreenInfo());
++  properties.auto_resize_enabled = true;
++  properties.min_size_for_auto_resize = gfx::Size(25, 25);
++  properties.max_size_for_auto_resize = gfx::Size(800, 600);
++  properties.new_size_device_px = properties.min_size_for_auto_resize;
++  properties.compositor_viewport_pixel_rect =
++      gfx::Rect(properties.new_size_device_px);
++  properties.visible_viewport_size_device_px = properties.new_size_device_px;
++  viz::ParentLocalSurfaceIdAllocator allocator;
++  allocator.GenerateId();
++  properties.local_surface_id = allocator.GetCurrentLocalSurfaceId();
++  widget->ApplyVisualProperties(properties);
++
++  const gfx::Size content_size(320, 480);
++  widget->DidAutoResize(content_size);
++  EXPECT_EQ(gfx::Rect(content_size),
++            widget->LayerTreeHostForTesting()->device_viewport_rect());
++  allocator.GenerateId();
++  properties.local_surface_id = allocator.GetCurrentLocalSurfaceId();
++  widget->ApplyVisualProperties(properties);
++  EXPECT_EQ(content_size, widget->Size());
++  EXPECT_EQ(gfx::Rect(content_size),
++            widget->LayerTreeHostForTesting()->device_viewport_rect());
++  EXPECT_EQ(*properties.local_surface_id, widget->LocalSurfaceIdFromParent());
++  EXPECT_EQ(gfx::Rect(params.screen_size), widget->GetScreenInfo().rect);
++  EXPECT_FLOAT_EQ(params.device_scale_factor,
++                  widget->GetScreenInfo().device_scale_factor);
++  frame_widget.DisableDeviceEmulation();
++  EXPECT_EQ(content_size, widget->Size());
+ }
+ 
+ TEST_F(WebFrameWidgetSimTest, ColorGamutChangeTriggersMediaQuery) {

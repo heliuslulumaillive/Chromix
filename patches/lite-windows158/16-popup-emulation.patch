@@ -1,0 +1,92 @@
+diff --git a/third_party/blink/renderer/core/frame/screen_metrics_emulator.cc b/third_party/blink/renderer/core/frame/screen_metrics_emulator.cc
+--- a/third_party/blink/renderer/core/frame/screen_metrics_emulator.cc
++++ b/third_party/blink/renderer/core/frame/screen_metrics_emulator.cc
+@@ -83,6 +83,12 @@
+         base::ClampRound(widget_size.height() / emulation_params_.scale));
+   }
+ 
++  // The layout can already be larger than the embedder's last frame.
++  const bool auto_resize = frame_widget_->AutoResizeMode();
++  if (auto_resize) {
++    widget_size = frame_widget_->BlinkSpaceToFlooredDIPs(frame_widget_->Size());
++  }
++
+   // For mobile emulation, the window size is changed to match the widget size,
+   // as there are no window decorations around the widget.
+   if (!emulating_desktop())
+@@ -162,16 +168,15 @@
+   emulated_screen_info.available_rect = screen_rect;
+   emulated_screen_info.orientation_type = orientation_type;
+   emulated_screen_info.orientation_angle = orientation_angle;
+-  frame_widget_->SetScreenInfoAndSize(emulated_screen_infos,
+-                                      /*widget_size=*/widget_size,
+-                                      /*visible_viewport_size=*/widget_size);
++  frame_widget_->SetScreenInfoAndSize(
++      emulated_screen_infos, widget_size,
++      auto_resize ? original_visible_viewport_size_ : widget_size);
+ }
+ 
+ void ScreenMetricsEmulator::UpdateVisualProperties(
+-    const VisualProperties& visual_properties) {
+-  // Device emulation isn't supported for widgets that have auto resize mode
+-  // enabled.
+-  DCHECK(!frame_widget_->AutoResizeMode());
++    const VisualProperties& visual_properties,
++    const gfx::Rect& compositor_viewport_pixel_rect) {
++  const uint64_t generation = ++visual_properties_generation_;
+ 
+   original_screen_infos_ = visual_properties.screen_infos;
+ 
+@@ -184,13 +189,18 @@
+   original_root_viewport_segments_ =
+       visual_properties.root_widget_viewport_segments;
+   Apply();
+-
+-  // Appy the compositor viewport rect and surface id allocation. The screen
++  // Applying screen information can deliver a newer update or detach this emulator.
++  if (frame_widget_->DeviceEmulator() != this ||
++      visual_properties_generation_ != generation) {
++    return;
++  }
++
++  // Apply the compositor viewport rect and surface id allocation. The screen
+   // info is kept the same as the current ScreenInfo state. The screen info
+   // already was updated in |Apply| via |SetScreenInfoAndSize|.
+   frame_widget_->UpdateSurfaceAndCompositorRect(
+       visual_properties.local_surface_id.value_or(viz::LocalSurfaceId()),
+-      visual_properties.compositor_viewport_pixel_rect);
++      compositor_viewport_pixel_rect);
+ }
+ 
+ void ScreenMetricsEmulator::OnUpdateScreenRects(
+diff --git a/third_party/blink/renderer/core/frame/screen_metrics_emulator.h b/third_party/blink/renderer/core/frame/screen_metrics_emulator.h
+--- a/third_party/blink/renderer/core/frame/screen_metrics_emulator.h
++++ b/third_party/blink/renderer/core/frame/screen_metrics_emulator.h
+@@ -4,6 +4,8 @@
+ 
+ #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_SCREEN_METRICS_EMULATOR_H_
+ #define THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_SCREEN_METRICS_EMULATOR_H_
++
++#include <stdint.h>
+ 
+ #include <memory>
+ #include <vector>
+@@ -74,7 +76,9 @@
+       const mojom::blink::DeviceEmulationCacheBehavior& cache_behavior =
+           mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
+ 
+-  void UpdateVisualProperties(const VisualProperties& visual_properties);
++  uint64_t VisualPropertiesGeneration() const { return visual_properties_generation_; }
++  void UpdateVisualProperties(const VisualProperties& visual_properties,
++                              const gfx::Rect& compositor_viewport_pixel_rect);
+ 
+   void OnUpdateScreenRects(const gfx::Rect& view_screen_rect,
+                            const gfx::Rect& window_screen_rect);
+@@ -92,6 +96,7 @@
+                  mojom::blink::DeviceEmulationCacheBehavior::kClearCache);
+ 
+   Member<WebFrameWidgetImpl> const frame_widget_;
++  uint64_t visual_properties_generation_ = 0;
+ 
+   // Parameters as passed by `WebFrameWidgetImpl::EnableDeviceEmulation()`
+   DeviceEmulationParams emulation_params_;

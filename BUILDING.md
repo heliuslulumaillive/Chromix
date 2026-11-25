@@ -4,7 +4,9 @@
 
 This worktree descends from the installed 157.0.8103.78 release commit `230b7f6`. Commit `4727728` pins the full ungoogled-chromium core `76f39e0` and Windows overlay `76a692e` (Windows tag `158.0.8127.36-1.1`). The original 26 files in `patches/lite-windows157` retain their release digests.
 
-The [staged feature manifest](build/windows158-browser-feature-port.json) covers Cookie import, sessions, history, translation, passkeys, browser protection, native profiles, sign-in error recovery and the history-sync default. It also lists their selected build, Windows shell and startup connections. All 191 listed file preimages and postimages have been checked. The History WebUI diagnostic accepts the 158 client-ID array and has been exercised on 157 and 158 reference browsers. This branch currently records source-level validation only. A complete compiled product and runtime acceptance remain pending.
+The port covers Cookie import, sessions, history, translation, passkeys, sign-in, browser protection, search, extension installation and updates, managed port restrictions, Windows shell integration and content-sized extension popups. It preserves the 158 extension test target and the platform condition for cloud scanning tests. The popup uses the compositor size measured by layout and discards stale visual updates. The staged manifest binds 442 product paths, 16 unchanged source dependencies and three binary resources to the ungoogled Windows inputs. [Feature manifest](build/windows158-browser-feature-port.json)
+
+Source checks include forward and reverse patch application, sign-in and protection policy gates, and native build dependencies. GN parsed 35 files. The Windows WebUI compiler emitted 10 scripts, with 14 cases exercised in a Node unit harness. A Windows x64 C++ unit executable passed 15 port policy cases. The popup regression is included in the Blink test source. Full hosted compilation, product DLL acceptance and installation remain pending.
 
 To repeat the source checks against an unmodified ungoogled Windows 158 source baseline after the core patches, Windows overlay and binary pruning:
 

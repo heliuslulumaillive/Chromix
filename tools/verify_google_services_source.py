@@ -299,11 +299,16 @@ def function_body(source: str, name: str) -> str:
 
 
 def verify(src: Path, *, require_security=False, require_lite_retirement=False):
-    errors = []
     requirements = {name: list(required) for name, required in REQUIRED.items()}
     if require_security:
         for name, required in SECURITY_REQUIRED.items():
             requirements.setdefault(name, []).extend(required)
+    return verify_requirements(src, requirements, require_security=require_security,
+                               require_lite_retirement=require_lite_retirement)
+
+
+def verify_requirements(src: Path, requirements, *, require_security, require_lite_retirement=False):
+    errors = []
     for name, required in requirements.items():
         path = src / name
         if not path.is_file():
