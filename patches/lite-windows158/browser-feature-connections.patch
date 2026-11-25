@@ -1,0 +1,502 @@
+diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
+--- a/chrome/browser/BUILD.gn
++++ b/chrome/browser/BUILD.gn
+@@ -2199,6 +2199,10 @@
+   if (enable_webui_tabstrip_ntb) {
+     deps += [ "//chrome/browser/ui/webui/tabstrip_ntb" ]
+   }
++  if (is_win) {
++    deps += [ "//chrome/browser/profiles:shardx_cookie_bootstrap" ]
++  }
++
+ }
+ 
+ # This target no longer has any sources of its own; it only aggregates
+diff --git a/chrome/browser/profiles/BUILD.gn b/chrome/browser/profiles/BUILD.gn
+--- a/chrome/browser/profiles/BUILD.gn
++++ b/chrome/browser/profiles/BUILD.gn
+@@ -397,6 +397,7 @@
+ source_set("profile") {
+   public = [
+     "profile.h",
++    "shardx_session_policy.h",
+     "profile_keyed_service_factory.h",
+     "profile_manager_observer.h",
+     "profile_observer.h",
+@@ -1096,6 +1097,10 @@
+   if (enable_offline_pages) {
+     deps += [ "//chrome/browser/offline_pages" ]
+   }
++  if (is_win) {
++    deps += [ ":shardx_cookie_bootstrap" ]
++  }
++
+ }
+ 
+ source_set("profile_downloader") {
+@@ -1383,3 +1388,30 @@
+     deps += [ "//chromeos/ash/components/login/login_state" ]
+   }
+ }
++
++
++if (is_win) {
++  source_set("shardx_cookie_bootstrap") {
++    public = [ "shardx_cookie_bootstrap.h" ]
++    friend = [ "//chrome/test:native_passkey_unittests" ]
++    sources = [
++      "shardx_cookie_bootstrap.cc",
++      "shardx_cookie_bootstrap_internal.cc",
++      "shardx_cookie_bootstrap_internal.h",
++    ]
++    deps = [
++      ":profile",
++      "//base",
++      "//chrome/browser/profiles/keep_alive",
++      "//components/keep_alive_registry",
++      "//components/keyed_service/content",
++      "//components/keyed_service/core",
++      "//content/public/browser",
++      "//crypto",
++      "//mojo/public/cpp/bindings",
++      "//net",
++      "//services/network/public/mojom",
++      "//url",
++    ]
++  }
++}
+diff --git a/components/history/core/browser/BUILD.gn b/components/history/core/browser/BUILD.gn
+--- a/components/history/core/browser/BUILD.gn
++++ b/components/history/core/browser/BUILD.gn
+@@ -34,6 +34,7 @@
+     "expire_history_backend.h",
+     "history_backend.cc",
+     "history_backend.h",
++    "shardx_history_retention.h",
+     "history_backend_client.h",
+     "history_backend_notifier.h",
+     "history_backend_observer.h",
+diff --git a/chrome/test/BUILD.gn b/chrome/test/BUILD.gn
+--- a/chrome/test/BUILD.gn
++++ b/chrome/test/BUILD.gn
+@@ -2627,6 +2629,89 @@
+ mojom("test_interfaces") {
+   testonly = true
+   sources = [ "mojom/echo.test-mojom" ]
++}
++
++if (is_win) {
++  # Compile the two affected suites, not every Chrome/device unit test.
++  test("native_passkey_unittests") {
++    sources = [
++      "base/run_all_unittests.cc",
++      "../browser/profiles/shardx_native_browser_unittest.cc",
++      "../browser/profiles/shardx_native_cookie_unittest.cc",
++      "../../device/fido/win/authenticator_unittest.cc",
++      "../browser/webauthn/authenticator_request_dialog_model_unittest.cc",
++    ]
++    # These native fixtures need the profile harness and Chrome test main,
++    # not the aggregate test support that builds unrelated WebUI test data.
++    assert_no_deps = [
++      "//chrome/test:test_support",
++      "//chrome/test:test_support_unit",
++      "//chrome/test/base:web_ui_mocha_browser_test",
++      "//chrome/test/base:web_ui_test_support",
++      "//chrome/test/data/webui:*",
++      "//chrome/test/data/webui/*",
++    ]
++    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
++    deps = [
++      "//base",
++      "//base/test:test_support",
++      "//chrome/app/vector_icons",
++      "//chrome/app:chrome_dll_resources",
++      "//chrome/app:generated_resources",
++      "//chrome/browser",
++      "//chrome/browser/profiles:shardx_cookie_bootstrap",
++      "//chrome/browser/password_manager",
++      "//chrome/browser/webauthn",
++      "//chrome/browser:chrome_content_browser_client",
++      "//chrome/common",
++      "//chrome/install_static/test:test_support",
++      "//chrome/test/base:chrome_render_view_host_test_harness",
++      "//chrome/test/base:chrome_unit_test_suite",
++      "//chrome/test/base:testing_browser_process_impl",
++      "//chrome/test/base:testing_profile_impl",
++      "//chrome/utility",
++      "//chrome:resources",
++      "//chrome:strings",
++      "//components/history/core/browser",
++      "//components/translate/core/common",
++      "//components/prefs",
++      "//components/strings",
++      "//components/sync_preferences",
++      "//components/sync_preferences:common_syncable_prefs_database",
++      "//components/vector_icons",
++      "//components/webauthn/core/browser:passkey_model",
++      "//content/test:test_support",
++      "//crypto",
++      "//crypto:test_support",
++      "//device/fido",
++      "//device/fido:test_support",
++      "//mojo/core/embedder",
++      "//mojo/core/test:test_support",
++      "//net",
++      "//testing/gmock",
++      "//testing/gtest",
++      "//ui/base",
++      "//url",
++    ]
++    if (is_chrome_branded) {
++      deps += [ "//chrome/test/base:scoped_channel_override" ]
++    }
++    data_deps = [ "//chrome:packed_resources" ]
++    # Match the Windows unit-test entry point's runtime/link requirements.
++    ldflags = [
++      "/DELAYLOAD:api-ms-win-core-winrt-error-l1-1-0.dll",
++      "/DELAYLOAD:api-ms-win-core-winrt-l1-1-0.dll",
++      "/DELAYLOAD:api-ms-win-core-winrt-string-l1-1-0.dll",
++    ]
++    libs = [
++      "comsupp.lib",
++      "oleacc.lib",
++      "rpcrt4.lib",
++      "runtimeobject.lib",
++      "urlmon.lib",
++      "winmm.lib",
++    ]
++  }
+ }
+ 
+ test("unit_tests") {
+diff --git a/net/base/shardx_environment_controls.h b/net/base/shardx_environment_controls.h
+new file mode 100644
+--- /dev/null
++++ b/net/base/shardx_environment_controls.h
+@@ -0,0 +1,63 @@
++// Copyright 2026 The ShardX Authors
++// Use of this source code is governed by a BSD-style license.
++#ifndef NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
++#define NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
++
++#include <algorithm>
++#include <cstddef>
++#include <string_view>
++#include <vector>
++
++namespace net::shardx {
++struct BlockedPorts {
++  bool valid = true;
++  std::vector<int> ports;
++  bool Contains(int port) const {
++    // Malformed explicit policy never silently becomes unrestricted access.
++    return !valid || std::binary_search(ports.begin(), ports.end(), port);
++  }
++};
++
++inline BlockedPorts ParseBlockedPorts(std::string_view value) {
++  BlockedPorts result;
++  if (value.empty()) return result;
++  if (value.size() > 1535) { result.valid = false; return result; }
++  size_t start = 0;
++  do {
++    if (result.ports.size() >= 256) { result.valid = false; return result; }
++    const size_t end = value.find(',', start);
++    const auto part = value.substr(start, end == std::string_view::npos
++                                             ? value.size() - start : end - start);
++    if (part.empty()) {
++      result.valid = false;
++      return result;
++    }
++    int port = 0;
++    for (const char digit : part) {
++      if (digit < '0' || digit > '9') {
++        result.valid = false;
++        return result;
++      }
++      const int digit_value = digit - '0';
++      // Bound the next decimal step before multiplication, including very
++      // long inputs. Range iteration never exposes an unchecked pointer pair.
++      if (port > (65535 - digit_value) / 10) {
++        result.valid = false;
++        return result;
++      }
++      port = port * 10 + digit_value;
++    }
++    if (port < 1) {
++      result.valid = false;
++      return result;
++    }
++    result.ports.push_back(port);
++    if (end == std::string_view::npos) break;
++    start = end + 1;
++  } while (true);
++  std::sort(result.ports.begin(), result.ports.end());
++  result.ports.erase(std::unique(result.ports.begin(), result.ports.end()), result.ports.end());
++  return result;
++}
++}  // namespace net::shardx
++#endif  // NET_BASE_SHARDX_ENVIRONMENT_CONTROLS_H_
+diff --git a/chrome/browser/chrome_browser_main.cc b/chrome/browser/chrome_browser_main.cc
+--- a/chrome/browser/chrome_browser_main.cc
++++ b/chrome/browser/chrome_browser_main.cc
+@@ -84,6 +106,7 @@
+ #include "chrome/common/chrome_features.h"
+ #include "chrome/common/chrome_paths.h"
+ #include "chrome/common/chrome_result_codes.h"
++#include "components/history/core/browser/shardx_history_retention.h"
+ #include "chrome/common/chrome_switches.h"
+ #include "chrome/common/crash_keys.h"
+ #include "chrome/common/media/media_resource_provider.h"
+@@ -1003,6 +1249,11 @@
+ // content::BrowserMainParts implementation ------------------------------------
+ 
+ int ChromeBrowserMainParts::PreEarlyInitialization() {
++  if (!history::shardx::HistoryDays(
++          *base::CommandLine::ForCurrentProcess()).has_value()) {
++    LOG(ERROR) << "Invalid managed history retention policy";
++    return CHROME_RESULT_CODE_UNSUPPORTED_PARAM;
++  }
+   TRACE_EVENT0("startup", "ChromeBrowserMainParts::PreEarlyInitialization");
+   for (auto& chrome_extra_part : chrome_extra_parts_) {
+     chrome_extra_part->PreEarlyInitialization();
+diff --git a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
+--- a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
++++ b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
+@@ -33,6 +33,7 @@
+ #include "chrome/browser/preloading/search_preload/search_preload_features.h"
+ #include "chrome/browser/privacy_sandbox/privacy_sandbox_settings_factory.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/profiles/shardx_cookie_bootstrap.h"
+ #include "chrome/browser/pwc/pwc_navigation_throttle.h"
+ #include "chrome/browser/ssl/chrome_security_blocking_page_factory.h"
+ #include "chrome/browser/ssl/https_defaulted_callbacks.h"
+@@ -310,6 +311,10 @@
+ #endif  // BUILDFLAG(IS_ANDROID)
+   }
+ 
++#if BUILDFLAG(IS_WIN)
++  shardx::cookie_import::MaybeCreateThrottle(registry);
++#endif
++
+   DSEPrewarmNavigationThrottle::MaybeCreateAndAdd(registry);
+   if (!features::IsDsePreload2Enabled()) {
+     SearchPrefetchNavigationThrottle::MaybeCreateAndAdd(registry);
+diff --git a/chrome/browser/shell_integration_win.cc b/chrome/browser/shell_integration_win.cc
+--- a/chrome/browser/shell_integration_win.cc
++++ b/chrome/browser/shell_integration_win.cc
+@@ -28,6 +28,7 @@
+ #include "base/files/file_path.h"
+ #include "base/functional/bind.h"
+ #include "base/functional/callback.h"
++#include "base/hash/sha1.h"
+ #include "base/memory/weak_ptr.h"
+ #include "base/metrics/histogram_functions.h"
+ #include "base/notreached.h"
+@@ -35,12 +36,14 @@
+ #include "base/strings/strcat.h"
+ #include "base/strings/strcat_win.h"
+ #include "base/strings/string_util.h"
++#include "base/strings/string_number_conversions.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/task/thread_pool.h"
+ #include "base/threading/platform_thread.h"
+ #include "base/time/time.h"
+ #include "base/timer/timer.h"
++#include "base/uuid.h"
+ #include "base/win/com_init_util.h"
+ #include "base/win/registry.h"
+ #include "base/win/scoped_co_mem.h"
+@@ -70,6 +73,34 @@
+ 
+ namespace {
+ 
++// The launcher supplies its persistent environment UUID, never a display name
++// or an installation path. Keep this separate from GetProfileIdFromPath():
++// taskbar-shortcut migration must still inspect unrelated shortcuts natively.
++std::string GetShardXManagedEnvironmentId() {
++  const auto uuid = base::Uuid::ParseCaseInsensitive(
++      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
++          "shardx-managed-environment"));
++  return uuid.is_valid() ? uuid.AsLowercaseString() : std::string();
++}
++
++std::optional<std::wstring> GetShardXManagedAppUserModelId(
++    const std::wstring& app_name,
++    const base::FilePath& profile_path) {
++  const std::string environment = GetShardXManagedEnvironmentId();
++  if (environment.empty() || profile_path.empty())
++    return std::nullopt;
++
++  // AppID is a shell grouping identifier, not an integrity/security digest.
++  // Hash the complete tuple rather than strip punctuation from profile names.
++  // Moving the application or data root keeps the same environment identity.
++  const std::string identity = environment + "\n" +
++      base::ToLowerASCII(profile_path.BaseName().AsUTF8Unsafe()) + "\n" +
++      base::WideToUTF8(app_name);
++  return ShellUtil::BuildAppUserModelId(
++      {install_static::GetBaseAppId(), L"ShardX",
++       base::ASCIIToWide(base::HexEncode(base::SHA1HashString(identity)))});
++}
++
+ // Helper function for GetAppId to generates profile id
+ // from profile path. "profile_id" is composed of sanitized basenames of
+ // user data dir and profile dir joined by a ".".
+@@ -857,6 +888,10 @@
+                    "migration_interval",
+                    base::Days(30));
+ 
++bool IsShardXManagedEnvironment() {
++  return !GetShardXManagedEnvironmentId().empty();
++}
++
+ void SetAsDefaultBrowserUsingSystemSettings(
+     base::OnceClosure on_finished_callback) {
+   base::FilePath chrome_exe;
+@@ -888,11 +923,19 @@
+ 
+ std::wstring GetAppUserModelIdForApp(const std::wstring& app_name,
+                                      const base::FilePath& profile_path) {
++  if (const auto managed_id =
++          GetShardXManagedAppUserModelId(app_name, profile_path)) {
++    return *managed_id;
++  }
+   return GetAppUserModelIdImpl(install_static::GetBaseAppId(), app_name,
+                                profile_path);
+ }
+ 
+ std::wstring GetAppUserModelIdForBrowser(const base::FilePath& profile_path) {
++  if (const auto managed_id =
++          GetShardXManagedAppUserModelId(L"browser", profile_path)) {
++    return *managed_id;
++  }
+   return GetAppUserModelIdImpl(
+       std::wstring(),
+       ShellUtil::GetBrowserModelId(InstallUtil::IsPerUserInstall()),
+diff --git a/chrome/browser/shell_integration_win.h b/chrome/browser/shell_integration_win.h
+--- a/chrome/browser/shell_integration_win.h
++++ b/chrome/browser/shell_integration_win.h
+@@ -21,6 +21,10 @@
+ }  // namespace base::win
+ 
+ namespace shell_integration::win {
++// True only for the launcher's valid persistent environment UUID. This marker
++// controls shell ownership; it does not grant web permissions or sign-in access.
++bool IsShardXManagedEnvironment();
++
+ 
+ // Controls whether taskbar shortcuts are migrated to include
+ // `--source-shortcut-location=taskbar` and periodically re-checked.
+diff --git a/chrome/browser/taskbar/taskbar_decorator_win.cc b/chrome/browser/taskbar/taskbar_decorator_win.cc
+--- a/chrome/browser/taskbar/taskbar_decorator_win.cc
++++ b/chrome/browser/taskbar/taskbar_decorator_win.cc
+@@ -15,6 +15,7 @@
+ 
+ #include "base/functional/bind.h"
+ #include "base/location.h"
++#include "base/no_destructor.h"
+ #include "base/numerics/safe_conversions.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "base/task/single_thread_task_runner.h"
+@@ -26,6 +27,10 @@
+ #include "chrome/browser/profiles/profile_attributes_storage.h"
+ #include "chrome/browser/profiles/profile_avatar_icon_util.h"
+ #include "chrome/browser/profiles/profile_manager.h"
++#include "chrome/browser/shell_integration_win.h"
++#include "chrome/browser/signin/identity_manager_factory.h"
++#include "components/signin/public/base/consent_level.h"
++#include "components/signin/public/identity_manager/identity_manager.h"
+ #include "skia/ext/font_utils.h"
+ #include "skia/ext/image_operations.h"
+ #include "skia/ext/legacy_display_globals.h"
+@@ -38,6 +43,7 @@
+ #include "third_party/skia/include/core/SkImageInfo.h"
+ #include "third_party/skia/include/core/SkRRect.h"
+ #include "third_party/skia/include/core/SkStream.h"
++#include "ui/base/resource/resource_bundle.h"
+ #include "ui/gfx/image/image.h"
+ #include "ui/gfx/win/icon_util.h"
+ #include "ui/views/win/hwnd_util.h"
+@@ -109,10 +115,12 @@
+ void PostSetOverlayIcon(HWND hwnd,
+                         std::unique_ptr<SkBitmap> bitmap,
+                         const std::string& alt_text) {
+-  base::ThreadPool::CreateCOMSTATaskRunner(
+-      {base::MayBlock(), base::TaskPriority::USER_VISIBLE})
+-      ->PostTask(FROM_HERE, base::BindOnce(&SetOverlayIcon, hwnd,
+-                                           std::move(bitmap), alt_text));
++  // Preserve the order of account switches, sign-out clears and avatar loads.
++  static const base::NoDestructor<scoped_refptr<base::SingleThreadTaskRunner>>
++      runner(base::ThreadPool::CreateCOMSTATaskRunner(
++          {base::MayBlock(), base::TaskPriority::USER_VISIBLE}));
++  (*runner)->PostTask(FROM_HERE, base::BindOnce(&SetOverlayIcon, hwnd,
++                                                std::move(bitmap), alt_text));
+ }
+ 
+ }  // namespace
+@@ -193,6 +201,28 @@
+ }
+ 
+ void UpdateTaskbarDecoration(Profile* profile, gfx::NativeWindow window) {
++  if (shell_integration::win::IsShardXManagedEnvironment()) {
++    auto* identity = profile->IsRegularProfile()
++                         ? IdentityManagerFactory::GetForProfileIfExists(profile)
++                         : nullptr;
++    if (!identity || !identity->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
++      DrawTaskbarDecoration(window, nullptr);
++      return;
++    }
++
++    const CoreAccountInfo primary =
++        identity->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
++    const auto avatar = identity->FindExtendedAccountInfo(primary).GetAvatarImage();
++    // While this account's picture is loading, use Chromium's own silhouette.
++    // A previous account's cached profile picture must never be substituted.
++    const gfx::Image& image =
++        avatar && !avatar->IsEmpty()
++            ? *avatar
++            : ui::ResourceBundle::GetSharedInstance().GetImageNamed(
++                  profiles::GetPlaceholderAvatarIconResourceID());
++    DrawTaskbarDecoration(window, &image);
++    return;
++  }
+   if (profile->IsGuestSession() ||
+       // Browser process and profile manager may be null in tests.
+       (g_browser_process && g_browser_process->profile_manager() &&
+diff --git a/components/keep_alive_registry/keep_alive_types.cc b/components/keep_alive_registry/keep_alive_types.cc
+--- a/components/keep_alive_registry/keep_alive_types.cc
++++ b/components/keep_alive_registry/keep_alive_types.cc
+@@ -103,6 +103,8 @@
+       return out << "FETCH_KEEPALIVE_REQUEST";
+     case KeepAliveOrigin::ISOLATION_STATE_CHANGE:
+       return out << "ISOLATION_STATE_CHANGE";
++    case KeepAliveOrigin::SHARDX_COOKIE_IMPORT:
++      return out << "SHARDX_COOKIE_IMPORT";
+   }
+ 
+   NOTREACHED() << static_cast<int>(origin);
+diff --git a/components/keep_alive_registry/keep_alive_types.h b/components/keep_alive_registry/keep_alive_types.h
+--- a/components/keep_alive_registry/keep_alive_types.h
++++ b/components/keep_alive_registry/keep_alive_types.h
+@@ -98,6 +98,9 @@
+ 
+   // c/b/win
+   ISOLATION_STATE_CHANGE,
++
++  // c/b/profiles: bounded native Cookie bootstrap.
++  SHARDX_COOKIE_IMPORT,
+ };
+ 
+ // Restart: Allow Chrome to restart when all the registered KeepAlives allow
+diff --git a/tools/metrics/histograms/metadata/profile/enums.xml b/tools/metrics/histograms/metadata/profile/enums.xml
+--- a/tools/metrics/histograms/metadata/profile/enums.xml
++++ b/tools/metrics/histograms/metadata/profile/enums.xml
+@@ -430,6 +430,7 @@
+   <int value="44" label="kWebAppDatabaseCorruptionRecovery"/>
+   <int value="45" label="kFetchKeepAlive"/>
+   <int value="46" label="kOmniboxEverywhere"/>
++  <int value="47" label="kShardXCookieImport"/>
+ </enum>
+ 
+ <!-- LINT.IfChange(ProfileLockStatus) -->

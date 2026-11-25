@@ -1,0 +1,1450 @@
+{
+  "status": "partial-source-port",
+  "chromiumVersion": "158.0.8127.36",
+  "coreCommit": "76f39e0fead37326b9ba0440831336b198a17246",
+  "windowsCommit": "76a692e3e39e1456e4691e7d9de28d32de1cdd87",
+  "releaseSource": "230b7f6b631a9bbc72884786951bbe4d5dc2340d",
+  "releasePatchCount": 26,
+  "compiled": false,
+  "scope": "Independently replayed browser feature groups. This is not a dispatchable complete build recipe.",
+  "groups": [
+    {
+      "releasePatch": "patches/lite-windows157/02-cookie-import.patch",
+      "releaseSha256": "24999f81bb58ccb1b6dc5803ef3f324e419826c263671ca663a439607a23fabc",
+      "path": "patches/lite-windows157/02-cookie-import.patch",
+      "sha256": "24999f81bb58ccb1b6dc5803ef3f324e419826c263671ca663a439607a23fabc",
+      "files": [
+        {
+          "path": "chrome/browser/profiles/shardx_cookie_bootstrap.cc",
+          "before": null,
+          "after": "e42426bc34e5d12e37386b3e48585059e899c4d6b2138a4a364f984b0488cfba",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/shardx_cookie_bootstrap.h",
+          "before": null,
+          "after": "e0fde49b97278ac86c72cf26be8894566f6be39095450afe48840975bfc6e942",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/shardx_cookie_bootstrap_internal.cc",
+          "before": null,
+          "after": "2c1a78441b15393d8a7c346962d79cafd353f6117d3250d05c7095a4826fb76e",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/shardx_cookie_bootstrap_internal.h",
+          "before": null,
+          "after": "d2dfefa325a064f7f5aa19c5a3bf46e512b446ce30ed0e05bc656ed3cbaac07b",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        }
+      ]
+    },
+    {
+      "releasePatch": "patches/lite-windows157/03-session-lifecycle.patch",
+      "releaseSha256": "f967bd2c4854a9f8535855c3abce1d22772d9fc60ec00fd46724e4848e2b2311",
+      "path": "patches/lite-windows157/03-session-lifecycle.patch",
+      "sha256": "f967bd2c4854a9f8535855c3abce1d22772d9fc60ec00fd46724e4848e2b2311",
+      "files": [
+        {
+          "path": "chrome/browser/process_singleton_win.cc",
+          "before": "ec10cb04c03a3ad6108e2f44de7c2d366f6394460eed8009368b2fff6a2253c9",
+          "after": "b37ff5c7bd0b1903ed56578ec68359ceb1111636572d8e9e610933b4115a8cd1",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/sessions/session_restore.cc",
+          "before": "387016e43ae322a00ad82ffbe0394a1e67b1fa233222bb8b92110eea2c7cb48f",
+          "after": "98573a59e2f2da40d56782795371b695a1217d629c37825a2c1f9a4141cae069",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/sessions/session_service.cc",
+          "before": "665ff3bc25964dd3c1cf16cfa6632093be0afdc7fa4eaac26f85b0e9a458ef77",
+          "after": "11fd2fd2b2e93ec9d79d4e25335ae7f9d3250daf07920f07369d859bb0972443",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/sessions/session_service_base.cc",
+          "before": "c0953fb7c294d695a11481ebe3180f434cf2e632a5f566837f18f0d3829ac478",
+          "after": "74332c2bf6a06258942dbd9589002ee937292e7b633541587f867caadf81746e",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        }
+      ]
+    },
+    {
+      "releasePatch": "patches/lite-windows157/04-history.patch",
+      "releaseSha256": "3e0d19317916394b7eaf20d8e734e1569ee0f9cd2e36819391683f2deb5cfc3a",
+      "path": "patches/lite-windows157/04-history.patch",
+      "sha256": "3e0d19317916394b7eaf20d8e734e1569ee0f9cd2e36819391683f2deb5cfc3a",
+      "files": [
+        {
+          "path": "chrome/browser/resources/history/side_bar.html.ts",
+          "before": "aee0382766cc759b5aa23c33928721cebd1d923c59b7810b0b3f4b87a0e0cc4e",
+          "after": "9048b3a517a1631f1481bae23a18090f6e3a0f26c8fca2913ae82fa727c7150c",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/resources/history/side_bar.ts",
+          "before": "b1e91f0a9ead61c65c79d16f5c63d7b27ce654b89644d26eed4c4c70b94b24a1",
+          "after": "194bcc92d1b96a86173afaa3c0e1b1c73fb24b9048496f894fe1b61d5406b6c8",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/webui/cr_components/history/history_util.cc",
+          "before": "558921b37a1aebbc07ccc04ddd81d36ec4eddf91579732652be06229da8287c2",
+          "after": "6ba285a40b901d569b6d7ee6b6b5b53b7284613bddecd3ca6560e8d9c72ab852",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/webui/history/browsing_history_handler.cc",
+          "before": "ef417b448e6239f8c89ea10532a5803e53761de703fd45e985cd4b911aa64637",
+          "after": "4a7ff59b8acf657abf5a62b574c774f38cbf787cdcdc95e76b66de4dd4362546",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/history/core/browser/expire_history_backend.cc",
+          "before": "1d67aab88a8d8094ab4fe120b5d6dad6914841636dc76f908589505ed24f4de4",
+          "after": "609f75e11ba70a7b9a978093c7b416a1ae60d7b17c34bca834748abda9c2c72c",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/history/core/browser/expire_history_backend.h",
+          "before": "d7f63e92ba8c0e54138de7f5c8eda7b3482945cf2abbf654a9c7289094bc662a",
+          "after": "6a160fdb5b17dbf0a2ffb58ad8d0b25fd7ece466c3eac0a0c683d421f320b085",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/history/core/browser/history_backend.cc",
+          "before": "0aa0d2e681dbf2bc8c20f79fc96cb03ae6b7795c9792074ba5c6a39a63ca56aa",
+          "after": "ba063f7f3b28b51447c8ab5da01830c5d7452bea59cd8f093d4548703cafa8d5",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/history/core/browser/shardx_history_retention.h",
+          "before": null,
+          "after": "29baa3185922f343bc7aa15246ee5a30171e51dea678b54a7ac6b6ddfe16cc68",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        }
+      ]
+    },
+    {
+      "releasePatch": "patches/lite-windows157/05-translation.patch",
+      "releaseSha256": "37ab525275b54909e015c79606818b42515b6286c62e489d311f2e492605ddd2",
+      "path": "patches/lite-windows157/05-translation.patch",
+      "sha256": "37ab525275b54909e015c79606818b42515b6286c62e489d311f2e492605ddd2",
+      "files": [
+        {
+          "path": "components/translate/content/browser/content_translate_driver.cc",
+          "before": "5c9c900006fd5d81012954433af724049d794eafbe67e210744abf4fb6fd3dd7",
+          "after": "f910aa2e4257a0eca377adeca2a5fa34677b751a7d9dfffd4bdbdb4c17892f5d",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/translate/content/renderer/translate_agent.cc",
+          "before": "833570d56dea32a74076f8ab2713f133c25c697eb6681aab01c7737d15afc705",
+          "after": "3cd064fe811fe758c5672a5acc487c340bcdee27f7c887091ad8803743b7dd8f",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/translate/content/renderer/translate_agent.h",
+          "before": "1c5627548b42fbffd9ede1da5ea1d074c13cd786e2071176bfb590e3bf1f2d1f",
+          "after": "6059a6204965c9a4655109c2ac2d53f4a93ad13eed3e3b79866449cbab7857eb",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/translate/core/browser/ranker_url_fetcher.cc",
+          "before": "19c6fa0e2faaaa968145051e94bb4c476a913986772cbc63c2e9542103bd2146",
+          "after": "ca357c7c24c536db89ebba447f62e255ab3c30eed591f382de4b1af5ccd6c56f",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/translate/core/browser/translate_language_list.cc",
+          "before": "6f887efbc2ce88f5e1934c28ab9c4c832982072242ed3cdade9c200aa8c7422f",
+          "after": "192caec2c15b5324c9c02b9a61b504612b8d55e8cf00f3a6a02724f7bab1b5b0",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/translate/core/browser/translate_manager.cc",
+          "before": "0a623d8176b075a9b13babe93e8254bd600e132c3fd354e1f05f950a4286369f",
+          "after": "7c60c63d2fc3656343b38b53f318ac0d4259da90d5c53d4558dca554355c594f",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/translate/core/browser/translate_ranker_impl.cc",
+          "before": "dbda35a3549edc7095f6b353d0102ed4335a20d85b758233d8d0f45e99fa0b02",
+          "after": "7af32cd97baa0776e1dccdb142734e87dd8bc85b493fd1ab2b07fa13ba9e3cc6",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/translate/core/browser/translate_script.cc",
+          "before": "0f154a42cde190ccbd9423346bb04d62089450e9628b5f09a33d91adfea71065",
+          "after": "c864de384cf3a144f255db892be582239fbebcb393dc3e08c7c5a43dc328145d",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/translate/core/common/translation_init_wait.h",
+          "before": null,
+          "after": "a002bba17ba06bc855689ce9b80392fd121ffab1b19714c27a845c0f8245a040",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        }
+      ]
+    },
+    {
+      "releasePatch": "patches/lite-windows157/06-passkeys.patch",
+      "releaseSha256": "70d806168bc2700f4f1d8983c82c1c6461823883707b836646f749526d03f701",
+      "path": "patches/lite-windows157/06-passkeys.patch",
+      "sha256": "70d806168bc2700f4f1d8983c82c1c6461823883707b836646f749526d03f701",
+      "files": [
+        {
+          "path": "chrome/browser/webauthn/authenticator_request_dialog_controller.cc",
+          "before": "d72c51b603fd108239b91450932489952fe137925d1718bfb4d755bcb843ef08",
+          "after": "a121f02947095f35722605e461d991aacc80771e4f5402352d1e45aecfcf4ada",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/webauthn/authenticator_request_dialog_model_unittest.cc",
+          "before": "88673dcf06819664cc0dc4314b0fcb05ce8c660f42940e3b63fce61f4fdf8912",
+          "after": "a1504f9ea8e8a78aff0c9c12bf4b602e15d7e69699938a7fec004bef8455b3a3",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "device/fido/win/authenticator.cc",
+          "before": "ccb4284d04778c4bd815cc5d8942a900f59984fbfea26de5b95ecd7c9be54739",
+          "after": "7969ff665f84e5661e9bf1e8c7f97062ef8d97dd903a7ce1c7b77af92dd65c29",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "device/fido/win/authenticator.h",
+          "before": "ef8cb08fbae919fcae0bf41f8da62e07ad2221d7cdafc7701d92fc9c305fbd6b",
+          "after": "3cef6a4bc5eed967c1f97e79fdaecab6b7dc2e873c548461f54d212bd697d20b",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "device/fido/win/authenticator_unittest.cc",
+          "before": "6e880940d05174efb3dfbb8f3a41df1e5cbb361a7db8352dab4119e13d9d437c",
+          "after": "013480b4d3f86838b5f6eaeaa6bccbf2681a883d42bf93e37ce236858cb6ced4",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "third_party/blink/renderer/modules/credentialmanagement/public_key_credential.cc",
+          "before": "3567a8252f55a5d46247042bdcf530f06f5269b1778c6f946c851525613d517d",
+          "after": "997b2a67eb5f7b89a615701c49ae12cf0529a9c4908521cc7b1d8a51e7133264",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        }
+      ]
+    },
+    {
+      "releasePatch": "patches/lite-windows157/18-browser-protection.patch",
+      "releaseSha256": "3b4177886362d34800e5e81a45c8a3707bee2524e18f5e8085f05dca7fdc0922",
+      "path": "patches/lite-windows158/18-browser-protection.patch",
+      "sha256": "4dcef262fa195ec59c7381e894ada879935523f05bc688a4dbfcabca8c8a609f",
+      "files": [
+        {
+          "path": "chrome/browser/download/bubble/download_bubble_ui_controller.cc",
+          "before": "da2aababd208e99b6c1261d4c76ede36bb09e748616561cd1311ef6f5957d354",
+          "after": "1e0464860d5c976b86b16fb1e3f2d475891fc75d3f08d00d5b36180172015ba7",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/download/chrome_download_manager_delegate.cc",
+          "before": "5460b777851fd91c552f68cb26336bf27d5faac5bc7aca240c53632f09a50277",
+          "after": "257e953c4722e64e3b3f5d245fffd162b0c9456ba4b83b7323d2c5eceaba53d1",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/download/download_browsertest.cc",
+          "before": "17956327e06488f4c8910d95903f2d8c54eabe023b1bc21dbc7f19cda0a3fa4c",
+          "after": "5a8330817034e8e108ddcfd265df5702c7d4646276ecc75e715c4c83bacdc085",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/download/download_item_model.cc",
+          "before": "487d5d5f53019ee5e5088c1eed3b74a697a218300a74b5dbcaa646e7a5b33c48",
+          "after": "9b0b06c786fe587a8da42b5809441c52d8e3536d7c4ae2efd3214f7ea0aa69d0",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/download/download_target_determiner.cc",
+          "before": "4f04b92acbaecce6e33d54669759f1162d96496faa0f59f95c33d8fe21bdd606",
+          "after": "64194f3095cef3303501c96afecf4f92a116559f1199c509d55f487841ebe814",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/download/download_ui_model.cc",
+          "before": "2b84b3c48cbfcb06bfc1a0f79d200d7512e9f157907616a2c3802c79f9f0060c",
+          "after": "908518af6f6217db5936ec50b4590ba7f153f9e200be986cd9abcbc148df839b",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/download/download_ui_safe_browsing_util.cc",
+          "before": "90021d84fc7688e0d6a333a6c7f81caf3464faedebe4daf15abef5f04737c686",
+          "after": "42d2a619c2a9f47b6f25628fe52512cc22e0370d7c4fa0b36469b26dfb05c2ed",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/download/download_warning_desktop_hats_utils.cc",
+          "before": "bd1294bfbb7ce232cea27840a9e30c3b9a0926e6fe1c0f53c1da2979154f3f89",
+          "after": "3f1f55bdd808321c8b20f0b5a3171f74f5e9b406c30c4a1ba0ba6d9af190f60f",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/extensions/api/downloads/downloads_api.cc",
+          "before": "ed28503ac3e3a257ffe7ece8fd0f41f1660049274d3a941fd7ba2d5b63306946",
+          "after": "a06fd10806bc0a5a038bd1f3433e2aeac87333a7808eee4711d83b55780955c8",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router.cc",
+          "before": "7bbabd66b0bb390621331e3612f45214ddd90c770469006266d7a1a7ef2aa8ef",
+          "after": "5f1eea151a036b9fd9f4de5b524ed7a3a49f7620638df0d1ed651ea50c36c4a1",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router_unittest.cc",
+          "before": "7b03ec87309d9352d5c6fb59667d878529b90389526509d588670eab70721751",
+          "after": "1f57e41258ce9d18cad6e8c2308506e9a9a9ac892f849bbec18c4ebda4b7a8fa",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/extensions/extension_safety_check_utils.cc",
+          "before": "439ca9603344301bead9b0ebcf1281b5adff22cb5bc039c607cc77e99ea24535",
+          "after": "4cc046184ff67337d686095db2e5d1a3b2e329ac417a4487f5a253ba24a1344a",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/extensions/safe_browsing_verdict_handler.cc",
+          "before": "33a580d6518086afbcb04a847f4ed64f1b7033a2d73b4cd9964571827088a78a",
+          "after": "e4682649939f29addf79f39a2c915d20ab72175ccbb263a04a1232274fdd2b36",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/resources/settings/privacy_page/security/security_page.html",
+          "before": "41f92b48483610de1213dc65d5187986e56b22f922a27a6398b2ef4552295705",
+          "after": "f26dd05e1abfce4367e735e784637d1e6d128d2acb8b5c342cdff2af6ff72d52",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/resources/settings/privacy_page/security/security_page.ts",
+          "before": "f760e1e81c04ef4b2d16e5055714693c20a2d5183611fac0a94d52c896512601",
+          "after": "d6fccd74adcf240cfb8b578f8609d2597ad0dca00006247772d1adc6f98f399b",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/advanced_protection_status_manager_desktop.cc",
+          "before": "848425867ce20b4c1dfc315ba14c4866a56b6468cc751ac4681fe361e02b911b",
+          "after": "ac09550da11cdbdc00d1674e17b3105003666f6ceac02228ee5f493bd135122d",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/advanced_protection_status_manager_unittest.cc",
+          "before": "592730245ef98708cc300c2011e8f5c91017a102719c0b082035cc3bc3af571a",
+          "after": "6c53ad5587a59884ae6e8b3523a8e5f6de4b6546dfa003dde4c60ec92e6f3257",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/android/services_delegate_android.h",
+          "before": "94e287c0c04e7af77a89577c6bca229de00db40c9f5860c27c7f623495097410",
+          "after": "0ac218fcf4e56d5008667be1fc7bf6c98664608794292e622c7c188f827b7a44",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/chrome_password_protection_service.cc",
+          "before": "416e0f6cb29e4a49d7f44e093b6cdaf9b23bb49a3e359d63582eda40692ce9a2",
+          "after": "aa798034b8ed685606ec6873b6bb4c24f95dd8cb4d9a23ebed25461e931f13a9",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/chrome_password_protection_service.h",
+          "before": "fb329aad6c7fed070c530c5d4a767694161a75bfe0f534557e84e3ee37c488e1",
+          "after": "6c9ba34e8cc2fcbb89c6a67eea445ff5567bd161af4a7935d5a3e622daa12463",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/chrome_password_protection_service_browsertest.cc",
+          "before": "2162a13732b1619540713ccb0e1f09936147ed47ed2f0105b2fdb5620516cf4e",
+          "after": "6828e8573608a2a72160a38dd213ff8783f96699029f361d652aae7a99867d16",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/chrome_password_protection_service_sync_browsertest.cc",
+          "before": "173478d86c3e30473c3737a210e21cfba43e6cad789ac733207ff6224687653e",
+          "after": "b1a883fe2eb6d81999af75a0b7c1341e8bbcdc19c2c2e66ac86321966404a38d",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/chrome_safe_browsing_blocking_page_factory.cc",
+          "before": "53cbaa0a482508ba7d247d55e616083fd12c7b4ab8023622230c141e3b15bdcf",
+          "after": "ccc24ec41187ff212652b44afd446dcc9852c342dd735f884185942d500348f1",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/download_protection/check_client_download_request.cc",
+          "before": "45938b0dd46c441f7757bb3bca91b919e1600d84ecab55cdfe9d545aded86cb2",
+          "after": "7e9005e5139d24cd13c74e9a7ffe79ef65ed47486202fc2fa6de0648b9668ebd",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/download_protection/check_client_download_request_base.cc",
+          "before": "5c255a814b5c276f3444a9a9cec1b08e395adee548b714b54600e60ddaaac25b",
+          "after": "50fcaa002bc4c96647038d40e7f17791665291939cb837983e12969528847443",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/download_protection/download_protection_service_unittest.cc",
+          "before": "93a52965db4f03e1e55614d3db9a8874d7cc38b755669b7a9c0ce99f8ea499ec",
+          "after": "9b7e20a9c28361fbc217a0126d85fcca4c693f25d864a02afd23ec9dd0368060",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/generated_safe_browsing_pref.cc",
+          "before": "b919b6e3f5a5d40e22c7d5ccf1e9af768162c52c74f800ffbc9d3491656b9980",
+          "after": "5fe938ecf517138ebee0246781dbe3a7de83615a8d0bd14208c71632c6fe92fa",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/generated_safe_browsing_pref.h",
+          "before": "389c4ee2e6636de73aae4319dd7139f5ce9d5c19ad2fe9841ce817acec082d6f",
+          "after": "c4d4d519996b2d691f50f2099cd95021deb96915bab304839f0061e3506cc7bd",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/generated_security_settings_bundle_pref.cc",
+          "before": "62ead93bc64154cd5c95e8586bd6384d69cb43304740f07d485f1d5ddae3c671",
+          "after": "e113048e5e992275d131bb010cbee469f7c05b5dc3e300681d77603033e7fc55",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/incident_reporting/extension_data_collection_unittest.cc",
+          "before": "679c0db7d627d5e36ca62c4cb3ee632c72184d417d92cb1e7203f143748e7b99",
+          "after": "fa8bf98d16bd222a584125524378933c907304d1b2f06534d8c9a740ad63b520",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/incident_reporting/incident_report_uploader_impl.cc",
+          "before": "fa5ef3341a78aecd5c13ec4ca9161dd2ce5ef3dde793a484e3f892e8c9012d75",
+          "after": "64bd9f8d9cbed9d4086f5c41bdf30e797cbdd167f26c544560b10d2ffcdb1e75",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/incident_reporting/incident_reporting_service.cc",
+          "before": "0cd8b935e0651498e7c03e3a94d22d886dbae8c94d4695858e45a798a086a02c",
+          "after": "5cc96b77544a6b462f81c715fde92c338a2594d5089767347c4263bdba9bb54a",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/incident_reporting/incident_reporting_service_unittest.cc",
+          "before": "6d22a90e2e5594fef8ccc517614d9d6c1d0f2c88df09f15422318e11adbc50f8",
+          "after": "2767f8167f4e383d02e379be447b581757baf725ee30d35eec3f517dcdaaebaf",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/incident_reporting/last_download_finder_unittest.cc",
+          "before": "8f72526f5f933c282352402734a520f61de4314ad63ac729722c68021d250636",
+          "after": "6e0cbefd2514aba253b09bdab0ebcf2ed2e5b3a7adcfdb46db98a273c2873eca",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/incident_reporting/state_store.cc",
+          "before": "e94ef1fbe1e73debaf6a5ef67df5d975b38b053a171d5de15da0a8f0dfcadc7c",
+          "after": "7387b6ab761282961540f7ccbcdd208824c669e0152d80f9b531b4bc620f4547",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/incident_reporting/state_store_unittest.cc",
+          "before": "445d4cfe5c599b44c3b2e4c34956a128ac882fa0299ae1bbcfc5d630d632c4b3",
+          "after": "64cd909b2ff28507d240372bfe54a5ce502360555780f8007c4b3f0ca8ac0dd9",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/metrics/safe_browsing_metrics_provider.cc",
+          "before": "be12028d0e06cfad23dd3a9ac01b7ca409050d912c8a4486b23cc39bd0d87c0b",
+          "after": "5464b8530db2cfddc66aa652b2dabce971df1ce71cbd54b97f0efa76c1fe35a4",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/safe_browsing_blocking_page_test.cc",
+          "before": "8cf80472c7e0ff5d0cbf72c9124926ff8185708d11acffe44f075c0fb9cb284c",
+          "after": "a296d5acc55b32deb0bbfa64ee9920eb5fa3942193a0f60f59c21879347b6934",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/safe_browsing_dummy.cc",
+          "before": "35d1afe657f55d347111fe6ffdb3aefb6805f99f1a22c924e429c818322bc29b",
+          "after": null,
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/safe_browsing_service.cc",
+          "before": "5f7cf0a1d322f632eef879d95f83f633780e371482d71d9817e57781942133c5",
+          "after": "97112c66c4e0b9c302bc840cb67f3df8f791b3b02b544538e2cdb37141cb14ef",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/safe_browsing_service.h",
+          "before": "426d348a37f8d40e8d72fadf5301781e071e26d0d91f6e7a417096e12db2c4e9",
+          "after": "9877bff16434dad03352bff294dce0972fb57446a9f15aef9be0d3f9026da439",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/telemetry/android/android_telemetry_service.cc",
+          "before": "fa460852a9973715c3921d49ce9801cd009d58b40b604075e9af4f61cf157901",
+          "after": "466dec91083c51e14c6ac107b66514e62c263f3add5cb1cd93fb481f1606ffe1",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/telemetry/android/android_telemetry_service_unittest.cc",
+          "before": "ceef6ab25195974358ccc78596794b160950e058098eddda5b458a52aec5d425",
+          "after": "28306cea80c5bf707a93ae24a3eb1b2cb5f810482fd7312718684bd7e653f367",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/url_checker_delegate_impl.cc",
+          "before": "9e16dbf967f07926f7699b05e1619ce90a7191c352ab4f18bb7a71381b191a1c",
+          "after": "7464d65a2ff8bc36473693efb1a050263111274c7981bd5d4a4caaf4ed6be3d9",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/safe_browsing/url_lookup_service_factory.cc",
+          "before": "6d30f2e3d41460fc40d9c085e90288c25ce0a7cc41f446fee7fb4894eae5c2af",
+          "after": "35bb9e24d946edf433f75e2c1a3561f7b416067fc22dc9608e560f81620c6bec",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/hats/trust_safety_sentiment_service.cc",
+          "before": "ebd6a1720cb054ba34e0227da940699cba0f78976848cb939c037312037807e9",
+          "after": "3a97d5d589c8b5f0a5bd14e6899b63ba9450ad641d42948216c825a04009737c",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/safety_hub/abusive_notification_permissions_manager.cc",
+          "before": "162e562c9c7e4a5c7e71e18734d74e90da8bc8a57004068d3a46d9a9e77aa77b",
+          "after": "b5cfdebafb4816e9dc3901d3799ffcce5d0392a94bb53fb75c68ee976e956c19",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": false
+        },
+        {
+          "path": "chrome/browser/ui/safety_hub/menu_notification_service.cc",
+          "before": "5b437ad1f64c2a7a58e29360dd5055578cb0ae28fc339fd6454ea279d0641feb",
+          "after": "794677eccde10c863ea5ac9ebdc042d681ea9a4fa7a5420be76d34eda6203844",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": false
+        },
+        {
+          "path": "chrome/browser/ui/safety_hub/revoked_permissions_service.cc",
+          "before": "3b6942eb1176c52b501de5f741130f2c77c45e7eb2045b242a53eb2abc1884f1",
+          "after": "76a7f7136260c6849f02354f9c65efbe38e8c322b7ea1618f0a49c7290ddce7c",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/safety_hub/safe_browsing_result.cc",
+          "before": "9c3306dc448e72ac02d67a935c7cbb956914b35c6444caffb5b6dd9a857ca682",
+          "after": "7e81b32e03a3de5281a45de97bfb5bb3216066f5369325de4113f04fd56272dc",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc",
+          "before": "d0434c3e219b4922feecfe0965b3dea0905aefaf377a7af452379ffa5c3d4069",
+          "after": "406779409667323b3ed5d000c5d2739e812fc6051198c16a7ecb14e7b233b1dc",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/views/safe_browsing/password_reuse_modal_warning_dialog.h",
+          "before": "3d4f49d41616490469c2d96e1f4e17b169261e0c8ae717d26369175ff336ed4c",
+          "after": "145750e712fa1a6f0787521d109c32dd3bf17ae8bd2a418c5c8c23ddf4356a7c",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/webui/downloads/downloads_dom_handler.cc",
+          "before": "20bfc61f825ef2543997fbe35706c365abae6a76a6c6b0b67bf774e6fc60813e",
+          "after": "4f961cb8bbd6ecf6ca33057f315493856ca6102f1e4a50876d355f10bff527ec",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/webui/downloads/downloads_dom_handler.h",
+          "before": "6407dcadb0059d67cff3de30aa051c94171d7ab3fa01dfe008dae91861cf7733",
+          "after": "d7002e390016365b63b8b1444cc167bed476a33f1f45bbbc0115782d0dbce44e",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/webui/settings/safety_hub_handler.cc",
+          "before": "b4ced2bb8993812f7e43345196fcb7fc4ace027207b797c52eaf73dddf38ec4c",
+          "after": "132c1e9705a3baac87281d5d517aa28a6cf4f415a8bfe6f4890258e2c9834b7f",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/download/internal/common/base_file.cc",
+          "before": "6b5d9b2d8070ed6534962d8f9331a50f26f6b7db048699158d6b3a011b6bb9ff",
+          "after": "983612da3c4b9467e3068fe1c0f43f71515c54718e7379f1e46755829f59dc46",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/download/internal/common/download_item_impl.cc",
+          "before": "0698d27c014ed5a0e85ce3c0ffc9933ded3ad571e1b3d41ce0f3268316c288ca",
+          "after": "d218ae503e6970e3a1812bf9767fbc1bee305f6dce177942c4108c8caa6c8b40",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/content/browser/base_blocking_page.cc",
+          "before": "23f76e1f95834ba82ad68d84a72b490da54b7c583a3ed21cf882f7aeba9ec089",
+          "after": "8ac9f587c842aeb734bac513b0414f3bbc84ea27ae053e6c08701a79c90f41a1",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/content/browser/client_side_detection_service.cc",
+          "before": "87f3846b8a5d57304b8ab5915994a43b909a0f6435a2e39113c4c66a3209207f",
+          "after": "2da15cc3846b9a5d1958055439823a1dfc9ab8c0e0ced45aeacafa2749c76d56",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.cc",
+          "before": "78be2d08ed32ee1fc7761cbc71c7379e62910c3096daf111e93520ea38533808",
+          "after": "dbbd59f59963180cd9772a9210260684bd5ce8925038a845069bbef86c23668e",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/content/browser/triggers/suspicious_site_trigger_unittest.cc",
+          "before": "449fb10767a3c0530186e7d3a165e11da4ded6d5bf8c6bdbb6e53f712e791654",
+          "after": "fdc1b5bc6743ed8358eee85d0c320f5175e3dfdb53bbaf2d991fcfd600a8ab61",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/content/browser/triggers/trigger_manager.cc",
+          "before": "3dc671bfe9c85479f02f3465a733be54ca8c6e65846e10840ceb4e31b155c2d7",
+          "after": "e736b8b3d41b18d1384f3ab1c18d236fe4499adfb16b3386c5f95be7412689b7",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/content/browser/triggers/trigger_throttler.cc",
+          "before": "f709160716f598270dce449ecd563f421ba265d4012be3968bcd1d2cbbb99972",
+          "after": "594666158ee872f9e6fbeced67d8b3953c7d2155065e8c29fa1e281fb186076e",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/content/browser/triggers/trigger_throttler_unittest.cc",
+          "before": "fe533a4a026187a22ec0e61f34f0f61bf637f7c8d1e9def20b80a2885180a174",
+          "after": "a26eda0bb07f2ad264e7d48750489f035b5f2451d6e363dbf072adb0969dc1fe",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/content/browser/ui_manager.cc",
+          "before": "b094d3933121b9a7d3f69063d6d2759d27dd86faee234cc0fc57d2f16619446a",
+          "after": "82579aabe82aaafca10727556459aa1094512d8544706286b956c704a6c692d4",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/content/browser/ui_manager_unittest.cc",
+          "before": "b8c7dd82928582ad0f2cac740473a065f0a79796a533ccf99ebe7e901316898a",
+          "after": "76810c6b225a9858b1b032e3159ace118d95e6628f2a4b789707bd699bd854f3",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/content/common/safe_browsing.mojom",
+          "before": "e4dc20e319f44e61985933adbcc33596174b7a53ccd14a24dfef376074f3b593",
+          "after": "d2a539ac6cd5d6b8f0acdd9d804c282baf365ed7d658f25911cd17a05393541f",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/client_side_detection_service_base.cc",
+          "before": "a966244d6d2b1f7f7f3a224ac30eac21bfab2054e3079de9ed31abd5b4880dc5",
+          "after": "6c54395f125220b75391aa49d6709f2673ba9edbf679d44d11cabbdec6100f95",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/db/hash_prefix_map.h",
+          "before": "29f5c0bef37736d8843f1548d53540313bd1508ba83b1e1c957818245e3e684f",
+          "after": "85223e1d7c54c9e9475b93ffe078a6bd5bea723887b709dbba2390ac26d35a85",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/db/sb_local_database_manager.cc",
+          "before": "52116671bd42c9904528729005dee86ef6a28a3e4ec15c96fd59f94ef51eae9e",
+          "after": "1e0febd77b3db7580f7820225073c276e6f96a36e0c2992af5732f2c9ca1f955",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/db/sb_local_database_manager.h",
+          "before": "03dcd76649e4eb7c2d8ce6fd73352852eda8c7774357c84e24b8ab6b0e38ebb0",
+          "after": "ed4592668498450eb8b567643140b1bac80eea6ba2acaf8e09f2aa6d313bf990",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/db/sb_protocol_manager_util.cc",
+          "before": "3d7989131c65c350a0a8dc05a4a49cc4034fef63a478be1428cb0b6f60a160cb",
+          "after": "f5eeac3e416d5390d5849e46e7c11d9cad39ab69021c03364977e11bdab4c159",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/db/sb_protocol_manager_util.h",
+          "before": "6b6fabc977de33b1af22f90d7bc61e6bdbf564fcfc8c7c0eeeb35f00cc97ff73",
+          "after": "d62ce00bb623666c9100870425bf20ae6596ee609c223cf411655e1226e79fda",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/db/util.h",
+          "before": "846fc31cec9c5c4a19e0a2e0aa6ee31605f5b43f9e9a5340104ab2c40e83201a",
+          "after": "66f232db124675e5761d3ce07451f352a62faf6737f32737db6591da87dcb7d8",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/db/v4_update_protocol_manager.cc",
+          "before": "cf57ed10c8e6923d40f99c6e8c08cbbb7a5bc7cc9c348c8f129664735752f382",
+          "after": "6e5adbfecf96db052a0aee2302dcc923aa97aaab26193a9b8a7fd79fe93c89f4",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/db/v4_update_protocol_manager.h",
+          "before": "15438d2cfb064f89a1af36f2b15eac91a46b49cc1418c78dc5febc1e3c469e21",
+          "after": "94001dacae07e142946b969ad32942b49473a5d7c5123e286409d54332e59c69",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/db/v5_update_protocol_manager.h",
+          "before": "cfceff10ce43b39af8ab7752b444d92a388e7c15a69c80317e310e4e87903cd0",
+          "after": "8022c83dc16c0b14cb53afefded1fd20f8b8688331b2d0d561bfd9e1f639a6ca",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/hashprefix_realtime/hash_realtime_service.h",
+          "before": "f87b6fff0ed0c432bc59f18b722d63794a05e407c85af5bc2acd1348f1ff8451",
+          "after": "ccbd793f2e8370ed614a3786d0b3fbd0c88c113200acc26776c3b452595c0873",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/hashprefix_realtime/ohttp_key_service.cc",
+          "before": "637c53a96f342f4c49d9de15016b50e263916fe3fd32b3b55926831b887e5dbc",
+          "after": "8e38bc1bc6412cf57868473b99f975b9a22e3004d768c415111d9cd29b6c936a",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/password_protection/password_protection_service_base.h",
+          "before": "1b3e70ba7d21747b125f612c82b9b969a74ecebc19331df1d22741559d87326c",
+          "after": "e6f50bdeea54ee05ebaf4eba980f3d1be9d1b697eb80f200a4553b7298a5d356",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/ping_manager.cc",
+          "before": "040fea6ea0dd72851e707b59d487c45d70c4f597b0ac38265f4d497ea6b2d16d",
+          "after": "0a2cd5c6efd1ada54405f5fc95353cffe9c8283a7e39703c394e138f8c51291e",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/realtime/chrome_enterprise_url_lookup_service.cc",
+          "before": "196dbd37282e16d3fd23acaf9d602fa98313d95e1634ac3e930ad968462968af",
+          "after": "a39ba78ac027276282f9d128a4412addd2929c49fadc0c275e5e1d6e3a849489",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/realtime/policy_engine.cc",
+          "before": "7a9bdcada9ad639de51d134b5e8ec746eb4523b8facb1db260c5fb30403eee2c",
+          "after": "e4d31a9d42fd0f353c1af70028914d1988e9df96b34a801657f1dfac613119a8",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/realtime/url_lookup_service.cc",
+          "before": "9c74153a8b82f07c57f52d5972e2b92ca683d8ed939721fd3f43b4e903e1aefe",
+          "after": "927b79e48dea202da6301575553992a8eeadb558521fcb035e40ea89e02ab9ea",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/realtime/url_lookup_service_base.cc",
+          "before": "e80b6d0b5a96b6b8ccc1b851a2c4b831b368a1bf97ec13c091903f987ec447f5",
+          "after": "8afeabb0c0a5b4ed54a6dae94deb223b69bc4664e73280679cf6293b9e364073",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/safe_browsing_hats_delegate.h",
+          "before": "d5d1d90129f497203f63d8f219f937e696d621b280eacfd44942e08fb1c234ba",
+          "after": "bba5bf89281c213bd3fd07f1a5fea0f1827e7dfd4cade84e1290a31cf1dce2e2",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/safe_browsing_metrics_collector.cc",
+          "before": "c432b734e328ce607449da9be6b9129442a76851d354273952f263447e3ce487",
+          "after": "0fb5c5042241de7dddc49f7befcff939b38877212f36f495785290fe57f8e3fe",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service.cc",
+          "before": "96cc68838289c09e418c7cca69e7464fd9e577162b2a3c6cfab5009ef4f9a56a",
+          "after": "cb7ca29c28145c33c64a2f6a8b679a1a3ddb2ca14697d3d7ef11838a8030ce3c",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": false
+        },
+        {
+          "path": "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service.h",
+          "before": "f61993868190ecd9f7f3dd60a7b7eecffa8b986e21690d0d05d718455970056f",
+          "after": "3f434ed698c401d82b5608f00a871d01b28f49267709d26991c874e58f3744cc",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service_observer_util.cc",
+          "before": "734bd5238d6761804acb404f46ad18a685d75edf39ae138502b79811db8f04f2",
+          "after": "a045a94f7855c5dbb56f23e19688b4eb0940c95e4aefc5ab8df1cf45095d5694",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/verdict_cache_manager.cc",
+          "before": "e7248f81a32872ddcb931cbd1ca10326388cc0d0ad44dc9a525fea96dee3ecdf",
+          "after": "efbb355aa702348db36de277bc34d6fe2861e74efe8ad43195aae6bbf5968d47",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/browser/web_ui/safe_browsing_ui_handler.cc",
+          "before": "7f1dc09d2fbe08f247ce663e451f1f8371f54ebdd72c1f4c70838f2a9d7cd21b",
+          "after": "8fb91a0bcbd2f4cd719e9f50f846407807907c1b15b07f54384448b77e1863e1",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.cc",
+          "before": "77fc6be58e8eaedd8b3517e96649e8be1dd66f9b6c01835e35fd138cd41c552e",
+          "after": "5b16337c35215d6efd0a4e1945e8d4c9b232d5dc5076f7a4b67b5b88d7fccc6b",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": false
+        },
+        {
+          "path": "components/safe_browsing/core/common/safe_browsing_policy_handler.cc",
+          "before": "cb68088445ee347c586268d0a074c9d3b3aae8574c1652cae36eb1f9b7f51cd1",
+          "after": "e6ca65e87a7d7fe4b6441b5aeeb4f5bbc0931eccaa8f7258d357e87b0e06cde6",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/common/safe_browsing_prefs.cc",
+          "before": null,
+          "after": "29f82426110ab8d60532fad02ca8770384b6b7643d1c884d257aef54f2b7dce5",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": false
+        },
+        {
+          "path": "components/safe_browsing/core/common/safe_browsing_prefs.h",
+          "before": null,
+          "after": "d99753c2688309f1c38e513456ab906a282c42235ad6e5b848884041e5aae982",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": false
+        },
+        {
+          "path": "components/safe_browsing/core/common/safe_browsing_prefs_unittest.cc",
+          "before": "da97aa29746819af6fd5c612431ad1cef4b3b8059870a6de3d168e98bd8e2dd1",
+          "after": "282d948a96309730b56e68faa849f0da14ccf35b3c4b63b23a59c70c16820f1b",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/safe_browsing/core/common/visual_utils.h",
+          "before": "3e4c4ef857d6fbeddc9697443159b3a1a3c3ef765f039200610767abde2315c9",
+          "after": "c89837f2265668d371eb33face9472ce674a50d16ef04712afe9fea3cd5ef444",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": false
+        },
+        {
+          "path": "components/safety_check/safety_check.cc",
+          "before": "4a06e4cf9ea03f601c8279233c61dc603f8d9ea1291451e4949f9295b6486e74",
+          "after": "68212e097f36ba392ce92762241e4bd4950f457bda7aee9362abf3c4a50b74e8",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/security_interstitials/content/bad_clock_blocking_page.cc",
+          "before": "1b7808ea6bd679321a1e3a2728c19ea329ff6ee5f1681b60c97559a9fac62336",
+          "after": "27a99e8bd2ac87d333e71e0dd06abeeade951b2374386b67b095b6ebbcdb8e96",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/security_interstitials/content/captive_portal_blocking_page.cc",
+          "before": "53450fafe74ccf8983df791610577fd876c080d94b305f6d4aa7831a8d1f55c1",
+          "after": "df3f1771c4c523a5cc03540afe28891b1500e2a1788b29a25b2ba1d3937ffc8f",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/security_interstitials/content/mitm_software_blocking_page.cc",
+          "before": "864c0b1b018b5f2b2631009eeb18a8396522ee3671e37b41c0587d042673d6f7",
+          "after": "f4dc81e4591ba12ed1e1e13b2c9b098a32aa11bd350fba7deb54b48cf2a8ba3d",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/security_interstitials/content/security_interstitial_controller_client.cc",
+          "before": "a0de911b875fdb7d1421eb5d960e86d835e1327b2ada3f37d8d263bbd86c2b09",
+          "after": "f14e15a5d078ac458489a53a5feb3907ee655703bd567747e3fd026b68530aa3",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/security_interstitials/content/security_interstitial_controller_client.h",
+          "before": "30557944acb4e841751dc6f34ce9d82e8a8ca13dde5014c95a617fc2c40ae8f9",
+          "after": "cd488893fb52804d508c19d52fbfe710407f11fbc41e73ac538b8ed24640ba15",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/security_interstitials/content/security_interstitial_page.cc",
+          "before": "c389d6d132fbfe332858fa7e328fe75d190b5377748befc5501d5cc61dc8e206",
+          "after": "b16d9c8ad44143dea51d6cce80109c2232e6722774a79534c79382106aa21cf3",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/security_interstitials/content/ssl_blocking_page.cc",
+          "before": "1d734cf1fa3655d4a8fcdae6f31c2f07a74e5c231d7796b4aa944ee89b0f2e0f",
+          "after": "c9111d49bae0604fa660564bce3bf291699207274bea8c37cb32abb5375850a8",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/security_interstitials/content/ssl_blocking_page_base.cc",
+          "before": "01b0da0fddaa55bac01816bef7f333fd91d55dc89245bd5cd72abb02cc32f7b5",
+          "after": "fa5d8eeb3f34a7e3502ba970131cebb81b3373e58df96019c82d52a493920079",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/security_interstitials/core/controller_client.cc",
+          "before": "baf05b4de846511987f5b3570b1321636631a765cc985f08a86d116242f1f1f3",
+          "after": "35d3ee58bb98e6384d5e5e25e11df37e3c84f0f0aaef9c4df6c278431a610608",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/security_interstitials/core/controller_client.h",
+          "before": "03a873c23df7ac392651a6a9c33bf6cf3573d03bb50721b8ef9970c69f76f468",
+          "after": "738d32bd3a0ffbd4288c0e7b07c190740bcdd147202bae122a0d3eab59d918c0",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/security_interstitials/core/safe_browsing_loud_error_ui.cc",
+          "before": "8548e7875f2d6872e7d1fdc67ad6ad9611c435c10ffa7dc73bb021108650ea98",
+          "after": "1484c94d6dbdf6e3f5641a76410c2865a73806f4a930e621c51a75e3ed48df31",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "components/web_package/signed_web_bundles/signed_web_bundle_utils.cc",
+          "before": "c8f1a1c40544282921cb7ddb3aeb42608e20af399ce9acd11118e8b35c5712e3",
+          "after": "f953d2e86c0c8e0879b3fc8799ad2bb49027d6de5ee41175bb5538bc101d5cf4",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        }
+      ]
+    },
+    {
+      "releasePatch": "patches/lite-windows157/23-native-profile.patch",
+      "releaseSha256": "5f3c42e62bc5dbe00bf6472a655bc1951e0fe17989441c69852cc3ff0d1fb88a",
+      "path": "patches/lite-windows158/23-native-profile.patch",
+      "sha256": "537e31d1237bcfc117767e908a5c43c09dadcaeab06197d799a970491ddfe8e2",
+      "files": [
+        {
+          "path": "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc",
+          "before": "2b6dd16facb5f337b75db7cb06613a2b85267507c3944a87caf633fe6b829214",
+          "after": "587f29279200c939049ef7e10dde783445375dc717b60656ecf35f886a782375",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/keep_alive/profile_keep_alive_types.cc",
+          "before": "709bc184d7837ff228b6b186f3e7d348f87b7b28ebc83a5989082d8527bcca2d",
+          "after": "b0e323c9842aaf99c675b123350d72d3398c4e2fdb570a81be7f2dfba47dba1c",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h",
+          "before": "682b5461c71387bf3ec6b12871a9c7e6554e4f93571f435fd0b9c7f87225ad15",
+          "after": "b645d1de72bd837c6bf817d50f34f7ba3b79e84c5c5c265a681d4a26b5444f14",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/profile.cc",
+          "before": "6460352125bdaee29837180f5073f304cd2e00365592f5e31df6060ebcb71027",
+          "after": "441939664eb65da76f3bb257d56420dc422337cc66b25829a95ac22b4c592685",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/profile_attributes_entry.cc",
+          "before": "0a43e3009636d2ccc9d11c18c9ad72cbbab761d07a43d9cf638ae97f56e2f24c",
+          "after": "f7730b23906724ee8021bd3c891804883caec4ed7c9522e6143250fd566403c6",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/profile_attributes_storage.cc",
+          "before": "bf3fa34a7ec7ea90c6e5e68425524b984784ca762c14eac3ad3227305cc7eb95",
+          "after": "b9e6fa901b8bf7d266b3204b33e5a13b63cdfaadb4fe393886fbd52ebff4eaa4",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/profile_avatar_downloader.cc",
+          "before": "48b2a9c4c1e1dc93719c8e98e60cd0311996d2fb1d77a2fc2d964901dcb5f495",
+          "after": "cb1fef53888a609c97a35a3b2b5619a764a07382c4a674120db3bde96b3ad611",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": false
+        },
+        {
+          "path": "chrome/browser/profiles/profile_impl.cc",
+          "before": "8fdb1adc41dff6bf857ac81e6c605d2cdca6d0e9cf2ee057aeee9b700b7d87b0",
+          "after": "836992bed7d4aa9827541ea30e08389da9d54bf55fd89026952b5b61b9c713f9",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/profile_manager.cc",
+          "before": "79ed670ff731c09e1c7b5866bca4174dc826c8eb26bda0106da4e724005a3f77",
+          "after": "963af61c89828b2560dad89bcaf3a185aa5a2a17b693cc8a71d338318515e905",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/profile_shortcut_manager_win.cc",
+          "before": "afae6b9444518e86f77f0f896928322693fdcbdb8aee4bda4d1a100f19acb834",
+          "after": "e2409d7841da1dfc7fea3132ff99328d72e55c367a9281655b4c87e76a58d7b3",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/shardx_native_browser_unittest.cc",
+          "before": null,
+          "after": "ee680cc978c7a54404c903a8956c82a759ebfce89078a631648c3f50b3e7bc44",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/shardx_native_cookie_unittest.cc",
+          "before": null,
+          "after": "b74fcd171d7b08dd31178582066579f61aec27f91772c48af8a79ee30a4356b2",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/profiles/shardx_session_policy.h",
+          "before": null,
+          "after": "72aa4d3b294947c549edd24636bdbc83558aacd3d93196e01cf1ff777d1ab4ec",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/profiles/profile_picker.cc",
+          "before": "d44ab46bc9cdaf41d6d491a5ab9da067f9916367dc1c315c3e6ef74acd934719",
+          "after": "5d85b1dc831088bc8a4afd562e45989296483b711cf6a104ebb64c8c097cf3b2",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/startup/startup_browser_creator.cc",
+          "before": "90a94bfdd710e052061fe70831279e999cbc5aed5f7d6fd82004e660093d8ad7",
+          "after": "9c956199f11c4a2929105d2238556b9b8cfce78b823719e9920b50e226887853",
+          "policy": "three-way-release-to-upstream",
+          "sectionUnchanged": false
+        },
+        {
+          "path": "chrome/browser/ui/startup/startup_browser_creator_impl.cc",
+          "before": "1b78f7e124fea6ffdc97eddbd1c5111011467bf398bb5b80cba1f8a17a43ad1e",
+          "after": "7168abfa58dee8ec07756bafc5601784b5892712dcd440489a5f21b292b42e4c",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/views/frame/browser_desktop_window_tree_host_win.cc",
+          "before": "50a35dc5387a5b002a42b4bd913b27c224372e2790085a686ffaa5a21df91c2a",
+          "after": "9cbcc70d176da98a68b162a041e9cbd359f707d913b58cc606e5e5a9c129668e",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/views/frame/browser_window_property_manager_win.cc",
+          "before": "e7ff9f1c9060a096b872c91c838a8db4773f6a36c75adc90619f9358a0c7b05a",
+          "after": "cf6cb2ef20b4c3d6fbb511bade333d4959bf078337b3f7791e8295af7a716081",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.cc",
+          "before": "3fd71ce58095411d7511c761c65b3bbe5f5fd1182ff9e7cda98bddd4a45963a2",
+          "after": "dc7dc83cbf8b9fda9d172c28656178330d6f5d43049dbd041d4bd7a4cfd1cdb6",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/views/profiles/profile_menu_view.cc",
+          "before": "5fb19ea843e8ad644cfe120a0c886ec63ac8ab203467ffdcc4175352e4eee111",
+          "after": "26b88a7963c2b084e5b492d3e1d26db753c0c5eb4a20268738b5953b4f7408d6",
+          "policy": "restore-corresponding-native-source",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/taskbar/BUILD.gn",
+          "before": "c4ad1a275dcf7a1a910ae8f8cbd163823d05bd3500e12bb35dd4db4cd640e6b6",
+          "after": "cb3675450cea2aedb133670e8d2b2f35ce5bab6bd7a378e1df2e1adbaab1f348",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/views/frame/BUILD.gn",
+          "before": "e9617e14addb2b27e74f4ccde6a8b61764c3bbd62d69a0fd3906d82261a039fc",
+          "after": "b60e75ce49d4ee5c3004829d056ce664347132fa1a42d202744896851abfde91",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.cc",
+          "before": "04ee63125d44792aa83a6df30967043df6a5439e2c5536f325f559a367ddd47c",
+          "after": "c869990412cc04140c626607a848308c9101d963f1e6b14f7a426b144e76124e",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h",
+          "before": "e9fd3d55842cad3f3cd4d53559c97fdf0aae154d4e4972ff9ffcf0872143c7de",
+          "after": "a1efbfcda8fc5f3583aa2a111af942089a4ab75382da2137482525366adbe011",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        }
+      ]
+    },
+    {
+      "releasePatch": "patches/lite-windows157/25-signin-failure-recovery.patch",
+      "releaseSha256": "f4067db752af134d434598ececc4f770934cb8af3ce9f3791ea1da3abb12a7cb",
+      "path": "patches/lite-windows158/25-signin-failure-recovery.patch",
+      "sha256": "c382ab578905b3f76507d38c2bcade7d2f07d13cee5125b4c996a7e71ab3a7d9",
+      "files": [
+        {
+          "path": "chrome/browser/signin/dice_response_handler.cc",
+          "before": "2a66e294862757dafd9983c7ef6e2dd6d57580498129e7ecc6fa42f30ee546c0",
+          "after": "5edf393cdec00db8b3eb98fb0ed711f12aae4f77dd7d9a7180d9a1c284c50d26",
+          "policy": "reviewed-upstream-context",
+          "sectionUnchanged": false
+        },
+        {
+          "path": "chrome/browser/signin/dice_response_handler.h",
+          "before": "42a6a244ed1ad6b0c9db952e79817c293dfc061d981e399c14d824cc2590c71d",
+          "after": "dab3c1db53283622f24ad6d0fabc8561b2eabee4738bc801357b49f4027ad309",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/signin/dice_response_handler_unittest.cc",
+          "before": "acb4bcaba5302c145ba55622a4196b2f1e4bbae0ce0030efe06c51226f12d5ce",
+          "after": "8abc95bb1650e2d32c976532e42ae4e681993c70bce65753873a50d996638b59",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/signin/dice_tab_helper.cc",
+          "before": "4e4f8aaa7934967fb486cedf43296321c9f41795aacef1528059777004824ef0",
+          "after": "33ce6d5adfecb7d66cd17477f176a8ede1786e58747135c4ac5be09d1bddab1e",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/signin/dice_tab_helper.h",
+          "before": "f18431033c1b48abbc9e75b76f5966aa8804b85161df2c62dacebcf0f8312acf",
+          "after": "544f0b0c90890445a4cf2611afef4532318544a4bc99481430378d4f7aba5eb9",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/signin/process_dice_header_delegate_impl.cc",
+          "before": "7ee30ebb557a60e7b4634a769a407ce32c9b10738d5ebcaea1103d39ba87625a",
+          "after": "6e64a9a40155621fae5ac9b12e4d21a1f60a332dfb10512b86c8883711a208d8",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/signin/process_dice_header_delegate_impl.h",
+          "before": "296ee4856c02f2415cf8d88f376323f7bf3b4774c6c322392c1cc3ea331915e9",
+          "after": "5b28ec2e882c9cd229e511439fc8345a1ca55eb6c7c84031d3fa888270502a7b",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/signin/process_dice_header_delegate_impl_unittest.cc",
+          "before": "2c5bf21a96119ecc502234a6a03fb8ddb5d57cb4a6d4bb08b12cb026cf7c7185",
+          "after": "fbe2c085bda09883cd5d9838878cef69c6b5c35c9b066829d0d048415b9a5fb2",
+          "policy": "three-way-release-to-upstream",
+          "sectionUnchanged": false
+        },
+        {
+          "path": "chrome/browser/ui/views/profiles/profile_picker_sign_in_provider.cc",
+          "before": "e9b600f7d7d4d9a9f71cad2f2023ee3dd40470e231267710fd04bd59a080edb5",
+          "after": "c5096f60a004602193b4e5d75e7f93f0c243ddbfda01fbf8e59347a6b545c54e",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        },
+        {
+          "path": "chrome/browser/ui/views/profiles/profile_picker_sign_in_provider_browsertest.cc",
+          "before": "0fec22b997a7cc45f8ad00ea1e9a292f48e00ea118de066d2d5500712517d341",
+          "after": "6d3266f4e700d53c245b8c2fbaf4784c742a2cc67b6c889947fb4ac6ba40b978",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        }
+      ]
+    },
+    {
+      "releasePatch": "patches/lite-windows157/26-history-sync-default.patch",
+      "releaseSha256": "5bcbf4bd742e7897ec80228fce6a964d03165b8400f07ffedef0d5cfbf28d5b2",
+      "path": "patches/lite-windows158/26-history-sync-default.patch",
+      "sha256": "c5e73f225582b4b73d7293a03d8479a11cc763f0189b1968a98f04b7dc30350b",
+      "files": [
+        {
+          "path": "chrome/browser/ui/webui/signin/history_sync_optin_helper.cc",
+          "before": "fea955929ddc7877c206bb76ddd85c62b585ca4b3a525727846c0b2609eb8c18",
+          "after": "7160eb6fd30b87055ced59cac69a2704040f67282a1ef93710f99b5601c439a0",
+          "policy": "three-way-release-to-upstream",
+          "sectionUnchanged": false
+        },
+        {
+          "path": "chrome/browser/ui/webui/signin/history_sync_optin_helper_browsertest.cc",
+          "before": "f8963b656721c55063c6f5215bd084e0df1e13a07f1d72b99dc8d06def491640",
+          "after": "2f0db5ccf234cd92082187b663f54a8d81cc65e0a6f488af1a4f14928ba15013",
+          "policy": "original-section",
+          "sectionUnchanged": true
+        }
+      ]
+    }
+  ],
+  "featureConnections": {
+    "path": "patches/lite-windows158/browser-feature-connections.patch",
+    "sha256": "0895d66bc9b4e818c6748f99215b24daf755578aba41ac86fbcda132f40b5333",
+    "files": [
+      {
+        "path": "chrome/browser/BUILD.gn",
+        "from": "patches/lite-windows157/01-build-integration.patch",
+        "releaseSha256": "21fa8bd361f2528186e86c3b1f534e76093f1c2489745e8ce700a4d78036f481",
+        "selectedHunks": [
+          "//chrome/browser/profiles:shardx_cookie_bootstrap"
+        ],
+        "before": "0c80d51c8ed7600ee5e8cb5e41610cc0f6389901ad59e2b7adee5ba151071aaf",
+        "after": "b10b0d2ca472657cec2d39471a9a38984e094b51721dd4636c60a340471a5ebe"
+      },
+      {
+        "path": "chrome/browser/profiles/BUILD.gn",
+        "from": "patches/lite-windows157/01-build-integration.patch",
+        "releaseSha256": "21fa8bd361f2528186e86c3b1f534e76093f1c2489745e8ce700a4d78036f481",
+        "selectedHunks": "all",
+        "before": "7b3b9fa20278cf49dbd7b96ade503bb5c873a198643aeffe6ac4ad9080bb4f14",
+        "after": "dbf39326e7f3b78e363401724b875836e51fc55a3439c79901729f1c6c8aca61"
+      },
+      {
+        "path": "components/history/core/browser/BUILD.gn",
+        "from": "patches/lite-windows157/01-build-integration.patch",
+        "releaseSha256": "21fa8bd361f2528186e86c3b1f534e76093f1c2489745e8ce700a4d78036f481",
+        "selectedHunks": "all",
+        "before": "6a77d0b4b6afab6d09493eafb50433c411766b4a4ddad42bf235530ae0d7c622",
+        "after": "67c3a26f6ab7cbffee919b1505a35c310f86a04648a6e1c27ce4318ffedf526d"
+      },
+      {
+        "path": "chrome/test/BUILD.gn",
+        "from": "patches/lite-windows157/01-build-integration.patch",
+        "releaseSha256": "21fa8bd361f2528186e86c3b1f534e76093f1c2489745e8ce700a4d78036f481",
+        "selectedHunks": [
+          "../browser/profiles/shardx_native_cookie_unittest.cc"
+        ],
+        "before": "7855eb69e6755434d950913c2d6db91a93dc4d0c49dac7fed5525aaa782dbc6b",
+        "after": "90eb873b9368d8a4ca54a70dfe6b716eca69e822ea7912659baa9c80ea84b978"
+      },
+      {
+        "path": "net/base/shardx_environment_controls.h",
+        "from": "patches/lite-windows157/07-network-and-proxy.patch",
+        "releaseSha256": "d995d87c2d58fadfcbf4d5d73a0d098ebe97a9a163afc8c42c435ddd3c65b9eb",
+        "selectedHunks": "all",
+        "before": null,
+        "after": "b32a4a033b20cd9a087023ab9ec99d680b4f34db8236771413361a145debd8fd"
+      },
+      {
+        "path": "chrome/browser/chrome_browser_main.cc",
+        "from": "patches/lite-windows157/24-google-services-and-browser.patch",
+        "releaseSha256": "029159ce04d7ba87d9edac453fd3dab3a539cd90e2ecf937e28ee81f9536333b",
+        "selectedHunks": [
+          "#include \"components/history/core/browser/shardx_history_retention.h\"",
+          "Invalid managed history retention policy"
+        ],
+        "before": "aa4dba350cedbdac2c59ebd601ef6c3434a606cbeb8584c1a28faef4d6da9903",
+        "after": "d9d9bad38c8e6f6aaef40d1d5cd8265aafe7d372fa07fbe2e9db965868bdd586"
+      },
+      {
+        "path": "chrome/browser/chrome_content_browser_client_navigation_throttles.cc",
+        "from": "patches/lite-windows157/24-google-services-and-browser.patch",
+        "releaseSha256": "029159ce04d7ba87d9edac453fd3dab3a539cd90e2ecf937e28ee81f9536333b",
+        "selectedHunks": [
+          "#include \"chrome/browser/profiles/shardx_cookie_bootstrap.h\"",
+          "shardx::cookie_import::MaybeCreateThrottle(registry)"
+        ],
+        "before": "d6470ab95bdfd9e154227c1fb8451970d8fd70b60116c2696eee2948d9f4baf6",
+        "after": "08492957631230daf40c38e3f2033ebcbce5805e033acc994b2d48c23c362e00"
+      },
+      {
+        "path": "chrome/browser/shell_integration_win.cc",
+        "from": "patches/lite-windows157/24-google-services-and-browser.patch",
+        "releaseSha256": "029159ce04d7ba87d9edac453fd3dab3a539cd90e2ecf937e28ee81f9536333b",
+        "selectedHunks": "all",
+        "before": "c902a0ac44a2cd0061000518a882dcca6d11173bd93e896a894afc5f95264874",
+        "after": "1ae29f8b1766e821585532a15b9fd9c578812c11b28aa5bc8a315bd2a5f9ede7"
+      },
+      {
+        "path": "chrome/browser/shell_integration_win.h",
+        "from": "patches/lite-windows157/24-google-services-and-browser.patch",
+        "releaseSha256": "029159ce04d7ba87d9edac453fd3dab3a539cd90e2ecf937e28ee81f9536333b",
+        "selectedHunks": "all",
+        "before": "726ba46ecd934a474a0ed070589e96629a20c389f9a97439e8470b4ce197fa04",
+        "after": "5c1a32bfa919644f83ede2656117e3fa906c2303becc683ca8f9a695f6496a4c"
+      },
+      {
+        "path": "chrome/browser/taskbar/taskbar_decorator_win.cc",
+        "from": "patches/lite-windows157/24-google-services-and-browser.patch",
+        "releaseSha256": "029159ce04d7ba87d9edac453fd3dab3a539cd90e2ecf937e28ee81f9536333b",
+        "selectedHunks": "all",
+        "before": "4a02fe26e49b8182c7927ab4346acc4d315a3734f4e19bfb73649320d1566e37",
+        "after": "b37d2722cfcc08c835be871c4f5a00fddbdb36649ccda4b9ab2bf944011e2749"
+      },
+      {
+        "path": "components/keep_alive_registry/keep_alive_types.cc",
+        "from": "patches/lite-windows157/24-google-services-and-browser.patch",
+        "releaseSha256": "029159ce04d7ba87d9edac453fd3dab3a539cd90e2ecf937e28ee81f9536333b",
+        "selectedHunks": "all",
+        "before": "3d50ca809588bb2aef2c41013affb9d1fa97c23db2035129dfb74b99ae39d8b1",
+        "after": "178c22d20e1fb738eb14355ff5aa08b7d8c31b27e4f37b9eddb154f7b50102cf"
+      },
+      {
+        "path": "components/keep_alive_registry/keep_alive_types.h",
+        "from": "patches/lite-windows157/24-google-services-and-browser.patch",
+        "releaseSha256": "029159ce04d7ba87d9edac453fd3dab3a539cd90e2ecf937e28ee81f9536333b",
+        "selectedHunks": "all",
+        "before": "1fb3db7ebc063d2cb49baad8d48f397c20bb4d39c3e0be4a5b3a47737a3f3d03",
+        "after": "e453956251e1a27339f0b7351550cff685e6fa5383e1c697c85b94c34eea982f"
+      },
+      {
+        "path": "tools/metrics/histograms/metadata/profile/enums.xml",
+        "from": "patches/lite-windows157/24-google-services-and-browser.patch",
+        "releaseSha256": "029159ce04d7ba87d9edac453fd3dab3a539cd90e2ecf937e28ee81f9536333b",
+        "selectedHunks": "all",
+        "before": "baf72a54cbf49ce1a64d86b32b089ea9f4a6007c8582204b0838056b3fb2ed32",
+        "after": "8d427f0e5531b1f753013ad4a62b5a3ceda330076deaa3fa18948fe548cf575e"
+      }
+    ]
+  }
+}

@@ -50,6 +50,11 @@ def verify(src: Path, repo: Path, *, config=None) -> list[str]:
             or caps.get('limits', {}).get('envelope_bytes') != 16 * 1024 * 1024
             or caps.get('limits', {}).get('cookie_count') != 10000):
         raise ValueError('Native Cookie capability contract is invalid')
+    return verify_implementation(src)
+
+
+def verify_implementation(src: Path) -> list[str]:
+    """Check the source implementation, independently of release metadata."""
     sources = {}
     for name in TARGETS:
         path = src / name

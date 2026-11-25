@@ -14,7 +14,8 @@ QUERY = '''async term => {
     handler.setPage(router.$.bindNewPipeAndPassRemote());
     window.__shardxHistory = {handler, router};
   }
-  const {results} = await window.__shardxHistory.handler.queryHistory(term, 100, null, true, false);
+  // An empty client list selects all devices in the 158 History WebUI.
+  const {results} = await window.__shardxHistory.handler.queryHistory(term, 100, null, true, false, []);
   return results.value.map(row => ({url: row.url, time: row.time, timestamps: row.allTimestamps}));
 }'''
 DELETE = '''async row => {

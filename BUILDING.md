@@ -1,5 +1,17 @@
 # Windows product builds
 
+## 158.0.8127.36 Windows x64 browser feature port
+
+This worktree descends from the installed 157.0.8103.78 release commit `230b7f6`. Commit `4727728` pins the full ungoogled-chromium core `76f39e0` and Windows overlay `76a692e` (Windows tag `158.0.8127.36-1.1`). The original 26 files in `patches/lite-windows157` retain their release digests.
+
+The [staged feature manifest](build/windows158-browser-feature-port.json) covers Cookie import, sessions, history, translation, passkeys, browser protection, native profiles, sign-in error recovery and the history-sync default. It also lists their selected build, Windows shell and startup connections. All 191 listed file preimages and postimages have been checked. The History WebUI diagnostic accepts the 158 client-ID array and has been exercised on 157 and 158 reference browsers. This branch currently records source-level validation only. A complete compiled product and runtime acceptance remain pending.
+
+To repeat the source checks against an unmodified ungoogled Windows 158 source baseline after the core patches, Windows overlay and binary pruning:
+
+```powershell
+python -B tools/verify_browser_feature_port.py --baseline <ungoogled-158-source> --report <new-report.json>
+```
+
 ## 157.0.8103.78 / signed source-controlled catalog v3 (candidate)
 
 This candidate combines the external catalog loader with the source boundary
