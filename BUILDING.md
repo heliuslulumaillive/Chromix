@@ -1,17 +1,19 @@
 # Windows product builds
 
-## 158.0.8127.36 Windows x64 browser feature port
+## Ungoogled 158.0.8127.36 Windows x64 source port
 
 This worktree descends from the installed 157.0.8103.78 release commit `230b7f6`. Commit `4727728` pins the full ungoogled-chromium core `76f39e0` and Windows overlay `76a692e` (Windows tag `158.0.8127.36-1.1`). The original 26 files in `patches/lite-windows157` retain their release digests.
 
-The port covers Cookie import, sessions, history, translation, passkeys, sign-in, browser protection, search, extension installation and updates, managed port restrictions, Windows shell integration and content-sized extension popups. It preserves the 158 extension test target and the platform condition for cloud scanning tests. The popup uses the compositor size measured by layout and discards stale visual updates. The staged manifest binds 442 product paths, 16 unchanged source dependencies and three binary resources to the ungoogled Windows inputs. [Feature manifest](build/windows158-browser-feature-port.json)
+The [complete source manifest](build/windows158-product-port.json) now covers all 26 release topics and 686 source paths, including the three restored native resources. It retains the earlier [browser feature port](build/windows158-browser-feature-port.json) and completes the remaining rendering, fonts, media, process and shared-policy changes. Four explicit merge resolutions adapt the Canvas `ResetInternal` interface, retain the 158 offline-audio reentrant queue checks, and preserve required audio/WebGL headers. The original 157 patches remain unchanged; 17 complete topic patches reuse existing files byte for byte, after replay against the new source identities.
 
-Source checks include forward and reverse patch application, sign-in and protection policy gates, and native build dependencies. GN parsed 35 files. The Windows WebUI compiler emitted 10 scripts, with 14 cases exercised in a Node unit harness. A Windows x64 C++ unit executable passed 15 port policy cases. The popup regression is included in the Blink test source. Full hosted compilation, product DLL acceptance and installation remain pending.
+On 2026-11-26, all 686 paths passed forward and reverse replay, 44 GN/GNI files passed parsing, 45 unit tests and 78 platform-pin cases passed, and eight intentionally broken rendering adaptations were rejected. The checks cover browser services/protection, environment controls, Cookie/history/translation, account/shell behavior, extension popups, retirement rules and the 158 rendering adaptations. The cached Chromium archive was rehashed against its pinned SHA-256; the core and Windows patch inputs were reused after digest checks. [Evidence](G:/Shardxlite/tests/ungoogled158-complete-source-20261126/summary.json)
+
+This is a source-only result, not a successful Chromium build or runtime acceptance. The production recipe and hosted build entry still target 157 and reject these 158 pins. Connecting the complete source manifest to a reviewed 158 hosted recipe, compiling, accepting the actual DLL and installing it remain separate work. No build was dispatched, no DLL identity was enrolled, and the installed 157 package was not changed.
 
 To repeat the source checks against an unmodified ungoogled Windows 158 source baseline after the core patches, Windows overlay and binary pruning:
 
 ```powershell
-python -B tools/verify_browser_feature_port.py --baseline <ungoogled-158-source> --report <new-report.json>
+python -B tools/verify_windows158_product_port.py --baseline <ungoogled-158-source> --gn-bin <pinned-158-gn.exe> --report <new-report.json>
 ```
 
 ## 157.0.8103.78 / signed source-controlled catalog v3 (candidate)
