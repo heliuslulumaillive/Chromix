@@ -1,6 +1,7 @@
 """Reviewed same-156 payload migration is explicit and content-bound."""
 import copy
 import hashlib
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -8,6 +9,7 @@ import unittest
 from unittest.mock import patch
 import sys
 import re
+import subprocess
 
 from tools import security_checkpoint as c
 from tools import security_migration as m
@@ -138,6 +140,39 @@ class MigrationTests(unittest.TestCase):
 
 
 class RegisteredCheckoutTest(unittest.TestCase):
+    def test_current_migration_payload_is_in_the_git_index(self):
+        root = Path(__file__).resolve().parents[2]
+        policy = json.loads((root / m.POLICY).read_bytes())
+        current = m.recipe(root)
+        expected = {}
+        for rule in policy['migrations']:
+            if rule['target_recipe_sha256'] != current:
+                continue
+            donor = rule.get('source_product_manifest')
+            if donor is not None:
+                expected[donor['path']] = donor['sha256']
+            for update in rule.get('product_source_updates', []):
+                if update['replacement_path'] is not None:
+                    expected[update['replacement_path']] = update['after_sha256']
+        tracked = set(subprocess.check_output(
+            ['git', 'ls-files', '--cached', '--full-name', '-z'], cwd=root).decode('utf-8').split('\0'))
+        missing = sorted(set(expected) - tracked)
+        self.assertEqual(missing, [], 'Migration inputs exist locally but are absent from the Git checkout')
+        if not expected:
+            return
+        names = sorted(expected)
+        blobs = subprocess.run(['git', 'cat-file', '--batch'], cwd=root,
+                               input=''.join(':' + name + '\n' for name in names).encode('utf-8'),
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        stream = io.BytesIO(blobs.stdout)
+        for name in names:
+            header = stream.readline().split()
+            self.assertEqual(len(header), 3, name)
+            self.assertEqual(header[1], b'blob', name)
+            raw = stream.read(int(header[2]))
+            self.assertEqual(stream.read(1), b'\n', name)
+            self.assertEqual(hashlib.sha256(raw).hexdigest(), expected[name], name)
+
     def test_current_checkout_matches_the_explicit_transition(self):
         root = Path(__file__).resolve().parents[2]
         rules = json.loads((root / m.POLICY).read_text(encoding='utf-8'))['migrations']

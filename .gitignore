@@ -1,6 +1,8 @@
 # Chromium build output — never committed (lives in Releases / built locally)
 out/
 src/
+# Reviewed migration payloads may contain Chromium's nested source directories.
+!build/checkpoint-sources/**/src/
 depot_tools/
 .chromix-build*/
 .chromix-local-build/device-pool-*/

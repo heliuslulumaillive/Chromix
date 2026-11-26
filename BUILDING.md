@@ -10,6 +10,8 @@ On 2026-11-26, all 686 paths passed forward and reverse replay, 44 GN/GNI files 
 
 The [158 hosted recipe](build/lite-windows158.json) now binds this complete port, all 110 ungoogled core and 25 Windows patches, and the Windows MIDL repair already compiled in donor `02cb882`. The registered upgrade from run `45364308215`, stage `1`, verifies 1,037 source identities before updating 77 paths (including 12 creations and one removal of a donor-only helper). Local migration and warm-preparation checks preserve unchanged bytes, timestamps and an object canary. All 40 GN assignments and the complete GN file digest match the donor. Source checks and a cache donor do not establish acceptance of the new DLL.
 
+Migration preflight also verifies that the donor manifest and all 76 replacement files are present in Git with the declared bytes. A file present only in the working directory cannot satisfy this check.
+
 Use the existing GitHub-hosted dispatch entry on this branch:
 
 ```powershell
