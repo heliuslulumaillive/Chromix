@@ -83,6 +83,7 @@ def main():
                              "rust-toolchain merge target (default: cwd)")
     parser.add_argument("--arch", choices=("x64", "arm64"), default="x64")
     parser.add_argument("--verify-only", action="store_true")
+    parser.add_argument("--with-crubit", action="store_true")
     args = parser.parse_args()
 
     root = Path(args.third_party_root or ".").resolve()
@@ -90,7 +91,11 @@ def main():
     if args.verify_only:
         verify(destination, root, args.arch)
         return
-    if destination.exists():
+    if args.with_crubit:
+        manifest = destination / "crubit/lib/third_party/crubit/Cargo.toml"
+        if not manifest.is_file():
+            fail("missing pinned Crubit sources in the native 158 toolchain")
+    elif destination.exists():
         shutil.rmtree(destination)
 
     sources = []
@@ -103,6 +108,16 @@ def main():
         fail(f"no downloaded x64 rust bundle under {root}")
 
     merge_toolchain(sources, destination)
+    if args.with_crubit:
+        libraries = sorted((root / "rust-toolchain-x64-dev").glob("*/lib/*"))
+        if not libraries:
+            fail("the pinned rustc-dev host libraries are required for Crubit")
+        for library in libraries:
+            target = destination / "lib" / library.name
+            if library.is_dir():
+                shutil.copytree(library, target, dirs_exist_ok=True)
+            else:
+                shutil.copy2(library, target)
     # Verify before writing the version stamp: a missing cargo must fail even
     # on platforms where executing the bundled rustc binary is impossible.
     verify(destination, root, args.arch)

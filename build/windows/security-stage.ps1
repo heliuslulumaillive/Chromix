@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 param(
   [ValidateSet('Build','Acquire','Extract','Prepare','Configure','Compile','Bundle','Verify','Archive','Diagnose','Checkpoint','Result')][string]$Phase = 'Build',
-  [ValidateSet('fresh','resume','upstream','upgrade')][string]$Operation = 'fresh',
+  [ValidateSet('fresh','resume','upgrade')][string]$Operation = 'fresh',
   [ValidateRange(1,99)][int]$Stage = 1,
   [string]$SourceRun = '',
   [ValidateRange(0,99)][int]$SourceStage = 0
@@ -21,7 +21,7 @@ $restore = 'C:\security-restore'
 $upstreamCache = 'C:\security-upstream'
 $statePath = Join-Path $evidence 'stage-state.json'
 $preflight = Join-Path $evidence 'checkpoint-preflight.json'
-$version = '157.0.8103.78'
+$version = '158.0.8127.36'
 $utf8 = [Text.UTF8Encoding]::new($false)
 $seven = (Get-Command 7z.exe -ErrorAction Stop).Source
 $python = (Get-Command python.exe -ErrorAction Stop).Source
@@ -45,6 +45,55 @@ function Checked([scriptblock]$Command) {
   & $Command
   if ($LASTEXITCODE -ne 0) { throw "Checked command failed: $LASTEXITCODE" }
 }
+function Select-WindowsRustCompiler(
+  [string]$SourceRoot,
+  [string]$WindowsSha256 = 'd95b555f69bdd5e4e65be8dea8354a32881908b10a3d4e8744049453a96b859c',
+  [string]$LinuxSha256 = '5774dc62fa6c73adbfd3778107cfc25284486822f904782bb68ca9887e8f936c'
+) {
+  $toolchain = Join-Path $SourceRoot 'third_party\rust-toolchain'
+  $native = Join-Path $toolchain 'bin\rustc.exe'
+  $shadow = Join-Path $toolchain 'bin\rustc'
+  $stored = Join-Path $toolchain 'rustc.linux-x64'
+  foreach ($path in @($native,$shadow,$stored)) { Assert-Plain $path }
+
+  # These are the driver bytes from the pinned Windows Rust package and the
+  # original Chromium 158 source archive. Windows CreateProcess tries a bare
+  # filename before appending .exe when Chromium's stdlib action starts rustc.
+  $windowsHash = (Get-FileHash -LiteralPath $native -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($windowsHash -cne $WindowsSha256) {
+    throw 'Unexpected Windows Rust compiler'
+  }
+  $active = Test-Path -LiteralPath $shadow
+  $saved = Test-Path -LiteralPath $stored
+  if ($active -and $saved) { throw 'Ambiguous Linux Rust compiler copies' }
+  $linuxHash = $null
+  if ($active -or $saved) {
+    $original = if ($active) { $shadow } else { $stored }
+    $linuxHash = (Get-FileHash -LiteralPath $original -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($linuxHash -cne $LinuxSha256) {
+      throw 'Unexpected extensionless Rust compiler'
+    }
+    if ($active) { Move-Item -LiteralPath $shadow -Destination $stored -ErrorAction Stop }
+  }
+  return @{windows_compiler_sha256=$windowsHash;archived_linux_compiler_sha256=$linuxHash}
+}
+function Write-MetagenHostArgs([string]$SourceRoot,[string]$OutputPath) {
+  $library = Join-Path $SourceRoot 'third_party\llvm-build\Release+Asserts\bin\libclang.dll'
+  $bindings = Join-Path $SourceRoot 'third_party\llvm-libclang\bindings\python'
+  Assert-Plain $library
+  Assert-Plain $bindings
+  if (-not (Test-Path -LiteralPath $library -PathType Leaf) -or -not (Test-Path -LiteralPath $bindings -PathType Container)) {
+    throw 'The Windows LLVM shared library and metagen bindings location are required'
+  }
+  # V8 requires both absolute GN arguments to select native libclang. The
+  # metagen preflight provisions the matching Python bytes and probes the
+  # library actually selected by Ninja before any browser compilation.
+  $pair = @(
+    ('v8_metagen_libclang_so = "' + [IO.Path]::GetFullPath($library).Replace('\','/') + '"')
+    ('v8_metagen_libclang_bindings_dir = "' + [IO.Path]::GetFullPath($bindings).Replace('\','/') + '"')
+  )
+  [IO.File]::WriteAllText($OutputPath, ($pair -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
+}
 foreach ($path in @($root,$work,$src,$out,$evidence,$parts,$restore,$upstreamCache)) { Assert-Plain $path }
 $null = New-Item -ItemType Directory -Path $evidence -Force
 
@@ -65,7 +114,7 @@ function Get-StageContinuation([System.Collections.IDictionary]$State,[bool]$Can
   $resume = -not $finished -and $State.status -ceq 'budget-stop' -and $State.resume_safe -eq $true -and $ManifestDelivered
   return @{ finished=$finished; resume_needed=$resume; checkpoint_ready=$ManifestDelivered; retention_failed=($finished -and $RetainCheckpoint -and -not $ManifestDelivered) }
 }
-function Get-CheckpointDiskBudget([System.Collections.IDictionary]$Manifest) {
+function Get-CheckpointDiskBudget([System.Collections.IDictionary]$Manifest,[object[]]$VolumeArtifacts=@()) {
   [long]$transferBytes = 0
   foreach ($part in @($Manifest.parts)) {
     if ([long]$part.bytes -le 0) { throw 'Invalid transfer volume size' }
@@ -74,13 +123,42 @@ function Get-CheckpointDiskBudget([System.Collections.IDictionary]$Manifest) {
   $knownTree = $Manifest.Contains('tree_bytes')
   [long]$treeBytes = if ($knownTree) { $Manifest.tree_bytes } else { 0 }
   if ($transferBytes -le 0 -or $knownTree -and $treeBytes -le 0) { throw 'Invalid checkpoint disk budget' }
+  [long]$downloadBytes = 0
+  foreach ($artifact in $VolumeArtifacts) {
+    if ([long]$artifact.size_in_bytes -le 0) { throw 'Invalid checkpoint artifact size' }
+    $downloadBytes += [long]$artifact.size_in_bytes
+  }
+  if ($VolumeArtifacts.Count -and $VolumeArtifacts.Count -ne @($Manifest.parts).Count) { throw 'Incomplete checkpoint artifact sizes' }
+  # gh may temporarily spool the signed ZIP downloads. They are on C: and
+  # are released before the tree is extracted. Keep the full build reserve.
   return @{ compressed_bytes=$transferBytes; uncompressed_bytes=$treeBytes; tree_size_known=$knownTree;
-    required_free_bytes=($transferBytes + $treeBytes + 24GB) }
+    required_free_bytes=($transferBytes + $treeBytes + 24GB);
+    download_artifact_bytes=$downloadBytes; split_build_required_bytes=([Math]::Max($treeBytes,$downloadBytes) + 24GB);
+    split_transfer_required_bytes=($transferBytes + 1MB) }
 }
-function Clear-HostedToolSpace {
+function Select-CheckpointTransferRoot([System.Collections.IDictionary]$Budget,$BuildVolume,$TransferVolume) {
+  if ($Budget.available_bytes -ge $Budget.required_free_bytes) { return 'C:\security-restore' }
+  if (-not $Budget.tree_size_known -or -not $Budget.download_artifact_bytes -or
+      @($BuildVolume).Count -ne 1 -or @($TransferVolume).Count -ne 1 -or
+      -not $BuildVolume.UniqueId -or -not $TransferVolume.UniqueId -or
+      $BuildVolume.UniqueId -ieq $TransferVolume.UniqueId -or
+      $BuildVolume.DriveLetter -ine 'C' -or $TransferVolume.DriveLetter -ine 'D' -or
+      $TransferVolume.DriveType -ine 'Fixed' -or $TransferVolume.FileSystem -notin @('NTFS','ReFS')) { return }
+  # D: holds the verified 7z volumes, their ownership and manifest receipts.
+  if ($Budget.available_bytes -ge $Budget.split_build_required_bytes -and
+      [long]$TransferVolume.SizeRemaining -ge $Budget.split_transfer_required_bytes) { return 'D:\security-restore' }
+}
+function Clear-HostedToolSpace([switch]$ForLargerCheckpoint) {
   # This allowlist is only reached behind the hosted-runner guard; never use
   # pipeline output or user input to construct recursive removal targets.
-  foreach ($literal in @('C:\Android','C:\Program Files\Android','C:\ghcup','C:\Miniconda3','C:\Program Files\LLVM')) {
+  $targets = if ($ForLargerCheckpoint) {
+    # Both directories are preinstalled by windows-2022. Neither toolchain
+    # is used by the Windows x64 Chromium build or its native tests.
+    @('C:\Julia','C:\mingw32')
+  } else {
+    @('C:\Android','C:\Program Files\Android','C:\ghcup','C:\Miniconda3','C:\Program Files\LLVM')
+  }
+  foreach ($literal in $targets) {
     if (Test-Path -LiteralPath $literal) {
       Assert-Plain $literal
       $resolved = (Resolve-Path -LiteralPath $literal).Path.TrimEnd('\')
@@ -378,8 +456,8 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
     'Acquire' {
       $pins = & "$PSScriptRoot\read-platform-pins.ps1" -Repo $repo
       if ($pins.ChromiumVersion -cne $version -or
-          $pins.UngoogledCommit -cne '8c886dffc6ade39d8f7df5d64ace5a8824b455e1' -or
-          $pins.UngoogledWindowsCommit -cne '20e9a348fc616bd73a366fbd5d8881613d6c5cb0') { throw 'Security lane target pins differ' }
+          $pins.UngoogledCommit -cne '76f39e0fead37326b9ba0440831336b198a17246' -or
+          $pins.UngoogledWindowsCommit -cne '76a692e3e39e1456e4691e7d9de28d32de1cdd87') { throw 'Security lane target pins differ' }
       if (Test-Path -LiteralPath $work) { throw 'Acquisition requires a fresh runner work path' }
       if ($Operation -in @('resume','upgrade')) {
         if (-not $SourceRun) { throw 'Checkpoint acquisition requires a numeric donor run' }
@@ -389,25 +467,56 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         Clear-HostedToolSpace
         Confirm-HostedCompilerPrerequisites
         $admitted = Get-Content -LiteralPath $preflight -Raw | ConvertFrom-Json -AsHashtable
-        $diskBudget = Get-CheckpointDiskBudget $admitted.manifest
+        $diskBudget = Get-CheckpointDiskBudget $admitted.manifest $admitted.volume_artifacts
         $diskBudget.available_bytes = (Get-PSDrive C).Free
+        $buildVolume = $null
+        $transferVolume = $null
+        if ($diskBudget.available_bytes -lt $diskBudget.required_free_bytes) {
+          $buildVolume = Get-Volume -DriveLetter C -ErrorAction SilentlyContinue
+          $transferVolume = Get-Volume -DriveLetter D -ErrorAction SilentlyContinue
+        }
+        $diskBudget.secondary_available_bytes = [long]$transferVolume.SizeRemaining
+        $diskBudget.secondary_filesystem = [string]$transferVolume.FileSystem
+        $diskBudget.secondary_volume_distinct = [bool]($buildVolume.UniqueId -and $transferVolume.UniqueId -and $buildVolume.UniqueId -ine $transferVolume.UniqueId)
+        $restore = Select-CheckpointTransferRoot $diskBudget $buildVolume $transferVolume
+        if (-not $restore) {
+          $diskBudget.available_before_extra_cleanup_bytes = $diskBudget.available_bytes
+          Clear-HostedToolSpace -ForLargerCheckpoint
+          $diskBudget.available_bytes = (Get-PSDrive C).Free
+          $restore = Select-CheckpointTransferRoot $diskBudget $buildVolume $transferVolume
+        }
+        $diskBudget.transfer_root = $restore
         Json (Join-Path $evidence 'download-disk-budget.json') $diskBudget
-        if ($diskBudget.available_bytes -lt $diskBudget.required_free_bytes) { throw 'Insufficient free disk space for checkpoint transfer, known source size and build reserve' }
-        Invoke-Owned 'checkpoint-download' (@($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_checkpoint.py'),'restore') + $checkpointArgs + @('--destination',$restore,'--preflight-file',$preflight)) -GitHubReadToken
+        if (-not $restore) { throw 'Insufficient free disk space for checkpoint transfer, known source size and build reserve' }
+        Assert-Plain $restore
+        $state.checkpoint_transfer_root = $restore
+        Save-State
+        $priorTemp = $env:TEMP
+        $priorTmp = $env:TMP
+        try {
+          if ($restore -ceq 'D:\security-restore') {
+            $downloadTemp = 'C:\security-transfer-temp'
+            Assert-Plain $downloadTemp
+            $null = New-Item -ItemType Directory -Path $downloadTemp -Force
+            $env:TEMP = $downloadTemp
+            $env:TMP = $downloadTemp
+          }
+          Invoke-Owned 'checkpoint-download' (@($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_checkpoint.py'),'restore') + $checkpointArgs + @('--destination',$restore,'--preflight-file',$preflight)) -GitHubReadToken
+        } finally {
+          $env:TEMP = $priorTemp
+          $env:TMP = $priorTmp
+        }
       } else {
-        if ($SourceRun -or $SourceStage -ne 0) { throw 'Fresh/upstream acquisition cannot adopt a checkpoint donor' }
+        if ($SourceRun -or $SourceStage -ne 0) { throw 'A fresh native source cannot adopt a checkpoint donor' }
         Clear-HostedToolSpace
         Confirm-HostedCompilerPrerequisites
-        if ($Operation -eq 'upstream') {
-          Invoke-Owned 'exact-upstream-download' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\fetch_upstream_cache.py'),
-            '--platform','windows','--arch','x64','--destination',$upstreamCache,'--run-id','43476895250') -GitHubReadToken
-          $download = Get-Content -LiteralPath (Join-Path $upstreamCache 'result.json') -Raw | ConvertFrom-Json
-          if ($download.status -cne 'hit') { throw 'Exact 157 upstream snapshot unavailable; explicit fresh operation is required, no fallback performed.' }
-        }
       }
     }
     'Extract' {
       if ($Operation -in @('resume','upgrade')) {
+        $restore = $state.checkpoint_transfer_root
+        if ($restore -cnotin @('C:\security-restore','D:\security-restore')) { throw 'Unexpected checkpoint transfer root' }
+        Assert-Plain $restore
         $layoutPath = Join-Path $evidence 'checkpoint-archive-layout.json'
         Invoke-Owned 'checkpoint-archive-list' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_checkpoint.py'),'verify-archive','--archive',(Join-Path $restore 'tree.7z.001'),'--sevenzip',$seven,'--output',$layoutPath)
         $layout = Get-Content -LiteralPath $layoutPath -Raw | ConvertFrom-Json
@@ -421,21 +530,15 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         Invoke-Owned 'checkpoint-tree' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_checkpoint.py'),'verify-tree','--work',$work,'--manifest',(Join-Path $restore 'checkpoint.json'))
         if ($Operation -eq 'upgrade') {
           Invoke-Owned 'migration-source' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_migration.py'),'verify-source','--repo',$repo,'--work',$work,'--manifest',(Join-Path $restore 'checkpoint.json'))
-        } else {
-          $origin = Join-Path $work '.security-origin'
-          $null = New-Item -ItemType Directory -Path $origin -Force
-          Copy-Item -LiteralPath (Join-Path $restore 'checkpoint.json') -Destination (Join-Path $origin "checkpoint-$SourceRun-s$SourceStage.json")
         }
+        $origin = Join-Path $work '.security-origin'
+        $null = New-Item -ItemType Directory -Path $origin -Force
+        Copy-Item -LiteralPath (Join-Path $restore 'checkpoint.json') -Destination (Join-Path $origin "checkpoint-$SourceRun-s$SourceStage.json")
         Assert-Plain $restore
-        if ((Resolve-Path -LiteralPath $restore).Path -cne 'C:\security-restore') { throw 'Unexpected restore cleanup path' }
+        if ((Resolve-Path -LiteralPath $restore).Path -cne $restore) { throw 'Unexpected restore cleanup path' }
         Remove-Item -LiteralPath $restore -Recurse -Force
       } else {
         $null = New-Item -ItemType Directory -Path $work -Force
-        if ($Operation -eq 'upstream') {
-          Invoke-Owned 'exact-upstream-restore' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\restore_upstream_cache.py'),
-            '--phase','restore','--platform','windows','--arch','x64','--workdir',$work,'--cache-dir',$upstreamCache)
-          if (-not (Test-Path -LiteralPath (Join-Path $src '.chromix-upstream-restored.json'))) { throw 'Full upstream restoration was not verified; refusing compilation' }
-        }
       }
     }
     'Prepare' {
@@ -445,7 +548,7 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
       Set-CompilerEnvironment -WithoutSourceTools
       $state.sdk_ready = $true
       Save-State
-      if ($Operation -in @('fresh','upstream')) {
+      if ($Operation -eq 'fresh') {
         Invoke-Owned 'base-prepare' @($pwsh,'-NoProfile','-File',"$PSScriptRoot\prepare-ungoogled.ps1",'-Root',$work,'-Repo',$repo,'-Arch','x64',
           '-Profile','lite','-DeadlineEpoch',"$($deadline.ToUnixTimeSeconds())",'-ReserveMinutes','10')
       }
@@ -456,20 +559,12 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
           '-r',(Join-Path $core 'domain_regex.list'),'-f',(Join-Path $windows 'domain_substitution.list'),
           '-c',(Join-Path $work 'domain_substitution_cache.tar.gz'),$src)
       }
-      if ($Operation -eq 'upgrade' -and $SourceRun -eq '43953428441' -and $SourceStage -eq 1) {
-        Invoke-Owned 'relocate-verified-metagen-cache' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\relocate_metagen_cache.py'),
-          '--src',$src,'--manifest',(Join-Path $work '.security-origin\checkpoint.json'))
-      }
-      if ($Operation -in @('resume','upgrade') -and (Test-Path -LiteralPath (Join-Path $src '.chromix-upstream-restored.json'))) {
-        Invoke-Owned 'restored-environment-inspect' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\prepare_restored_build.py'),
-          '--phase','inspect','--platform','windows','--arch','x64','--workdir',$work)
-      }
       $patch = Join-Path $src 'third_party\git\usr\bin\patch.exe'
-      # Never repeat base preparation/domain replacement after service restoration.
+      # Fresh and resumed sources must satisfy the same native source contract.
       $prepareArgs = @($python,'-B','-X','utf8',(Join-Path $repo 'tools\prepare_google_services.py'),
         '--repo',$repo,'--work',$work,'--patch-bin',$patch,'--profile','lite')
       if ($Operation -eq 'upgrade') { $prepareArgs += '--reuse-prepared-domains' }
-      Invoke-Owned 'service-and-fingerprint-restore' $prepareArgs
+      Invoke-Owned 'verify-complete-product-source' $prepareArgs
       if ($Operation -eq 'upgrade') {
         Invoke-Owned 'migration-target' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_migration.py'),'verify-target','--repo',$repo,'--work',$work)
       }
@@ -477,38 +572,24 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
     'Configure' {
       if ($state.sdk_ready -ne $true) { throw 'Native SDK preparation was not completed' }
       Set-CompilerEnvironment
+      Json (Join-Path $evidence 'rust-host.json') (Select-WindowsRustCompiler $src)
       $null = New-Item -ItemType Directory -Path $out -Force
+      $metagenHost = Join-Path $evidence 'metagen-host.gn'
+      Write-MetagenHostArgs $src $metagenHost
       $merge = @($python,'-B','-X','utf8',(Join-Path $repo 'tools\merge_gn_args.py'),(Join-Path $out 'args.gn'))
-      if (Test-Path -LiteralPath (Join-Path $src '.chromix-upstream-restored.json')) {
-        $merge += @('--preserve-pgo-from',(Join-Path $out 'args.gn'),(Join-Path $out 'args.gn'))
-      }
       $merge += @(
         (Join-Path $work 'tooling\ungoogled-chromium\flags.gn'),(Join-Path $work 'tooling\ungoogled-chromium-windows\flags.windows.gn'),
-        (Join-Path $repo 'build\args.windows.gn'),(Join-Path $repo 'build\args.security.gn'))
+        (Join-Path $repo 'build\args.windows.gn'),(Join-Path $repo 'build\args.security.gn'),$metagenHost)
       Invoke-Owned 'merge-gn' $merge
       Invoke-Owned 'record-gn-before-tools' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_build_record.py'),
         '--repo',$repo,'--work',$work,'--output',(Join-Path $evidence 'build-inputs-before-gn.json'))
       $state.resume_safe = $true
       Save-State
       $ninja = Join-Path $src 'third_party\ninja\ninja.exe'
-      if (Test-Path -LiteralPath (Join-Path $src '.chromix-upstream-restored.json')) {
-        $ninja = & $python -B -X utf8 (Join-Path $repo 'tools\restore_ninja.py') --workdir $work --platform windows --arch x64
-        if ($LASTEXITCODE -ne 0 -or -not $ninja) { throw 'Restored Ninja format compatibility failed' }
-        $env:NINJA = $ninja
-      }
       if (-not (Test-Path -LiteralPath (Join-Path $src 'third_party\rust-toolchain\bin\bindgen.exe'))) {
         Invoke-Owned 'bindgen' @($python,'-B','-X','utf8',(Join-Path $src 'tools\rust\build_bindgen.py'),'--skip-test') -WorkingDirectory $src
       }
-      if (Test-Path -LiteralPath (Join-Path $src '.chromix-upstream-restored.json')) {
-        Invoke-Owned 'restored-environment-finish' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\prepare_restored_build.py'),
-          '--phase','finish','--platform','windows','--arch','x64','--workdir',$work)
-      }
-      if ($Operation -in @('resume','upgrade') -and (Test-Path -LiteralPath (Join-Path $repo 'build/metagen-cache-recovery-plan.json'))) {
-        $restoredCheck = Get-Content -LiteralPath (Join-Path $work 'upstream-cache-preparation.json') -Raw | ConvertFrom-Json
-        if ($restoredCheck.counters.tool_swap_invalidations -ne 0 -or $restoredCheck.counters.toolchain_invalidated_outputs -ne 0) {
-          throw 'Incremental-only recovery refuses toolchain invalidation; retain the intact donor instead of rebuilding from scratch'
-        }
-      }
+      Invoke-Owned 'build-crubit' @($pwsh,'-NoProfile','-File',"$PSScriptRoot\build-crubit.ps1",'-Src',$src)
       $gn = Join-Path $out 'gn.exe'
       if (-not (Test-Path -LiteralPath $gn)) {
         Invoke-Owned 'gn-bootstrap' @($python,'-B','-X','utf8',(Join-Path $src 'tools\gn\bootstrap\bootstrap.py'),'-o',$gn,'--skip-generate-buildfiles') -WorkingDirectory $src
@@ -520,6 +601,8 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         '--src',$src,'--out',$out,'--ninja',$ninja,'--chromium-version',$version,'--download')
       Invoke-Owned 'record-gn-before-compile' @($python,'-B','-X','utf8',(Join-Path $repo 'tools\security_build_record.py'),
         '--repo',$repo,'--work',$work,'--output',(Join-Path $evidence 'build-inputs.json'))
+      Invoke-Owned 'rust-stdlib' @($ninja,'-C',$out,'obj/build/rust/std/libstd.rlib',
+        'win_clang_x64_for_rust_host_build_tools/obj/build/rust/std/libstd.rlib')
       Invoke-Owned 'pending-actions' @($ninja,'-C',$out,'-n','chrome','native_passkey_unittests','uxr_surface_modes_tests')
       $state.ninja = $ninja
       $state.gn = $gn
@@ -577,14 +660,14 @@ function Invoke-SecurityPhase([string]$CurrentPhase) {
         '--browser',(Join-Path $bundle 'chrome.exe'),'--source-record',(Join-Path $evidence 'build-inputs.json'),'--report',(Join-Path $evidence 'security-runtime.json'))}
       @{label='accept-security-runtime';depends=@('security-runtime');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_candidate.py'),
         '--security-tests-json',(Join-Path $evidence 'security-runtime.json'),'--source-record',(Join-Path $evidence 'build-inputs.json'),
-        '--bundle',$bundle,'--build-variant','fingerprint-modes-win157')}
+        '--bundle',$bundle,'--build-variant','fingerprint-modes-win158')}
       @{label='google-runtime';command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_runtime.py'),'--browser',(Join-Path $bundle 'chrome.exe'),'--report',(Join-Path $evidence 'google-services-runtime.json'))}
       @{label='fingerprint-runtime';command=@($pwsh,'-NoProfile','-File',"$PSScriptRoot\verify-fingerprint-modes.ps1",'-Out',$out,'-Bundle',$bundle,'-Report',(Join-Path $evidence 'fingerprint-modes-validation.json'))}
       @{label='accept-native-passkey';depends=@('native-passkey');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\native_compiled_evidence.py'),
         '--summary',(Join-Path $evidence 'native-passkey-unittests.json'),'--launcher',(Join-Path $evidence 'native-passkey-launcher.json'),
         '--build-record',(Join-Path $bundle 'google-services-build.json'),'--kind','passkey')}
       @{label='accept-fingerprint';depends=@('fingerprint-runtime');command=@($python,'-B','-X','utf8',(Join-Path $repo 'tools\verify_google_services_candidate.py'),
-        '--fingerprint-tests-json',(Join-Path $evidence 'fingerprint-modes-validation.json'),'--bundle',$bundle,'--build-variant','fingerprint-modes-win157')}
+        '--fingerprint-tests-json',(Join-Path $evidence 'fingerprint-modes-validation.json'),'--bundle',$bundle,'--build-variant','fingerprint-modes-win158')}
       )
       Invoke-VerificationPlan $checks
     }

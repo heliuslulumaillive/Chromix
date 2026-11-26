@@ -1,0 +1,34 @@
+#ifndef COMPONENTS_UNGOOGLED_FARBLE_SEED_H_
+#define COMPONENTS_UNGOOGLED_FARBLE_SEED_H_
+
+#include <cstdint>
+#include <string>
+#include <string_view>
+
+#include "base/component_export.h"
+
+namespace ungoogled {
+
+// Returns a deterministic per-site seed using the full unsigned 64-bit
+// uxr-fingerprint-seed, with an empty/missing key falling back to uxr-canvas-seed.
+// Invalid decimal values map to zero, as in persona selection. Legacy uint32
+// seeds retain their little-endian mapping; upper seed bits are also mixed.
+// Configuration is read per call so renderer initialization cannot cache a
+// pre-configuration seed. Registrable domains use stable base::PersistentHash.
+COMPONENT_EXPORT(UNGOOGLED)
+uint64_t GetFarbleSeed64(std::string_view registrable_domain);
+
+// Decimal-ASCII rendering of GetFarbleSeed64, for surfaces that concatenate the
+// seed into std::hash<std::string> per-pixel keys.
+COMPONENT_EXPORT(UNGOOGLED)
+std::string GetFarbleSeedString(std::string_view registrable_domain);
+
+// Noise policy for consumers; it does not implement a rendering mechanism.
+// Presence of uxr-disable-fingerprint-noise disables noise, independent of
+// identity selection. Read per call to honor renderer configuration delivery.
+COMPONENT_EXPORT(UNGOOGLED)
+bool FingerprintNoiseEnabled();
+
+}  // namespace ungoogled
+
+#endif  // COMPONENTS_UNGOOGLED_FARBLE_SEED_H_

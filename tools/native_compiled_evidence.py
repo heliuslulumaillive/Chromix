@@ -17,8 +17,8 @@ except ImportError:
 
 HEX = re.compile(r'[a-f0-9]{64}')
 COMMIT = re.compile(r'[a-f0-9]{40}')
-VERSION = '157.0.8103.78'
-VARIANT = 'fingerprint-modes-win157'
+VERSION = '158.0.8127.36'
+VARIANT = 'fingerprint-modes-win158'
 TEST_EXECUTABLE = 'native_passkey_unittests.exe'
 
 # The frozen list comes from the actual Chromium 156 v3 native execution, not

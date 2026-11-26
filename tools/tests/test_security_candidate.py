@@ -34,8 +34,8 @@ def product_receipt():
             'preparation_sha256': hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest(),
             'preparation_inputs': inputs}
 
-FP157 = 'fingerprint-modes-win157'
-V157 = '157.0.8103.78'
+FP157 = 'fingerprint-modes-win158'
+V157 = '158.0.8127.36'
 
 
 def native_report():
@@ -53,7 +53,7 @@ def write_security_evidence(root, bundle):
         'build_variant':FP157,'chromium_version':V157,'source_commit':'a'*40,'run_id':50}
     content='\n'.join(f'{key} = {value}' for key,value in security_build_record.REQUIRED_FLAGS.items())+'\n'
     gn_sha=hashlib.sha256(content.encode()).hexdigest()
-    source={'schema_version':1,'build_variant':'security-win157','payload_build_variant':FP157,
+    source={'schema_version':1,'build_variant':'security-win158','payload_build_variant':FP157,
         'chromium_version':V157,'core_commit':security_build_record.CORE,'windows_commit':security_build_record.WINDOWS,
         'source_commit':build['source_commit'],'run_id':str(build['run_id']),
         'recipe_sha256':security_build_record.recipe(ROOT),'source_receipt_sha256':candidate.sha256(source_path),
@@ -97,12 +97,12 @@ class SecurityCandidateTests(unittest.TestCase):
 
     def test_version_map_is_closed_and_artifact_names_are_variant_bound(self):
         source = {'repository':'fixture/repo','run_id':1,'artifact_id':2,'head_sha':'a'*40,
-                  'artifact_name':'security-win157-x64'}
+                  'artifact_name':'security-win158-x64'}
         candidate.validate_source_run(source,build_variant=FP157)
         for variant in ['google-services','fingerprint-modes-win155','unknown']:
             with self.subTest(variant=variant),self.assertRaises(ValueError):
                 candidate.validate_source_run(source,build_variant=variant)
-        with self.assertRaises(ValueError):candidate.variant_version('fingerprint-modes-win158')
+        with self.assertRaises(ValueError):candidate.variant_version('fingerprint-modes-win159')
         self.assertEqual(candidate.variant_version(FP157),V157)
 
     def test_writer_accepts_only_exact_pairs(self):
@@ -111,7 +111,7 @@ class SecurityCandidateTests(unittest.TestCase):
             if variant:source['build_variant']=variant
             writer.validate_source_pair(source)
         for variant,version in [(None,V157),('fingerprint-modes-win155',V157),(FP157,'155.0.8059.39'),
-                                (FP157,'156.0.8078.73'),('fingerprint-modes-win158',V157)]:
+                                (FP157,'156.0.8078.73'),('fingerprint-modes-win159',V157)]:
             source={'variant':'google-services-self-use','chromium_version':version}
             if variant:source['build_variant']=variant
             with self.subTest(source=source),self.assertRaises(ValueError):writer.validate_source_pair(source)
@@ -138,7 +138,7 @@ class SecurityCandidateTests(unittest.TestCase):
 
     def test_candidate_upload_has_one_flat_dist_root(self):
         import yaml
-        worker=yaml.safe_load((ROOT/'.github/workflows/security-win157-worker.yml').read_text())
+        worker=yaml.safe_load((ROOT/'.github/workflows/security-win158-worker.yml').read_text())
         step=next(s for s in worker['jobs']['build']['steps'] if s.get('id')=='candidate')
         paths=step['with']['path'].splitlines()
         self.assertTrue(paths)
@@ -196,7 +196,7 @@ class SecurityCandidateTests(unittest.TestCase):
         write_fingerprint_evidence(self.root,self.bundle,build_variant=FP157)
         (self.root/'native-passkey-unittests.json').write_text(json.dumps(native_report()))
         archive=self.root/'chromix-win-x64.zip';archive.write_bytes(b'synthetic archive; extraction is mocked')
-        source={'repository':'fixture/repo','head_sha':'a'*40,'run_id':50,'artifact_id':51,'artifact_name':'security-win157-x64'}
+        source={'repository':'fixture/repo','head_sha':'a'*40,'run_id':50,'artifact_id':51,'artifact_name':'security-win158-x64'}
         build={'build_variant':FP157,'chromium_version':V157,'repository':source['repository'],
             'patch_kind':lite_patch_stack.KIND,
             'source_commit':source['head_sha'],'run_id':50,'patch_sha256':receipt['patch_sha256'],

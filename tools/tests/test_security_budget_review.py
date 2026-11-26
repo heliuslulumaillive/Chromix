@@ -87,7 +87,7 @@ class BudgetEvidenceTests(unittest.TestCase):
 
     def test_reviewed_artifact_and_each_payload_hash_are_bound(self):
         from tools import security_budget_review as module
-        artifact = {'id': 7, 'name': 'security-win157-evidence-s1', 'expired': False,
+        artifact = {'id': 7, 'name': 'security-win158-evidence-s1', 'expired': False,
                     'size_in_bytes': 500, 'digest': 'sha256:' + 'a' * 64, 'created_at': '2026-10-31T11:38:09Z'}
         identity = module.checkpoint.artifact_identity(artifact)
         data = self.files()

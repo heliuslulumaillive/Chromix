@@ -1,0 +1,52 @@
+#include "components/ungoogled/farble_seed.h"
+
+#include <array>
+
+#include "base/containers/span.h"
+#include "base/hash/hash.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/uxr_config.h"
+
+namespace ungoogled {
+
+namespace {
+
+uint64_t GlobalSeed() {
+  const base::UxrConfig& config = base::UxrConfig::GetInstance();
+  const char* key = config.Get("uxr-fingerprint-seed").empty()
+                        ? "uxr-canvas-seed"
+                        : "uxr-fingerprint-seed";
+  uint64_t seed = 0;
+  if (!config.GetUint64(key, &seed))
+    return 0;
+  return seed;
+}
+
+}  // namespace
+
+uint64_t GetFarbleSeed64(std::string_view registrable_domain) {
+  const uint64_t global_seed = GlobalSeed();
+  const uint32_t dhash = base::PersistentHash(registrable_domain);
+  const uint32_t high = dhash + static_cast<uint32_t>(global_seed) - 1u;
+  // Preserve legacy 32-bit seeds without depending on host byte order.
+  const std::array<uint8_t, 4> bytes = {
+      static_cast<uint8_t>(high), static_cast<uint8_t>(high >> 8),
+      static_cast<uint8_t>(high >> 16), static_cast<uint8_t>(high >> 24)};
+  const uint32_t low = base::PersistentHash(base::span(bytes));
+  const uint64_t legacy = (static_cast<uint64_t>(high) << 32) ^ low ^
+                         (static_cast<uint64_t>(
+                              static_cast<uint32_t>(global_seed)) << 16);
+  // The odd multiplier retains every upper seed bit, including bit 63.
+  return legacy ^ ((global_seed >> 32) * 0x9e3779b97f4a7c15ULL);
+}
+
+std::string GetFarbleSeedString(std::string_view registrable_domain) {
+  return base::NumberToString(GetFarbleSeed64(registrable_domain));
+}
+
+bool FingerprintNoiseEnabled() {
+  // Configuration can be installed after the renderer starts.
+  return !base::UxrConfig::GetInstance().Has("uxr-disable-fingerprint-noise");
+}
+
+}  // namespace ungoogled

@@ -197,7 +197,7 @@ def verify_security_sync_prefs(src: Path):
 
 
 def verify(src: Path, repo: Path, *, config=None):
-    legacy = config is None and not (repo / 'build/lite-windows157.json').is_file()
+    legacy = config is None and not (repo / 'build/lite-windows158.json').is_file()
     if config is None and not legacy:
         try:
             from .lite_patch_stack import load
@@ -214,10 +214,10 @@ def verify(src: Path, repo: Path, *, config=None):
     capabilities = json.loads((repo / CAPABILITIES).read_text(encoding='utf-8'))
     if (capabilities.get('schema_version') != 1 or capabilities.get('contract') != CONTRACT
             or capabilities.get('chromium_version') != config.get('chromium_version')
-            or config.get('chromium_version') not in ('156.0.8078.79', '157.0.8103.38', '157.0.8103.78')
+            or config.get('chromium_version') not in ('156.0.8078.79', '157.0.8103.38', '157.0.8103.78', '158.0.8127.36')
             or capabilities.get('managed_environment', {}).get('flag') != 'shardx-managed-environment'):
         raise ValueError('Native browser capability identity is invalid')
-    account_overlay = not legacy and config['chromium_version'] == '157.0.8103.78'
+    account_overlay = not legacy and config['chromium_version'] in ('157.0.8103.78', '158.0.8127.36')
     if account_overlay:
         avatar = capabilities.get('windows_avatar', {})
         if (avatar.get('source') != 'native-primary-account-kSignin' or avatar.get('window_icon') is not False

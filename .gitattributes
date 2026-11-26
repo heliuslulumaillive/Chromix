@@ -32,6 +32,8 @@ Makefile  text eol=lf
 CHROMIUM_WINDOWS_VERSION text eol=lf
 UNGOOGLED_WINDOWS_VERSION text eol=lf
 build/windows/security-requirements.txt text eol=lf
+/build/chromium158-source.ini text eol=lf
+/tools/tests/fixtures/windows157-upstream/CHROMIUM*_VERSION text eol=lf
 tools/google-services-requirements.txt text eol=lf
 
 # Windows-only helpers keep CRLF.

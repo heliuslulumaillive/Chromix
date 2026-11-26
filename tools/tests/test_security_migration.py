@@ -36,7 +36,7 @@ class MigrationTests(unittest.TestCase):
         (history / (self.old + '.patch')).write_bytes(b'old patch')
         (history.parent / '0001-restore-google-services.patch').write_bytes(b'new patch')
         self.write_policy()
-        self.receipt = {'variant': 'google-services-self-use', 'build_variant': 'fingerprint-modes-win157',
+        self.receipt = {'variant': 'google-services-self-use', 'build_variant': 'fingerprint-modes-win158',
                         'chromium_version': m.VERSION, 'patch_sha256': self.old,
                         'preparation_sha256': 'd' * 64}
         (self.work / 'google-services-source.json').write_text(json.dumps(self.receipt))
@@ -80,7 +80,7 @@ class MigrationTests(unittest.TestCase):
             m.registered_rule(self.repo, self.manifest)
 
     def test_same_product_stack_can_migrate_recipe_without_fake_patch_history(self):
-        kind = 'lite-windows157-product'
+        kind = 'lite-windows158-product'
         self.rule.update(source_patch_kind=kind, target_patch_kind=kind,
                          source_aggregate_sha256=self.new)
         self.write_policy()
@@ -98,7 +98,7 @@ class MigrationTests(unittest.TestCase):
             m.registered_rule(self.repo, self.manifest)
 
     def test_identical_source_stack_still_requires_its_explicit_donor_stage(self):
-        self.rule.update(source_patch_kind='lite-windows157-product',target_patch_kind='lite-windows157-product',
+        self.rule.update(source_patch_kind='lite-windows158-product',target_patch_kind='lite-windows158-product',
                          source_aggregate_sha256=self.new,source_run='123',source_stage=1)
         self.write_policy()
         donor=dict(self.manifest,run_id='123',stage=1)
@@ -166,7 +166,7 @@ class RegisteredCheckoutTest(unittest.TestCase):
                 if 'source_run' in rule or rule.get('product_source_updates'):
                     donor.update(run_id=rule['source_run'], stage=rule['source_stage'])
                 self.assertEqual(m.registered_rule(root, donor)['id'], rule['id'])
-                profile = 'lite' if rule.get('target_patch_kind') == 'lite-windows157-product' else 'legacy'
+                profile = 'lite' if rule.get('target_patch_kind') == 'lite-windows158-product' else 'legacy'
                 self.assertEqual(rule['target_preparation_sha256'], preparation.recipe_identity(root, profile=profile)[0])
 
 

@@ -107,7 +107,7 @@ def prepare(repo: Path, work: Path, *, migration=False):
         # were verified. Only registered source repairs are written; objects
         # and every unchanged source retain their bytes and timestamps.
         key = preparation_key(repo, 'windows', 'windows', profile='lite')
-        for name in ('.chromix-patches', '.chromix-patch-selection'):
+        for name in ('.chromix-patches', '.chromix-patch-selection', '.chromix-native-layer-key'):
             write_if_changed(owned(src, name), (key + '\n').encode())
         ready = '|'.join((config['chromium_version'], config['core_commit'], config['windows_commit'], key))
         write_if_changed(owned(src, '.chromix-source-ready'), (ready + '\n').encode())

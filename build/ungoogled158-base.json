@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "chromium_version": "158.0.8127.36",
+  "chromium_commit": "14d6f648e8cd7ad750a4044200ce94d3321be260",
+  "original_source_archive_sha256": "000e7ce96ca59f48e278a652189e816c9c9686b80479d13693c2957e349b0cec",
+  "layers": {
+    "core": {
+      "commit": "76f39e0fead37326b9ba0440831336b198a17246",
+      "patch_count": 110,
+      "patch_list_sha256": "f42a5007b964984a71a00f904873ce35d05051a10bfdedbfbc8f4f8be538e4b9",
+      "pruning_sha256": "2b2275c0ce54cee7f06f3145bb418b0d1b8280b1dd4c3e41c5df7dbf330ebb0b"
+    },
+    "windows": {
+      "commit": "76a692e3e39e1456e4691e7d9de28d32de1cdd87",
+      "patch_count": 25,
+      "patch_list_sha256": "20f51a2953a69e955752152d48cece5e20719300a4b41ff4009ac2b0117c6dd0",
+      "pruning_sha256": "2b2275c0ce54cee7f06f3145bb418b0d1b8280b1dd4c3e41c5df7dbf330ebb0b"
+    }
+  },
+  "skip_patches": {
+    "core": [],
+    "windows": []
+  },
+  "use_chromium_files": [],
+  "preserve_resources": {},
+  "preserve_pruned_sources": {}
+}

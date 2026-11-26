@@ -34,9 +34,9 @@ class NativeCookieSourceTests(unittest.TestCase):
         self.assertEqual(len(gate.verify_implementation(self.src)), 15)
 
     def test_release_metadata_and_version_must_still_agree(self):
-        release = json.loads((ROOT / 'build/lite-windows157.json').read_bytes())['runtime']
+        release = json.loads((ROOT / 'build/lite-windows158.json').read_bytes())['runtime']
         self.assertEqual(len(gate.verify(self.src, ROOT, config=release)), 15)
-        release['chromium_version'] = '158.0.8127.36'
+        release['chromium_version'] = '159.0.8127.36'
         with self.assertRaisesRegex(ValueError, 'capability contract is invalid'):
             gate.verify(self.src, ROOT, config=release)
 

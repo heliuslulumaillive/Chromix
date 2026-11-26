@@ -101,9 +101,9 @@ class Windows157MidlIdentityTest(unittest.TestCase):
         self.assertEqual(self.script.read_bytes(), self.original)
         self.assertFalse((self.src / repair.RECORD).exists())
 
-    def test_current_upstream_x64_admission_matches_the_exact_repair_pin(self):
+    def test_historical157_upstream_admission_matches_the_exact_repair_pin(self):
         from tools.restore_upstream_cache import identities
-        repo = Path(__file__).resolve().parents[2]
+        repo = Path(__file__).resolve().parent / 'fixtures/windows157-upstream'
         identity, _, _ = identities(repo, 'windows', 'x64')
         self.assertEqual(identity, dict(repair.WINDOWS15778_RECORDS[0]['identity']))
         self.assertEqual(self.apply(identity)['status'], 'repaired')

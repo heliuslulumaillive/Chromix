@@ -167,7 +167,7 @@ def handoff(repo, plan, state_path):
                      'producer_job_completed_before_dispatch': True}
             write_json(state_path, state)
             args = ['workflow', 'run', plan['workflow'], '--repo', plan['repository'],
-                    '--ref', plan['target_branch'], '-f', 'build_variant=fingerprint-modes-win157',
+                    '--ref', plan['target_branch'], '-f', 'build_variant=fingerprint-modes-win158',
                     '-f', 'operation=upgrade', '-f', 'source_run=' + str(plan['donor_run']),
                     '-f', 'source_stage=' + str(plan['donor_stage']),
                     '-f', 'handoff_id=' + plan['handoff_id'],

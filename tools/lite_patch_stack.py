@@ -13,8 +13,8 @@ except ImportError:
     from google_services_inputs import owned
     from platform_pins import load_pins
 
-MANIFEST = 'build/lite-windows157.json'
-KIND = 'lite-windows157-product'
+MANIFEST = 'build/lite-windows158.json'
+KIND = 'lite-windows158-product'
 HEX = re.compile(r'[0-9a-f]{64}\Z')
 
 
@@ -38,12 +38,50 @@ def load(repo: Path):
                      ('windows_commit', 'UngoogledWindowsCommit')):
         if runtime[key] != pins[pin]:
             raise ValueError('Product manifest/platform pins differ: ' + key)
-    if runtime['chromium_version'] != '157.0.8103.78':
-        raise ValueError('This reviewed product stack is limited to Chromium 157.0.8103.78')
+    if runtime['chromium_version'] != '158.0.8127.36':
+        raise ValueError('This reviewed product stack is limited to Chromium 158.0.8127.36')
+    try:
+        from .verify_windows158_product_port import load as load_port
+    except ImportError:
+        from verify_windows158_product_port import load as load_port
+    port = load_port(repo)
+    if (data.get('source_port_manifest_sha256') != digest(owned(repo, 'build/windows158-product-port.json').read_bytes())
+            or data.get('chromium_base_sha256') != digest(owned(repo, 'build/ungoogled158-base.json').read_bytes())):
+        raise ValueError('The full source port or ungoogled base policy changed')
+    expected_runtime = json.loads(owned(repo, 'build/lite-windows157.json').read_bytes())['runtime']
+    expected_runtime.update(chromium_version=pins['ChromiumVersion'], core_commit=pins['UngoogledCommit'],
+                            windows_commit=pins['UngoogledWindowsCommit'])
+    policy = json.loads(owned(repo, 'build/ungoogled158-base.json').read_bytes())
+    if (runtime != expected_runtime or policy['skip_patches'] != {'core': [], 'windows': []}
+            or policy['use_chromium_files'] or policy['preserve_resources'] or policy['preserve_pruned_sources']
+            or [policy['layers'][k]['patch_count'] for k in ('core', 'windows')] != [110, 25]):
+        raise ValueError('The full 157 feature contract and complete ungoogled layers must be retained')
+    expected_patches = [{k: group[k] for k in ('path', 'sha256', 'files')} for group in port['groups']]
+    adaptations = data.get('build_adaptations', {})
+    donor_raw = owned(repo, 'build/checkpoint-sources/ungoogled158-donor-manifest.json').read_bytes()
+    donor = json.loads(donor_raw)
+    if (adaptations.get('donor_commit') != '02cb882b4924768730ebb7a17d333375ddfda69d'
+            or adaptations.get('donor_manifest_sha256') != digest(donor_raw)
+            or adaptations.get('source_paths') != ['build/toolchain/win/midl.py']
+            or data['patches'][:-1] != expected_patches
+            or data['patches'][-1]['path'] != 'patches/lite-windows158-build/01-windows-midl.patch'
+            or data['patches'][-1]['files'] != adaptations['source_paths']):
+        raise ValueError('The complete feature port or exact 158 build adaptation changed')
+    declared = {row['path']: row for row in data['source_files']}
+    for row in port['sourceFiles']:
+        if declared.get(row['path']) != {'path': row['path'], 'before_sha256': row['before'], 'after_sha256': row['after']}:
+            raise ValueError('A reviewed 157 feature changed during build wiring: ' + row['path'])
+    port_names = {row['path'] for row in port['sourceFiles']}
+    for row in data['source_files']:
+        if row['path'] not in port_names | set(adaptations['source_paths']) and row['before_sha256'] != row['after_sha256']:
+            raise ValueError('Unreviewed additional product source change: ' + row['path'])
+    original_midl = next(row for row in donor['source_files'] if row['path'] == 'build/toolchain/win/midl.py')
+    if declared['build/toolchain/win/midl.py']['after_sha256'] != original_midl['after_sha256']:
+        raise ValueError('Windows MIDL repair differs from the compiled 158 donor')
     paths, targets = set(), set()
     for entry in data['patches']:
         name = entry['path']
-        if (not re.fullmatch(r'patches/lite-windows157/[0-9]{2}-[a-z0-9-]+\.patch', name)
+        if (not re.fullmatch(r'patches/lite-windows(?:157|158|158-complete|158-build)/[0-9]{2}-[a-z0-9-]+\.patch', name)
                 or name in paths or not entry['files']):
             raise ValueError('Invalid or duplicate product patch')
         paths.add(name)
@@ -55,7 +93,6 @@ def load(repo: Path):
         if actual != entry['files'] or len(actual) != len(set(actual)) or targets.intersection(actual):
             raise ValueError('Product topics must own distinct, complete file sections')
         targets.update(actual)
-    directory = owned(repo, 'patches/lite-windows157')
     if 'base/uxr_private_font_packages_win.h' in targets:
         resources = runtime.get('private_font_packages', {})
         if (not isinstance(resources,dict) or resources.get('version') != 1 or resources.get('manifest') != 'build/private-font-packages.json'
@@ -68,9 +105,9 @@ def load(repo: Path):
                 or country.get('trusted_key') != 'build/font-catalog-key.json'
                 or country.get('trusted_key_sha256') != digest(owned(repo, country['trusted_key']).read_bytes())):
             raise ValueError('External font catalog trust anchor differs from the pinned product contract')
-    actual = {p.relative_to(repo).as_posix() for p in directory.glob('*.patch')}
-    if not paths or actual != paths:
-        raise ValueError('Unexpected or incomplete product patch inventory')
+    actual_build = {p.relative_to(repo).as_posix() for p in owned(repo, 'patches/lite-windows158-build').glob('*.patch')}
+    if actual_build != {'patches/lite-windows158-build/01-windows-midl.patch'}:
+        raise ValueError('Unexpected Windows 158 build patch inventory')
     seen = set()
     for row in data['source_files']:
         owned(repo, row['path'])  # Validate paths even when not present in the repo.
@@ -112,7 +149,14 @@ def input_hashes(repo):
     repo = Path(repo).absolute()
     data = load(repo)
     names = {MANIFEST, 'CHROMIUM_WINDOWS_VERSION', 'UNGOOGLED_WINDOWS_VERSION',
-             'build/ungoogled-revisions.psd1', 'build/args.windows.gn', 'build/args.security.gn', 'build/windows157-port.json',
+             'build/ungoogled-revisions.psd1', 'build/args.windows.gn', 'build/args.security.gn',
+             'build/ungoogled158-base.json', 'build/windows158-product-port.json',
+             'build/windows158-browser-feature-port.json', 'build/lite-windows157.json',
+             'build/checkpoint-sources/ungoogled158-donor-manifest.json',
+             'tools/verify_windows158_product_port.py', 'tools/verify_browser_feature_port.py',
+             'tools/verify_browser_services158.py', 'tools/chromium158_base.py',
+             'tools/archive_windows_files.py', 'tools/restoration_rules.py', 'build/chromium158-source.ini',
+             'build/windows/build-crubit.ps1', 'build/windows/prep_rust_toolchain.py',
              'build/windows/prepare-ungoogled.ps1', 'tools/patch_selection.py',
              'build/windows/package-win.ps1',
              'tools/lite_patch_stack.py', 'tools/prepare_lite_product.py', 'tools/lite_product_migration.py',
@@ -156,6 +200,11 @@ def input_hashes(repo):
              'build/fingerprint-modes-capabilities.json', 'build/gpu-binding-capabilities.json',
              'patches/lite-win156/retirement-manifest.json'}
     names.update(row['path'] for row in data['patches'])
+    release = json.loads(owned(repo, 'build/lite-windows157.json').read_bytes())
+    names.update(row['path'] for row in release['patches'])
+    features = json.loads(owned(repo, 'build/windows158-browser-feature-port.json').read_bytes())
+    names.update(group['path'] for group in features['groups'])
+    names.add(features['featureConnections']['path'])
     names.update(p.relative_to(repo).as_posix() for p in owned(repo,'build/windows/metagen-python').rglob('*') if p.is_file())
     names.update(p.relative_to(repo).as_posix() for p in owned(repo,'tools/tests/fixtures/signed-font-catalog-v2').iterdir() if p.is_file())
     names.update(p.relative_to(repo).as_posix() for p in owned(repo,'tools/tests/fixtures/signed-font-catalog-v3').iterdir() if p.is_file())
@@ -168,8 +217,6 @@ def input_hashes(repo):
     names.update(row['repository_path'] for row in data['runtime']['restore_pruned_resources'].values())
     names.update('tools/tests/fixtures/pixel-semantics-v1/' + name
                  for name in ('cases.tsv', 'pixels.bin', 'provenance.json'))
-    payload = owned(repo, 'build/windows/lite-tarball-files')
-    names.update(p.relative_to(repo).as_posix() for p in payload.rglob('*') if p.is_file())
     return {name: digest(owned(repo, name).read_bytes()) for name in sorted(names)}
 
 

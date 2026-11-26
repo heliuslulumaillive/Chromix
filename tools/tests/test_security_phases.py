@@ -1,6 +1,7 @@
 """Exercise the real PowerShell phase guards without invoking the hosted build."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -13,7 +14,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 STAGE = ROOT / 'build/windows/security-stage.ps1'
-WORKER = ROOT / '.github/workflows/security-win157-worker.yml'
+WORKER = ROOT / '.github/workflows/security-win158-worker.yml'
 PWSH = shutil.which('pwsh') or shutil.which('pwsh.exe')
 PHASES = ['Acquire', 'Extract', 'Prepare', 'Configure', 'Compile', 'Bundle', 'Verify', 'Archive']
 HARNESS = r'''
@@ -22,7 +23,7 @@ $ErrorActionPreference = 'Stop'
 $tokens = $null; $parseErrors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile($env:PHASE_TEST_SOURCE,[ref]$tokens,[ref]$parseErrors)
 if ($parseErrors.Count) { throw ($parseErrors.Message -join '; ') }
-$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Get-OwnedCommandStatus','Get-NinjaFailureSummary','Get-OwnedFailureSummary','Write-OwnedFailureAnnotation','Invoke-Owned','Invoke-VerificationPlan','Read-State')
+$allowed = @('Assert-PhasePredecessor','Get-StageContinuation','Get-CheckpointDiskBudget','Select-CheckpointTransferRoot','Get-OwnedCommandStatus','Get-NinjaFailureSummary','Get-OwnedFailureSummary','Write-OwnedFailureAnnotation','Invoke-Owned','Invoke-VerificationPlan','Read-State','Assert-Plain','Write-MetagenHostArgs','Select-WindowsRustCompiler')
 $definitions = $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in $allowed}, $false)
 if (@($definitions).Count -ne $allowed.Count) { throw 'Guard function inventory mismatch' }
 . ([scriptblock]::Create(($definitions.Extent.Text -join "`n")))
@@ -43,6 +44,13 @@ try {
       $result=Read-State
     }
     'disk' { $result=Get-CheckpointDiskBudget $request }
+    'transfer-root' {
+      $budget=Get-CheckpointDiskBudget $request.manifest $request.artifacts
+      $budget.available_bytes=$request.free
+      $result=@{root=(Select-CheckpointTransferRoot $budget $request.build $request.transfer)}
+    }
+    'rust-host' { $result=Select-WindowsRustCompiler $request.src $request.windows $request.linux }
+    'metagen-pair' { Write-MetagenHostArgs $request.src $request.output; $result=@{accepted=$true} }
     'command-status' { $result=@{status=(Get-OwnedCommandStatus $request.exit_code $request.receipt)} }
     'ninja-failures' { $result=Get-NinjaFailureSummary $request.path }
     'owned-failure' { $result=Get-OwnedFailureSummary $request.label $request.exit_code $request.receipt $request.path }
@@ -111,6 +119,59 @@ class PhaseGuardTests(unittest.TestCase):
                               capture_output=True, text=True, encoding='utf-8', env=env, timeout=30)
         self.assertEqual(proc.returncode, 0, proc.stderr)
         return json.loads(proc.stdout)
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows CreateProcess resolution')
+    def test_rust_stdlib_action_can_launch_the_bare_compiler_after_restore(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            src = Path(temporary)
+            toolchain = src / 'third_party/rust-toolchain'
+            bare = toolchain / 'bin/rustc'
+            native = bare.with_suffix('.exe')
+            parked = toolchain / 'rustc.linux-x64'
+            bare.parent.mkdir(parents=True)
+            shutil.copyfile(Path(os.environ['SystemRoot']) / 'System32/hostname.exe', native)
+            linux = b'\x7fELF foreign driver fixture'
+            bare.write_bytes(linux)
+            request = {'src': str(src), 'windows': hashlib.sha256(native.read_bytes()).hexdigest(),
+                       'linux': hashlib.sha256(linux).hexdigest()}
+            with self.assertRaises(OSError) as failure:
+                subprocess.check_output([str(bare)])
+            self.assertEqual(failure.exception.winerror, 193)
+            for key in ('windows', 'linux'):
+                self.assertFalse(self.run_guard('rust-host', {**request, key: '0' * 64})['accepted'])
+                self.assertEqual(bare.read_bytes(), linux)
+                self.assertFalse(parked.exists())
+            for _ in range(2):
+                receipt = self.run_guard('rust-host', request)
+                self.assertEqual(receipt['windows_compiler_sha256'], request['windows'])
+                self.assertEqual(receipt['archived_linux_compiler_sha256'], request['linux'])
+                self.assertEqual(parked.read_bytes(), linux)
+                self.assertFalse(bare.exists())
+                self.assertEqual(subprocess.check_output([str(bare)]), subprocess.check_output([str(native)]))
+
+    def test_metagen_configuration_selects_the_native_windows_pair(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            src = Path(temporary) / 'source tree'
+            dll = src / 'third_party/llvm-build/Release+Asserts/bin/libclang.dll'
+            bindings = src / 'third_party/llvm-libclang/bindings/python'
+            dll.parent.mkdir(parents=True)
+            bindings.mkdir(parents=True)
+            output = Path(temporary) / 'metagen-host.gn'
+            request = {'src': str(src), 'output': str(output)}
+            missing = self.run_guard('metagen-pair', request)
+            self.assertFalse(missing['accepted'])
+            self.assertFalse(output.exists())
+            dll.write_bytes(b'path selection fixture')
+            self.assertTrue(self.run_guard('metagen-pair', request)['accepted'])
+            lines = output.read_text(encoding='utf-8').splitlines()
+            self.assertEqual(len(lines), 2)
+            expected = {'v8_metagen_libclang_so': dll, 'v8_metagen_libclang_bindings_dir': bindings}
+            actual = dict(line.split(' = ', 1) for line in lines)
+            self.assertEqual(actual.keys(), expected.keys())
+            for key, path in expected.items():
+                emitted = Path(json.loads(actual[key]))
+                self.assertTrue(emitted.is_absolute())
+                self.assertEqual(emitted.resolve(strict=True), path.resolve(strict=True))
 
     def test_all_real_guards_admit_only_exact_next_phase(self):
         for i, phase in enumerate(PHASES):
@@ -327,6 +388,30 @@ class PhaseGuardTests(unittest.TestCase):
             self.assertFalse(self.run_guard('disk', bad)['accepted'])
 
 
+    def test_split_checkpoint_requires_separate_fixed_volumes_and_space_for_each_phase(self):
+        parts = [8 * 1024**3, 8 * 1024**3, 1113514308]
+        request = {
+            'manifest': {'tree_bytes': 59706136911, 'parts': [{'bytes': n} for n in parts]},
+            'artifacts': [{'size_in_bytes': n + 248} for n in parts],
+            'free': 96056221696, 'build': {'DriveLetter': 'C', 'UniqueId': 'system'},
+            'transfer': {'DriveLetter': 'D', 'UniqueId': 'scratch', 'DriveType': 'Fixed',
+                         'FileSystem': 'NTFS', 'SizeRemaining': sum(parts) + 1024**2}}
+        self.assertEqual(self.run_guard('transfer-root', request)['root'], r'D:\security-restore')
+        self.assertEqual(self.run_guard('transfer-root', {**request, 'free': 110 * 1024**3,
+                                                          'transfer': None})['root'], r'C:\security-restore')
+        for change in ({'UniqueId': 'system'}, {'UniqueId': ''}, {'DriveType': 'Network'},
+                       {'FileSystem': 'FAT32'}, {'DriveLetter': 'F'}, {'SizeRemaining': sum(parts) - 1}):
+            with self.subTest(change=change):
+                bad = {**request, 'transfer': {**request['transfer'], **change}}
+                self.assertIsNone(self.run_guard('transfer-root', bad)['root'])
+        for change in ({'free': 59706136911 + 24 * 1024**3 - 1},
+                       {'free': sum(parts) + 24 * 1024**3 - 1,
+                        'manifest': {'parts': request['manifest']['parts']}},
+                       {'free': 24 * 1024**3 + sum(parts), 'manifest': {**request['manifest'], 'tree_bytes': 1000}}):
+            with self.subTest(change=change):
+                self.assertIsNone(self.run_guard('transfer-root', {**request, **change})['root'])
+
+
 class WorkflowPhaseTests(unittest.TestCase):
     def setUp(self):
         self.worker = yaml.load(WORKER.read_text(encoding='utf-8'), Loader=yaml.BaseLoader)
@@ -362,11 +447,11 @@ class WorkflowPhaseTests(unittest.TestCase):
         prepare = text.split("    'Prepare' {", 1)[1].split("    'Configure' {", 1)[0]
         self.assertLess(prepare.index("Invoke-Owned 'sdk'"), prepare.index("'base-prepare'"))
         self.assertLess(prepare.index('Set-CompilerEnvironment -WithoutSourceTools'),
-                        prepare.index("'restored-environment-inspect'"))
+                        prepare.index("'verify-complete-product-source'"))
         self.assertEqual(text.count("Invoke-Owned 'sdk'"), 1)
         self.assertNotIn("Remove-Item -LiteralPath $out", text)
         self.assertLess(text.index("'checkpoint-preflight'"), text.index("'checkpoint-download'"))
-        self.assertLess(text.index("'checkpoint-tree'"), text.index("'migration-source'"))
+        self.assertLess(text.index("'checkpoint-tree'"), text.index("'verify-complete-product-source'"))
 
     def test_checkpoint_disk_admission_precedes_large_operations(self):
         text = STAGE.read_text(encoding='utf-8')
@@ -374,8 +459,18 @@ class WorkflowPhaseTests(unittest.TestCase):
         checkpoint = acquisition.split("if ($Operation -in @('resume','upgrade')) {", 1)[1].split('      } else {', 1)[0]
         self.assertLess(checkpoint.index("'checkpoint-preflight'"), checkpoint.index('Clear-HostedToolSpace'))
         self.assertLess(checkpoint.index('Clear-HostedToolSpace'), checkpoint.index('Get-CheckpointDiskBudget'))
+        recovery = checkpoint.index('Clear-HostedToolSpace -ForLargerCheckpoint')
+        measurement = '$diskBudget.available_bytes = (Get-PSDrive C).Free'
+        self.assertLess(checkpoint.index(measurement), recovery)
+        self.assertLess(recovery, checkpoint.rindex(measurement))
+        self.assertLess(checkpoint.rindex(measurement), checkpoint.index('Insufficient free disk space'))
         self.assertLess(checkpoint.index('required_free_bytes'), checkpoint.index("'checkpoint-download'"))
         extraction = text.split("    'Extract' {", 1)[1].split("    'Prepare' {", 1)[0]
+        self.assertLess(checkpoint.index('$state.checkpoint_transfer_root = $restore'),
+                        checkpoint.index("'checkpoint-download'"))
+        self.assertLess(extraction.index('$restore = $state.checkpoint_transfer_root'),
+                        extraction.index("'checkpoint-archive-list'"))
+        self.assertIn(r"$restore -cnotin @('C:\security-restore','D:\security-restore')", extraction)
         self.assertLess(extraction.index("'checkpoint-archive-list'"), extraction.index('requiredExtractionSpace'))
         self.assertLess(extraction.index('Insufficient free disk space'), extraction.index("'checkpoint-extract'"))
         self.assertIn("'--output',$layoutPath", extraction)
@@ -385,9 +480,10 @@ class WorkflowPhaseTests(unittest.TestCase):
         text = STAGE.read_text(encoding='utf-8')
         acquisition = text.split("    'Acquire' {", 1)[1].split("    'Extract' {", 1)[0]
         checkpoint, other = acquisition.split('      } else {', 1)
-        for branch, transfer in ((checkpoint, "'checkpoint-download'"), (other, "'exact-upstream-download'")):
+        for branch in (checkpoint, other):
             self.assertLess(branch.index('Clear-HostedToolSpace'), branch.index('Confirm-HostedCompilerPrerequisites'))
-            self.assertLess(branch.index('Confirm-HostedCompilerPrerequisites'), branch.index(transfer))
+        self.assertLess(checkpoint.index('Confirm-HostedCompilerPrerequisites'), checkpoint.index("'checkpoint-download'"))
+        self.assertLess(text.index(other), text.index("'base-prepare'"))
         self.assertLess(checkpoint.index('Confirm-HostedCompilerPrerequisites'), checkpoint.index('Get-CheckpointDiskBudget'))
         helper = text.split('function Confirm-HostedCompilerPrerequisites {', 1)[1].split('function Set-CompilerEnvironment', 1)[0]
         self.assertIn('Microsoft.VisualStudio.Component.VC.Tools.x86.x64', helper)

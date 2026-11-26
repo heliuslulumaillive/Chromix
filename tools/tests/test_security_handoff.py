@@ -101,18 +101,18 @@ class HandoffTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         workflow = yaml.load((root/'.github/workflows/build-google-services-win155.yml').read_text(), Loader=yaml.BaseLoader)
         choices = workflow['on']['workflow_dispatch']['inputs']['build_variant']['options']
-        self.assertIn('fingerprint-modes-win157', choices)
+        self.assertIn('fingerprint-modes-win158', choices)
         self.assertNotIn('fingerprint-modes-win156', choices)
-        self.assertEqual(workflow['jobs']['security-win157']['uses'], './.github/workflows/security-win157.yml')
+        self.assertEqual(workflow['jobs']['security-win158']['uses'], './.github/workflows/security-win158.yml')
         block = workflow['jobs']['validate-inputs']['steps'][0]['run']
         script = block.split('\n',1)[1].rsplit('\nPY',1)[0]
-        for variant in ['fingerprint-modes-win157','fingerprint-modes-win156']:
+        for variant in ['fingerprint-modes-win158','fingerprint-modes-win156']:
             for operation in ['fresh','upstream','resume','upgrade']:
                 env = {**os.environ, 'BUILD_VARIANT':variant, 'OPERATION':operation,
                        'SOURCE_RUN':'123', 'SOURCE_STAGE':'1', 'HANDOFF_ID':'test-handoff-123'}
                 with self.subTest(variant=variant, operation=operation):
                     run = subprocess.run([sys.executable,'-c',script], env=env, capture_output=True, text=True)
-                    self.assertEqual(run.returncode==0, variant=='fingerprint-modes-win157', run.stderr)
+                    self.assertEqual(run.returncode==0, variant=='fingerprint-modes-win158' and operation!='upstream', run.stderr)
 
     def test_new_donor_attempt_is_never_cancelled(self):
         with patch.object(h, 'readiness', return_value=self.ready), \

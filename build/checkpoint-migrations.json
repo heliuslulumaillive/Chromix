@@ -1042,6 +1042,493 @@
         }
       ],
       "scope": "Preserve content-owned widget and compositor bounds during screen emulation, trace auto-resize through the extension view, and cover a stale embedder viewport in a Blink regression."
+    },
+    {
+      "id": "ungoogled158-complete-from-native158-45364308215",
+      "chromium_version": "158.0.8127.36",
+      "core_commit": "76f39e0fead37326b9ba0440831336b198a17246",
+      "windows_commit": "76a692e3e39e1456e4691e7d9de28d32de1cdd87",
+      "arch": "x64",
+      "source_commit": "02cb882b4924768730ebb7a17d333375ddfda69d",
+      "source_run": "45364308215",
+      "source_stage": 1,
+      "source_recipe_sha256": "896dc0d67fa5d46a4c0e60dfb056dd20b72a65ff659e42c88bbd9cfa54d57bac",
+      "target_recipe_sha256": "7c57854497ef08bdce7fa802ed0fb4ca58146997cda8014580a9042754cbbcca",
+      "source_preparation_sha256": "896dc0d67fa5d46a4c0e60dfb056dd20b72a65ff659e42c88bbd9cfa54d57bac",
+      "target_preparation_sha256": "7c57854497ef08bdce7fa802ed0fb4ca58146997cda8014580a9042754cbbcca",
+      "source_aggregate_sha256": "686f6af179b8cc118ff60136eee849edbc0bb5dc832c6a47e6baae93c1d2a58f",
+      "target_aggregate_sha256": "58b99947f668bbf9b9708814b6636ca0e5dc95a717975804e718f7194e62bc4e",
+      "source_patch_kind": "lite-windows158-product",
+      "target_patch_kind": "lite-windows158-product",
+      "source_product_manifest": {
+        "path": "build/checkpoint-sources/ungoogled158-donor-manifest.json",
+        "sha256": "a5d6bc59988fd373482240d168b1af32704f8df3579fa24ce40073fa86dcdb74"
+      },
+      "product_source_updates": [
+        {
+          "path": "base/BUILD.gn",
+          "before_sha256": "5088c6fadb97a385d4738b25f3db5f89ebdd89a638474d8a1e12fa2905cf12c4",
+          "after_sha256": "fdad6cf634d305f3511f3886b123779899d606d7af084085471bf10114240500",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/BUILD.gn"
+        },
+        {
+          "path": "base/uxr_config.cc",
+          "before_sha256": "ca194fa6979fea954adf9cc54bf6659da70aa09de3b21c8b03ad49d0f4ead81b",
+          "after_sha256": "6e5906b62977cd0b0bf68c687912234ec0c3d87a60cfc917cd08636013f852a4",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_config.cc"
+        },
+        {
+          "path": "base/uxr_config.h",
+          "before_sha256": "0e4f9b07c354b65a8ddbc4eb0e26bddeb95f7524a974e73e101450be610f6315",
+          "after_sha256": "87c83081f245c888b193aa9eb137218f617c40c47f72cdb9a3d87794ac2a5241",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_config.h"
+        },
+        {
+          "path": "base/uxr_font_allowlist.h",
+          "before_sha256": null,
+          "after_sha256": "5e177fc0d43a7fa659d8c70956a26a4e4d774171743e8ebe83e317416dfaa7ee",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_font_allowlist.h"
+        },
+        {
+          "path": "base/uxr_font_allowlist_tests.cc",
+          "before_sha256": null,
+          "after_sha256": "08cff674e6d0d4c3bfad8a46a38c0b7ad5f09dc7e600affdc9ac179915c63263",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_font_allowlist_tests.cc"
+        },
+        {
+          "path": "base/uxr_graphics_mode_goldens.cc",
+          "before_sha256": "0ee8ec6225cc726fc7e8a4e3d5c357b1752a0cbb5b5c03beae6f6616d9e2bab3",
+          "after_sha256": "0a6a3c1029d2a5d6c8ae1450dbcac003d312d3b478c15f4f87d990c9402c2f94",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_graphics_mode_goldens.cc"
+        },
+        {
+          "path": "base/uxr_graphics_noise.cc",
+          "before_sha256": "6525a5490f2839d18605d081acffdf91963e41ae35ed4aa893116505b0fd2764",
+          "after_sha256": "f7aff2c0d8e6857bea1f442295bae0b52106d4b83e3cb7bfeafcca60494cdead",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_graphics_noise.cc"
+        },
+        {
+          "path": "base/uxr_graphics_noise.h",
+          "before_sha256": "e88e2acf1ed69446dfa87391899f17924a9be9706267d3b8f6ac7f02fbe7b503",
+          "after_sha256": "6dc88616f6796d149f274963f61736d5b804d1164f0be237c1e9fc683cfbc881",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_graphics_noise.h"
+        },
+        {
+          "path": "base/uxr_mask_first_equivalence.h",
+          "before_sha256": "7c79872f0949dc5655592071a7889f22077d269272dc3fec6dd4c674e8ca9293",
+          "after_sha256": "4a2220a7598c05cce01c4f6585619fd3573454ee6aee67920d4b10b4776eac5e",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_mask_first_equivalence.h"
+        },
+        {
+          "path": "base/uxr_mask_first_reference.h",
+          "before_sha256": "72559520bc2cfbce1c72160b27f96f98380d90d5f5cce1e735511f55691bf2fc",
+          "after_sha256": "c0ab10258a91d53593f9d524c1e2843c288865ce71e54830d6f7b0c22665df75",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_mask_first_reference.h"
+        },
+        {
+          "path": "base/uxr_pixel_semantic_properties.h",
+          "before_sha256": "e5c26038176e19d33e2a632797c59fa0ece2c488f1135d0a7449eec56dbd079f",
+          "after_sha256": "397eeaaa30cc53ecd56d430b219224cc5769262b15d96c193d74b74e7dad0bd9",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_pixel_semantic_properties.h"
+        },
+        {
+          "path": "base/uxr_private_font_packages_win.h",
+          "before_sha256": "a0a4a89ea59157d6c39c1ae198d0b762fdd2540c52a8b03eaca313ddfcc890ac",
+          "after_sha256": "247b2e911567dce0f0c05de7a6baecc9503a4ce6998022de6485e239dbb43b8c",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_private_font_packages_win.h"
+        },
+        {
+          "path": "base/uxr_surface_golden_tests.cc",
+          "before_sha256": "99f0319ebee001aac522dd7128fce5064403e306392e1a8073950a3eb8b92bf7",
+          "after_sha256": "0379ce3d979ebf3eb72322ab42fb63f1674aafced768a9d45798c94e6c48a909",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_surface_golden_tests.cc"
+        },
+        {
+          "path": "base/uxr_surface_math.h",
+          "before_sha256": "cde0151f33fde5ecc2466ce6c8f11da1173f8341e65078bdf65efab2b680a458",
+          "after_sha256": "9d179c56fe0ae5cf09d4deb9989fb81d14ca4f8517e6265132999eac1e138708",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_surface_math.h"
+        },
+        {
+          "path": "base/uxr_surface_modes.h",
+          "before_sha256": "255033bd6da8bbbdae1347e2de7881b9b81552e1182a38c3fe48faacf3d91aa8",
+          "after_sha256": "18daf4c9decb53b20258e9f16d5d9b09d196e3599de25d538ab35e602ec42f96",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_surface_modes.h"
+        },
+        {
+          "path": "base/uxr_surface_modes_test_main.cc",
+          "before_sha256": "452502327dd5918dd04eeca1e4a60a2ae3d9f6d0d9a5d95dcab2fc464df71f88",
+          "after_sha256": "760cc1a695f6e76d1f4b000454003080bf8118cf386e3975e44ce063e8e827b5",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_surface_modes_test_main.cc"
+        },
+        {
+          "path": "base/uxr_surface_reference_data.h",
+          "before_sha256": null,
+          "after_sha256": "45f020bd3b9934b12bc999b9138a74a71c0cf936dad8e57b2f9f1133e2dc9db9",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_surface_reference_data.h"
+        },
+        {
+          "path": "base/uxr_voice_compat.h",
+          "before_sha256": null,
+          "after_sha256": "907873c2bedfaa99a7419eba769ab111ede2e990aace7df8f3292e96171ffa93",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_voice_compat.h"
+        },
+        {
+          "path": "base/uxr_voice_compat_tests.cc",
+          "before_sha256": null,
+          "after_sha256": "08aa249034f8d573963f7e2c00a9120f01064a9e191c7b6d74eebde32c38ac2c",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_voice_compat_tests.cc"
+        },
+        {
+          "path": "base/uxr_voice_reference_data.h",
+          "before_sha256": null,
+          "after_sha256": "97e20c3c86d2ae80111de27a58812974ed42ac23445f1ea2b8f4d1d390a413f9",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/base/uxr_voice_reference_data.h"
+        },
+        {
+          "path": "chrome/app/chrome_main.cc",
+          "before_sha256": "d35c61ec0f9fac7563d1b90783f3c175e3b1ca3e12e9460f0af0afab348b5353",
+          "after_sha256": "68df1b36602a26a562bcba321d1ac765efc778ef29e76514a21e987b7d4e828e",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/chrome/app/chrome_main.cc"
+        },
+        {
+          "path": "chrome/browser/chrome_browser_main.cc",
+          "before_sha256": "3a05e96cd04d3b46779dc6503cec1b4d2f4aadff8facaebf8e0511fc40ce1e90",
+          "after_sha256": "d9d9bad38c8e6f6aaef40d1d5cd8265aafe7d372fa07fbe2e9db965868bdd586",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/chrome/browser/chrome_browser_main.cc"
+        },
+        {
+          "path": "chrome/browser/component_updater/widevine_cdm_component_installer.cc",
+          "before_sha256": "e1b87a5a0aee03b2a99c34ac71916eb176f2e65084e4cfdd1f6cf27893981064",
+          "after_sha256": "cf8ccbbefcdec134adabe57ffb3057e47c6f91972c4d8b361f794efd64c1e695",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/chrome/browser/component_updater/widevine_cdm_component_installer.cc"
+        },
+        {
+          "path": "chrome/browser/profiles/profile_impl.cc",
+          "before_sha256": "4372b4c53d91ff4c96a09d0688ed0082488218c202672755e00dd8b92d6cf829",
+          "after_sha256": "836992bed7d4aa9827541ea30e08389da9d54bf55fd89026952b5b61b9c713f9",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/chrome/browser/profiles/profile_impl.cc"
+        },
+        {
+          "path": "chrome/browser/ui/hats/trust_safety_sentiment_service.cc",
+          "before_sha256": "ba4648e0430a7672fc5c82d390bbda19f45f3d1dc4508dd5cc77a4b3db320ae6",
+          "after_sha256": "3a97d5d589c8b5f0a5bd14e6899b63ba9450ad641d42948216c825a04009737c",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/chrome/browser/ui/hats/trust_safety_sentiment_service.cc"
+        },
+        {
+          "path": "chrome/browser/ui/views/extensions/extension_view_views.cc",
+          "before_sha256": "afa74843473cb5d5248d2830c6d99ad9ad65733852eef1d8bd92c7169ba74137",
+          "after_sha256": "e42b656c1dc2483c1b17008dc53b551c085dbcbaf6d0454033dc805d776b589d",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/chrome/browser/ui/views/extensions/extension_view_views.cc"
+        },
+        {
+          "path": "components/enterprise/connectors/core/BUILD.gn",
+          "before_sha256": null,
+          "after_sha256": "8435e656a3c364249ceb4f11bc727e93f35595226031f12a7166138fefc15a65",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/components/enterprise/connectors/core/BUILD.gn"
+        },
+        {
+          "path": "components/ungoogled/BUILD.gn",
+          "before_sha256": "dca4eddf7a6546830d587b1f83fda546448c9b22f128668d1ffad251c9910857",
+          "after_sha256": "0c0bb5fa28b0e302871167bb2ac6f5d8efd6a9459c059ce88d2062f96bea0c3e",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/components/ungoogled/BUILD.gn"
+        },
+        {
+          "path": "components/ungoogled/farble_seed.cc",
+          "before_sha256": null,
+          "after_sha256": "501bb3df649b26ec8894d721b721f32d65a99713c69836ec26b9c54ddda91d21",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/components/ungoogled/farble_seed.cc"
+        },
+        {
+          "path": "components/ungoogled/farble_seed.h",
+          "before_sha256": null,
+          "after_sha256": "fdf00efd9473692b3bf0a487f1a1f1b6000f3cea5794c8ad8cb21e274e433cb4",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/components/ungoogled/farble_seed.h"
+        },
+        {
+          "path": "components/ungoogled/fingerprint_data.h",
+          "before_sha256": null,
+          "after_sha256": "c38733e14ffb6b3d41d032b6433b424ed98a67cd6619fd7c3cf27d20b49ced6b",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/components/ungoogled/fingerprint_data.h"
+        },
+        {
+          "path": "content/browser/devtools/protocol/input_handler.cc",
+          "before_sha256": "c866c6e6ac5ab03999835f046ab03f5579b77d07139259e9dd412d94d36fc2e4",
+          "after_sha256": "8369347f09eec57ebdbe88e2a4bf2f347a9946edd87edf1fcd6eac79d27ee9d1",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/content/browser/devtools/protocol/input_handler.cc"
+        },
+        {
+          "path": "content/browser/speech/tts_win.cc",
+          "before_sha256": "0a35a1ba824fc793466a10d107b585b4ced4b6a66474284a4b16346ff86cf9d1",
+          "after_sha256": "1de151047997d5f0f69d1194c4b8bf4ab987bba23d1c1cdadc0dd7147b637296",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/content/browser/speech/tts_win.cc"
+        },
+        {
+          "path": "net/socket/socks5_client_socket.cc",
+          "before_sha256": "1c9cce1820cedd40675aae9097bcbd832f7bd18984c7e5abc6ba5a4b07a00f14",
+          "after_sha256": "d53523b372c824e4b99d84d7a6123f90e9bc1c810752ec5f7acf0e4d579f7929",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/net/socket/socks5_client_socket.cc"
+        },
+        {
+          "path": "net/socket/socks5_client_socket.h",
+          "before_sha256": "8499da6562771d8de8cd782f30324dec2d43cee2aa1b486c5ec568f3e6dacc33",
+          "after_sha256": "cb7294d3d8fc1f0100a0af8897271e3086e3ca18aa9d8d74022aa1203b8b05b4",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/net/socket/socks5_client_socket.h"
+        },
+        {
+          "path": "net/socket/socks5_client_socket_unittest.cc",
+          "before_sha256": "0286f01cf81d358144e1d8a1446f1914655afa3410cd0d4d005ca186bb6570fb",
+          "after_sha256": "68def302306bea22cc7c0edc2acaa61765806ae59a4efdc026062591b9cd137d",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/net/socket/socks5_client_socket_unittest.cc"
+        },
+        {
+          "path": "net/socket/socks_connect_job.cc",
+          "before_sha256": "51dd1df07f0b04e50db182804d4db0396d1f00da01679cd7d2bebeac1c47bd09",
+          "after_sha256": "0dbab49b134c447f2d71cbfcfa4864f358ab54aceae6ba17cb06b64550ff9914",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/net/socket/socks_connect_job.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/css/media_values.cc",
+          "before_sha256": "95838cbe56ece8fd7577b9fc903fd1463ae1dea6d699bb510c8ef5d8dce63b66",
+          "after_sha256": "3f3a202b7b1214ee937bf75fc4d5f7420d8fbe7eeb73eea32d647b1c9546dfad",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/css/media_values.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/dom/build.gni",
+          "before_sha256": "fe59e2b447a7fec6448803ff90ae6b2eea7b3857774abe1269af5c7925626403",
+          "after_sha256": "ee3243fbdc45542536d4db424c53efeb622de7cedf95710f84dcff02ab8d5308",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/dom/build.gni"
+        },
+        {
+          "path": "third_party/blink/renderer/core/dom/element.cc",
+          "before_sha256": "952f001ab027d32a6f9290867722d418648f50d7fd757c798eb461873da00848",
+          "after_sha256": "338d8300d604886188ea9e99dfd94c139ff1a09644f9f8c7f231bb2d67fa314b",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/dom/element.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/dom/range.cc",
+          "before_sha256": "2553a01443b64d1306ae57754f8749921af2a932c37fecb84572ecfe7e824e55",
+          "after_sha256": "b2654ee148db9d636d4733990ffa293ed23899daa5f4ad9ddb905b7be5995dea",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/dom/range.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/dom/uxr_rect_policy.h",
+          "before_sha256": "06c5b89e353a9a2b1d710733f860ea85fcb3155226373f8d13b7cd00f54e9152",
+          "after_sha256": null,
+          "replacement_path": null
+        },
+        {
+          "path": "third_party/blink/renderer/core/frame/navigator.cc",
+          "before_sha256": "ef3503300560c2e74bd850789507e5c4b47f23468c449a3912c4aae14b2f236e",
+          "after_sha256": "381cb0e7f851d216a2382123333e6b224ad8831491937621bd25bbca4c47efa5",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/frame/navigator.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/frame/navigator_language.cc",
+          "before_sha256": "1bfb5cbc05b4f98745bee378f78bd8a5cc5d35ed6be908764559bb9d0affe988",
+          "after_sha256": "32a5560ee276a4bf08fcec7ad1aede869b8f03b448843722e5ed40641b554601",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/frame/navigator_language.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/frame/screen_metrics_emulator.cc",
+          "before_sha256": "93a6e7eec6f5f21d856fd2e5b54913aa5c88e0afe5b8b1f3572ce5f0927d50b7",
+          "after_sha256": "67e86fe655fbb0d7053483aa5be90bcfa1be5d7f872b8b912549cf3377858362",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/frame/screen_metrics_emulator.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/frame/screen_metrics_emulator.h",
+          "before_sha256": "2ad448455cf0497b6fd9aca3c75dc0c3fba4ca176e46fe92882d19b96f43cd1b",
+          "after_sha256": "d951fc19cdac5758dfff4f9484e4e6fd3246aada1a3e3dbb6996f7b882642c50",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/frame/screen_metrics_emulator.h"
+        },
+        {
+          "path": "third_party/blink/renderer/core/frame/web_frame_widget_impl.cc",
+          "before_sha256": "5cf9f794d7e05eeb2cc5f2717b8757af878869a2694d9c855377cebdfd06e41d",
+          "after_sha256": "06df9b43406a90db6b90599955cc520c64a6667f9909f9059137fc52c01fe466",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/frame/web_frame_widget_test.cc",
+          "before_sha256": "485e98001577e8f71db74378edcdb4eeba61defef00fc177f58de5e566c476be",
+          "after_sha256": "5e1818b50f544bc5fa9d113aac0fe9aa5ffe74b201c2f0712b820ff198d1864e",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/frame/web_frame_widget_test.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/html/canvas/text_metrics.cc",
+          "before_sha256": "f0aced985e0c91f3ba656077cda8f7f1489d77443fa0c1f8e87b650d2297ce73",
+          "after_sha256": "8ab471f0eef48ddc45707e6cc3706bfedb31e36f4431c10ca1df95526248ea39",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/html/canvas/text_metrics.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/html/canvas/text_metrics.h",
+          "before_sha256": "2ee8d885dc57c5c4bdba6169945dbd0fc6626bf666269b6dace497258c7d358f",
+          "after_sha256": "cd68947933ef70130059b9e35666b2a30afdc735e4fad685a3b9c61eb41019b0",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/html/canvas/text_metrics.h"
+        },
+        {
+          "path": "third_party/blink/renderer/core/html/html_element.cc",
+          "before_sha256": "7ef3258b3154f3d89fc972e7c8684a4fe0110889d68540b25a08a803872c6d76",
+          "after_sha256": "535466d131bcf2704bddfd028e624f286ca89b6785ea32930f2353b7e5080a71",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/html/html_element.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/input/pointer_event_manager.cc",
+          "before_sha256": "2f6e0b72d0b0d640f3d5baaaa3ba74cb98ee176c33d4641961d0f05b1c5f2494",
+          "after_sha256": "35704b42f897f4736b6cd3e395e2f572fb70751e97478656abb7950d0ff27ef5",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/input/pointer_event_manager.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/layout/layout_theme_font_provider_default.cc",
+          "before_sha256": "9ad0222c1b88020879caa047a006656d622101b4b67b8fea0b008786a06df289",
+          "after_sha256": "06d4e778633950fd04de52c1ee900ce86e7553709c41c3aca00fb35ad4f80701",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/core/layout/layout_theme_font_provider_default.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/buckets/storage_bucket.cc",
+          "before_sha256": "28d9b4858591500829179b4dfbf22b1549107b2dbb355ceac536b35c5d825618",
+          "after_sha256": "30d1c16501cb5a218a5dc4f496f6cc5dc66e3dcc8f6bef26880004c2f3270030",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/buckets/storage_bucket.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+          "before_sha256": "812c17fe804220c8491c082435c7c585b3401fd7231580887f700fc77b55398b",
+          "after_sha256": "8f96632b51e10aa1540820a66924e9b6f499070a25af3f64a7e28cc4fed047d3",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/font_access/font_access.cc",
+          "before_sha256": "203279ea03fcdbed64d51e221c101dc423d640fbb92b3eb7f767b80117b16bb8",
+          "after_sha256": "9fb5562122e5079de956dc2f30be50ce8f5c80a46e8a988cb3372e5faefe37ca",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/font_access/font_access.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/netinfo/network_information.cc",
+          "before_sha256": "2912d785f4a29374c04c670e5eaa3901cbdbc931ac23dea6c4905b0e0ca875bc",
+          "after_sha256": "3fa2fec8862ead496f2b6153b024c53c3f2c25605b661eb0370b27fda330739a",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/netinfo/network_information.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/notifications/notification.cc",
+          "before_sha256": "61f7ae617f1551103477e124a08c3808115b70cdd6c304741bebfbf2f6072614",
+          "after_sha256": "6f0d00df6da30c14e0ce92355e9e44c7da061044068d4443b269511014a036f2",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/notifications/notification.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/permissions/permissions.cc",
+          "before_sha256": "a0011c530f24a2f26f5337e5a625d11922aed9c53cb6dd35096e2371c1d4e807",
+          "after_sha256": "468e92a0708804d94fa314eb134cc34b0ae50306561548d20e51db6109f1ac61",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/permissions/permissions.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/quota/storage_manager.cc",
+          "before_sha256": "5289cebb75c1eeb36d5c284c5ab7ed6f861e6fdc90a12c5f9513a5bb60aa371a",
+          "after_sha256": "8a38b816f44c7bee6b012c4fa87c7c8fa542e1ddb82d8138c521f9ea285bd68f",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/quota/storage_manager.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/speech/speech_synthesis.cc",
+          "before_sha256": "45010311b4a0f2cd53b58196deff36410ff58d22b2eeda7270ad13c1b0cd8aeb",
+          "after_sha256": "a2681d7e43523be0b7b5c4d72185ed2d779c6a6761557964a8f126fbba219477",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/speech/speech_synthesis.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/webaudio/offline_audio_context.cc",
+          "before_sha256": "5babb297ecbc983a9d7d70f1135b13037e95adb9451501287681132daf170650",
+          "after_sha256": "3dbbd512d9e5b366662107df7b75ff7bb859feeecbb62d650e46ea28d50b2641",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/webaudio/offline_audio_context.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/webgl/BUILD.gn",
+          "before_sha256": "cd03c6c0de43ae57bbae01f0932dd454c0ac4034686bef4f726ef68b79a67992",
+          "after_sha256": "06703a73943b132a0f27e7e84fac7b731a738b0d589494ad3ce27361615a2ac5",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/webgl/BUILD.gn"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/webgl/gpu_info.cc",
+          "before_sha256": null,
+          "after_sha256": "22dc23d39a12890f05e08240f80fe88f6d5920cf7f49efcabaf8839c972bbeec",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/webgl/gpu_info.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/webgl/gpu_info.h",
+          "before_sha256": null,
+          "after_sha256": "9d8f94f90d9ae7bacbe33ae3ef799fc89d5186a26eb72f9708a9f62ce3b5dfdb",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/webgl/gpu_info.h"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc",
+          "before_sha256": "2a73136b6e0a3aa9f8c368addb619cf580bf50f251a3f2354a91abefb60c14cc",
+          "after_sha256": "4b8ee447cc1c201b3b66bd2a3605c0ac0bc377e8e95fd6f804a8bcb832583865",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/modules/webgpu/gpu.cc",
+          "before_sha256": "9b1a5e84a67c56472fad5f9b13132ac2bd26fc22f8eed0d3fbc4e4b15947287e",
+          "after_sha256": "0b1c143f9637ec529fdff0b6f3a431bce8a4b0a92207667ee824b059408ccb4a",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/modules/webgpu/gpu.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/platform/fonts/font_cache.cc",
+          "before_sha256": "025fa31955c5a169d8cedd287aa58ef45db2b09e7a10242d0dc803599c8cb03b",
+          "after_sha256": "4862e0f86e087d844d86033720bff2f5df2e6bc5bbb88e4d082213e9f1c7be97",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/platform/fonts/font_cache.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/platform/fonts/font_cache.h",
+          "before_sha256": "438d1f490de547ded7efec4cdee593d1b02f843dade80e8ccd36aa7e68269dcd",
+          "after_sha256": "5868c2da986399d326aa121ff96114067bd16c4d90509696d9c9220e6f07989f",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/platform/fonts/font_cache.h"
+        },
+        {
+          "path": "third_party/blink/renderer/platform/fonts/font_metrics.cc",
+          "before_sha256": "2fd87e485ff251da0c02ccae023d7d2985d50a840ddbb776f288d6d8ea95761b",
+          "after_sha256": "6f49ee0d0fdcca2efcadd983c564c8d864440f5695d110ad8dbdedfe74c6bf09",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/platform/fonts/font_metrics.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/platform/fonts/mac/font_cache_mac.mm",
+          "before_sha256": "eeedce3cdc293b232b1e024c87c801c6a0a8d541ab9256ef55f501b3e6f516c0",
+          "after_sha256": "f798c925c93f1e67158951130febffbe62d38b1e911be3bdb0f7ef8ee2a8e231",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/platform/fonts/mac/font_cache_mac.mm"
+        },
+        {
+          "path": "third_party/blink/renderer/platform/fonts/simple_font_data.cc",
+          "before_sha256": "628f64d316e2491e3aaa72a18cf02836fea8172eef484babb58fe18b1f63110c",
+          "after_sha256": "8539d4bf25bce048ae3596c297ceee0b7e18b9eeec9831c54f0e8287aa86dcf0",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/platform/fonts/simple_font_data.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/platform/fonts/skia/font_cache_skia.cc",
+          "before_sha256": "3e1286894995e9e0247359b9c6023b01a07579266a6e0145a27fb93c6629d060",
+          "after_sha256": "60785d5069ed39bc4373e3a448e4371708d49037b76d3a2f60d425a51de38cce",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/platform/fonts/skia/font_cache_skia.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc",
+          "before_sha256": "962452476c2871879146d3626d8a2dd1386d3353e2138d33dda7c35d94c4b08d",
+          "after_sha256": "713f0a531dbd37397a27ff7d331733726c45054a1c942a9f1ba91ece0f0e5cad",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.h",
+          "before_sha256": "d43c92167e7ec91badfaf89c017846f8b8e8aceb1e30bb3910ab1f27d1262cea",
+          "after_sha256": "ff76c4ba492352596a94643dcc5a032f25412d47d0ce754af9b77d9e0172702e",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.h"
+        },
+        {
+          "path": "ui/gfx/win/direct_write.cc",
+          "before_sha256": "eac9bb39b0949c7dbd996fcbf4e87b63f2da8725bf42073c046b71058b238809",
+          "after_sha256": "7c6b2ddb70e4a6de31055956eecafd71f0902077e73705d6b53d3626d4dcf917",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/ui/gfx/win/direct_write.cc"
+        },
+        {
+          "path": "v8/src/inspector/v8-runtime-agent-impl.cc",
+          "before_sha256": "5d4a4d30cb04e0d76da917fd842f9b2fc92fdba1a5439d94f316993051218f1b",
+          "after_sha256": "4b79d3bde86166e14807dde54c28935af53dbbdaa905e382537e546b20b36415",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/v8/src/inspector/v8-runtime-agent-impl.cc"
+        }
+      ],
+      "scope": "Exact 158.0.8127.36 source transition from the accepted slim candidate to the full 157 feature port. Verify all 1,037 preimages before changing 77 sources. Preserve all objects and unchanged mtimes; no DLL acceptance is inherited."
     }
   ]
 }

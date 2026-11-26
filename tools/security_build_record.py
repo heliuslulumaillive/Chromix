@@ -8,10 +8,10 @@ import os
 from pathlib import Path
 import re
 
-VERSION = '157.0.8103.78'
-VARIANT = 'security-win157'
-CORE = '8c886dffc6ade39d8f7df5d64ace5a8824b455e1'
-WINDOWS = '20e9a348fc616bd73a366fbd5d8881613d6c5cb0'
+VERSION = '158.0.8127.36'
+VARIANT = 'security-win158'
+CORE = '76f39e0fead37326b9ba0440831336b198a17246'
+WINDOWS = '76a692e3e39e1456e4691e7d9de28d32de1cdd87'
 REQUIRED_FLAGS = {'safe_browsing_mode': '1', 'is_official_build': 'true',
                   'is_debug': 'false', 'is_component_build': 'false',
                   'target_cpu': '"x64"', 'target_os': '"win"'}
@@ -32,7 +32,7 @@ def plain(path: Path) -> Path:
 
 
 def recipe(repo: Path) -> str:
-    if (repo / 'build/lite-windows157.json').is_file():
+    if (repo / 'build/lite-windows158.json').is_file():
         try:
             from .lite_patch_stack import input_hashes
         except ImportError:
@@ -110,7 +110,7 @@ def write_record(repo: Path, work: Path, destination: Path) -> dict:
         raise ValueError('Prepared Chromium version mismatch')
     receipt = work / 'google-services-source.json'
     metadata = json.loads(receipt.read_text(encoding='utf-8-sig'))
-    if metadata.get('chromium_version') != VERSION or metadata.get('build_variant') != 'fingerprint-modes-win157':
+    if metadata.get('chromium_version') != VERSION or metadata.get('build_variant') != 'fingerprint-modes-win158':
         raise ValueError('Google/fingerprint restoration has not completed for this version')
     gn = inspect_gn(src / 'out/Default/args.gn')
     tools = {}
@@ -122,7 +122,7 @@ def write_record(repo: Path, work: Path, destination: Path) -> dict:
         if path.is_file():
             tools[relative] = {'bytes': path.stat().st_size, 'sha256': sha256(plain(path))}
     record = {'schema_version': 1, 'build_variant': VARIANT, 'chromium_version': VERSION,
-              'payload_build_variant': 'fingerprint-modes-win157',
+              'payload_build_variant': 'fingerprint-modes-win158',
               'core_commit': CORE, 'windows_commit': WINDOWS,
               'source_commit': os.environ.get('GITHUB_SHA', ''),
               'run_id': os.environ.get('GITHUB_RUN_ID', ''),

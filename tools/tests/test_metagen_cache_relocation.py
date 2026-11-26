@@ -63,7 +63,9 @@ class CacheRelocationTest(unittest.TestCase):
     def test_restoration_finishes_before_gn_is_bootstrapped(self):
         script=(Path(__file__).resolve().parents[2]/'build/windows/security-stage.ps1').read_text('utf8')
         configure=script.split("    'Configure' {",1)[1].split("    'Compile' {",1)[0]
-        self.assertLess(configure.index("Invoke-Owned 'restored-environment-finish'"),configure.index("Invoke-Owned 'gn-bootstrap'"))
-        self.assertLess(configure.index('Incremental-only recovery refuses toolchain invalidation'),configure.index("Invoke-Owned 'gn-generate'"))
+        self.assertLess(configure.index('Select-WindowsRustCompiler'),configure.index("Invoke-Owned 'gn-bootstrap'"))
+        self.assertLess(configure.index("Invoke-Owned 'metagen-configure'"),configure.index("Invoke-Owned 'gn-generate'"))
+        self.assertLess(configure.index("Invoke-Owned 'gn-generate'"),configure.index("Invoke-Owned 'metagen-verify'"))
+        self.assertLess(configure.index("Invoke-Owned 'metagen-verify'"),configure.index("Invoke-Owned 'pending-actions'"))
 
 if __name__=='__main__':unittest.main()

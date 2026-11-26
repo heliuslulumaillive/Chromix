@@ -1,0 +1,23 @@
+diff --git a/build/toolchain/win/midl.py b/build/toolchain/win/midl.py
+--- a/build/toolchain/win/midl.py
++++ b/build/toolchain/win/midl.py
+@@ -416,6 +416,10 @@
+             # instruct the developer to copy that file under
+             # third_party\win_build_output\midl.
+             open(file_path, 'wb').close()
++        # Restored zero-byte TLBs need native MIDL, not GUID substitution.
++        if (sys.platform == 'win32' and source_file == tlb
++                and os.path.getsize(file_path) == 0):
++            source_exists = False
+         shutil.copy(file_path, outdir)
+ 
+     if dynamic_guids != 'none':
+@@ -503,7 +507,7 @@
+ 
+     # Copy missing files (pruned binary .tlb files) to the output.
+     _, mismatch, errors = filecmp.cmpfiles(
+-        midl_output_dir, outdir, common_files
++        midl_output_dir, outdir, common_files, shallow=False
+     )
+     assert not errors
+ 

@@ -7,6 +7,13 @@ from tools.tests.test_fetch_upstream_cache import metadata
 from pathlib import Path
 
 LEGACY_ROOT = Path(__file__).resolve().parent / 'fixtures/windows156-upstream'
+LEGACY157_ROOT = Path(__file__).resolve().parent / 'fixtures/windows157-upstream'
+
+
+class Windows158CacheBoundaryTests(unittest.TestCase):
+    def test_current158_cannot_adopt_the_historical157_upstream_snapshot(self):
+        with self.assertRaisesRegex(cache.CacheMiss, 'pin_mismatch'):
+            cache.load_manifest('windows', 'x64', 43476895250)
 
 
 class Windows156UpstreamTests(unittest.TestCase):
@@ -78,7 +85,7 @@ class Windows156UpstreamTests(unittest.TestCase):
 
 class Windows157UpstreamTests(unittest.TestCase):
     def setUp(self):
-        self.pin, self.identity = cache.load_manifest('windows', 'x64', 43476895250)
+        self.pin, self.identity = cache.load_manifest('windows', 'x64', 43476895250, root=LEGACY157_ROOT)
         self.run, self.artifact = metadata(self.pin)
         self.now = datetime(2026, 11, 16, 20, tzinfo=timezone.utc)
 
@@ -93,7 +100,7 @@ class Windows157UpstreamTests(unittest.TestCase):
 
     def test_previous156_run_cannot_be_selected_for157(self):
         with self.assertRaisesRegex(cache.CacheMiss, 'run_id_mismatch'):
-            cache.load_manifest('windows', 'x64', 41098495420)
+            cache.load_manifest('windows', 'x64', 41098495420, root=LEGACY157_ROOT)
 
     def test_incomplete_or_wrong_revision_donor_is_not_a_completed157_snapshot(self):
         for change in [{'status':'in_progress', 'conclusion':None},

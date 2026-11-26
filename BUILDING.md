@@ -8,7 +8,15 @@ The [complete source manifest](build/windows158-product-port.json) now covers al
 
 On 2026-11-26, all 686 paths passed forward and reverse replay, 44 GN/GNI files passed parsing, 45 unit tests and 78 platform-pin cases passed, and eight intentionally broken rendering adaptations were rejected. The checks cover browser services/protection, environment controls, Cookie/history/translation, account/shell behavior, extension popups, retirement rules and the 158 rendering adaptations. The cached Chromium archive was rehashed against its pinned SHA-256; the core and Windows patch inputs were reused after digest checks. [Evidence](G:/Shardxlite/tests/ungoogled158-complete-source-20261126/summary.json)
 
-This is a source-only result, not a successful Chromium build or runtime acceptance. The production recipe and hosted build entry still target 157 and reject these 158 pins. Connecting the complete source manifest to a reviewed 158 hosted recipe, compiling, accepting the actual DLL and installing it remain separate work. No build was dispatched, no DLL identity was enrolled, and the installed 157 package was not changed.
+The [158 hosted recipe](build/lite-windows158.json) now binds this complete port, all 110 ungoogled core and 25 Windows patches, and the Windows MIDL repair already compiled in donor `02cb882`. The registered upgrade from run `45364308215`, stage `1`, verifies 1,037 source identities before updating 77 paths (including 12 creations and one removal of a donor-only helper). Local migration and warm-preparation checks preserve unchanged bytes, timestamps and an object canary. All 40 GN assignments and the complete GN file digest match the donor. Source checks and a cache donor do not establish acceptance of the new DLL.
+
+Use the existing GitHub-hosted dispatch entry on this branch:
+
+```powershell
+gh workflow run security-win156.yml --repo heliuslulumaillive/Chromix --ref codex/ungoogled158-from-release157-20261124 -f operation=upgrade -f source_run=45364308215 -f source_stage=1 -f retain_checkpoint=true -f max_stages=4
+```
+
+Identical subsequent recipes use `resume` with their own completed checkpoint; unreviewed donors remain rejected. Full hosted compilation, acceptance of the produced DLL and installation are pending. The installed 157 package and DLL admission remain unchanged. [Build preparation and run record](G:/Shardxlite/tests/ungoogled158-build-20261126/summary.json)
 
 To repeat the source checks against an unmodified ungoogled Windows 158 source baseline after the core patches, Windows overlay and binary pruning:
 

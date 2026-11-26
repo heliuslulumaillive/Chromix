@@ -1,6 +1,6 @@
 # Chromix release overlay on top of ungoogled common and Windows flags.
 
-chrome_pgo_phase = 0
+chrome_pgo_phase = 2
 is_official_build = true
 is_component_build = false
 is_debug = false

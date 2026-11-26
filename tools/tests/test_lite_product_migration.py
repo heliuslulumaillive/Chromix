@@ -1,6 +1,7 @@
 """A source repair preserves objects and refuses every unreviewed source byte."""
 import copy
 import hashlib
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -54,6 +55,66 @@ class ProductSourceMigrationTests(unittest.TestCase):
     def snapshot(self):
         return {path.relative_to(self.src).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns)
                 for path in self.src.rglob('*') if path.is_file()}
+
+    def bind_reviewed_donor(self):
+        runtime = {'chromium_version': '158.0.8127.36', 'core_commit': 'a' * 40, 'windows_commit': 'b' * 40}
+        self.product['runtime'] = runtime
+        donor = {'schema_version': 1, 'kind': stack.KIND, 'arch': 'x64', 'runtime': runtime,
+                 'source_files': [{'path': name, 'after_sha256': digest(raw)}
+                                  for name, raw in self.original.items() if not name.startswith('out/')]}
+        donor['stack_sha256'] = digest(json.dumps(donor, sort_keys=True, separators=(',', ':')).encode())
+        payload = json.dumps(donor).encode()
+        path = self.repo / 'build/checkpoint-sources/donor.json'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
+        self.rule['source_aggregate_sha256'] = donor['stack_sha256']
+        self.rule['source_product_manifest'] = {'path': path.relative_to(self.repo).as_posix(), 'sha256': digest(payload)}
+
+    def add_retired_donor_header(self):
+        name = 'base/retired-donor-policy.h'
+        raw = b'donor-only header\n'
+        self.original[name] = raw
+        path = self.src / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(raw)
+        self.product['source_files'].append({'path': name, 'before_sha256': None, 'after_sha256': None})
+        self.updates.append({'path': name, 'before_sha256': digest(raw), 'after_sha256': None, 'replacement_path': None})
+        return path
+
+    def test_exact_donor_allows_reviewed_deletion_and_keeps_objects_unchanged(self):
+        obsolete = self.add_retired_donor_header()
+        self.bind_reviewed_donor()
+        before = self.snapshot()
+        migration.apply_source_updates(self.repo, self.src, self.rule)
+        self.assertFalse(obsolete.exists())
+        for name in ('unchanged.cc', 'out/Default/obj/retained.obj', 'out/Default/.ninja_log'):
+            self.assertEqual(self.snapshot()[name], before[name])
+
+    def test_omitted_deletion_is_rejected_before_source_writes(self):
+        self.add_retired_donor_header()
+        self.bind_reviewed_donor()
+        self.rule['product_source_updates'] = self.updates[:-1]
+        before = self.snapshot()
+        with self.assertRaisesRegex(ValueError, 'complete donor-to-target difference'):
+            migration.apply_source_updates(self.repo, self.src, self.rule)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_deletion_without_authenticated_donor_inventory_is_rejected(self):
+        self.add_retired_donor_header()
+        before = self.snapshot()
+        with self.assertRaises(ValueError):
+            migration.apply_source_updates(self.repo, self.src, self.rule)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_changed_donor_manifest_cannot_authorize_source_removal(self):
+        self.add_retired_donor_header()
+        self.bind_reviewed_donor()
+        path = self.repo / self.rule['source_product_manifest']['path']
+        path.write_bytes(path.read_bytes() + b'\n')
+        before = self.snapshot()
+        with self.assertRaisesRegex(ValueError, 'Changed reviewed donor'):
+            migration.apply_source_updates(self.repo, self.src, self.rule)
+        self.assertEqual(self.snapshot(), before)
 
     def test_reviewed_created_header_requires_absence_and_exact_pinned_bytes(self):
         content=b'reviewed new private resource helper\n'

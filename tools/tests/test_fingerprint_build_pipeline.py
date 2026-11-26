@@ -963,7 +963,7 @@ class WorkflowIsolationTest(unittest.TestCase):
         # Shared validation and the explicit 157 route are not historical 155 jobs.
         for name in ('verify-candidate', 'build-1', 'build-2', 'build-3', 'build-4', 'require-candidate'):
             self.assertIn("inputs.build_variant != 'fingerprint-modes-win155'", old['jobs'][name]['if'])
-        self.assertIn("inputs.build_variant == 'fingerprint-modes-win157'", old['jobs']['security-win157']['if'])
+        self.assertIn("inputs.build_variant == 'fingerprint-modes-win158'", old['jobs']['security-win158']['if'])
 
     def test_worker_retains_native_tests_and_delivery_guard_with_new_artifacts(self):
         worker = self.workflow('fingerprint-modes-win155-worker.yml')

@@ -32,13 +32,14 @@ class Windows158ProductPortTests(unittest.TestCase):
         self.manifest['manifestSha256'] = port.digest(json.dumps(payload, sort_keys=True, separators=(',', ':')).encode())
         (self.repo / port.MANIFEST).write_text(json.dumps(self.manifest), encoding='utf-8')
 
-    def test_complete_source_port_is_explicitly_uncompiled_and_not_admitted(self):
+    def test_complete_source_port_does_not_claim_runtime_acceptance(self):
         manifest = port.load(self.repo)
         self.assertEqual(len(manifest['groups']), 26)
         self.assertEqual(len(manifest['sourceFiles']), 686)
         self.assertFalse(manifest['compiled'])
-        with self.assertRaisesRegex(ValueError, 'Product manifest/platform pins differ'):
-            lite_patch_stack.load(self.repo)
+        active = lite_patch_stack.load(ROOT)
+        self.assertEqual(active['runtime']['chromium_version'], manifest['chromiumVersion'])
+        self.assertEqual(active['source_port_manifest_sha256'], port.digest((ROOT / port.MANIFEST).read_bytes()))
 
     def test_rehashed_manifest_cannot_drop_a_release_topic(self):
         self.manifest['groups'].pop()
