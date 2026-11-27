@@ -515,7 +515,7 @@
     },
     {
       "path": "patches/lite-windows158-complete/21-web-platform-surfaces.patch",
-      "sha256": "0006974692af091a403d55406c0caddbae0111682ad723135a3e8106ca844519",
+      "sha256": "3d95a5a6d83de8f82f04b614d754e7955d90f31d25cfd0ffbe6bc8e573d53eae",
       "files": [
         "third_party/blink/common/device_memory/approximated_device_memory.cc",
         "third_party/blink/public/devtools_protocol/domains/CSS.pdl",
@@ -5246,7 +5246,7 @@
     {
       "path": "third_party/blink/renderer/core/frame/web_frame_widget_impl.h",
       "before_sha256": "22083337cc9fcb2c6a5b211c9693bfeed074983ce3cec980611d0a2856ed6c4a",
-      "after_sha256": "8aad2561411d7c98c766d43efd63746b1d4f8158cfb7e8ed25b8141575e708bd"
+      "after_sha256": "9519965864edb2b0bb656cd5db898f8bc012ff318200c345b51013d1de4366b6"
     },
     {
       "path": "third_party/blink/renderer/core/frame/web_frame_widget_test.cc",
@@ -6584,7 +6584,7 @@
     "v8/src/inspector/v8-runtime-agent-impl.cc",
     "v8/src/inspector/v8-runtime-agent-impl.h"
   ],
-  "source_port_manifest_sha256": "b35c7f58507fcf84b738dcd53c0ed4a6b5225ce7a8604c9d61512ab82d9bb5d2",
+  "source_port_manifest_sha256": "708828a498eb3d2bbb951748f5823446e1e115ed10941f4a593e1f057d540af5",
   "chromium_base_sha256": "ee9a646bbf1f7cbb4c37772322a79bc4f425bd930b68ccfc4bb8364ee7741e0c",
   "upstream_port": {
     "chromium_version": "158.0.8127.36",
@@ -6603,5 +6603,5 @@
       "build/toolchain/win/midl.py"
     ]
   },
-  "stack_sha256": "58b99947f668bbf9b9708814b6636ca0e5dc95a717975804e718f7194e62bc4e"
+  "stack_sha256": "8b9d55dc1a0b2bbf4b8498dceda3843cdc0ff0830768d56b031198fb90b487a7"
 }

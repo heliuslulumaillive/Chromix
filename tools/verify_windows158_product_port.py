@@ -19,7 +19,7 @@ try:
     from .google_services_inputs import owned, plain, write_if_changed
     from .platform_pins import load_pins
     from .verify_browser_feature_port import verify_signin
-    from .verify_browser_services158 import verify as verify_services, service_requirements
+    from .verify_browser_services158 import verify as verify_services, service_requirements, verify_popup
     from .verify_history_retention_source import verify as verify_history
     from .verify_native_browser_source import body, compact, read, require, verify_shell
     from .verify_native_cookie_source import verify_implementation as verify_cookie
@@ -31,7 +31,7 @@ except ImportError:
     from google_services_inputs import owned, plain, write_if_changed
     from platform_pins import load_pins
     from verify_browser_feature_port import verify_signin
-    from verify_browser_services158 import verify as verify_services, service_requirements
+    from verify_browser_services158 import verify as verify_services, service_requirements, verify_popup
     from verify_history_retention_source import verify as verify_history
     from verify_native_browser_source import body, compact, read, require, verify_shell
     from verify_native_cookie_source import verify_implementation as verify_cookie
@@ -175,6 +175,9 @@ def verify_source_checks(src: Path) -> dict:
 def verify_negative_controls(src: Path) -> list[str]:
     prefix = 'third_party/blink/renderer/modules/'
     cases = [
+        ('popup-sizing-signature', 'third_party/blink/renderer/core/frame/web_frame_widget_impl.h',
+         'void ApplyVisualPropertiesSizing(const VisualProperties& visual_properties);',
+         'bool ApplyVisualPropertiesSizing(const VisualProperties& visual_properties);'),
         ('canvas-old-reset', prefix + 'canvas/canvas2d/base_rendering_context_2d.h',
          'void ResetInternal() override;', 'void ResetInternal() override;\n  void Reset() override;'),
         ('canvas-input-mask-not-reset', prefix + 'canvas/canvas2d/base_rendering_context_2d.cc',
@@ -203,7 +206,7 @@ def verify_negative_controls(src: Path) -> list[str]:
         try:
             write_if_changed(path, text.replace(old, new, 1).encode())
             try:
-                verify_rendering_adaptations(src)
+                (verify_popup if label == 'popup-sizing-signature' else verify_rendering_adaptations)(src)
             except ValueError:
                 rejected.append(label)
             else:

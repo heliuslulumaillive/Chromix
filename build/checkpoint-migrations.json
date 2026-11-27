@@ -1526,6 +1526,37 @@
         "components/enterprise/connectors/core/BUILD.gn": "8435e656a3c364249ceb4f11bc727e93f35595226031f12a7166138fefc15a65"
       },
       "scope": "Exact 158.0.8127.36 source transition from the accepted slim candidate to the full 157 feature port. Verify all 1,037 preimages, including the unchanged dependency outside the projected donor manifest, before changing 76 sources. Preserve all objects and unchanged mtimes; no DLL acceptance is inherited."
+    },
+    {
+      "id": "ungoogled158-widget-signature-from45944264962-s1",
+      "chromium_version": "158.0.8127.36",
+      "core_commit": "76f39e0fead37326b9ba0440831336b198a17246",
+      "windows_commit": "76a692e3e39e1456e4691e7d9de28d32de1cdd87",
+      "arch": "x64",
+      "source_commit": "ae0ed7f4b82ec9a18d4a2c14b8d2f704875fa47e",
+      "source_run": "45944264962",
+      "source_stage": 1,
+      "source_recipe_sha256": "e170816484c46232c0257dbe7c946cce97ed9fc6ec806620c0f1d114d127a0d0",
+      "source_preparation_sha256": "e170816484c46232c0257dbe7c946cce97ed9fc6ec806620c0f1d114d127a0d0",
+      "target_recipe_sha256": "c0e11f8e9768b32a8fe41bef57a51b3c96f68b53fe6b7233ce5f9f0d78a05d42",
+      "target_preparation_sha256": "c0e11f8e9768b32a8fe41bef57a51b3c96f68b53fe6b7233ce5f9f0d78a05d42",
+      "source_aggregate_sha256": "58b99947f668bbf9b9708814b6636ca0e5dc95a717975804e718f7194e62bc4e",
+      "target_aggregate_sha256": "8b9d55dc1a0b2bbf4b8498dceda3843cdc0ff0830768d56b031198fb90b487a7",
+      "source_patch_kind": "lite-windows158-product",
+      "target_patch_kind": "lite-windows158-product",
+      "source_product_manifest": {
+        "path": "build/checkpoint-sources/ungoogled158-full-ae0ed7f-donor.json",
+        "sha256": "dcadce23f3400649b3942c8039ccf8c09d7250ab98061a4ca8586bd8a111290f"
+      },
+      "product_source_updates": [
+        {
+          "path": "third_party/blink/renderer/core/frame/web_frame_widget_impl.h",
+          "before_sha256": "8aad2561411d7c98c766d43efd63746b1d4f8158cfb7e8ed25b8141575e708bd",
+          "after_sha256": "9519965864edb2b0bb656cd5db898f8bc012ff318200c345b51013d1de4366b6",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-widget-signature/third_party/blink/renderer/core/frame/web_frame_widget_impl.h"
+        }
+      ],
+      "scope": "Repair only the WebFrameWidgetImpl header return type to match the compiled Chromium 158 void implementation. Preserve all other sources and compiled objects; no runtime acceptance is inherited."
     }
   ]
 }

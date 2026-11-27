@@ -525,7 +525,7 @@
       "releasePatch": "patches/lite-windows157/21-web-platform-surfaces.patch",
       "releaseSha256": "c30dc31be053677e70aa992898d946dad016b0abc4065e8c793f84771c3cdd6f",
       "path": "patches/lite-windows158-complete/21-web-platform-surfaces.patch",
-      "sha256": "0006974692af091a403d55406c0caddbae0111682ad723135a3e8106ca844519",
+      "sha256": "3d95a5a6d83de8f82f04b614d754e7955d90f31d25cfd0ffbe6bc8e573d53eae",
       "files": [
         "third_party/blink/common/device_memory/approximated_device_memory.cc",
         "third_party/blink/public/devtools_protocol/domains/CSS.pdl",
@@ -3709,7 +3709,7 @@
     {
       "path": "third_party/blink/renderer/core/frame/web_frame_widget_impl.h",
       "before": "22083337cc9fcb2c6a5b211c9693bfeed074983ce3cec980611d0a2856ed6c4a",
-      "after": "8aad2561411d7c98c766d43efd63746b1d4f8158cfb7e8ed25b8141575e708bd"
+      "after": "9519965864edb2b0bb656cd5db898f8bc012ff318200c345b51013d1de4366b6"
     },
     {
       "path": "third_party/blink/renderer/core/frame/web_frame_widget_test.cc",
@@ -4334,5 +4334,5 @@
       "size": 1402
     }
   },
-  "manifestSha256": "02797e1846b72ce62ed6505cd6d0207d556f8c388ed11699421ca374607b3628"
+  "manifestSha256": "90a9aa611f59bce95f52ee84a0cb7748a7df09913ad17d64839133a024e95128"
 }

@@ -64,8 +64,11 @@ def verify_store(src: Path) -> list[str]:
 def verify_popup(src: Path) -> list[str]:
     directory = 'third_party/blink/renderer/core/frame/'
     widget = directory + 'web_frame_widget_impl.cc'
+    header = directory + 'web_frame_widget_impl.h'
     emulator = directory + 'screen_metrics_emulator.cc'
     test = directory + 'web_frame_widget_test.cc'
+    require(read(src, header), ['void ApplyVisualPropertiesSizing(const VisualProperties& visual_properties);'], header)
+    require(read(src, widget), ['void WebFrameWidgetImpl::ApplyVisualPropertiesSizing(const VisualProperties& visual_properties)'], widget)
     sizing = compact(body(read(src, widget), 'WebFrameWidgetImpl::ApplyVisualPropertiesSizing'))
     measure = 'widget_base_->BlinkSpaceToFlooredDIPs(size_.value_or(gfx::Size()))'
     delivery = 'DeviceEmulator()->UpdateVisualProperties(visual_properties,compositor_rect);'
@@ -81,7 +84,7 @@ def verify_popup(src: Path) -> list[str]:
              'compositor_viewport_pixel_rect);'], emulator)
     require(read(src, test), ['EmulatedAutoResizePreservesMeasuredViewport', 'frame_widget.DisableDeviceEmulation()',
                               'EXPECT_EQ(content_size, widget->Size())'], test)
-    return [widget, emulator, test]
+    return [widget, header, emulator, test]
 
 
 def verify(src: Path) -> dict:
