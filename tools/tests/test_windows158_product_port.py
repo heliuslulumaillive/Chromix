@@ -1,6 +1,7 @@
 """Reject incomplete or mixed source ports without compiling a browser."""
 import json
 from pathlib import Path
+import re
 import shutil
 import tempfile
 import unittest
@@ -40,6 +41,27 @@ class Windows158ProductPortTests(unittest.TestCase):
         active = lite_patch_stack.load(ROOT)
         self.assertEqual(active['runtime']['chromium_version'], manifest['chromiumVersion'])
         self.assertEqual(active['source_port_manifest_sha256'], port.digest((ROOT / port.MANIFEST).read_bytes()))
+
+    def test_selected_patch_additions_retain_release_custom_symbols(self):
+        symbol = re.compile(r'\b(?:Uxr\w+|UXR_\w+|uxr[-_][\w-]+|shardx[-_][\w-]+)')
+        def additions(paths):
+            result = {}
+            for path in paths:
+                for section in re.split(r'(?m)(?=^diff --git )', (self.repo / path).read_text('utf-8')):
+                    if not section:
+                        continue
+                    name = section.splitlines()[0].split()[3][2:]
+                    if name.endswith(('.cc', '.h', '.mm', '.cpp', '.cxx')):
+                        added = '\n'.join(line[1:] for line in section.splitlines()
+                                          if line.startswith('+') and not line.startswith('+++'))
+                        result[name] = set(symbol.findall(added))
+            return result
+        release = json.loads((self.repo / port.RELEASE).read_bytes())
+        expected = additions(row['path'] for row in release['patches'])
+        selected = additions(row['path'] for row in self.manifest['groups'])
+        missing = {name: sorted(names - selected.get(name, set()))
+                   for name, names in expected.items() if names - selected.get(name, set())}
+        self.assertEqual(missing, {}, 'A partial browser patch displaced a full release feature')
 
     def test_rehashed_manifest_cannot_drop_a_release_topic(self):
         self.manifest['groups'].pop()

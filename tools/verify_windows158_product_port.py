@@ -19,7 +19,7 @@ try:
     from .google_services_inputs import owned, plain, write_if_changed
     from .platform_pins import load_pins
     from .verify_browser_feature_port import verify_signin
-    from .verify_browser_services158 import verify as verify_services, service_requirements, verify_popup
+    from .verify_browser_services158 import verify as verify_services, service_requirements, verify_popup, verify_full_feature_links
     from .verify_history_retention_source import verify as verify_history
     from .verify_native_browser_source import body, compact, read, require, verify_shell
     from .verify_native_cookie_source import verify_implementation as verify_cookie
@@ -31,7 +31,7 @@ except ImportError:
     from google_services_inputs import owned, plain, write_if_changed
     from platform_pins import load_pins
     from verify_browser_feature_port import verify_signin
-    from verify_browser_services158 import verify as verify_services, service_requirements, verify_popup
+    from verify_browser_services158 import verify as verify_services, service_requirements, verify_popup, verify_full_feature_links
     from verify_history_retention_source import verify as verify_history
     from verify_native_browser_source import body, compact, read, require, verify_shell
     from verify_native_cookie_source import verify_implementation as verify_cookie
@@ -155,12 +155,36 @@ def verify_rendering_adaptations(src: Path) -> list[str]:
     return [canvas + '.h', canvas + '.cc', audio, handler, webgl]
 
 
-def verify_source_checks(src: Path) -> dict:
+def verify_release_custom_symbols(src: Path, repo: Path) -> list[str]:
+    release = json.loads(owned(repo, RELEASE).read_bytes())
+    symbol = re.compile(r'\b(?:Uxr\w+|UXR_\w+|uxr[-_][\w-]+|shardx[-_][\w-]+)')
+    checked = []
+    for group in release['patches']:
+        raw = owned(repo, group['path']).read_text('utf-8')
+        for section in re.split(r'(?m)(?=^diff --git )', raw):
+            if not section:
+                continue
+            name = section.splitlines()[0].split()[3][2:]
+            if not name.endswith(('.cc', '.h', '.mm', '.cpp', '.cxx')):
+                continue
+            additions = '\n'.join(line[1:] for line in section.splitlines() if line.startswith('+') and not line.startswith('+++'))
+            required = set(symbol.findall(additions))
+            if not required:
+                continue
+            actual = set(symbol.findall(read(src, name)))
+            if required - actual:
+                raise ValueError('Full release custom symbols were lost in ' + name + ': ' + ', '.join(sorted(required - actual)))
+            checked.append(name)
+    return checked
+
+
+def verify_source_checks(src: Path, repo: Path | None = None) -> dict:
+    repo = repo or Path(__file__).resolve().parents[1]
     requirements = service_requirements()
     for name in ('base/BUILD.gn', 'base/uxr_surface_modes_test_main.cc', 'content/browser/speech/tts_win.cc'):
         requirements[name] = services.REQUIRED[name]
     return {
-        **verify_services(src),
+        **verify_services(src, complete=True),
         'completeServiceAndRetirementGates': services.verify_requirements(src, requirements, require_security=True, require_lite_retirement=True),
         'nativeEnvironmentControls': verify_controls(src),
         'cookieImplementation': verify_cookie(src),
@@ -169,15 +193,21 @@ def verify_source_checks(src: Path) -> dict:
         'windowsShellAndAvatar': verify_shell(src, account_overlay=True),
         'signinAndHistorySync': verify_signin(src),
         'rendering158Adaptations': verify_rendering_adaptations(src),
+        'releaseCustomSymbolCoverage': verify_release_custom_symbols(src, repo),
     }
 
 
 def verify_negative_controls(src: Path) -> list[str]:
     prefix = 'third_party/blink/renderer/modules/'
     cases = [
-        ('popup-sizing-signature', 'third_party/blink/renderer/core/frame/web_frame_widget_impl.h',
-         'void ApplyVisualPropertiesSizing(const VisualProperties& visual_properties);',
-         'bool ApplyVisualPropertiesSizing(const VisualProperties& visual_properties);'),
+        ('popup-sizing-signature', 'third_party/blink/renderer/core/frame/web_frame_widget_impl.cc',
+         'bool WebFrameWidgetImpl::ApplyVisualPropertiesSizing(',
+         'void WebFrameWidgetImpl::ApplyVisualPropertiesSizing('),
+        ('gpu-startup-preflight-removed', 'chrome/browser/chrome_browser_main.cc',
+         'if (!UxrPrepareRequiredGpu())', 'if (false)'),
+        ('inherited-screen-connection-removed', 'third_party/blink/renderer/core/frame/web_frame_widget_impl.cc',
+         'inherited_emulated_screen_infos_ = visual_properties.emulated_screen_infos;',
+         'inherited_emulated_screen_infos_.reset();'),
         ('canvas-old-reset', prefix + 'canvas/canvas2d/base_rendering_context_2d.h',
          'void ResetInternal() override;', 'void ResetInternal() override;\n  void Reset() override;'),
         ('canvas-input-mask-not-reset', prefix + 'canvas/canvas2d/base_rendering_context_2d.cc',
@@ -206,7 +236,12 @@ def verify_negative_controls(src: Path) -> list[str]:
         try:
             write_if_changed(path, text.replace(old, new, 1).encode())
             try:
-                (verify_popup if label == 'popup-sizing-signature' else verify_rendering_adaptations)(src)
+                if label == 'popup-sizing-signature':
+                    verify_popup(src, complete=True)
+                elif label in ('gpu-startup-preflight-removed', 'inherited-screen-connection-removed'):
+                    verify_full_feature_links(src)
+                else:
+                    verify_rendering_adaptations(src)
             except ValueError:
                 rejected.append(label)
             else:
@@ -254,7 +289,7 @@ def verify(repo: Path, baseline: Path, patch_bin: Path, *, export_source: Path |
         for row in manifest['sourceFiles']:
             if digest(source(tree, row['path'], binaries)) != row['after']:
                 raise ValueError('Wrong ported source: ' + row['path'])
-        checks = verify_source_checks(tree)
+        checks = verify_source_checks(tree, repo)
         negative_controls = verify_negative_controls(tree)
         gn_syntax = verify_gn(tree, manifest, gn_bin) if gn_bin is not None else {'status': 'not-run'}
         restored_source_resources.verify(tree, repo, manifest)

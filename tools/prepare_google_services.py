@@ -195,7 +195,7 @@ def verify_prepared_sources(src: Path, repo: Path, config: dict, *, product=Fals
             from .verify_windows158_product_port import verify_source_checks
         except ImportError:
             from verify_windows158_product_port import verify_source_checks
-        checked = sorted({name for names in verify_source_checks(src).values() for name in names})
+        checked = sorted({name for names in verify_source_checks(src, repo).values() for name in names})
     else:
         checked = verify_signin_source(src, **source_checks)
     if native_browser_input_names(config):

@@ -61,14 +61,15 @@ def verify_store(src: Path) -> list[str]:
     return [definitions, *(path for path, _, _ in methods)]
 
 
-def verify_popup(src: Path) -> list[str]:
+def verify_popup(src: Path, *, complete=False) -> list[str]:
     directory = 'third_party/blink/renderer/core/frame/'
     widget = directory + 'web_frame_widget_impl.cc'
     header = directory + 'web_frame_widget_impl.h'
     emulator = directory + 'screen_metrics_emulator.cc'
     test = directory + 'web_frame_widget_test.cc'
-    require(read(src, header), ['void ApplyVisualPropertiesSizing(const VisualProperties& visual_properties);'], header)
-    require(read(src, widget), ['void WebFrameWidgetImpl::ApplyVisualPropertiesSizing(const VisualProperties& visual_properties)'], widget)
+    result_type = 'bool' if complete else 'void'
+    require(read(src, header), [result_type + ' ApplyVisualPropertiesSizing(const VisualProperties& visual_properties);'], header)
+    require(read(src, widget), [result_type + ' WebFrameWidgetImpl::ApplyVisualPropertiesSizing(const VisualProperties& visual_properties)'], widget)
     sizing = compact(body(read(src, widget), 'WebFrameWidgetImpl::ApplyVisualPropertiesSizing'))
     measure = 'widget_base_->BlinkSpaceToFlooredDIPs(size_.value_or(gfx::Size()))'
     delivery = 'DeviceEmulator()->UpdateVisualProperties(visual_properties,compositor_rect);'
@@ -78,8 +79,11 @@ def verify_popup(src: Path) -> list[str]:
     require(body(read(src, widget), 'WebFrameWidgetImpl::SetScreenInfoAndSize'),
             ['if (!AutoResizeMode()) { Resize(widget_base_->DIPsToCeiledBlinkSpace(widget_size_in_dips)); }'], widget)
     require(body(read(src, widget), 'WebFrameWidgetImpl::DidAutoResize'), ['GetOriginalScreenInfo().device_scale_factor'], widget)
+    guards = (['!frame_widget_->IsScreenUpdateCurrent(update_sequence + 1)',
+               '++frame_widget_->visual_properties_update_sequence_;'] if complete else
+              ['visual_properties_generation_ != generation'])
     require(body(read(src, emulator), 'ScreenMetricsEmulator::UpdateVisualProperties'),
-            ['frame_widget_->DeviceEmulator() != this', 'visual_properties_generation_ != generation',
+            ['frame_widget_->DeviceEmulator() != this', *guards,
              'frame_widget_->UpdateSurfaceAndCompositorRect(visual_properties.local_surface_id.value_or(viz::LocalSurfaceId()), '
              'compositor_viewport_pixel_rect);'], emulator)
     require(read(src, test), ['EmulatedAutoResizePreservesMeasuredViewport', 'frame_widget.DisableDeviceEmulation()',
@@ -87,11 +91,66 @@ def verify_popup(src: Path) -> list[str]:
     return [widget, header, emulator, test]
 
 
-def verify(src: Path) -> dict:
-    return {
+def verify_full_feature_links(src: Path) -> list[str]:
+    widget = 'third_party/blink/renderer/core/frame/web_frame_widget_impl.cc'
+    code = read(src, widget)
+    require(body(code, 'WebFrameWidgetImpl::UpdateVisualProperties'), [
+        'if (!ApplyVisualPropertiesSizing(visual_properties)) { ++visual_properties_update_sequence_; return; }',
+        'if (ForTopMostMainFrame() && !uxr_display_initialized_)',
+        'uxr_display_initialized_ = true;', 'const auto display = base::UxrConfig::GetInstance().Display();',
+        'if (display.enabled() && !DeviceEmulator())',
+        'params.screen_size = gfx::Size(display.width, display.height);',
+        'params.device_scale_factor = static_cast<float>(display.device_scale_factor);',
+        'EnableDeviceEmulation(params, mojom::blink::DeviceEmulationCacheBehavior::kClearCache);'], widget)
+    require(body(code, 'WebFrameWidgetImpl::ApplyVisualPropertiesSizing'), [
+        'inherited_emulated_screen_infos_ = visual_properties.emulated_screen_infos;',
+        'return IsScreenUpdateCurrent(initial_sequence + 2);', 'return IsScreenUpdateCurrent(update_sequence);'], widget)
+    require(body(code, 'WebFrameWidgetImpl::GetScreenInfos'), [
+        '!device_emulator_ && inherited_emulated_screen_infos_',
+        'if (auto orientation = ScreenOrientationOverride())'], widget)
+    require(body(code, 'WebFrameWidgetImpl::GetEmulatedScreenInfos'), [
+        'inherited_emulated_screen_infos_ || ScreenOrientationOverride()', 'return GetScreenInfos();',
+        'return std::nullopt;'], widget)
+    require(body(code, 'WebFrameWidgetImpl::IsScreenUpdateCurrent'), [
+        'widget_base_ && !widget_base_->WillBeDestroyed() && local_root_',
+        'screen_update_sequence_ == sequence'], widget)
+    original = body(code, 'WebFrameWidgetImpl::GetOriginalScreenInfos')
+    require(original, ['device_emulator_->original_screen_infos()', 'widget_base_->screen_infos()'], widget)
+    if 'inherited_emulated_screen_infos_' in original:
+        raise ValueError('The native layout/input screen must not use the emulated web screen')
+    emulator = 'third_party/blink/renderer/core/frame/screen_metrics_emulator.cc'
+    require(body(read(src, emulator), 'ScreenMetricsEmulator::Apply'), [
+        'base::UxrConfig::GetInstance().Display()', 'display.available_width', 'display.available_height'], emulator)
+    test = 'third_party/blink/renderer/core/frame/web_frame_widget_test.cc'
+    require(read(src, test), [
+        'EmulatedScreenInheritanceAndOwnPriority', 'EmulatedScreenMojoRoundTripAndClear',
+        'EmulatedScreenOrientationDetachDuringNotification', 'EmulatedScreenOrientationOnlyHostRotationAndClear',
+        'EmulatedScreenOrientationReentryKeepsLatestSize', 'EmulatedScreenOrientationRefreshPreservesNativeState',
+        'EmulatedScreenPreservesNativeLayoutAndInputScale', 'EmulatedAutoResizePreservesMeasuredViewport',
+        'EmulatedScreenInitialNestedPropagationAndClear', 'EmulatedScreenOrientationEventsAndOwnOverride',
+        'EmulatedScreenOwnOrientationReentry', 'EmulatedScreenOwnVisualPropertiesReentry',
+        'PixelDeltasWithExternalPageScale', 'PageDeltasKeepExistingNormalization'], test)
+    main = 'chrome/browser/chrome_browser_main.cc'
+    startup = read(src, main)
+    require(body(startup, 'UxrRequiredGpuMatches'), [
+        'info.active_gpu()', '!info.gl_renderer.empty()', 'active.active',
+        'gl::ANGLEImplementation::kD3D11', 'active.luid.HighPart == high', 'active.luid.LowPart == low'], main)
+    require(body(startup, 'UxrPrepareRequiredGpu'), [
+        'receipt.IsAbsolute()', 'nonce.size() != 32', 'if (!waiter.Wait())',
+        'content::GpuDataManager::GetInstance()->GetGPUInfo()', 'if (!UxrRequiredGpuMatches(info))'], main)
+    require(body(startup, 'ChromeBrowserMainParts::PreMainMessageLoopRunImpl'), [
+        'if (!UxrPrepareRequiredGpu())', 'return content::RESULT_CODE_GPU_DEAD_ON_ARRIVAL;'], main)
+    return [widget, emulator, test, main]
+
+
+def verify(src: Path, *, complete=False) -> dict:
+    checks = {
         'googleServicesAndProtection': services.verify_requirements(src, service_requirements(), require_security=True),
         'securityPreferenceMetadata': verify_security_sync_prefs(src),
         'nativeBuildTargets': verify_build(src),
         'searchAndExtensionStore': verify_store(src),
-        'extensionPopup': verify_popup(src),
+        'extensionPopup': verify_popup(src, complete=complete),
     }
+    if complete:
+        checks['fullScreenAndGpuConnections'] = verify_full_feature_links(src)
+    return checks

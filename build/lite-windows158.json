@@ -323,7 +323,7 @@
     },
     {
       "path": "patches/lite-windows158-complete/16-display.patch",
-      "sha256": "867462d368ce0f51a644599f5c2a618c2cddbbac35d2495e2bd7181795212446",
+      "sha256": "01eaa206b233ae3ec6563cd528bea0b9bc43afaf937f2fd17f9ffaf7ee9f4c51",
       "files": [
         "base/uxr_headless_screen.h",
         "chrome/browser/feedback/report_unsafe_site/screenshot_taker.cc",
@@ -515,7 +515,7 @@
     },
     {
       "path": "patches/lite-windows158-complete/21-web-platform-surfaces.patch",
-      "sha256": "3d95a5a6d83de8f82f04b614d754e7955d90f31d25cfd0ffbe6bc8e573d53eae",
+      "sha256": "cd4e52d3f8448c3add4d6d228fe5e6724bec42c2e1530fb0753936fd554378df",
       "files": [
         "third_party/blink/common/device_memory/approximated_device_memory.cc",
         "third_party/blink/public/devtools_protocol/domains/CSS.pdl",
@@ -608,7 +608,7 @@
     },
     {
       "path": "patches/lite-windows158-complete/24-google-services-and-browser.patch",
-      "sha256": "6ad9316fe473e8ab057c103044ea3f4f18f988685fc79ab59d498a74cf2bea80",
+      "sha256": "d108bd3f8709637c2c3dc972b5c7c9d42a5ed5b20a9c2b98ed1f660c86e5ff81",
       "files": [
         "chrome/browser/browsing_data/chrome_browsing_data_lifetime_manager.cc",
         "chrome/browser/chrome_browser_main.cc",
@@ -1271,7 +1271,7 @@
     {
       "path": "chrome/browser/chrome_browser_main.cc",
       "before_sha256": "aa4dba350cedbdac2c59ebd601ef6c3434a606cbeb8584c1a28faef4d6da9903",
-      "after_sha256": "d9d9bad38c8e6f6aaef40d1d5cd8265aafe7d372fa07fbe2e9db965868bdd586"
+      "after_sha256": "3a05e96cd04d3b46779dc6503cec1b4d2f4aadff8facaebf8e0511fc40ce1e90"
     },
     {
       "path": "chrome/browser/chrome_content_browser_client.cc",
@@ -5231,27 +5231,27 @@
     {
       "path": "third_party/blink/renderer/core/frame/screen_metrics_emulator.cc",
       "before_sha256": "e4c05835bab1e93b14ca7920d3744ce9918ac3dde031962d542e4974a7ecb36e",
-      "after_sha256": "67e86fe655fbb0d7053483aa5be90bcfa1be5d7f872b8b912549cf3377858362"
+      "after_sha256": "93a6e7eec6f5f21d856fd2e5b54913aa5c88e0afe5b8b1f3572ce5f0927d50b7"
     },
     {
       "path": "third_party/blink/renderer/core/frame/screen_metrics_emulator.h",
       "before_sha256": "a78820467f8c08c9c398e3968203240a950f3beadb7ee4c9235d7b6d7eb4f19b",
-      "after_sha256": "d951fc19cdac5758dfff4f9484e4e6fd3246aada1a3e3dbb6996f7b882642c50"
+      "after_sha256": "2ad448455cf0497b6fd9aca3c75dc0c3fba4ca176e46fe92882d19b96f43cd1b"
     },
     {
       "path": "third_party/blink/renderer/core/frame/web_frame_widget_impl.cc",
       "before_sha256": "825c19b73301179768f5f16c8339ef99d4218adaa9911f7e8aea009dbb94199c",
-      "after_sha256": "06df9b43406a90db6b90599955cc520c64a6667f9909f9059137fc52c01fe466"
+      "after_sha256": "9d1454fe2305fdda2a775ed45660753f494166ac3cf5ae939fec26cd22028f87"
     },
     {
       "path": "third_party/blink/renderer/core/frame/web_frame_widget_impl.h",
       "before_sha256": "22083337cc9fcb2c6a5b211c9693bfeed074983ce3cec980611d0a2856ed6c4a",
-      "after_sha256": "9519965864edb2b0bb656cd5db898f8bc012ff318200c345b51013d1de4366b6"
+      "after_sha256": "8aad2561411d7c98c766d43efd63746b1d4f8158cfb7e8ed25b8141575e708bd"
     },
     {
       "path": "third_party/blink/renderer/core/frame/web_frame_widget_test.cc",
       "before_sha256": "1371bcf740ba6c8dd19cf02d005d6f02a4ddbdd48ffb957bf2a7a18a226a2835",
-      "after_sha256": "5e1818b50f544bc5fa9d113aac0fe9aa5ffe74b201c2f0712b820ff198d1864e"
+      "after_sha256": "8bfc4074bd2b7e5f33dae52ad8b063ddf9f52729a1beb43aeae2272cdb4b877c"
     },
     {
       "path": "third_party/blink/renderer/core/frame/web_remote_frame_impl.cc",
@@ -6584,7 +6584,7 @@
     "v8/src/inspector/v8-runtime-agent-impl.cc",
     "v8/src/inspector/v8-runtime-agent-impl.h"
   ],
-  "source_port_manifest_sha256": "708828a498eb3d2bbb951748f5823446e1e115ed10941f4a593e1f057d540af5",
+  "source_port_manifest_sha256": "6ab984dc5f8b422c4ea80269cad22fefeae2be80a9e81447a598c132cf38b4df",
   "chromium_base_sha256": "ee9a646bbf1f7cbb4c37772322a79bc4f425bd930b68ccfc4bb8364ee7741e0c",
   "upstream_port": {
     "chromium_version": "158.0.8127.36",
@@ -6603,5 +6603,5 @@
       "build/toolchain/win/midl.py"
     ]
   },
-  "stack_sha256": "8b9d55dc1a0b2bbf4b8498dceda3843cdc0ff0830768d56b031198fb90b487a7"
+  "stack_sha256": "babd9d49f37f92c42f2de65870e59441914922e9839da9390bbe98f8f168a85e"
 }

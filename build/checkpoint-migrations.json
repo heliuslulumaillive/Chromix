@@ -1557,6 +1557,61 @@
         }
       ],
       "scope": "Repair only the WebFrameWidgetImpl header return type to match the compiled Chromium 158 void implementation. Preserve all other sources and compiled objects; no runtime acceptance is inherited."
+    },
+    {
+      "id": "ungoogled158-complete-mixed-features-from45944264962-s1",
+      "chromium_version": "158.0.8127.36",
+      "core_commit": "76f39e0fead37326b9ba0440831336b198a17246",
+      "windows_commit": "76a692e3e39e1456e4691e7d9de28d32de1cdd87",
+      "arch": "x64",
+      "source_commit": "ae0ed7f4b82ec9a18d4a2c14b8d2f704875fa47e",
+      "source_run": "45944264962",
+      "source_stage": 1,
+      "source_recipe_sha256": "e170816484c46232c0257dbe7c946cce97ed9fc6ec806620c0f1d114d127a0d0",
+      "source_preparation_sha256": "e170816484c46232c0257dbe7c946cce97ed9fc6ec806620c0f1d114d127a0d0",
+      "source_aggregate_sha256": "58b99947f668bbf9b9708814b6636ca0e5dc95a717975804e718f7194e62bc4e",
+      "source_patch_kind": "lite-windows158-product",
+      "target_recipe_sha256": "d772e456a57c7980d23a1dab657517d7a3f7097618586f1354270d0895697f34",
+      "target_preparation_sha256": "d772e456a57c7980d23a1dab657517d7a3f7097618586f1354270d0895697f34",
+      "target_aggregate_sha256": "babd9d49f37f92c42f2de65870e59441914922e9839da9390bbe98f8f168a85e",
+      "target_patch_kind": "lite-windows158-product",
+      "source_product_manifest": {
+        "path": "build/checkpoint-sources/ungoogled158-full-ae0ed7f-donor.json",
+        "sha256": "dcadce23f3400649b3942c8039ccf8c09d7250ab98061a4ca8586bd8a111290f"
+      },
+      "product_source_updates": [
+        {
+          "path": "chrome/browser/chrome_browser_main.cc",
+          "before_sha256": "d9d9bad38c8e6f6aaef40d1d5cd8265aafe7d372fa07fbe2e9db965868bdd586",
+          "after_sha256": "3a05e96cd04d3b46779dc6503cec1b4d2f4aadff8facaebf8e0511fc40ce1e90",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-complete-display/chrome/browser/chrome_browser_main.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/frame/screen_metrics_emulator.cc",
+          "before_sha256": "67e86fe655fbb0d7053483aa5be90bcfa1be5d7f872b8b912549cf3377858362",
+          "after_sha256": "93a6e7eec6f5f21d856fd2e5b54913aa5c88e0afe5b8b1f3572ce5f0927d50b7",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-complete-display/third_party/blink/renderer/core/frame/screen_metrics_emulator.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/frame/screen_metrics_emulator.h",
+          "before_sha256": "d951fc19cdac5758dfff4f9484e4e6fd3246aada1a3e3dbb6996f7b882642c50",
+          "after_sha256": "2ad448455cf0497b6fd9aca3c75dc0c3fba4ca176e46fe92882d19b96f43cd1b",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-complete-display/third_party/blink/renderer/core/frame/screen_metrics_emulator.h"
+        },
+        {
+          "path": "third_party/blink/renderer/core/frame/web_frame_widget_impl.cc",
+          "before_sha256": "06df9b43406a90db6b90599955cc520c64a6667f9909f9059137fc52c01fe466",
+          "after_sha256": "9d1454fe2305fdda2a775ed45660753f494166ac3cf5ae939fec26cd22028f87",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-complete-display/third_party/blink/renderer/core/frame/web_frame_widget_impl.cc"
+        },
+        {
+          "path": "third_party/blink/renderer/core/frame/web_frame_widget_test.cc",
+          "before_sha256": "5e1818b50f544bc5fa9d113aac0fe9aa5ffe74b201c2f0712b820ff198d1864e",
+          "after_sha256": "8bfc4074bd2b7e5f33dae52ad8b063ddf9f52729a1beb43aeae2272cdb4b877c",
+          "replacement_path": "build/checkpoint-sources/ungoogled158-complete-display/third_party/blink/renderer/core/frame/web_frame_widget_test.cc"
+        }
+      ],
+      "scope": "Restore complete release GPU startup and custom-screen behavior in mixed browser files; preserve all 12 release screen regressions and the 158 tests. Only five source files differ from the retained failed-build checkpoint. No object or acceptance identity is inherited."
     }
   ]
 }
