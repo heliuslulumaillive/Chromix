@@ -46,6 +46,23 @@ def reviewed_updates(repo, rule):
             raise ValueError('Duplicate donor source identity')
         if set(donor_rows) - set(expected):
             raise ValueError('Target inventory omits donor-owned source paths')
+        support = rule.get('source_support_files', {})
+        if not isinstance(support, dict):
+            raise ValueError('Invalid additional donor source identities')
+        for name, checksum in support.items():
+            owned(repo, name)
+            row = declarations.get(name, {})
+            if (name.startswith('out/') or name in donor_rows or not isinstance(checksum, str) or not HEX.fullmatch(checksum)
+                    or row.get('before_sha256') != checksum or row.get('after_sha256') != checksum):
+                raise ValueError('Additional donor inputs must be exact unchanged source dependencies')
+            donor_rows[name] = checksum
+        # A projected donor manifest does not describe every file in Chromium.
+        # Undeclared existing inputs need explicit pins, never invented absence.
+        for name, row in declarations.items():
+            if name not in donor_rows and row.get('before_sha256') is not None:
+                raise ValueError('Missing unchanged donor source identity: ' + name)
+    elif rule.get('source_support_files'):
+        raise ValueError('Additional donor sources require an authenticated donor product manifest')
     seen = set()
     for update in updates:
         if not isinstance(update, dict) or set(update) != {'path', 'before_sha256', 'after_sha256', 'replacement_path'}:

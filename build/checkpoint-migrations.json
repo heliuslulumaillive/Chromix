@@ -1053,9 +1053,9 @@
       "source_run": "45364308215",
       "source_stage": 1,
       "source_recipe_sha256": "896dc0d67fa5d46a4c0e60dfb056dd20b72a65ff659e42c88bbd9cfa54d57bac",
-      "target_recipe_sha256": "7c57854497ef08bdce7fa802ed0fb4ca58146997cda8014580a9042754cbbcca",
+      "target_recipe_sha256": "e170816484c46232c0257dbe7c946cce97ed9fc6ec806620c0f1d114d127a0d0",
       "source_preparation_sha256": "896dc0d67fa5d46a4c0e60dfb056dd20b72a65ff659e42c88bbd9cfa54d57bac",
-      "target_preparation_sha256": "7c57854497ef08bdce7fa802ed0fb4ca58146997cda8014580a9042754cbbcca",
+      "target_preparation_sha256": "e170816484c46232c0257dbe7c946cce97ed9fc6ec806620c0f1d114d127a0d0",
       "source_aggregate_sha256": "686f6af179b8cc118ff60136eee849edbc0bb5dc832c6a47e6baae93c1d2a58f",
       "target_aggregate_sha256": "58b99947f668bbf9b9708814b6636ca0e5dc95a717975804e718f7194e62bc4e",
       "source_patch_kind": "lite-windows158-product",
@@ -1220,12 +1220,6 @@
           "before_sha256": "afa74843473cb5d5248d2830c6d99ad9ad65733852eef1d8bd92c7169ba74137",
           "after_sha256": "e42b656c1dc2483c1b17008dc53b551c085dbcbaf6d0454033dc805d776b589d",
           "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/chrome/browser/ui/views/extensions/extension_view_views.cc"
-        },
-        {
-          "path": "components/enterprise/connectors/core/BUILD.gn",
-          "before_sha256": null,
-          "after_sha256": "8435e656a3c364249ceb4f11bc727e93f35595226031f12a7166138fefc15a65",
-          "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/components/enterprise/connectors/core/BUILD.gn"
         },
         {
           "path": "components/ungoogled/BUILD.gn",
@@ -1528,7 +1522,10 @@
           "replacement_path": "build/checkpoint-sources/ungoogled158-from-native158/v8/src/inspector/v8-runtime-agent-impl.cc"
         }
       ],
-      "scope": "Exact 158.0.8127.36 source transition from the accepted slim candidate to the full 157 feature port. Verify all 1,037 preimages before changing 77 sources. Preserve all objects and unchanged mtimes; no DLL acceptance is inherited."
+      "source_support_files": {
+        "components/enterprise/connectors/core/BUILD.gn": "8435e656a3c364249ceb4f11bc727e93f35595226031f12a7166138fefc15a65"
+      },
+      "scope": "Exact 158.0.8127.36 source transition from the accepted slim candidate to the full 157 feature port. Verify all 1,037 preimages, including the unchanged dependency outside the projected donor manifest, before changing 76 sources. Preserve all objects and unchanged mtimes; no DLL acceptance is inherited."
     }
   ]
 }

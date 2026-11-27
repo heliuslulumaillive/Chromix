@@ -116,6 +116,51 @@ class ProductSourceMigrationTests(unittest.TestCase):
             migration.apply_source_updates(self.repo, self.src, self.rule)
         self.assertEqual(self.snapshot(), before)
 
+    def add_existing_unlisted_dependency(self):
+        name = 'components/enterprise/connectors/core/BUILD.gn'
+        raw = b'unchanged upstream build dependency\n'
+        path = self.src / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(raw)
+        self.product['source_files'].append({'path': name, 'before_sha256': digest(raw), 'after_sha256': digest(raw)})
+        self.bind_reviewed_donor()
+        return name, path, raw
+
+    def test_projected_donor_does_not_imply_unlisted_dependency_is_absent(self):
+        name, path, raw = self.add_existing_unlisted_dependency()
+        replacement = 'build/checkpoint-sources/dependency.gn'
+        (self.repo / replacement).write_bytes(raw)
+        self.updates.append({'path': name, 'before_sha256': None, 'after_sha256': digest(raw), 'replacement_path': replacement})
+        with self.assertRaisesRegex(ValueError, 'Missing unchanged donor source identity'):
+            migration.reviewed_updates(self.repo, self.rule)
+
+    def test_exact_additional_dependency_is_checked_and_its_timestamp_preserved(self):
+        name, path, raw = self.add_existing_unlisted_dependency()
+        self.rule['source_support_files'] = {name: digest(raw)}
+        before = self.snapshot()
+        migration.apply_source_updates(self.repo, self.src, self.rule)
+        self.assertEqual(self.snapshot()[name], before[name])
+        self.assertEqual(self.snapshot()['out/Default/obj/retained.obj'], before['out/Default/obj/retained.obj'])
+
+    def test_missing_or_tampered_additional_dependency_rejects_before_writes(self):
+        name, path, raw = self.add_existing_unlisted_dependency()
+        self.rule['source_support_files'] = {name: digest(raw)}
+        for content in (None, b'tampered dependency\n'):
+            if content is None:
+                path.unlink()
+            else:
+                path.write_bytes(content)
+            before = self.snapshot()
+            with self.assertRaises(ValueError):
+                migration.apply_source_updates(self.repo, self.src, self.rule)
+            self.assertEqual(self.snapshot(), before)
+
+    def test_additional_dependency_cannot_override_a_donor_pin(self):
+        name, path, raw = self.add_existing_unlisted_dependency()
+        self.rule['source_support_files'] = {name: digest(raw), 'unchanged.cc': digest(self.original['unchanged.cc'])}
+        with self.assertRaisesRegex(ValueError, 'exact unchanged source dependencies'):
+            migration.reviewed_updates(self.repo, self.rule)
+
     def test_reviewed_created_header_requires_absence_and_exact_pinned_bytes(self):
         content=b'reviewed new private resource helper\n'
         name='base/reviewed-private-fonts.h';replacement='build/checkpoint-sources/'+digest(content)+'.h'
